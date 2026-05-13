@@ -1,0 +1,38 @@
+.to-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface-muted);
+  color: var(--to-color-text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--to-color-border);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.to-icon-button--sm {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.to-icon-button--md {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+}
+
+.to-icon-button--lg {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+}

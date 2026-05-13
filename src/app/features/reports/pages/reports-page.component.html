@@ -1,0 +1,7 @@
+<to-page-header title="Reportes" subtitle="Resumen ejecutivo (mock)" />
+
+@if (loading()) {
+  <to-skeleton [lines]="4" />
+} @else {
+  <to-table [columns]="columns" [rows]="rows()" />
+}

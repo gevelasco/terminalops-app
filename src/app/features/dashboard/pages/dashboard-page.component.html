@@ -1,0 +1,192 @@
+@if (loading()) {
+  <to-skeleton [lines]="4" />
+} @else {
+  <div class="dash-layout">
+    <div class="dash-grid">
+      @for (a of alerts(); track a.id) {
+        <to-card [title]="a.title" [titleIcon]="a.titleIcon">
+          <div class="to-card-metric dash-kpi">
+            <span class="dash-kpi__value">{{ a.message }}</span>
+            @if (a.legend) {
+              <span class="dash-kpi__unit">{{ a.legend }}</span>
+            }
+          </div>
+        </to-card>
+      }
+    </div>
+
+    <div class="dash-split">
+      <section
+        class="dash-split__alerts"
+        aria-labelledby="dash-critical-heading"
+      >
+        <h2 id="dash-critical-heading" class="dash-critical__title">
+          <svg
+            width="22"
+            height="22"
+            class="dash-critical__title-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+            />
+          </svg>
+          Alertas críticas
+        </h2>
+
+        <div class="dash-critical-scroll">
+          @for (c of criticalAlerts(); track c.id) {
+            <article class="dash-critical-card">
+              <div class="dash-critical-card__icon-wrap" aria-hidden="true">
+                <svg
+                  width="22"
+                  height="22"
+                  class="dash-critical-card__icon"
+                  viewBox="0 0 24 24"
+                >
+                  <path fill="currentColor" [attr.d]="iconPath(c.kind)" />
+                </svg>
+              </div>
+              <div class="dash-critical-card__body">
+                <h3 class="dash-critical-card__title">{{ c.title }}</h3>
+                <p class="dash-critical-card__desc">{{ c.description }}</p>
+                <div class="dash-critical-card__footer">
+                  <time
+                    class="dash-critical-card__date"
+                    [attr.datetime]="c.detectedAt"
+                    >{{ formatDate(c.detectedAt) }}</time
+                  >
+                  <to-badge [variant]="badgeVariant(c.severity)">{{
+                    severityLabel(c.severity)
+                  }}</to-badge>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+
+      <section
+        class="dash-split__maniobra"
+        aria-labelledby="dash-maniobra-heading"
+      >
+        <h2 id="dash-maniobra-heading" class="dash-maniobra__title">
+          <svg
+            width="22"
+            height="22"
+            class="dash-maniobra__title-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9 1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"
+            />
+          </svg>
+          Últimas 10 maniobras
+        </h2>
+        <div class="dash-maniobra__table-wrap">
+          <to-table [columns]="tripColumns" [rows]="tripRows()" />
+        </div>
+      </section>
+    </div>
+
+    <section class="dash-charts" aria-labelledby="dash-charts-heading">
+      <h2 id="dash-charts-heading" class="dash-charts__heading">
+        <svg
+          class="dash-charts__heading-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            fill="currentColor"
+            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7v-7zm4-5h2v12h-2V5zm4 7h2v5h-2v-5z"
+          />
+        </svg>
+        Resumen operativo
+      </h2>
+      <div class="dash-charts__grid">
+        <div class="dash-chart-pane">
+          <to-card title="Maniobras por estado">
+            <div class="dash-chart-stack">
+              <div class="dash-chart-bar">
+                @for (row of tripStatusSlices(); track row.status) {
+                  <div class="dash-chart-bar__row">
+                    <span class="dash-chart-bar__label">{{ row.label }}</span>
+                    <div class="dash-chart-bar__track">
+                      <div
+                        [class]="
+                          'dash-chart-bar__fill ' + statusFillClass(row.status)
+                        "
+                        [style.width.%]="row.pct"
+                      ></div>
+                    </div>
+                    <span class="dash-chart-bar__meta">
+                      {{ row.count }}
+                      <span class="dash-chart-bar__pct">({{ row.pct }}%)</span>
+                    </span>
+                  </div>
+                }
+              </div>
+
+              <div class="dash-chart-divider" role="presentation"></div>
+
+              <p class="dash-chart-inline-head">Tipo de operación</p>
+              <div class="dash-chart-bar dash-chart-bar--sub">
+                @for (row of operationTypeSlices(); track row.label) {
+                  <div class="dash-chart-bar__row">
+                    <span class="dash-chart-bar__label">{{ row.label }}</span>
+                    <div class="dash-chart-bar__track">
+                      <div
+                        [class]="
+                          'dash-chart-bar__fill ' + operationFillClass(row.tone)
+                        "
+                        [style.width.%]="row.pct"
+                      ></div>
+                    </div>
+                    <span class="dash-chart-bar__meta">
+                      {{ row.count }}
+                      <span class="dash-chart-bar__pct">({{ row.pct }}%)</span>
+                    </span>
+                  </div>
+                }
+              </div>
+            </div>
+          </to-card>
+        </div>
+
+        <div class="dash-chart-pane dash-chart-pane--weekly">
+          <to-card
+            title="Volumen semanal"
+            subtitle="Maniobras completadas · últimos 7 días (mock)"
+          >
+            <div class="dash-chart-weekly">
+              <div
+                class="dash-chart-col"
+                role="img"
+                aria-label="Gráfica de barras semanal"
+              >
+                @for (p of weeklyTripVolume(); track p.day) {
+                  <div class="dash-chart-col__cell">
+                    <span class="dash-chart-col__value">{{ p.value }}</span>
+                    <div class="dash-chart-col__track">
+                      <div
+                        class="dash-chart-col__bar"
+                        [style.height.%]="weeklyBarHeightPct(p.value)"
+                      ></div>
+                    </div>
+                    <span class="dash-chart-col__day">{{ p.day }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </to-card>
+        </div>
+      </div>
+    </section>
+  </div>
+}

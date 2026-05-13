@@ -1,0 +1,109 @@
+.fleet-page-header__btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fleet-table-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.fleet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.fleet-toolbar__search {
+  flex: 1 1 12rem;
+  min-width: min(100%, 12rem);
+  max-width: 24rem;
+  min-height: 0;
+
+  to-input {
+    display: block;
+    width: 100%;
+  }
+}
+
+.fleet-empty-hint {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.fleet-segment {
+  display: flex;
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.2rem;
+  box-sizing: border-box;
+  border-radius: var(--to-radius-lg);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 78%, transparent);
+  gap: 0.15rem;
+}
+
+.fleet-segment__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--to-radius-lg) - 3px);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--to-color-text-muted);
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    color: var(--to-color-text);
+    background: color-mix(in srgb, var(--to-color-surface) 55%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.fleet-segment__btn--active {
+  border-color: color-mix(in srgb, var(--to-color-border) 88%, transparent);
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--to-color-text) 8%, transparent);
+}
+
+.fleet-segment__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.72;
+  color: currentColor;
+}
+
+.fleet-segment__btn--active .fleet-segment__icon {
+  opacity: 1;
+  color: var(--to-color-primary);
+}

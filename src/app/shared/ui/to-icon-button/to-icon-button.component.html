@@ -1,0 +1,9 @@
+<button
+  class="to-icon-button"
+  [class]="'to-icon-button--' + size()"
+  [attr.type]="type()"
+  [disabled]="disabled()"
+  [attr.aria-label]="label()"
+>
+  <ng-content />
+</button>

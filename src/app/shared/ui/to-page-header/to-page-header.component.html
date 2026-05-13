@@ -1,0 +1,16 @@
+<header class="to-page-header">
+  <div class="to-page-header__lead">
+    <div class="to-page-header__icon-slot">
+      <ng-content select=".to-page-header-icon" />
+    </div>
+    <div class="to-page-header__text">
+      <h1 class="to-page-header__title">{{ title() }}</h1>
+      @if (subtitle()) {
+        <p class="to-page-header__subtitle">{{ subtitle() }}</p>
+      }
+    </div>
+  </div>
+  <div class="to-page-header__actions">
+    <ng-content />
+  </div>
+</header>

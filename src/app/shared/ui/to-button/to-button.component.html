@@ -1,0 +1,17 @@
+<button
+  [class]="
+    'to-button to-button--' +
+    variant() +
+    ' to-button--' +
+    size() +
+    (loading() ? ' to-button--loading' : '')
+  "
+  [attr.type]="type()"
+  [attr.aria-label]="ariaLabel() ?? null"
+  [disabled]="disabled() || loading()"
+>
+  @if (loading()) {
+    <span class="to-button__spinner" aria-hidden="true"></span>
+  }
+  <ng-content />
+</button>

@@ -1,0 +1,7 @@
+<to-page-header title="Gastos" subtitle="Registro operativo (mock)" />
+
+@if (loading()) {
+  <to-skeleton [lines]="5" />
+} @else {
+  <to-table [columns]="columns" [rows]="rows()" />
+}

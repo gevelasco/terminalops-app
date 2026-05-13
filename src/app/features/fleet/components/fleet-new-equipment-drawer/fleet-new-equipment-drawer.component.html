@@ -1,0 +1,57 @@
+<div
+  class="fleet-drawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="fleet-equipment-drawer-title"
+>
+  <button
+    type="button"
+    class="fleet-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="dismiss.emit()"
+  ></button>
+
+  <aside class="fleet-drawer__panel">
+    <header class="fleet-drawer__header">
+      <h2 id="fleet-equipment-drawer-title" class="fleet-drawer__title">
+        Nuevo equipo
+      </h2>
+      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          />
+        </svg>
+      </to-icon-button>
+    </header>
+
+    <form class="fleet-drawer__form" (ngSubmit)="submit()">
+      <div class="fleet-drawer__body">
+        <to-select
+          label="Unidad *"
+          placeholder="Selecciona unidad"
+          [options]="unitOptions()"
+          [(value)]="unitId"
+        />
+        <to-input label="Nombre del equipo *" placeholder="Ej. GPS Tracker" [(value)]="name" />
+        <to-input label="Número de serie *" placeholder="Ej. GPS-102" [(value)]="serialNumber" />
+        <to-select
+          label="Ejes (plataforma, full, dolly…)"
+          placeholder="Opcional"
+          [options]="axleOptions"
+          [(value)]="axleValue"
+        />
+        <to-input label="Último servicio *" type="date" [(value)]="lastServiceDate" />
+      </div>
+      <footer class="fleet-drawer__footer">
+        <to-button type="button" variant="outline" (click)="dismiss.emit()">
+          Cancelar
+        </to-button>
+        <to-button type="submit" variant="primary" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Guardar' }}
+        </to-button>
+      </footer>
+    </form>
+  </aside>
+</div>

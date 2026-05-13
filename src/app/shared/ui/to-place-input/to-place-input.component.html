@@ -1,0 +1,43 @@
+<div class="to-place-input">
+  @if (label()) {
+    <label class="to-place-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-place-input__wrap"
+    [class.to-place-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-place-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="value()"
+      (input)="onInput($event)"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (loading()) {
+      <span class="to-place-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-place-input__list" role="listbox">
+        @for (s of suggestions(); track $index) {
+          <li
+            class="to-place-input__item"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(s, $event)"
+          >
+            {{ s.label }}
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

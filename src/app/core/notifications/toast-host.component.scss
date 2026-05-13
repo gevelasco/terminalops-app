@@ -1,0 +1,125 @@
+.toast-host {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  max-width: min(28rem, calc(100vw - 2rem));
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.toast-host__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 0.65rem 1rem 1rem;
+  border-radius: var(--to-radius-md, 10px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+  background: var(--to-color-surface);
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.14),
+    0 0 0 1px rgba(15, 23, 42, 0.05);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  animation: toast-host-in 0.22s ease-out;
+  min-width: min(22rem, calc(100vw - 2rem));
+}
+
+@keyframes toast-host-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-host__item--info {
+  border-left: 4px solid var(--to-color-primary);
+
+  .toast-host__icon {
+    color: var(--to-color-primary);
+  }
+}
+
+.toast-host__item--success {
+  border-left: 4px solid #15803d;
+
+  .toast-host__icon {
+    color: #15803d;
+  }
+}
+
+.toast-host__item--warning {
+  border-left: 4px solid #b45309;
+
+  .toast-host__icon {
+    color: #b45309;
+  }
+}
+
+.toast-host__item--error {
+  border-left: 4px solid var(--to-color-danger);
+
+  .toast-host__icon {
+    color: var(--to-color-danger);
+  }
+}
+
+.toast-host__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.05rem;
+  line-height: 0;
+}
+
+.toast-host__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.toast-host__title {
+  display: block;
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.toast-host__msg {
+  display: block;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--to-color-text) 88%, var(--to-color-text-muted));
+}
+
+.toast-host__close {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.25rem;
+  border: none;
+  border-radius: var(--to-radius-sm, 4px);
+  background: transparent;
+  color: var(--to-color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+  align-self: flex-start;
+
+  &:hover {
+    color: var(--to-color-text);
+    background: color-mix(in srgb, var(--to-color-text) 8%, transparent);
+  }
+}

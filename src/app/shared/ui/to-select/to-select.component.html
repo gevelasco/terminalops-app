@@ -1,0 +1,27 @@
+<div class="to-field">
+  @if (label()) {
+    <label class="to-field__label" [attr.for]="id()">{{ label() }}</label>
+  }
+  <select
+    class="to-field__control"
+    [class.to-field__control--invalid]="error()"
+    [class.to-field__control--placeholder]="placeholder() && value() === ''"
+    [attr.id]="id()"
+    [disabled]="disabled()"
+    [value]="value()"
+    (change)="onChange($event)"
+    (blur)="blurNotify.emit()"
+    [attr.aria-invalid]="error() ? true : null"
+    [attr.aria-describedby]="error() ? id() + '-err' : null"
+  >
+    @if (placeholder()) {
+      <option value="" hidden>{{ placeholder() }}</option>
+    }
+    @for (opt of options(); track opt.value) {
+      <option [value]="opt.value">{{ opt.label }}</option>
+    }
+  </select>
+  @if (error()) {
+    <p class="to-field__error" [attr.id]="id() + '-err'" role="alert">{{ error() }}</p>
+  }
+</div>

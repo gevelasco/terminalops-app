@@ -1,0 +1,28 @@
+.to-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  border: 1px dashed var(--to-color-border);
+  border-radius: var(--to-radius-lg);
+  background: var(--to-color-surface-muted);
+}
+
+.to-empty__media:empty {
+  display: none;
+}
+
+.to-empty__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.to-empty__desc {
+  margin: 0.5rem 0 0;
+  color: var(--to-color-text-muted);
+}
+
+.to-empty__cta {
+  margin-top: 1rem;
+  display: inline-flex;
+  justify-content: center;
+  gap: 0.5rem;
+}

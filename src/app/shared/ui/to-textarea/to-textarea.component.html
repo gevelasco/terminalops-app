@@ -1,0 +1,20 @@
+<div class="to-field">
+  @if (label()) {
+    <label class="to-field__label" [attr.for]="id()">{{ label() }}</label>
+  }
+  <textarea
+    class="to-field__control"
+    [class.to-field__control--invalid]="error()"
+    [attr.id]="id()"
+    [attr.rows]="rows()"
+    [attr.placeholder]="placeholder() ?? null"
+    [disabled]="disabled()"
+    [value]="value()"
+    (input)="onInput($event)"
+    [attr.aria-invalid]="error() ? true : null"
+    [attr.aria-describedby]="error() ? id() + '-err' : null"
+  ></textarea>
+  @if (error()) {
+    <p class="to-field__error" [attr.id]="id() + '-err'" role="alert">{{ error() }}</p>
+  }
+</div>

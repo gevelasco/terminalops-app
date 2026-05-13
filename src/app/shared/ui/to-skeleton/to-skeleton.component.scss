@@ -1,0 +1,27 @@
+.to-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.to-skeleton__line {
+  height: 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--to-color-border) 25%,
+    var(--to-color-surface-muted) 50%,
+    var(--to-color-border) 75%
+  );
+  background-size: 400% 100%;
+  animation: to-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes to-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}

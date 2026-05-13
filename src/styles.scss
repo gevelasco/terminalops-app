@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Logistics Pro: tokens CSS (claro / oscuro). Las utilidades Tailwind `app-*` leen estas variables. */
+@layer base {
+  :root {
+    --palette-primary: #000000;
+    --palette-on-primary: #ffffff;
+
+    --app-content-max-width: 1680px;
+
+    --to-color-danger: #ba1a1a;
+    --to-radius-sm: 0.125rem;
+    --to-radius-md: 0.25rem;
+    --to-radius-lg: 0.5rem;
+
+    --to-color-bg: #f9f9f9;
+    --to-color-surface: #ffffff;
+    --to-color-surface-muted: #f3f3f3;
+    --to-color-text: #1b1b1b;
+    --to-color-text-muted: #4c4546;
+    --to-color-border: #cfc4c5;
+    --to-color-border-strong: #7e7576;
+
+    --to-color-primary: var(--palette-primary);
+    --to-color-on-primary: var(--palette-on-primary);
+    --to-focus-ring: color-mix(in srgb, var(--to-color-primary) 38%, transparent);
+    --to-primary-soft: color-mix(in srgb, var(--to-color-primary) 12%, transparent);
+
+    /*
+     * Tema claro: contenido principal claro; sidemenu rail oscura (no blanca).
+     */
+    --shell-bg: #111827;
+    --shell-fg: #f9fafb;
+    --shell-fg-muted: #9ca3af;
+    --shell-panel: #1a1d23;
+    --shell-border: rgba(255, 255, 255, 0.1);
+    --shell-nav-active-bg: rgba(255, 255, 255, 0.12);
+    --shell-nav-active-fg: #ffffff;
+    --shell-nav-hover-bg: rgba(255, 255, 255, 0.06);
+
+    color-scheme: light;
+    --to-scrollbar-track: var(--to-color-surface-muted);
+    --to-scrollbar-thumb: color-mix(
+      in srgb,
+      var(--to-color-border-strong) 55%,
+      var(--to-color-border)
+    );
+    --to-scrollbar-thumb-hover: color-mix(
+      in srgb,
+      var(--to-color-text-muted) 40%,
+      var(--to-color-border-strong)
+    );
+  }
+
+  /*
+   * Tema oscuro: superficies MD3 (#1C1B1F / #2B2930). Acento azul-acero desaturado (corporativo,
+   * sin teal ni lavanda): lectura sobria en dashboards y documentación.
+   */
+  :root[data-app-scheme='dark'] {
+    --palette-primary: #748498;
+    --palette-on-primary: #0f1115;
+
+    --to-color-bg: #1c1b1f;
+    --to-color-surface: #2b2930;
+    --to-color-surface-muted: #36343b;
+    --to-color-text: #e6e1e5;
+    --to-color-text-muted: #cac4d0;
+    --to-color-border: #49454f;
+    --to-color-border-strong: #938f99;
+
+    --to-radius-md: 0.75rem;
+    --to-radius-lg: 1rem;
+
+    --shell-bg: #2b2930;
+    --shell-fg: #e6e1e5;
+    --shell-fg-muted: #cac4d0;
+    --shell-panel: #36343b;
+    --shell-border: rgba(230, 225, 229, 0.12);
+    --shell-nav-active-bg: color-mix(in srgb, var(--palette-primary) 28%, transparent);
+    --shell-nav-active-fg: #e8ecf1;
+    --shell-nav-hover-bg: color-mix(in srgb, var(--palette-primary) 12%, transparent);
+
+    /* Acentos vivos opcionales (KPIs, gráficos, estados) */
+    --app-accent-lime: #c0ff00;
+    --app-accent-sky: #a4c9fe;
+    --app-accent-magenta: #ffb4e8;
+
+    color-scheme: dark;
+    --to-scrollbar-track: color-mix(in srgb, var(--to-color-surface) 92%, #000);
+    --to-scrollbar-thumb: color-mix(
+      in srgb,
+      var(--to-color-border-strong) 82%,
+      var(--to-color-surface)
+    );
+    --to-scrollbar-thumb-hover: color-mix(
+      in srgb,
+      var(--to-color-text-muted) 35%,
+      var(--to-color-border-strong)
+    );
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--to-scrollbar-thumb) var(--to-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--to-scrollbar-track);
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--to-scrollbar-thumb);
+    border-radius: 999px;
+    border: 2px solid var(--to-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--to-scrollbar-thumb-hover);
+  }
+
+  html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    @apply bg-app-bg;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    @apply bg-app-bg font-sans text-app-fg antialiased;
+    font-family:
+      Inter,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Ubuntu,
+      Cantarell,
+      Noto Sans,
+      sans-serif;
+  }
+
+  app-root {
+    display: block;
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+
+  code {
+    font-size: 0.9em;
+  }
+}

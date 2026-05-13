@@ -1,0 +1,44 @@
+<div class="to-client-input">
+  @if (label()) {
+    <label class="to-client-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-client-input__wrap"
+    [class.to-client-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-client-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="value()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (loading()) {
+      <span class="to-client-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-client-input__list" role="listbox">
+        @for (c of suggestions(); track c.id) {
+          <li
+            class="to-client-input__item"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(c, $event)"
+          >
+            {{ c.name }}
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

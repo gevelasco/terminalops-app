@@ -1,0 +1,114 @@
+.to-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.to-field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.to-field__control-row {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.to-field__control-row--group {
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface);
+  overflow: hidden;
+
+  &:focus-within {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 1px;
+    border-color: var(--to-color-primary);
+  }
+
+  &.to-field__control-row--error {
+    border-color: var(--to-color-danger);
+  }
+
+  .to-field__control {
+    border: none;
+    border-radius: 0;
+  }
+
+  .to-field__control:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.to-field__affix {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 0.55rem;
+  background: color-mix(in srgb, var(--to-color-text-muted) 8%, var(--to-color-surface));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  border: none;
+}
+
+.to-field__affix--icon {
+  padding: 0 0.35rem 0 0.65rem;
+  color: var(--to-color-text-muted);
+}
+
+.to-field__prefix-svg {
+  display: block;
+}
+
+.to-field__control-row--group .to-field__affix--prefix {
+  border-right: 1px solid var(--to-color-border);
+}
+
+.to-field__control-row--group .to-field__affix--suffix {
+  border-left: 1px solid var(--to-color-border);
+}
+
+.to-field__control {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-md);
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  background: var(--to-color-surface);
+
+  &:focus {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 1px;
+    border-color: var(--to-color-primary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--to-color-surface-muted);
+    color: var(--to-color-text);
+    opacity: 0.95;
+  }
+
+  &--affixed {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &--invalid {
+    border-color: var(--to-color-danger);
+  }
+}
+
+.to-field__error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-danger);
+}

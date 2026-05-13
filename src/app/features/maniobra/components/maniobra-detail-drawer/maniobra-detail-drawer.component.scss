@@ -1,0 +1,361 @@
+/** Título de sección = código de maniobra (sin mayúsculas forzadas del estilo de bloque) */
+.maniobra-detail__section-title-code {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__code-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.maniobra-detail__code-title-inline {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: min(12rem, 100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.maniobra-detail__dl--status-flow {
+  margin-top: 0;
+}
+
+/** Pill de estado junto al código */
+.maniobra-detail__status-pill {
+  align-self: center;
+  flex-shrink: 0;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.maniobra-detail__dl {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 34%) 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0;
+}
+
+.maniobra-detail__dl dt {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__dl dd {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--to-color-text);
+  word-break: break-word;
+}
+
+.maniobra-detail__muted-block {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__doc-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.875rem;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__doc-list li {
+  margin: 0.2rem 0;
+}
+
+.maniobra-detail__incident-list {
+  margin: 0 0 0.85rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.maniobra-detail__incident-item {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+  background: var(--to-color-surface);
+}
+
+.maniobra-detail__incident-date {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.maniobra-detail__incident-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__incident-add {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+}
+
+.maniobra-detail__incident-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__incident-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid var(--to-color-border);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 4rem;
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+
+  &:focus {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 1px;
+    border-color: var(--to-color-primary);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+}
+
+.maniobra-detail__footer {
+  gap: 0.75rem;
+}
+
+.maniobra-detail__footer-start {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.maniobra-detail__cancel-maniobra-btn {
+  margin: 0;
+  padding: 0.46rem 0.85rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-danger, #c62828) 52%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--to-color-danger, #c62828) 92%, var(--to-color-text));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-danger, #c62828) 12%, transparent);
+    border-color: color-mix(in srgb, var(--to-color-danger, #c62828) 72%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.maniobra-detail__confirm-dialog {
+  padding: 0;
+  border: none;
+  border-radius: var(--to-radius-md, 10px);
+  max-width: min(24rem, calc(100vw - 2rem));
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--to-color-border) 80%, transparent),
+    0 16px 48px color-mix(in srgb, #000 28%, transparent);
+
+  &::backdrop {
+    background: color-mix(in srgb, #000 42%, transparent);
+  }
+}
+
+.maniobra-detail__confirm-panel {
+  padding: 1.2rem 1.25rem 1.15rem;
+}
+
+.maniobra-detail__confirm-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.maniobra-detail__confirm-icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid var(--to-color-border);
+  background: color-mix(in srgb, var(--to-color-border) 5%, transparent);
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__confirm-icon {
+  display: block;
+  opacity: 0.92;
+}
+
+.maniobra-detail__confirm-title {
+  margin: 0;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--to-color-text);
+  flex: 1;
+  min-width: 0;
+}
+
+.maniobra-detail__confirm-text {
+  margin: 0 0 0.95rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--to-color-text-muted);
+
+  strong {
+    color: var(--to-color-text);
+    font-weight: 600;
+  }
+}
+
+.maniobra-detail__cancellation-note {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.maniobra-detail__dd-highlight {
+  font-weight: 600;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__cancel-fieldset {
+  margin: 0 0 0.95rem;
+  padding: 0;
+  border: none;
+}
+
+.maniobra-detail__cancel-legend {
+  padding: 0;
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__cancel-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface);
+  cursor: pointer;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.maniobra-detail__cancel-radio-input {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  accent-color: var(--to-color-primary);
+}
+
+.maniobra-detail__cancel-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.maniobra-detail__cancel-option-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__cancel-option-help {
+  font-size: 0.78125rem;
+  line-height: 1.42;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__cancel-note-wrap {
+  margin-bottom: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.maniobra-detail__cancel-note-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__cancel-note-textarea {
+  min-height: 4.25rem;
+}
+
+.maniobra-detail__req {
+  color: var(--to-color-text-muted);
+  font-weight: 700;
+}
+
+.maniobra-detail__confirm-action-icon {
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.maniobra-detail__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+}

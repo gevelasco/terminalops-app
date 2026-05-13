@@ -1,0 +1,73 @@
+.to-card {
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-lg, 0.5rem);
+  background: var(--to-color-surface);
+  overflow: hidden;
+}
+
+.to-card__inner {
+  padding: 1.25rem 1.35rem;
+}
+
+/* Etiqueta superior (estilo referencia KPI): icono + mayúsculas, gris */
+.to-card__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+}
+
+.to-card__eyebrow-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--to-color-text-muted);
+
+  svg {
+    display: block;
+  }
+}
+
+.to-card__eyebrow-text {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.to-card__default {
+  &:empty {
+    display: none;
+  }
+
+  &:not(:empty) {
+    margin-top: 0;
+  }
+}
+
+/* Bloque principal proyectado (login, tablas, etc.) */
+.to-card__default > :first-child {
+  margin-top: 0;
+}
+
+.to-card__default > :last-child {
+  margin-bottom: 0;
+}
+
+/* Pie de métrica / nota bajo el subtítulo del input */
+.to-card__caption {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--to-color-text-muted);
+}
+
+.to-card__footer {
+  padding: 0 1.35rem 1.15rem;
+}
+
+.to-card__footer:empty {
+  display: none;
+}

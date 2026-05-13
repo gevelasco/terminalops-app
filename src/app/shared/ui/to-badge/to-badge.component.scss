@@ -1,0 +1,29 @@
+.to-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.to-badge--neutral {
+  background: var(--to-color-surface-muted);
+  color: var(--to-color-text-muted);
+}
+
+.to-badge--success {
+  background: rgba(22, 163, 74, 0.15);
+  color: rgb(22, 163, 74);
+}
+
+.to-badge--warning {
+  background: rgba(217, 119, 6, 0.15);
+  color: rgb(180, 83, 9);
+}
+
+.to-badge--danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: rgb(185, 28, 28);
+}

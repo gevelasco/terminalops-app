@@ -1,0 +1,139 @@
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  computed,
+  inject,
+  input,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin } from 'rxjs';
+import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
+import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { TripStatus, Operator } from '@shared/models/logistics.models';
+
+let seq = 0;
+
+const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
+
+@Component({
+  selector: 'to-operator-input',
+  standalone: true,
+  templateUrl: './to-operator-input.component.html',
+  styleUrl: './to-operator-input.component.scss',
+})
+export class ToOperatorInputComponent {
+  private readonly operatorsRepo = inject(OperatorRepository);
+  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
+
+  readonly label = input<string>('');
+  readonly placeholder = input<string>('');
+
+  /** Identificador del operador seleccionado (vacío si no hay elección válida). */
+  readonly operatorId = model('');
+
+  readonly blurNotify = output<void>();
+
+  readonly inputId = `to-operator-input-${++seq}`;
+  readonly listId = `${this.inputId}-list`;
+
+  readonly loading = signal(true);
+  readonly open = signal(false);
+
+  /** Operadores activos que no están asignados a una maniobra programada o en curso. */
+  readonly availableOperators = signal<Operator[]>([]);
+
+  /** Texto del campo de búsqueda (nombre). */
+  readonly inputText = signal('');
+
+  readonly suggestions = computed(() => {
+    const ops = this.availableOperators();
+    const q = this.inputText().trim().toLowerCase();
+    if (!q) {
+      return ops;
+    }
+    return ops.filter((o) => o.name.toLowerCase().includes(q));
+  });
+
+  constructor() {
+    forkJoin({
+      operators: this.operatorsRepo.list(),
+      trips: this.maniobrasRepo.list(),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ operators, trips }) => {
+          const busy = new Set<string>();
+          for (const t of trips) {
+            if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
+              busy.add(t.operatorId);
+            }
+          }
+          const avail = operators.filter(
+            (o) => o.status === 'active' && !busy.has(o.id),
+          );
+          avail.sort((a, b) => a.name.localeCompare(b.name));
+          this.availableOperators.set(avail);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+  }
+
+  onInput(ev: Event): void {
+    const v = (ev.target as HTMLInputElement).value;
+    this.inputText.set(v);
+    const currentId = this.operatorId().trim();
+    if (currentId) {
+      const selected = this.availableOperators().find((o) => o.id === currentId);
+      if (selected && v.trim() !== selected.name) {
+        this.operatorId.set('');
+      }
+    }
+    this.open.set(true);
+  }
+
+  onFocus(): void {
+    if (!this.loading() && this.availableOperators().length > 0) {
+      this.open.set(true);
+    }
+  }
+
+  onControlBlur(): void {
+    queueMicrotask(() => this.blurNotify.emit());
+  }
+
+  onPickPointerDown(op: Operator, ev: Event): void {
+    const pe = ev as PointerEvent;
+    if (typeof pe.button === 'number' && pe.button !== 0) {
+      return;
+    }
+    ev.preventDefault();
+    ev.stopPropagation();
+    queueMicrotask(() => {
+      this.operatorId.set(op.id);
+      this.inputText.set(op.name);
+      this.open.set(false);
+      this.fieldInput()?.nativeElement.focus();
+    });
+  }
+
+  @HostListener('keydown', ['$event'])
+  onHostKeydown(ev: KeyboardEvent): void {
+    if (!this.open()) {
+      return;
+    }
+    if (ev.key === 'Escape') {
+      ev.stopPropagation();
+      this.open.set(false);
+    }
+  }
+}
