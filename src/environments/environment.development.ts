@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:4200/api',
-  /** Dev convenience: auth guard allows navigation without a token */
-  authDevBypass: true,
+  /** Con `false` se usa login + sesión en localStorage (mismo comportamiento que prod). */
+  authDevBypass: false,
 };

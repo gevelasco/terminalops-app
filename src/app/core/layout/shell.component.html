@@ -202,15 +202,15 @@
             (click)="toggleUserMenu($event)"
           >
             <span class="shell-avatar" aria-hidden="true">{{
-              avatarInitials
+              avatarInitials()
             }}</span>
             <span class="shell-user-text">
               <span
                 class="truncate text-[0.8125rem] font-semibold text-app-fg"
-                >{{ displayName }}</span
+                >{{ displayName() }}</span
               >
               <span class="text-[0.6875rem] font-medium text-app-muted">{{
-                roleLabel
+                roleLabel()
               }}</span>
             </span>
             <svg
@@ -237,14 +237,14 @@
             >
               <div class="flex items-center gap-3 px-4 pb-3 pt-2">
                 <span class="shell-avatar shell-avatar-lg" aria-hidden="true">{{
-                  avatarInitials
+                  avatarInitials()
                 }}</span>
                 <div class="flex min-w-0 flex-col gap-0.5">
                   <span class="text-sm font-bold text-white">{{
-                    displayName
+                    displayName()
                   }}</span>
                   <span class="break-all text-xs text-shell-fg-muted">{{
-                    email
+                    email()
                   }}</span>
                 </div>
               </div>

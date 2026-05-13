@@ -1,4 +1,4 @@
-import { Component, input, model, output } from '@angular/core';
+import { Component, input, model, output, signal } from '@angular/core';
 
 @Component({
   selector: 'to-input',
@@ -12,19 +12,27 @@ export class ToInputComponent {
   readonly placeholder = input<string>();
   readonly id = input(`to-input-${Math.random().toString(36).slice(2, 9)}`);
   readonly type = input<
-    'text' | 'number' | 'email' | 'search' | 'date' | 'datetime-local'
+    'text' | 'number' | 'email' | 'search' | 'password' | 'date' | 'datetime-local'
   >('text');
   readonly disabled = input(false);
+  /** Nombre del control para `FormData` / envío de formularios. */
+  readonly inputName = input<string>();
   /** Min nativo para inputs numéricos / fecha (acepta ISO `YYYY-MM-DD`). */
   readonly min = input<string>();
   /** Max nativo para inputs numéricos / fecha. */
   readonly max = input<string>();
   readonly prefix = input<string>();
-  /** Icono antes del valor (p. ej. búsqueda sin etiqueta visible). */
-  readonly prefixIcon = input<'none' | 'search'>('none');
+  /** Icono antes del valor. */
+  readonly prefixIcon = input<'none' | 'search' | 'user' | 'lock'>('none');
   readonly suffix = input<string>();
+  /**
+   * Si es `true` y `type` es `password`, muestra botón para alternar visibilidad.
+   */
+  readonly passwordToggle = input(false);
   /** Accesible cuando no hay `label` (p. ej. solo icono + placeholder). */
   readonly ariaLabel = input<string>();
+  /** Valor nativo `autocomplete` del control (p. ej. `username`, `current-password`). */
+  readonly autocomplete = input<string>();
   /**
    * Formato miles/decimales es-MX al perder foco (solo texto).
    * Usar con montos, litros, etc.
@@ -35,18 +43,42 @@ export class ToInputComponent {
   /** Se emite al perder foco el control (tras formateo miles si aplica). */
   readonly blurNotify = output<void>();
 
+  /** Contraseña visible como texto (solo con `passwordToggle`). */
+  readonly passwordVisible = signal(false);
+
   readonly hasAffix = () =>
     !!(
       this.prefix()?.trim() ||
       this.suffix()?.trim() ||
-      this.prefixIcon() === 'search'
+      this.prefixIcon() !== 'none' ||
+      this.showPasswordReveal()
     );
 
-  effectiveType(): 'text' | 'number' | 'email' | 'search' | 'date' | 'datetime-local' {
+  showPasswordReveal(): boolean {
+    return this.type() === 'password' && this.passwordToggle();
+  }
+
+  effectiveType():
+    | 'text'
+    | 'number'
+    | 'email'
+    | 'search'
+    | 'password'
+    | 'date'
+    | 'datetime-local' {
     if (this.groupThousands()) {
       return 'text';
     }
+    if (this.type() === 'password' && this.passwordToggle() && this.passwordVisible()) {
+      return 'text';
+    }
     return this.type();
+  }
+
+  togglePasswordVisible(ev: Event): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.passwordVisible.update((v) => !v);
   }
 
   onInput(ev: Event): void {

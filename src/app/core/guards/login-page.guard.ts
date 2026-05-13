@@ -1,10 +1,10 @@
 import { inject } from '@angular/core';
-import { CanActivateChildFn, Router } from '@angular/router';
+import { CanActivateFn, Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { SessionStore } from '../services/session.store';
 
-/** Stub: allows feature routes when authDevBypass; otherwise requires a token */
-export const authGuard: CanActivateChildFn = (_child, state) => {
+/** Si ya hay sesión válida del día, no mostrar de nuevo el login. */
+export const loginPageGuard: CanActivateFn = () => {
   if (environment.authDevBypass) {
     return true;
   }
@@ -12,9 +12,7 @@ export const authGuard: CanActivateChildFn = (_child, state) => {
   const router = inject(Router);
   session.syncSessionWithStorage();
   if (session.token()) {
-    return true;
+    return router.createUrlTree(['/dashboard']);
   }
-  return router.createUrlTree(['/login'], {
-    queryParams: { returnUrl: state.url },
-  });
+  return true;
 };

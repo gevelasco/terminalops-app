@@ -1,0 +1,70 @@
+<div class="login-page">
+  <div class="login-page__ambient" aria-hidden="true"></div>
+
+  <div class="login-page__frame">
+    <header class="login-page__brand">
+      <div class="login-page__logo" aria-hidden="true">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+          <path
+            fill="currentColor"
+            d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 2.18l6 3.33v5.49c0 4.52-3.13 8.71-6 9.81-2.87-1.1-6-5.29-6-9.81V7.51l6-3.33zM11 10h2v5h-2v-5zm0-3h2v2h-2V7z"
+          />
+        </svg>
+      </div>
+      <div class="login-page__brand-text">
+        <span class="login-page__product">TerminalOps</span>
+        <span class="login-page__tagline">Grupo VSC · Operaciones logísticas</span>
+      </div>
+    </header>
+
+    <section class="login-page__card" aria-labelledby="login-heading">
+      <h1 id="login-heading" class="login-page__title">Iniciar sesión</h1>
+      <p class="login-page__subtitle">
+        Acceso seguro. La sesión caduca a medianoche (hora local) y deberás volver a
+        entrar al día siguiente.
+      </p>
+
+      <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
+        <to-input
+          label="Usuario"
+          placeholder="Ej. gvelasco"
+          inputName="username"
+          prefixIcon="user"
+          [autocomplete]="'username'"
+          [disabled]="submitting()"
+        />
+        <to-input
+          label="Contraseña"
+          type="password"
+          placeholder="••••••••"
+          inputName="password"
+          prefixIcon="lock"
+          [passwordToggle]="true"
+          [autocomplete]="'current-password'"
+          [disabled]="submitting()"
+        />
+
+        @if (error()) {
+          <p class="login-page__error" role="alert">{{ error() }}</p>
+        }
+
+        <div class="login-page__actions">
+          <to-button
+            type="submit"
+            variant="primary"
+            [disabled]="submitting()"
+            [loading]="submitting()"
+          >
+            Entrar
+          </to-button>
+        </div>
+      </form>
+
+      <p class="login-page__foot">
+        ¿Problemas para acceder? Contacta al administrador de sistemas.
+      </p>
+    </section>
+
+    <p class="login-page__legal">© {{ currentYear }} Grupo VSC</p>
+  </div>
+</div>

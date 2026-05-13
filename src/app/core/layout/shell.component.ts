@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   ElementRef,
   HostListener,
   inject,
@@ -15,7 +16,9 @@ import {
 } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthFacade } from '@core/services/auth.facade';
+import { SessionStore } from '@core/services/session.store';
 import { ThemeService } from '@core/services/theme.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-shell',
@@ -27,6 +30,7 @@ import { ThemeService } from '@core/services/theme.service';
 export class ShellComponent implements OnDestroy {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly auth = inject(AuthFacade);
+  private readonly session = inject(SessionStore);
   private readonly router = inject(Router);
 
   readonly theme = inject(ThemeService);
@@ -35,10 +39,45 @@ export class ShellComponent implements OnDestroy {
   /** Drawer lateral en viewport estrecho (móvil / tablet) */
   readonly navOpen = signal(false);
 
-  readonly displayName = 'Admin Cargo';
-  readonly roleLabel = 'Supervisor';
-  readonly email = 'admin@cargo.mx';
-  readonly avatarInitials = 'AC';
+  readonly displayName = computed(() => {
+    if (environment.authDevBypass) {
+      return 'Admin Cargo';
+    }
+    const u = this.session.username();
+    if (!u) {
+      return 'Usuario';
+    }
+    return u.charAt(0).toUpperCase() + u.slice(1).toLowerCase();
+  });
+
+  readonly roleLabel = computed(() =>
+    environment.authDevBypass ? 'Supervisor' : 'Operador',
+  );
+
+  readonly email = computed(() => {
+    if (environment.authDevBypass) {
+      return 'admin@cargo.mx';
+    }
+    const u = this.session.username();
+    return u ? `${u}@terminalops.local` : 'usuario@terminalops.local';
+  });
+
+  readonly avatarInitials = computed(() => {
+    if (environment.authDevBypass) {
+      return 'AC';
+    }
+    const u = (this.session.username() ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    if (u.length >= 2) {
+      return u.slice(0, 2);
+    }
+    if (u.length === 1) {
+      return `${u}·`;
+    }
+    return '??';
+  });
 
   readonly nav = [
     { path: '/dashboard', label: 'Dashboard' },

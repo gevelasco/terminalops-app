@@ -1,58 +1,47 @@
-import { Component, inject } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthFacade } from '@core/services/auth.facade';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToCardComponent } from '@shared/ui/to-card/to-card.component';
+import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ToCardComponent, ToButtonComponent],
-  template: `
-    <div class="login">
-      <to-card title="Acceso (stub)" subtitle="Dev: login simulado sin backend">
-        <p class="login__text">
-          En producción integrar OIDC / contraseña con almacenamiento seguro de sesión.
-        </p>
-        <div class="login__actions">
-          <to-button type="button" (click)="onLogin()">Entrar (stub)</to-button>
-          <to-button type="button" variant="outline" (click)="goDashboard()">
-            Ir al dashboard
-          </to-button>
-        </div>
-      </to-card>
-    </div>
-  `,
-  styles: `
-    .login {
-      max-width: 420px;
-      margin: 4rem auto;
-      padding: 0 1rem;
-    }
-    .login__text {
-      margin: 0 0 1rem;
-      color: var(--to-color-text-muted);
-      font-size: 0.875rem;
-    }
-    .login__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-  `,
+  imports: [ToButtonComponent, ToInputComponent],
+  templateUrl: './login-page.component.html',
+  styleUrl: './login-page.component.scss',
 })
 export class LoginPageComponent {
   private readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
 
-  onLogin(): void {
-    this.auth.loginStub();
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard';
-    void this.router.navigateByUrl(returnUrl);
+  readonly error = signal<string | null>(null);
+  readonly submitting = signal(false);
+
+  readonly currentYear = new Date().getFullYear();
+
+  onSubmit(event: SubmitEvent): void {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) {
+      return;
+    }
+    this.tryLogin(form);
   }
 
-  goDashboard(): void {
-    void this.router.navigate(['/dashboard']);
+  tryLogin(form: HTMLFormElement): void {
+    this.error.set(null);
+    const fd = new FormData(form);
+    const u = String(fd.get('username') ?? '');
+    const p = String(fd.get('password') ?? '');
+    this.submitting.set(true);
+    const ok = this.auth.login(u, p);
+    this.submitting.set(false);
+    if (!ok) {
+      this.error.set('Usuario o contraseña incorrectos.');
+      return;
+    }
+    /** Entrada directa al inicio; no usar otros destinos post-login en este flujo. */
+    void this.router.navigateByUrl('/dashboard');
   }
 }
