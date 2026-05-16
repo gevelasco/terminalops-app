@@ -1,7 +1,61 @@
-<to-page-header title="Gastos" subtitle="Registro operativo (mock)" />
+<to-page-header
+  title="Gastos"
+  subtitle="Registro operativo y vínculos con flota y maniobras"
+>
+  @if (!loading()) {
+    <to-button
+      type="button"
+      variant="primary"
+      (click)="newExpenseOpen.set(true)"
+    >
+      <span class="expenses-page-header__btn-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
+          />
+        </svg>
+      </span>
+      Nuevo gasto
+    </to-button>
+  }
+</to-page-header>
+
+@if (newExpenseOpen()) {
+  <app-expenses-new-drawer
+    (dismiss)="newExpenseOpen.set(false)"
+    (saved)="onExpenseSaved()"
+  />
+}
+
+@if (detailExpense(); as exp) {
+  <app-expenses-detail-drawer
+    [expense]="exp"
+    [tripManeuverByTripId]="tripManeuverByTripId()"
+    (dismiss)="onDetailDismiss()"
+  />
+}
 
 @if (loading()) {
   <to-skeleton [lines]="5" />
 } @else {
-  <to-table [columns]="columns" [rows]="rows()" />
+  <div class="expenses-toolbar">
+    <div class="expenses-toolbar__search">
+      <to-input
+        type="search"
+        prefixIcon="search"
+        ariaLabel="Buscar en el listado de gastos"
+        placeholder="Maniobra, rubro, concepto, monto, fecha, proveedor, unidad, operador…"
+        [(value)]="searchQuery"
+      />
+    </div>
+  </div>
+  <div class="expenses-table-block">
+    <to-table
+      [columns]="columns"
+      [rows]="displayedExpenseRows()"
+      [interactiveRows]="true"
+      (rowClick)="onRowClick($event)"
+    />
+  </div>
 }

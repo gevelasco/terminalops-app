@@ -1,0 +1,112 @@
+.checklist-drawer {
+  z-index: 125;
+}
+
+.checklist-drawer__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist-drawer__add {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  padding: 0 1.15rem 0.85rem;
+  border-bottom: 1px solid var(--to-color-border);
+}
+
+.checklist-drawer__add-input {
+  width: 100%;
+}
+
+.checklist-drawer__add-btn {
+  align-self: flex-end;
+}
+
+.checklist-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.checklist-drawer__empty {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--to-color-text-muted);
+}
+
+.checklist-drawer__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.checklist-drawer__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--to-radius-md, 0.5rem);
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface);
+}
+
+.checklist-drawer__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  cursor: pointer;
+}
+
+.checklist-drawer__check-input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--to-color-primary);
+  cursor: pointer;
+}
+
+.checklist-drawer__item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.checklist-drawer__text {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--to-color-text);
+  word-break: break-word;
+}
+
+.checklist-drawer__item--done .checklist-drawer__text {
+  text-decoration: line-through;
+  color: var(--to-color-text-muted);
+}
+
+.checklist-drawer__date {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.checklist-drawer__delete {
+  flex-shrink: 0;
+  margin-top: -0.15rem;
+  margin-right: -0.25rem;
+  color: var(--to-color-text-muted);
+
+  &:hover {
+    color: var(--to-color-danger, #c62828);
+  }
+}

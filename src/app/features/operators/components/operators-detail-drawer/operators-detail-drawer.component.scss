@@ -1,0 +1,18 @@
+/* Estado operativo en cabecera (complementa modificadores de fleet-unit-detail). */
+.fleet-unit-detail__status--operator-incapacitated {
+  color: #9d174d;
+  background: color-mix(in srgb, #f472b6 14%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #f472b6 32%, transparent);
+}
+
+.fleet-unit-detail__status--operator-leave {
+  color: #0e7490;
+  background: color-mix(in srgb, #06b6d4 14%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #06b6d4 30%, transparent);
+}
+
+.fleet-unit-detail__status--operator-inactive {
+  color: #52525b;
+  background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #71717a 28%, transparent);
+}

@@ -31,8 +31,12 @@ export class ToClientInputComponent {
 
   readonly label = input<string>('');
   readonly placeholder = input<string>('');
+  readonly disabled = input(false);
 
   readonly value = model('');
+
+  /** Id de catálogo cuando el texto coincide con un cliente o el usuario elige de la lista. */
+  readonly clientId = model('');
 
   readonly blurNotify = output<void>();
 
@@ -70,12 +74,19 @@ export class ToClientInputComponent {
   }
 
   onInput(ev: Event): void {
+    if (this.disabled()) {
+      return;
+    }
     const v = (ev.target as HTMLInputElement).value;
     this.value.set(v);
+    this.syncClientIdFromValue(v);
     this.open.set(true);
   }
 
   onFocus(): void {
+    if (this.disabled()) {
+      return;
+    }
     if (!this.loading() && this.allClients().length > 0) {
       this.open.set(true);
     }
@@ -86,6 +97,9 @@ export class ToClientInputComponent {
   }
 
   onPickPointerDown(c: Client, ev: Event): void {
+    if (this.disabled()) {
+      return;
+    }
     const pe = ev as PointerEvent;
     if (typeof pe.button === 'number' && pe.button !== 0) {
       return;
@@ -94,6 +108,7 @@ export class ToClientInputComponent {
     ev.stopPropagation();
     queueMicrotask(() => {
       this.value.set(c.name);
+      this.clientId.set(c.id);
       this.open.set(false);
       const el = this.fieldInput()?.nativeElement;
       el?.focus();
@@ -109,5 +124,15 @@ export class ToClientInputComponent {
       ev.stopPropagation();
       this.open.set(false);
     }
+  }
+
+  private syncClientIdFromValue(name: string): void {
+    const t = name.trim();
+    if (t === '') {
+      this.clientId.set('');
+      return;
+    }
+    const row = this.allClients().find((c) => c.name === t);
+    this.clientId.set(row?.id ?? '');
   }
 }

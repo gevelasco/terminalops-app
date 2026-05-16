@@ -1,5 +1,7 @@
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -14,19 +16,28 @@ import { FormsModule } from '@angular/forms';
 import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
 import { ToastService } from '@core/notifications/toast.service';
 import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   MaintenanceEntry,
   TrailerTenureMode,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
+import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
-import {
-  ToSelectComponent,
-  ToSelectOption,
-} from '@shared/ui/to-select/to-select.component';
+import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
+import {
+  buildFleetModelYearSelectOptions,
+  FLEET_MAINTENANCE_TYPE_OPTIONS,
+  FLEET_PAYMENT_CADENCE_OPTIONS,
+  FLEET_TIRE_CONDITION_OPTIONS,
+  FLEET_TRAILER_TENURE_OPTIONS,
+  FLEET_TRANSMISSION_SPEED_OPTIONS,
+  FLEET_TRANSMISSION_TYPE_OPTIONS,
+  FLEET_UNIT_STATUS_OPTIONS,
+} from '@shared/catalogs/fleet-form-options';
 
 type RenewUi = 'due' | 'soon' | 'ok' | null;
 
@@ -99,22 +110,28 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
   standalone: true,
   imports: [
     FormsModule,
+    NgTemplateOutlet,
     ToButtonComponent,
     ToIconButtonComponent,
     ToInputComponent,
     ToSelectComponent,
     ToTextareaComponent,
+    ToDrawerSkeletonComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-new-unit-drawer.component.html',
-  styleUrls: ['../fleet-drawer.shared.scss', './fleet-new-unit-drawer.component.scss'],
+  styleUrls: ['../fleet-drawer.shared.scss', '../styles/fleet-drawer-unit-sec.shared.scss'],
 })
 export class FleetNewUnitDrawerComponent {
+  readonly trackFileEntry = trackFileEntry;
+
   private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly unitsRepo = inject(UnitRepository);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
+  readonly drawerLoading = signal(true);
   readonly saved = output<void>();
 
   readonly brandCode = model('');
@@ -143,6 +160,13 @@ export class FleetNewUnitDrawerComponent {
   readonly insurancePaymentCadence = model('annual');
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
+  readonly hasGps = model(false);
+  readonly gpsProviderBrand = model('');
+  readonly gpsPaymentCadence = model('annual');
+  readonly gpsContractDate = model('');
+  readonly gpsPrice = model('');
+  readonly gpsTrackingPortalUrl = model('');
+  readonly gpsCoveredByInsuranceEndorsement = model(false);
   readonly trailerTenureMode = model('owned');
   readonly trailerCommercialValue = model('');
   readonly trailerRecurringPaymentAmount = model('');
@@ -150,82 +174,34 @@ export class FleetNewUnitDrawerComponent {
   readonly trailerRecurringInstallmentCount = model('');
   readonly trailerManagementOwnerPayout = model('');
   readonly status = model('available');
+  /** Número de serie / VIN (opcional en alta). */
+  readonly serialNumber = model('');
+  /** Nombre comercial o alias interno (opcional). */
+  readonly unitAlias = model('');
   readonly saving = model(false);
 
   readonly filesMaintenance = signal<File[]>([]);
   readonly filesVerification = signal<File[]>([]);
   readonly filesPolicy = signal<File[]>([]);
+  readonly filesOwnership = signal<File[]>([]);
 
   readonly brandOptions = TRAILER_BRAND_OPTIONS;
 
-  readonly modelYearOptions: ToSelectOption[] = (() => {
-    const y = new Date().getFullYear();
-    const out: ToSelectOption[] = [];
-    for (let i = y + 1; i >= 1990; i--) {
-      out.push({ value: String(i), label: String(i) });
-    }
-    return out;
-  })();
+  readonly modelYearOptions = buildFleetModelYearSelectOptions();
 
-  readonly transmissionOptions: ToSelectOption[] = [
-    { value: 'automatic', label: 'Automática' },
-    { value: 'standard', label: 'Estándar (manual)' },
-    { value: 'semi', label: 'Semiautomática (AMT)' },
-  ];
+  readonly transmissionOptions = FLEET_TRANSMISSION_TYPE_OPTIONS;
 
-  readonly speedOptions: ToSelectOption[] = [
-    { value: '6', label: '6 velocidades' },
-    { value: '7', label: '7 velocidades' },
-    { value: '8', label: '8 velocidades' },
-    { value: '9', label: '9 velocidades' },
-    { value: '10', label: '10 velocidades' },
-    { value: '12', label: '12 velocidades' },
-    { value: '13', label: '13 velocidades' },
-    { value: '14', label: '14 velocidades' },
-    { value: '18', label: '18 velocidades' },
-  ];
+  readonly speedOptions = FLEET_TRANSMISSION_SPEED_OPTIONS;
 
-  readonly maintenanceTypeOptions: ToSelectOption[] = [
-    { value: 'servicio_completo', label: 'Servicio completo' },
-    { value: 'medio_servicio', label: 'Medio servicio' },
-    { value: 'mecanica_general', label: 'Mecánica general' },
-    { value: 'reparacion_electrica', label: 'Reparación eléctrica' },
-    { value: 'accesorios', label: 'Accesorios' },
-    { value: 'cambio_llantas', label: 'Cambio de llantas' },
-    { value: 'otro', label: 'Otro' },
-  ];
+  readonly maintenanceTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
-  readonly tireOptions: ToSelectOption[] = [
-    {
-      value: 'excellent',
-      label: 'Excelente (banda ≥ 6 mm, sin daños)',
-    },
-    { value: 'good', label: 'Buena (4–6 mm, uso normal)' },
-    { value: 'fair', label: 'Regular (2–4 mm, planear cambio)' },
-    { value: 'low', label: 'Baja (cerca del mínimo legal)' },
-    { value: 'critical', label: 'Crítica (fuera de servicio / cambio inmediato)' },
-  ];
+  readonly tireOptions = FLEET_TIRE_CONDITION_OPTIONS;
 
-  readonly cadenceOptions: ToSelectOption[] = [
-    { value: 'weekly', label: 'Semanal' },
-    { value: 'monthly', label: 'Mensual' },
-    { value: 'quarterly', label: 'Trimestral' },
-    { value: 'annual', label: 'Anual' },
-  ];
+  readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
 
-  readonly statusOptions: ToSelectOption[] = [
-    { value: 'available', label: 'Disponible' },
-    { value: 'in_use', label: 'En uso' },
-    { value: 'scheduled', label: 'Programado' },
-    { value: 'maintenance', label: 'Mantenimiento' },
-  ];
+  readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
 
-  readonly tenureOptions: ToSelectOption[] = [
-    { value: 'owned', label: 'Propio' },
-    { value: 'financed', label: 'Financiado' },
-    { value: 'leased', label: 'Arrendado' },
-    { value: 'managed', label: 'Administrado' },
-  ];
+  readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
 
   readonly physRenewal = computed(() =>
     renewalFromLastDate(this.verificationPhysMechDate(), 6),
@@ -262,11 +238,43 @@ export class FleetNewUnitDrawerComponent {
     return 'ok' as const;
   });
 
+  readonly gpsRenewHint = computed(() => {
+    if (!this.hasGps()) {
+      return null;
+    }
+    const iso = this.gpsContractDate().trim();
+    const cad = this.gpsPaymentCadence();
+    if (!iso) {
+      return null;
+    }
+    const start = parseYmd(iso);
+    if (!start) {
+      return null;
+    }
+    const next =
+      cad === 'weekly'
+        ? new Date(start.getTime() + 7 * 86400000)
+        : cad === 'monthly'
+          ? addMonths(start, 1)
+          : cad === 'quarterly'
+            ? addMonths(start, 3)
+            : addMonths(start, 12);
+    const d = daysFromToday(next);
+    if (d < 0) {
+      return 'due' as const;
+    }
+    if (d <= 30) {
+      return 'soon' as const;
+    }
+    return 'ok' as const;
+  });
+
   constructor() {
     this.doc.body.style.overflow = 'hidden';
     this.destroyRef.onDestroy(() => {
       this.doc.body.style.overflow = '';
     });
+    afterNextRender(() => this.drawerLoading.set(false));
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -313,7 +321,7 @@ export class FleetNewUnitDrawerComponent {
       : 'Total de cuotas del crédito';
   }
 
-  onFiles(ev: Event, which: 'maint' | 'verif' | 'policy'): void {
+  onFiles(ev: Event, which: 'maint' | 'verif' | 'policy' | 'ownership'): void {
     const input = ev.target as HTMLInputElement;
     const list = input.files ? Array.from(input.files) : [];
     if (list.length === 0) {
@@ -324,7 +332,9 @@ export class FleetNewUnitDrawerComponent {
         ? this.filesMaintenance
         : which === 'verif'
           ? this.filesVerification
-          : this.filesPolicy;
+          : which === 'policy'
+            ? this.filesPolicy
+            : this.filesOwnership;
     target.update((prev) => [...prev, ...list]);
     input.value = '';
   }
@@ -333,13 +343,23 @@ export class FleetNewUnitDrawerComponent {
     this.doubleArticApplies.set(!this.doubleArticApplies());
   }
 
-  removeFile(which: 'maint' | 'verif' | 'policy', index: number): void {
+  toggleGpsSwitch(): void {
+    this.hasGps.set(!this.hasGps());
+  }
+
+  toggleGpsEndorsementSwitch(): void {
+    this.gpsCoveredByInsuranceEndorsement.set(!this.gpsCoveredByInsuranceEndorsement());
+  }
+
+  removeFile(which: 'maint' | 'verif' | 'policy' | 'ownership', index: number): void {
     const target =
       which === 'maint'
         ? this.filesMaintenance
         : which === 'verif'
           ? this.filesVerification
-          : this.filesPolicy;
+          : which === 'policy'
+            ? this.filesPolicy
+            : this.filesOwnership;
     target.update((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -387,6 +407,15 @@ export class FleetNewUnitDrawerComponent {
     if (insCost === 'invalid') {
       this.toast.show(
         'El costo del seguro debe ser un número válido (≥ 0) o dejarse vacío.',
+        'warning',
+      );
+      return;
+    }
+
+    const gpsPriceParsed = this.hasGps() ? parseOptionalAmount(this.gpsPrice()) : undefined;
+    if (gpsPriceParsed === 'invalid') {
+      this.toast.show(
+        'El precio del GPS debe ser un número válido (≥ 0) o dejarse vacío.',
         'warning',
       );
       return;
@@ -450,6 +479,9 @@ export class FleetNewUnitDrawerComponent {
     const cadenceLabel =
       this.cadenceOptions.find((o) => o.value === this.insurancePaymentCadence())?.label ??
       this.insurancePaymentCadence();
+    const gpsCadenceLabel =
+      this.cadenceOptions.find((o) => o.value === this.gpsPaymentCadence())?.label ??
+      this.gpsPaymentCadence();
 
     const meta: UnitFleetMeta = {
       trailerBrandName: this.brandLabel(brand),
@@ -488,9 +520,23 @@ export class FleetNewUnitDrawerComponent {
       insurancePaymentCadence: cadenceLabel,
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
+      ...(this.hasGps()
+        ? {
+            hasGps: true,
+            gpsProviderBrand: this.gpsProviderBrand().trim() || undefined,
+            gpsPaymentCadence: gpsCadenceLabel,
+            gpsContractDate: this.gpsContractDate().trim() || undefined,
+            gpsPrice: gpsPriceParsed === undefined ? undefined : gpsPriceParsed,
+            gpsTrackingPortalUrl: this.gpsTrackingPortalUrl().trim() || undefined,
+            gpsCoveredByInsuranceEndorsement: this.gpsCoveredByInsuranceEndorsement()
+              ? true
+              : undefined,
+          }
+        : { hasGps: false }),
       documentMaintenanceNames: this.filesMaintenance().map((f) => f.name),
       documentVerificationNames: this.filesVerification().map((f) => f.name),
       documentPolicyNames: this.filesPolicy().map((f) => f.name),
+      documentOwnershipNames: this.filesOwnership().map((f) => f.name),
     };
 
     this.saving.set(true);
@@ -502,6 +548,8 @@ export class FleetNewUnitDrawerComponent {
         status: this.status(),
         trailerBrandAbbr: brand,
         trailerYear: year,
+        serialNumber: this.serialNumber().trim() || undefined,
+        name: this.unitAlias().trim() || undefined,
         fleetMeta: meta,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

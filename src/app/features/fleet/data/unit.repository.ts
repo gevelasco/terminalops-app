@@ -8,6 +8,8 @@ export interface CreateUnitPayload {
   status: string;
   trailerBrandAbbr?: string;
   trailerYear?: string;
+  serialNumber?: string;
+  name?: string;
   fleetMeta?: UnitFleetMeta;
 }
 

@@ -1,4 +1,4 @@
-import { Component, input, model, output, signal } from '@angular/core';
+import { Component, computed, input, model, output, signal } from '@angular/core';
 
 @Component({
   selector: 'to-input',
@@ -12,7 +12,7 @@ export class ToInputComponent {
   readonly placeholder = input<string>();
   readonly id = input(`to-input-${Math.random().toString(36).slice(2, 9)}`);
   readonly type = input<
-    'text' | 'number' | 'email' | 'search' | 'password' | 'date' | 'datetime-local'
+    'text' | 'number' | 'email' | 'search' | 'password' | 'date' | 'datetime-local' | 'url'
   >('text');
   readonly disabled = input(false);
   /** Nombre del control para `FormData` / envío de formularios. */
@@ -21,6 +21,8 @@ export class ToInputComponent {
   readonly min = input<string>();
   /** Max nativo para inputs numéricos / fecha. */
   readonly max = input<string>();
+  /** Longitud máxima del valor (p. ej. CP de 5 dígitos). */
+  readonly maxLength = input<number | null>(null);
   readonly prefix = input<string>();
   /** Icono antes del valor. */
   readonly prefixIcon = input<'none' | 'search' | 'user' | 'lock'>('none');
@@ -39,6 +41,18 @@ export class ToInputComponent {
    */
   readonly groupThousands = input(false);
   readonly value = model('');
+
+  /**
+   * Texto mostrado en el `<input>` cuando el padre lo enlaza (p. ej. solo lectura
+   * con `[displayValue]="computed()"`). Evita que el valor quede desincronizado
+   * respecto al `model()` cuando solo hay binding unidireccional.
+   */
+  readonly displayValue = input<string | undefined>(undefined);
+
+  readonly shownInputValue = computed(() => {
+    const fromParent = this.displayValue();
+    return fromParent !== undefined ? fromParent : this.value();
+  });
 
   /** Se emite al perder foco el control (tras formateo miles si aplica). */
   readonly blurNotify = output<void>();
@@ -65,7 +79,8 @@ export class ToInputComponent {
     | 'search'
     | 'password'
     | 'date'
-    | 'datetime-local' {
+    | 'datetime-local'
+    | 'url' {
     if (this.groupThousands()) {
       return 'text';
     }

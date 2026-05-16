@@ -9,8 +9,12 @@ export interface LatLon {
 }
 
 interface OsrmRouteResponse {
-  code: string;
-  routes?: Array<{ distance: number; duration: number }>;
+  code?: string;
+  routes?: Array<{
+    distance?: number;
+    duration?: number;
+    legs?: Array<{ distance?: number; duration?: number }>;
+  }>;
 }
 
 /**
@@ -36,14 +40,21 @@ export class OsrmDrivingRouteService {
     const params = new HttpParams().set('overview', 'false');
     return this.http.get<OsrmRouteResponse>(url, { params }).pipe(
       map((res) => {
-        if (res.code !== 'Ok' || !res.routes?.[0]) {
+        const code = (res.code ?? '').trim();
+        if (code.toLowerCase() !== 'ok' || !res.routes?.[0]) {
           return null;
         }
-        const meters = res.routes[0].distance;
-        if (typeof meters !== 'number' || !Number.isFinite(meters)) {
+        const route = res.routes[0];
+        const rawMeters =
+          typeof route.distance === 'number'
+            ? route.distance
+            : typeof route.legs?.[0]?.distance === 'number'
+              ? route.legs[0].distance
+              : Number(route.distance ?? route.legs?.[0]?.distance);
+        if (!Number.isFinite(rawMeters)) {
           return null;
         }
-        const km = meters / 1000;
+        const km = rawMeters / 1000;
         return Math.round(km * 10) / 10;
       }),
       catchError(() => of(null)),

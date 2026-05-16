@@ -1,12 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { delay, Observable, of } from 'rxjs';
-import { MOCK_CRITICAL_ALERTS } from '@app/mock-data/mock-critical-alerts';
+import { SimulatedDbService } from '@app/sim-db/simulated-db.service';
 import { CriticalAlert } from '@shared/models/logistics.models';
 import { CriticalAlertRepository } from './critical-alert.repository';
 
 @Injectable()
 export class MockCriticalAlertRepository extends CriticalAlertRepository {
+  private readonly db = inject(SimulatedDbService);
+
   override list(): Observable<CriticalAlert[]> {
-    return of([...MOCK_CRITICAL_ALERTS]).pipe(delay(180));
+    return of(this.db.listCriticalAlerts()).pipe(delay(180));
   }
 }

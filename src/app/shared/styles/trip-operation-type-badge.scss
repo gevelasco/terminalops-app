@@ -1,0 +1,72 @@
+/* Configuración de maniobra: badges discretos por tipo (tabla, esquema, etc.). */
+
+.to-table-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.to-table-badge--op {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.to-table-badge--op-sencillo {
+  color: #334155;
+  background: color-mix(in srgb, #64748b 13%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #64748b 26%, transparent);
+}
+
+.to-table-badge--op-full {
+  color: #3730a3;
+  background: color-mix(in srgb, #6366f1 11%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #6366f1 22%, transparent);
+}
+
+.to-table-badge--op-plana {
+  color: #57534e;
+  background: color-mix(in srgb, #78716c 11%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #78716c 22%, transparent);
+}
+
+.to-table-badge--op-unknown {
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+  border-color: color-mix(in srgb, var(--to-color-border) 55%, transparent);
+}
+
+:host-context([data-app-scheme='dark']) {
+  .to-table-badge--op-sencillo {
+    color: #cbd5e1;
+    background: color-mix(in srgb, #64748b 28%, var(--to-color-surface));
+    border-color: color-mix(in srgb, #94a3b8 35%, transparent);
+  }
+
+  .to-table-badge--op-full {
+    color: #c7d2fe;
+    background: color-mix(in srgb, #6366f1 24%, var(--to-color-surface));
+    border-color: color-mix(in srgb, #818cf8 32%, transparent);
+  }
+
+  .to-table-badge--op-plana {
+    color: #d6d3d1;
+    background: color-mix(in srgb, #78716c 22%, var(--to-color-surface));
+    border-color: color-mix(in srgb, #a8a29e 30%, transparent);
+  }
+
+  .to-table-badge--op-unknown {
+    color: var(--to-color-text-muted);
+    background: color-mix(in srgb, var(--to-color-text-muted) 14%, var(--to-color-surface));
+    border-color: color-mix(in srgb, var(--to-color-border) 45%, transparent);
+  }
+}

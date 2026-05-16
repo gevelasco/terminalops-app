@@ -37,6 +37,11 @@
         </h2>
 
         <div class="dash-critical-scroll">
+          @if (criticalAlerts().length === 0) {
+            <p class="dash-critical__empty">
+              No hay alertas en estado crítico en este momento.
+            </p>
+          }
           @for (c of criticalAlerts(); track c.id) {
             <article class="dash-critical-card">
               <div class="dash-critical-card__icon-wrap" aria-hidden="true">
@@ -88,7 +93,13 @@
           Últimas 10 maniobras
         </h2>
         <div class="dash-maniobra__table-wrap">
-          <to-table [columns]="tripColumns" [rows]="tripRows()" />
+          <to-table
+            [columns]="tripColumns"
+            [rows]="tripRows()"
+            [pageSize]="0"
+            [interactiveRows]="true"
+            (rowClick)="onTripRowClick($event)"
+          />
         </div>
       </section>
     </div>
@@ -111,7 +122,7 @@
       </h2>
       <div class="dash-charts__grid">
         <div class="dash-chart-pane">
-          <to-card title="Maniobras por estado">
+          <to-card title="Resumen de Maniobras Mensual">
             <div class="dash-chart-stack">
               <div class="dash-chart-bar">
                 @for (row of tripStatusSlices(); track row.status) {
@@ -160,10 +171,7 @@
         </div>
 
         <div class="dash-chart-pane dash-chart-pane--weekly">
-          <to-card
-            title="Volumen semanal"
-            subtitle="Maniobras completadas · últimos 7 días (mock)"
-          >
+          <to-card title="Volumen semanal">
             <div class="dash-chart-weekly">
               <div
                 class="dash-chart-col"

@@ -12,12 +12,7 @@
       Nueva unidad
     </to-button>
   } @else {
-    <to-button
-      type="button"
-      variant="primary"
-      [disabled]="unitList().length === 0"
-      (click)="openNewEquipment()"
-    >
+    <to-button type="button" variant="primary" (click)="openNewEquipment()">
       <span class="fleet-page-header__btn-icon" aria-hidden="true">
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path
@@ -50,13 +45,24 @@
   <app-fleet-unit-detail-drawer
     [unit]="du"
     [onRoute]="detailUnitOnRoute()"
+    [completedManeuverCount]="
+      unitTripStats().completedCountByUnitId.get(du.id) ?? 0
+    "
+    [completedTripDistanceKm]="
+      unitTripStats().completedDistanceKmSumByUnitId.get(du.id) ?? null
+    "
     (dismiss)="onUnitDetailDismiss()"
   />
 }
 
-@if (detailEquipment(); as deq) {
+@if (detailEquipmentForDrawer(); as deq) {
   <app-fleet-equipment-detail-drawer
     [equipment]="deq"
+    [onRoute]="detailEquipmentOnRoute()"
+    [unitOptions]="unitSelectOptions()"
+    [completedManeuverCount]="
+      unitTripStats().completedCountByUnitId.get(deq.unitId) ?? 0
+    "
     (dismiss)="onEquipmentDetailDismiss()"
   />
 }

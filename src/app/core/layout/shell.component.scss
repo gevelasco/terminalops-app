@@ -3,13 +3,17 @@
 
 :host {
   display: block;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
-  min-height: 100dvh;
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
   box-sizing: border-box;
   background: var(--to-color-bg, #f9f9f9);
   color: var(--to-color-text, #1b1b1b);
@@ -21,6 +25,9 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 .shell-brand {
@@ -68,6 +75,11 @@
   align-items: center;
   gap: 0.65rem;
   max-width: 16rem;
+  transition: background 0.15s ease;
+
+  &[aria-expanded='true'] {
+    background: var(--to-color-surface-muted, rgba(0, 0, 0, 0.04));
+  }
 }
 
 .shell-user-text {
@@ -89,6 +101,10 @@
 }
 
 .shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex-shrink: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -110,6 +126,9 @@
   padding: clamp(0.75rem, 2vw, 1.25rem) clamp(0.75rem, 3vw, 2rem);
   box-sizing: border-box;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Flex column para que las rutas (p. ej. dashboard) puedan usar flex:1 y acotar scroll internos */
@@ -163,7 +182,11 @@
   border-right: 1px solid var(--shell-border, rgba(255, 255, 255, 0.1));
   box-sizing: border-box;
   width: 260px;
+  height: 100%;
+  max-height: 100dvh;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .shell-nav-link {
@@ -225,6 +248,13 @@
   font-size: 0.75rem;
 }
 
+.shell-avatar--photo {
+  padding: 0;
+  object-fit: cover;
+  background: var(--to-color-surface-muted);
+  border: 2px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
 .shell-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -243,6 +273,27 @@
     background: var(--to-color-surface-muted, #f3f3f3);
     color: var(--to-color-text, #1b1b1b);
   }
+}
+
+.shell-notifications-btn {
+  position: relative;
+}
+
+.shell-notifications-btn__badge {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.15rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
+  color: #fff;
+  background: var(--to-color-danger, #c62828);
+  box-shadow: 0 0 0 2px var(--to-color-surface, #fff);
 }
 
 .shell-icon-text-btn {
@@ -364,7 +415,8 @@
   }
 
   .shell-main-wrap {
-    min-height: 100dvh;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 }
 

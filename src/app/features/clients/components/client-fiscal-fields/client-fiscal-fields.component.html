@@ -1,0 +1,41 @@
+@let isNew = layout() === "new";
+
+<to-input
+  label="Razón social en factura"
+  [placeholder]="isNew ? 'Si difiere del nombre corto' : ''"
+  [(value)]="billLegal"
+/>
+<div
+  class="client-fiscal-fields__row"
+  [class.client-fiscal-fields__row--new]="isNew"
+  [class.client-fiscal-fields__row--edit]="!isNew"
+  [class.client-fiscal-fields__row--mt]="isNew"
+>
+  <to-input
+    label="Régimen fiscal"
+    [placeholder]="isNew ? 'Ej. 601' : ''"
+    [(value)]="billRegime"
+  />
+  <to-input
+    label="C.P. fiscal"
+    [placeholder]="isNew ? '5 dígitos' : ''"
+    [(value)]="billZip"
+  />
+</div>
+<div
+  class="client-fiscal-fields__row"
+  [class.client-fiscal-fields__row--new]="isNew"
+  [class.client-fiscal-fields__row--edit]="!isNew"
+>
+  <to-input
+    label="Uso CFDI habitual"
+    [placeholder]="isNew ? 'Ej. G03' : ''"
+    [(value)]="billCfdi"
+  />
+  <to-input label="Teléfono facturación" [(value)]="billPhone" />
+</div>
+<to-input
+  label="Correo para envío de facturas"
+  type="email"
+  [(value)]="billEmail"
+/>

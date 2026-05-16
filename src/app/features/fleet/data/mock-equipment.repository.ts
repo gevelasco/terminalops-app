@@ -1,36 +1,38 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { delay, Observable, of } from 'rxjs';
-import { MOCK_EQUIPMENT } from '@app/mock-data/mock-equipment';
+import { SimulatedDbService } from '@app/sim-db/simulated-db.service';
+import { buildEquipmentFleetMockId } from '@app/sim-db/utils/fleet-id-builders';
 import { Equipment } from '@shared/models/logistics.models';
 import { CreateEquipmentPayload, EquipmentRepository } from './equipment.repository';
 
-function nextEquipmentId(list: readonly Equipment[]): string {
-  let max = 0;
-  for (const e of list) {
-    const m = /^e(\d+)$/.exec(e.id);
-    if (m) {
-      max = Math.max(max, Number(m[1]));
-    }
-  }
-  return `e${max + 1}`;
-}
-
 @Injectable()
 export class MockEquipmentRepository extends EquipmentRepository {
+  private readonly db = inject(SimulatedDbService);
+
   override list(): Observable<Equipment[]> {
-    return of([...MOCK_EQUIPMENT]).pipe(delay(240));
+    return of(this.db.listEquipment()).pipe(delay(240));
   }
 
   override create(payload: CreateEquipmentPayload): Observable<Equipment> {
     const row: Equipment = {
-      id: nextEquipmentId(MOCK_EQUIPMENT),
-      unitId: payload.unitId.trim(),
+      id: buildEquipmentFleetMockId(this.db.listEquipment(), this.db.listUnits(), {
+        trailerBrandAbbr: payload.trailerBrandAbbr,
+        trailerYear: payload.trailerYear,
+        plate: payload.plate,
+        serialNumber: payload.serialNumber,
+      }),
+      unitId: (payload.unitId ?? '').trim(),
       name: payload.name.trim(),
       serialNumber: payload.serialNumber.trim(),
       lastServiceDate: payload.lastServiceDate.trim(),
-      axleConfiguration: payload.axleConfiguration?.trim() || undefined,
+      plate: payload.plate?.trim() || undefined,
+      type: payload.type?.trim() || undefined,
+      status: payload.status?.trim() || undefined,
+      trailerBrandAbbr: payload.trailerBrandAbbr?.trim() || undefined,
+      trailerYear: payload.trailerYear?.trim() || undefined,
+      fleetMeta: payload.fleetMeta,
     };
-    MOCK_EQUIPMENT.push(row);
+    this.db.addEquipment(row);
     return of(row).pipe(delay(220));
   }
 }

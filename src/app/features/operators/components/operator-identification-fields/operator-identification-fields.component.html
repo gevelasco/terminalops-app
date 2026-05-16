@@ -1,0 +1,89 @@
+@let isNew = layout() === "new";
+
+<div
+  class="operator-identification-fields__row"
+  [class.operator-identification-fields__row--new]="isNew"
+  [class.operator-identification-fields__row--edit]="!isNew"
+>
+  <to-input
+    label="Nombre completo *"
+    [placeholder]="isNew ? 'Según identificación oficial' : ''"
+    [(value)]="fullName"
+  />
+  <to-input
+    label="Fecha de nacimiento"
+    type="date"
+    [(value)]="birthDate"
+  />
+</div>
+<div
+  class="operator-identification-fields__row"
+  [class.operator-identification-fields__row--new]="isNew"
+  [class.operator-identification-fields__row--edit]="!isNew"
+>
+  <to-input
+    label="CURP"
+    [placeholder]="isNew ? '18 caracteres' : ''"
+    [maxLength]="18"
+    [(value)]="curp"
+  />
+  <to-input
+    label="RFC"
+    [placeholder]="isNew ? 'Homoclave' : ''"
+    [maxLength]="13"
+    [(value)]="rfc"
+  />
+</div>
+<div
+  class="operator-identification-fields__row"
+  [class.operator-identification-fields__row--new]="isNew"
+  [class.operator-identification-fields__row--edit]="!isNew"
+>
+  <to-input
+    label="Número de licencia *"
+    [placeholder]="isNew ? 'Ej. CMX-778899' : ''"
+    [(value)]="licenseNumber"
+  />
+  <to-input
+    label="Vence licencia *"
+    type="date"
+    [(value)]="licenseExpiresOn"
+  />
+</div>
+<div
+  class="operator-identification-fields__row"
+  [class.operator-identification-fields__row--new]="isNew"
+  [class.operator-identification-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="Tipo de licencia"
+    [options]="licenseTypeOptions()"
+    [(value)]="licenseType"
+  />
+  <to-input
+    [label]="isNew ? 'Endosos / restricciones' : 'Endosos'"
+    [placeholder]="isNew ? 'Opcional' : ''"
+    [(value)]="licenseEndorsements"
+  />
+</div>
+<div
+  class="operator-identification-fields__row"
+  [class.operator-identification-fields__row--new]="isNew"
+  [class.operator-identification-fields__row--edit]="!isNew"
+>
+  <to-input
+    [label]="isNew ? 'Teléfono principal *' : 'Teléfono *'"
+    [placeholder]="isNew ? '+52 …' : ''"
+    [(value)]="phone"
+  />
+  <to-input
+    label="Teléfono secundario / WhatsApp"
+    [placeholder]="isNew ? 'Opcional' : ''"
+    [(value)]="phoneSecondary"
+  />
+</div>
+<to-input
+  label="Domicilio"
+  [placeholder]="isNew ? 'Calle, ciudad (opcional)' : ''"
+  [(value)]="address"
+/>

@@ -1,12 +1,18 @@
 import { Observable } from 'rxjs';
-import { Equipment } from '@shared/models/logistics.models';
+import { Equipment, EquipmentFleetMeta } from '@shared/models/logistics.models';
 
 export interface CreateEquipmentPayload {
-  unitId: string;
+  /** Opcional hasta enganchar a una unidad tractora. */
+  unitId?: string;
   name: string;
   serialNumber: string;
   lastServiceDate: string;
-  axleConfiguration?: string;
+  plate?: string;
+  type?: string;
+  status?: string;
+  trailerBrandAbbr?: string;
+  trailerYear?: string;
+  fleetMeta?: EquipmentFleetMeta;
 }
 
 export abstract class EquipmentRepository {

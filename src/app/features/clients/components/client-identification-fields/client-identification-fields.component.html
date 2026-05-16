@@ -1,0 +1,38 @@
+@let isNew = layout() === "new";
+
+@if (showRenameHint()) {
+  <p class="fleet-unit-sec__docs-hint">
+    Si cambias el nombre, las maniobras ya creadas conservan el texto anterior en
+    su snapshot hasta que se editen.
+  </p>
+}
+<to-input
+  label="Nombre o razón social *"
+  [placeholder]="isNew ? 'Ej. Acme de México' : ''"
+  [(value)]="clientName"
+/>
+<div
+  class="client-identification-fields__row"
+  [class.client-identification-fields__row--new]="isNew"
+  [class.client-identification-fields__row--edit]="!isNew"
+  [class.client-identification-fields__row--mt]="isNew"
+>
+  <to-input
+    label="RFC *"
+    [placeholder]="isNew ? '12 o 13 caracteres' : ''"
+    [(value)]="rfc"
+  />
+  <to-input
+    label="Inicio de relación comercial *"
+    type="date"
+    [(value)]="relationshipStartedOn"
+  />
+</div>
+<to-textarea
+  label="Notas internas"
+  [placeholder]="
+    isNew ? 'Condiciones generales, riesgos, acuerdos…' : ''
+  "
+  [rows]="isNew ? 2 : 3"
+  [(value)]="notes"
+/>

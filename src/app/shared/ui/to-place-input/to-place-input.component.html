@@ -27,7 +27,7 @@
     }
     @if (open() && suggestions().length > 0) {
       <ul [id]="listId" class="to-place-input__list" role="listbox">
-        @for (s of suggestions(); track $index) {
+        @for (s of suggestions(); track trackPlaceSuggestion($index, s)) {
           <li
             class="to-place-input__item"
             role="option"

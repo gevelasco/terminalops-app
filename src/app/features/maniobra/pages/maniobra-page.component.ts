@@ -1,5 +1,13 @@
-import { Component, computed, inject, model, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  model,
+  resource,
+  signal,
+} from '@angular/core';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ManiobraDetailDrawerComponent } from '@features/maniobra/components/maniobra-detail-drawer/maniobra-detail-drawer.component';
 import { ManiobraNewDrawerComponent } from '@features/maniobra/components/maniobra-new-drawer/maniobra-new-drawer.component';
@@ -7,10 +15,40 @@ import {
   CreateTripPayload,
   ManiobraRepository,
 } from '@features/maniobra/data/maniobra.repository';
+import {
+  maniobraListRowFromTrip,
+  maniobraListRowMatchesSearch,
+} from '@features/maniobra/utils/maniobra-list-row';
+import { tripContainerTypeLabelMx } from '@features/maniobra/utils/trip-container-type-label';
+import {
+  approximateManeuverDaysLabel,
+  approximateManeuverKmLabel,
+} from '@features/maniobra/utils/maniobra-schema-eta';
+import { formatTripIsoOneLine } from '@features/maniobra/utils/maniobra-trip-schema-timeline';
+import {
+  tripHasIncidents,
+  tripIncidentPostedBy,
+  tripIncidentsSorted,
+} from '@features/maniobra/utils/trip-incidents';
+import { snapshotTextOrDash } from '@features/maniobra/utils/maniobra-route-display';
+import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
+import {
+  tripOperationTypeBadgeClass,
+  tripOperationTypeBadgeLabel,
+} from '@shared/utils/trip-operation-type-badge';
 import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { labelForUnitId } from '@app/mock-data/mock-units';
-import { Operator, Trip, TripStatus } from '@shared/models/logistics.models';
+import { operatorNamesById } from '@shared/utils/operator-name-map';
+import {
+  Operator,
+  Trip,
+  TripIncident,
+  TripStatus,
+  Unit,
+} from '@shared/models/logistics.models';
 import { formatStackedMx } from '@shared/utils/format-datetime-mx';
+import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
@@ -22,9 +60,19 @@ import {
 
 export type ManiobraStatusFilter = TripStatus | 'all';
 
+export type ManiobraViewMode = 'table' | 'schema';
+
+type ManiobraListBundle = {
+  trips: Trip[];
+  operators: Operator[];
+  operatorNames: Map<string, string>;
+  units: Unit[];
+};
+
 @Component({
   selector: 'app-maniobra-page',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
     ToTableComponent,
@@ -38,21 +86,67 @@ export type ManiobraStatusFilter = TripStatus | 'all';
   styleUrl: './maniobra-page.component.scss',
 })
 export class ManiobraPageComponent {
+  /** Partes del convoy en esquema (PNG en `public/`). */
+  readonly schemaTractoAsset = 'maniobra-schema-tracto.png';
+  readonly schemaRemolqueAsset = 'maniobra-schema-remolque.png';
+  readonly schemaEngancheAsset = 'maniobra-schema-enganche.png';
+
   private readonly maniobrasRepo = inject(ManiobraRepository);
   private readonly operatorsRepo = inject(OperatorRepository);
+  private readonly unitsRepo = inject(UnitRepository);
   private readonly toast = inject(ToastService);
 
-  readonly loading = signal(true);
-  readonly newManiobraOpen = signal(false);
-  readonly rows = signal<Record<string, unknown>[]>([]);
+  private readonly listResource = resource({
+    loader: async (): Promise<ManiobraListBundle> => {
+      const [maniobras, operators, units] = await Promise.all([
+        firstValueFrom(
+          this.maniobrasRepo.list().pipe(catchError(() => of([] as Trip[]))),
+        ),
+        firstValueFrom(
+          this.operatorsRepo
+            .list()
+            .pipe(catchError(() => of([] as Operator[]))),
+        ),
+        firstValueFrom(
+          this.unitsRepo.list().pipe(catchError(() => of([] as Unit[]))),
+        ),
+      ]);
+      return {
+        trips: maniobras,
+        operators,
+        operatorNames: operatorNamesById(operators),
+        units,
+      };
+    },
+  });
 
-  /** Mapa operador id → nombre (detalle lateral). */
-  private readonly operatorNameById = signal<Map<string, string>>(new Map());
+  /** Solo skeleton en carga inicial; `reload()` tras guardar no parpadea. */
+  readonly loading = computed(
+    () => !this.listResource.hasValue() && this.listResource.isLoading(),
+  );
+
+  readonly newManiobraOpen = signal(false);
+
+  /** Vista tabla vs. esquema (solo en tránsito + búsqueda en esquema). */
+  readonly viewMode = signal<ManiobraViewMode>('table');
+
+  readonly rows = computed(() => {
+    const v = this.listResource.value();
+    if (!v) {
+      return [];
+    }
+    return v.trips.map((t) =>
+      maniobraListRowFromTrip(t, v.operatorNames, v.units),
+    );
+  });
+
+  readonly operatorNameById = computed(
+    () => this.listResource.value()?.operatorNames ?? new Map<string, string>(),
+  );
 
   readonly detailTrip = signal<Trip | null>(null);
   readonly detailOperatorName = signal('');
 
-  /** Filtro rápido por estado (tab superior). */
   readonly statusFilter = signal<ManiobraStatusFilter>('all');
 
   readonly searchQuery = model('');
@@ -62,10 +156,10 @@ export class ManiobraPageComponent {
     label: string;
   }> = [
     { value: 'all', label: 'Todos' },
-    { value: 'in_transit', label: 'En curso' },
-    { value: 'scheduled', label: 'Programado' },
-    { value: 'completed', label: 'Completado' },
-    { value: 'cancelled', label: 'Cancelado' },
+    { value: 'in_transit', label: tripStatusUiLabel('in_transit') },
+    { value: 'scheduled', label: tripStatusUiLabel('scheduled') },
+    { value: 'completed', label: tripStatusUiLabel('completed') },
+    { value: 'cancelled', label: tripStatusUiLabel('cancelled') },
   ];
 
   readonly filteredRows = computed(() => {
@@ -77,7 +171,33 @@ export class ManiobraPageComponent {
     if (!q) {
       return byStatus;
     }
-    return byStatus.filter((row) => this.rowMatchesSearch(row, q));
+    return byStatus.filter((row) => maniobraListRowMatchesSearch(row, q));
+  });
+
+  readonly unitsList = computed(
+    () => this.listResource.value()?.units ?? ([] as readonly Unit[]),
+  );
+
+  /**
+   * Maniobras en tránsito para el esquema (tablero operativo), con el mismo
+   * criterio de búsqueda de texto que la tabla.
+   */
+  readonly schemaTrips = computed(() => {
+    const v = this.listResource.value();
+    if (!v) {
+      return [] as Trip[];
+    }
+    const q = this.searchQuery().trim().toLowerCase();
+    return v.trips.filter((t) => {
+      if (t.status !== 'in_transit') {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      const row = maniobraListRowFromTrip(t, v.operatorNames, v.units);
+      return maniobraListRowMatchesSearch(row, q);
+    });
   });
 
   readonly columns: ToTableColumn[] = [
@@ -93,27 +213,108 @@ export class ManiobraPageComponent {
     { key: 'hasIncident', label: 'Incidente', cell: 'incident-dot' },
   ];
 
-  constructor() {
-    this.loadManiobras();
+  loadManiobras(_options?: { showLoading?: boolean }): void {
+    void this.listResource.reload();
   }
 
-  loadManiobras(options?: { showLoading?: boolean }): void {
-    const showLoading = options?.showLoading !== false;
-    if (showLoading) {
-      this.loading.set(true);
+  tripContainerLabel(trip: Trip): string {
+    return tripContainerTypeLabelMx(trip.containerType);
+  }
+
+  unitLabelForTrip(trip: Trip): string {
+    return labelForUnitId(trip.unitId, this.unitsList());
+  }
+
+  departureLineForTrip(trip: Trip): string {
+    const dep = formatStackedMx(trip.departureAt);
+    if (dep) {
+      return `${dep.date} · ${dep.time}`;
     }
-    forkJoin({
-      maniobras: this.maniobrasRepo.list(),
-      operators: this.operatorsRepo.list(),
-    }).subscribe({
-      next: ({ maniobras, operators }) => {
-        const opNames = this.operatorNameMap(operators);
-        this.operatorNameById.set(opNames);
-        this.rows.set(maniobras.map((t) => this.mapRow(t, opNames)));
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    const sch = formatStackedMx(trip.scheduledAt);
+    if (sch) {
+      return `Salida prevista: ${sch.date} · ${sch.time}`;
+    }
+    return '—';
+  }
+
+  operatorLabelForTrip(trip: Trip): string {
+    return this.operatorNameById().get(trip.operatorId) ?? trip.operatorId;
+  }
+
+  operatorLicenseForTrip(trip: Trip): string {
+    return snapshotTextOrDash(trip.operatorLicenseNumber);
+  }
+
+  schemaEtaDaysLabel(trip: Trip): string {
+    return approximateManeuverDaysLabel(trip);
+  }
+
+  schemaEtaKmLabel(trip: Trip): string {
+    return approximateManeuverKmLabel(trip);
+  }
+
+  /** Códigos de equipo a mostrar (1 sencillo/plana, 2 full). */
+  equipmentSlotsForTrip(trip: Trip): (string | null)[] {
+    const max = trip.operationType === 'full' ? 2 : 1;
+    const raw = (trip.equipment ?? [])
+      .map((s) => String(s).trim())
+      .filter((s) => s.length > 0);
+    const slots: (string | null)[] = [];
+    for (let i = 0; i < max; i++) {
+      slots.push(raw[i] ?? null);
+    }
+    return slots;
+  }
+
+  weightLineForTrip(trip: Trip): string {
+    const w = trip.approximateWeightTons?.trim();
+    return w ? `${w} t` : '—';
+  }
+
+  readonly tripOperationTypeBadgeClass = tripOperationTypeBadgeClass;
+  readonly tripOperationTypeBadgeLabel = tripOperationTypeBadgeLabel;
+  readonly tripHasIncidents = tripHasIncidents;
+  readonly tripIncidentsSorted = tripIncidentsSorted;
+  readonly formatStackedMx = formatStackedMx;
+
+  incidentAuthorLabel(inc: TripIncident): string {
+    const operators = this.listResource.value()?.operators ?? [];
+    return tripIncidentPostedBy(inc, operators);
+  }
+
+  tripIncidentAriaLabel(trip: Trip): string {
+    if (!tripHasIncidents(trip)) {
+      return 'Sin incidentes';
+    }
+    const n = tripIncidentsSorted(trip).length;
+    if (n > 0) {
+      return `${n} incidente${n === 1 ? '' : 's'} registrado${n === 1 ? '' : 's'}`;
+    }
+    return 'Incidente registrado';
+  }
+
+  routeLabelForTrip(trip: Trip): string {
+    return formatTripRouteLabel(trip.origin, trip.destination);
+  }
+
+  arrivalLineForTrip(trip: Trip): string {
+    return formatTripIsoOneLine(trip.arrivedAt);
+  }
+
+  returnLineForTrip(trip: Trip): string {
+    return formatTripIsoOneLine(trip.returnAt);
+  }
+
+  openTripDetail(trip: Trip): void {
+    this.detailOperatorName.set(this.operatorLabelForTrip(trip));
+    this.detailTrip.set(trip);
+  }
+
+  onStatusFilterSelect(value: ManiobraStatusFilter): void {
+    if (this.viewMode() !== 'table') {
+      return;
+    }
+    this.statusFilter.set(value);
   }
 
   onManiobraRowClick(row: Record<string, unknown>): void {
@@ -121,17 +322,16 @@ export class ManiobraPageComponent {
     if (!id) {
       return;
     }
-    this.maniobrasRepo.get(id).subscribe({
-      next: (trip) => {
+    void firstValueFrom(this.maniobrasRepo.get(id))
+      .then((trip) => {
         if (!trip) {
           return;
         }
-        this.detailOperatorName.set(
-          this.operatorNameById().get(trip.operatorId) ?? trip.operatorId,
-        );
-        this.detailTrip.set(trip);
-      },
-    });
+        this.openTripDetail(trip);
+      })
+      .catch(() => {
+        /* detalle no disponible o error de red */
+      });
   }
 
   onDetailDismiss(): void {
@@ -140,76 +340,19 @@ export class ManiobraPageComponent {
   }
 
   onDetailTripUpdated(trip: Trip): void {
-    this.detailTrip.set(trip);
-    this.detailOperatorName.set(
-      this.operatorNameById().get(trip.operatorId) ?? trip.operatorId,
-    );
+    this.openTripDetail(trip);
     this.loadManiobras({ showLoading: false });
   }
 
   onManiobraSaved(payload: CreateTripPayload): void {
-    this.maniobrasRepo.create(payload).subscribe({
-      next: () => {
+    void firstValueFrom(this.maniobrasRepo.create(payload))
+      .then(() => {
         this.toast.show('Maniobra programada.', 'success');
         this.newManiobraOpen.set(false);
         this.loadManiobras();
-      },
-    });
-  }
-
-  private operatorNameMap(operators: Operator[]): Map<string, string> {
-    return new Map(operators.map((o) => [o.id, o.name]));
-  }
-
-  private rowMatchesSearch(row: Record<string, unknown>, q: string): boolean {
-    const status = String(row['status'] ?? '');
-    const statusExtra = this.statusSearchHints(status);
-    const hasInc = row['hasIncident'] === true || row['hasIncident'] === 'true';
-    const blob = [
-      row['code'],
-      row['route'],
-      row['clientName'],
-      row['operatorName'],
-      row['unitId'],
-      status,
-      statusExtra,
-      row['departureAt'],
-      row['arrivedAt'],
-      row['operationType'],
-      hasInc ? 'incidente' : '',
-    ]
-      .map((x) => String(x ?? '').toLowerCase())
-      .join(' ');
-    return blob.includes(q);
-  }
-
-  private statusSearchHints(status: string): string {
-    const hints: Record<string, string> = {
-      in_transit: 'en curso transito ruta',
-      scheduled: 'programado',
-      completed: 'completado terminado',
-      cancelled: 'cancelado',
-    };
-    return hints[status] ?? '';
-  }
-
-  private mapRow(
-    t: Trip,
-    operatorNames: Map<string, string>,
-  ): Record<string, unknown> {
-    return {
-      id: t.id,
-      code: t.maneuverCode,
-      route: `${t.origin} → ${t.destination}`,
-      clientName: t.clientName,
-      operatorName: operatorNames.get(t.operatorId) ?? t.operatorId,
-      unitId: labelForUnitId(t.unitId),
-      status: t.status,
-      falseManeuver: t.falseManeuver === true,
-      departureAt: formatStackedMx(t.departureAt),
-      arrivedAt: formatStackedMx(t.arrivedAt),
-      operationType: t.operationType,
-      hasIncident: (t.incidents?.length ?? 0) > 0 || t.hasIncident,
-    };
+      })
+      .catch(() => {
+        this.toast.show('No se pudo guardar la maniobra.', 'error');
+      });
   }
 }

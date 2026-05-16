@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
+import { UserProfileStore } from './user-profile.store';
 import { SessionStore } from './session.store';
 
 /** Credenciales demo (solo entorno local / MVP). No usar en producción. */
 const DEMO_USER = 'gvelasco';
-/** Variantes: `med` (letra e) y `m3d` (dígito 3), confusión frecuente al escribir. */
-const DEMO_PASSWORDS: readonly string[] = ['@ndr0med@', '@ndr0m3d@'];
+const DEMO_PASSWORDS: readonly string[] = ['Admin123'];
 
 /** Quita espacios raros y unifica @ (p. ej. teclado / Unicode). */
 function normalizeCredential(raw: string): string {
@@ -18,6 +18,7 @@ function normalizeCredential(raw: string): string {
 @Injectable({ providedIn: 'root' })
 export class AuthFacade {
   private readonly session = inject(SessionStore);
+  private readonly profiles = inject(UserProfileStore);
 
   /**
    * Valida usuario y contraseña; si coinciden, persiste sesión del día en `localStorage`.
@@ -35,5 +36,6 @@ export class AuthFacade {
 
   logout(): void {
     this.session.clearSession();
+    this.profiles.clear();
   }
 }

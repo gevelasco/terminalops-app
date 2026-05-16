@@ -12,6 +12,25 @@
   ></button>
 
   <aside class="fleet-drawer__panel fleet-drawer__panel--wide">
+    <ng-template #toSaveIconMd>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path
+          d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+        />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 8 15 8" />
+      </svg>
+    </ng-template>
     <header class="fleet-drawer__header">
       <h2 id="fleet-unit-drawer-title" class="fleet-drawer__title">
         <svg
@@ -40,6 +59,9 @@
 
     <form class="fleet-drawer__form" (ngSubmit)="submit()">
       <div class="fleet-drawer__body fleet-unit-body">
+        @if (drawerLoading()) {
+          <to-drawer-skeleton variant="form" />
+        } @else {
         <section
           class="fleet-unit-sec fleet-unit-sec--boxed"
           aria-labelledby="fleet-sec-id"
@@ -61,7 +83,7 @@
               [(value)]="modelYear"
             />
           </div>
-          <div class="fleet-unit-sec__row-flex">
+          <div class="fleet-unit-sec__grid2">
             <to-input
               label="Versión / acabado"
               placeholder="Ej. Cascadia Evolution, 126″ BBC"
@@ -75,20 +97,32 @@
           </div>
           <div class="fleet-unit-sec__grid2">
             <to-input
+              label="Número de serie / VIN"
+              placeholder="Ej. 3HSDZSPR5KN123456"
+              [(value)]="serialNumber"
+            />
+            <to-input
               label="Placa *"
               placeholder="Ej. 12-AB-3C"
               [(value)]="plate"
             />
+          </div>
+          <div class="fleet-unit-sec__grid2">
             <to-input
               label="Color"
               placeholder="Ej. Blanco perlado"
               [(value)]="trailerColor"
             />
+            <to-select
+              label="Estado operativo *"
+              [options]="statusOptions"
+              [(value)]="status"
+            />
           </div>
-          <to-select
-            label="Estado operativo *"
-            [options]="statusOptions"
-            [(value)]="status"
+          <to-input
+            label="Nombre o alias"
+            placeholder="Ej. Unidad ruta norte"
+            [(value)]="unitAlias"
           />
         </section>
 
@@ -146,6 +180,45 @@
               placeholder="Ej. 8,500"
               [(value)]="trailerManagementOwnerPayout"
             />
+          }
+
+          <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+          <p class="fleet-unit-sec__docs-hint">
+            Factura de compra, título de propiedad, NOM, endosos u otros (PDF o imagen).
+          </p>
+          <div class="fleet-unit-upload">
+            <input
+              #fileOwn
+              type="file"
+              class="fleet-unit-upload__input"
+              tabindex="-1"
+              multiple
+              accept="image/*,.pdf,application/pdf"
+              (change)="onFiles($event, 'ownership')"
+            />
+            <button
+              type="button"
+              class="fleet-unit-upload__btn"
+              (click)="fileOwn.click()"
+            >
+              Elegir archivos
+            </button>
+          </div>
+          @if (filesOwnership().length > 0) {
+            <ul class="fleet-unit-files">
+              @for (f of filesOwnership(); track trackFileEntry($index, f)) {
+                <li class="fleet-unit-files__row">
+                  <span class="fleet-unit-files__name">{{ f.name }}</span>
+                  <button
+                    type="button"
+                    class="fleet-unit-files__rm"
+                    (click)="removeFile('ownership', $index)"
+                  >
+                    Quitar
+                  </button>
+                </li>
+              }
+            </ul>
           }
         </section>
 
@@ -246,7 +319,7 @@
           </div>
           @if (filesMaintenance().length > 0) {
             <ul class="fleet-unit-files">
-              @for (f of filesMaintenance(); track $index) {
+              @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
                 <li class="fleet-unit-files__row">
                   <span class="fleet-unit-files__name">{{ f.name }}</span>
                   <button
@@ -380,7 +453,7 @@
           </div>
           @if (filesVerification().length > 0) {
             <ul class="fleet-unit-files">
-              @for (f of filesVerification(); track $index) {
+              @for (f of filesVerification(); track trackFileEntry($index, f)) {
                 <li class="fleet-unit-files__row">
                   <span class="fleet-unit-files__name">{{ f.name }}</span>
                   <button
@@ -462,7 +535,7 @@
           </div>
           @if (filesPolicy().length > 0) {
             <ul class="fleet-unit-files">
-              @for (f of filesPolicy(); track $index) {
+              @for (f of filesPolicy(); track trackFileEntry($index, f)) {
                 <li class="fleet-unit-files__row">
                   <span class="fleet-unit-files__name">{{ f.name }}</span>
                   <button
@@ -477,16 +550,115 @@
             </ul>
           }
         </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="fleet-sec-gps"
+        >
+          <h3 id="fleet-sec-gps" class="fleet-unit-sec__title">
+            GPS y rastreo
+          </h3>
+          <div class="fleet-unit-toggle-row">
+            <span class="fleet-unit-toggle-row__label" id="fleet-gps-on-label">
+              Tiene GPS contratado
+            </span>
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="hasGps()"
+              role="switch"
+              [attr.aria-checked]="hasGps()"
+              aria-labelledby="fleet-gps-on-label"
+              (click)="toggleGpsSwitch()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+          @if (hasGps()) {
+            <to-input
+              label="Marca o proveedor"
+              placeholder="Ej. SkyBitz, Motive, CalAmp…"
+              [(value)]="gpsProviderBrand"
+            />
+            <div class="fleet-unit-sec__row-flex">
+              <to-input
+                label="Fecha de contratación"
+                type="date"
+                [(value)]="gpsContractDate"
+              />
+              <to-select
+                label="Forma de pago / renovación"
+                [options]="cadenceOptions"
+                [(value)]="gpsPaymentCadence"
+              />
+            </div>
+            <div class="fleet-unit-sec__row-flex">
+              <to-input
+                label="Precio o cuota"
+                type="text"
+                [groupThousands]="true"
+                placeholder="Ej. 450"
+                [(value)]="gpsPrice"
+              />
+              <to-input
+                label="Portal (ubicación en vivo)"
+                type="url"
+                placeholder="https://proveedor.com/mi-cuenta"
+                [(value)]="gpsTrackingPortalUrl"
+              />
+            </div>
+            @if (gpsRenewHint() === "soon") {
+              <p class="fleet-unit-callout fleet-unit-callout--warn">
+                Próximo ciclo de pago o renovación del GPS en los próximos 30
+                días.
+              </p>
+            }
+            @if (gpsRenewHint() === "due") {
+              <p class="fleet-unit-callout fleet-unit-callout--bad">
+                Puede haber vencido el ciclo de pago del servicio GPS; revisa
+                con el proveedor.
+              </p>
+            }
+            <div class="fleet-unit-toggle-row">
+              <span
+                class="fleet-unit-toggle-row__label"
+                id="fleet-gps-endorse-label"
+              >
+                Consta en la póliza como endoso o anexo
+              </span>
+              <button
+                type="button"
+                class="fleet-unit-toggle"
+                [class.fleet-unit-toggle--on]="
+                  gpsCoveredByInsuranceEndorsement()
+                "
+                role="switch"
+                [attr.aria-checked]="gpsCoveredByInsuranceEndorsement()"
+                aria-labelledby="fleet-gps-endorse-label"
+                (click)="toggleGpsEndorsementSwitch()"
+              >
+                <span
+                  class="fleet-unit-toggle__thumb"
+                  aria-hidden="true"
+                ></span>
+              </button>
+            </div>
+          }
+        </section>
+        }
       </div>
 
+      @if (!drawerLoading()) {
       <footer class="fleet-drawer__footer">
         <to-button type="button" variant="outline" (click)="dismiss.emit()"
           >Cancelar</to-button
         >
         <to-button type="submit" variant="primary" [disabled]="saving()">
+          <ng-container *ngTemplateOutlet="toSaveIconMd" />
           {{ saving() ? "Guardando…" : "Guardar" }}
         </to-button>
       </footer>
+      }
     </form>
   </aside>
 </div>

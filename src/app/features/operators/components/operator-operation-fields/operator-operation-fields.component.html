@@ -1,0 +1,31 @@
+@let isNew = layout() === "new";
+
+<div
+  class="operator-operation-fields__row"
+  [class.operator-operation-fields__row--new]="isNew"
+  [class.operator-operation-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="Estado operativo *"
+    [placeholder]="isNew ? 'Selecciona' : ''"
+    [options]="statusOptions()"
+    [(value)]="status"
+  />
+  <to-input
+    label="Fecha de ingreso a la empresa"
+    type="date"
+    [(value)]="companyHireDate"
+  />
+</div>
+<div
+  class="operator-operation-fields__row"
+  [class.operator-operation-fields__row--new]="isNew"
+  [class.operator-operation-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="Tipo de contratación"
+    [placeholder]="isNew ? 'Selecciona' : ''"
+    [options]="employmentContractOptions()"
+    [(value)]="employmentContractType"
+  />
+</div>

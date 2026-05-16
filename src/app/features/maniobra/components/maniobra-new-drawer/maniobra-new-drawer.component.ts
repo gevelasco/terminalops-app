@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -13,10 +14,32 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ASSIGNABLE_EQUIPMENT_OPTIONS } from '@app/mock-data/assignable-equipment';
-import { MOCK_UNITS, formatUnitTrailerLabel } from '@app/mock-data/mock-units';
+import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
 import { ToastService } from '@core/notifications/toast.service';
 import { CreateTripPayload } from '@features/maniobra/data/maniobra.repository';
+import { trackFileEntry } from '@features/fleet/utils/list-trackers';
+import { dateTimeLocalValueToIso } from '@features/maniobra/utils/datetime-local';
 import {
+  cityMunicipalityLineFromSettlement,
+  formatLocationLabelFromSettlement,
+  formatSettlementOptionLabel,
+  geocodeQueryFromSettlement,
+  localityKey,
+  normalizeMxPostalCodeDigits,
+} from '@features/maniobra/utils/mx-postal-settlement';
+import {
+  formatRouteKmEsMx,
+  maneuverKindFromRouteKm,
+} from '@features/maniobra/utils/maniobra-route-display';
+import { operatorLicenseExpiresLabelFromIso } from '@features/maniobra/utils/operator-license-display';
+import {
+  parseNonNegativeNumber,
+  stripGroupedNumberInput,
+} from '@features/maniobra/utils/parse-non-negative';
+import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { UnitRepository } from '@features/fleet/data/unit.repository';
+import {
+  Operator,
   TripContainerType,
   TripLoadType,
 } from '@shared/models/logistics.models';
@@ -24,20 +47,27 @@ import {
   LatLon,
   OsrmDrivingRouteService,
 } from '@shared/services/osrm-driving-route.service';
+import {
+  MexicoPostalCodeService,
+  type MxPostalSettlement,
+} from '@shared/services/mexico-postal-code.service';
+import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
-import { ToPlaceInputComponent } from '@shared/ui/to-place-input/to-place-input.component';
 import {
   ToSelectComponent,
   ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
+import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
-import { combineLatest, of } from 'rxjs';
+import { combineLatest, EMPTY, forkJoin, of } from 'rxjs';
 import {
   catchError,
   debounceTime,
+  distinctUntilChanged,
+  filter,
   finalize,
   map,
   switchMap,
@@ -52,18 +82,25 @@ import {
     ToButtonComponent,
     ToIconButtonComponent,
     ToInputComponent,
-    ToPlaceInputComponent,
     ToSelectComponent,
     ToClientInputComponent,
     ToOperatorInputComponent,
+    ToDrawerSkeletonComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './maniobra-new-drawer.component.html',
   styleUrl: './maniobra-new-drawer.component.scss',
 })
 export class ManiobraNewDrawerComponent {
+  readonly trackFileEntry = trackFileEntry;
+
   private readonly doc = inject(DOCUMENT);
   private readonly osrm = inject(OsrmDrivingRouteService);
+  private readonly photon = inject(PhotonPlaceSearchService);
+  private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly toast = inject(ToastService);
+  private readonly operatorsRepo = inject(OperatorRepository);
+  private readonly unitsRepo = inject(UnitRepository);
 
   readonly dismiss = output<void>();
   readonly saved = output<CreateTripPayload>();
@@ -71,8 +108,21 @@ export class ManiobraNewDrawerComponent {
   /** Escaneos / fotos adjuntos (solo en cliente hasta envío al backend). */
   readonly attachedFiles = signal<File[]>([]);
 
+  /** Texto de ruta (origen/destino) derivado de CP + localidad + geocodificación. */
   readonly origin = model('');
   readonly destination = model('');
+
+  readonly originCp = model('');
+  readonly destinationCp = model('');
+
+  readonly originSettlements = signal<MxPostalSettlement[]>([]);
+  readonly destinationSettlements = signal<MxPostalSettlement[]>([]);
+
+  readonly originLocalityKey = model('');
+  readonly destinationLocalityKey = model('');
+
+  readonly originCpLoading = signal(false);
+  readonly destinationCpLoading = signal(false);
 
   readonly originCoords = signal<LatLon | null>(null);
   readonly destinationCoords = signal<LatLon | null>(null);
@@ -80,7 +130,11 @@ export class ManiobraNewDrawerComponent {
   /** Distancia por carretera (OSRM), solo si hay coordenadas de ambos puntos. */
   readonly routeKm = signal<number | null>(null);
   readonly routeLoading = signal(false);
+  /** Solo fallo de OSRM (ruta), no de Photon. */
   readonly routeFailed = signal(false);
+  /** Photon sin hit cuando el par origen/destino ya estaba completo en formulario. */
+  readonly originGeocodeFailed = signal(false);
+  readonly destinationGeocodeFailed = signal(false);
   readonly operationType = model('sencillo');
   readonly loadType = model<TripLoadType>('vacio');
   readonly containerType = model<TripContainerType>('na');
@@ -94,6 +148,8 @@ export class ManiobraNewDrawerComponent {
   readonly requiresInvoice = model(false);
   readonly paymentMethod = model<string>('cash');
   readonly assignedOperatorId = model('');
+  /** Catálogo para enriquecer UI (licencia) al elegir operador. */
+  readonly operatorsCatalog = signal<Operator[]>([]);
   readonly unitId = model('');
   /** Valores internos de `ASSIGNABLE_EQUIPMENT_OPTIONS`; en Full se usan dos filas. */
   readonly equipmentPrimary = model('');
@@ -102,6 +158,7 @@ export class ManiobraNewDrawerComponent {
   readonly departureDateTime = model('');
   readonly arrivalDateTime = model('');
   readonly clientName = model('');
+  readonly clientId = model('');
 
   /**
    * Si es falso, la maniobra no registra cliente/cobro (p. ej. unidades propias).
@@ -143,31 +200,42 @@ export class ManiobraNewDrawerComponent {
 
   readonly unitPlaceholder = 'Tractocamión';
 
-  readonly unitOptions: ToSelectOption[] = [...MOCK_UNITS]
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .map((u) => ({
-      value: u.id,
-      label: formatUnitTrailerLabel(u),
-    }));
+  readonly unitOptions = signal<ToSelectOption[]>([]);
+  readonly drawerLoading = signal(true);
 
-  private formatKm(km: number): string {
-    return km.toLocaleString('es-MX', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-  }
+  /** CP + localidad válidos en origen y destino (listo para OSRM / mensajes de error de par). */
+  readonly routePairReady = computed(() => {
+    const oKey = this.originLocalityKey().trim();
+    const dKey = this.destinationLocalityKey().trim();
+    const oCp = normalizeMxPostalCodeDigits(this.originCp());
+    const dCp = normalizeMxPostalCodeDigits(this.destinationCp());
+    if (oCp.length !== 5 || dCp.length !== 5 || !oKey || !dKey) {
+      return false;
+    }
+    const oRows = this.originSettlements();
+    const dRows = this.destinationSettlements();
+    const oS = oRows.find((r) => localityKey(r) === oKey) ?? null;
+    const dS = dRows.find((r) => localityKey(r) === dKey) ?? null;
+    return !!(oS && dS);
+  });
 
-  /** Valor mostrado en el campo solo lectura «Distancia» (OSRM). */
+  /** Valor mostrado en el campo solo lectura «Distancia» (OSRM, no Photon). */
   readonly distanceInputValue = computed(() => {
     if (this.routeLoading()) {
       return 'Calculando…';
     }
     const km = this.routeKm();
     if (km !== null) {
-      return `${this.formatKm(km)} km`;
+      return `${formatRouteKmEsMx(km)} km`;
     }
     if (this.routeFailed() && this.originCoords() && this.destinationCoords()) {
-      return 'No disponible';
+      return 'No disponible (ruta)';
+    }
+    if (
+      this.routePairReady() &&
+      (this.originGeocodeFailed() || this.destinationGeocodeFailed())
+    ) {
+      return 'No disponible (ubicación)';
     }
     return '';
   });
@@ -184,11 +252,90 @@ export class ManiobraNewDrawerComponent {
     return km <= 25 ? 'Local' : 'Foránea';
   });
 
+  readonly originLocalitySelectOptions = computed<ToSelectOption[]>(() =>
+    this.originSettlements().map((row) => ({
+      value: localityKey(row),
+      label: formatSettlementOptionLabel(row),
+    })),
+  );
+
+  readonly destinationLocalitySelectOptions = computed<ToSelectOption[]>(() =>
+    this.destinationSettlements().map((row) => ({
+      value: localityKey(row),
+      label: formatSettlementOptionLabel(row),
+    })),
+  );
+
+  readonly originCityLine = computed(() => {
+    const rows = this.originSettlements();
+    if (rows.length === 0) {
+      return '';
+    }
+    const key = this.originLocalityKey();
+    const s = rows.find((r) => localityKey(r) === key) ?? rows[0];
+    return cityMunicipalityLineFromSettlement(s);
+  });
+
+  readonly destinationCityLine = computed(() => {
+    const rows = this.destinationSettlements();
+    if (rows.length === 0) {
+      return '';
+    }
+    const key = this.destinationLocalityKey();
+    const s = rows.find((r) => localityKey(r) === key) ?? rows[0];
+    return cityMunicipalityLineFromSettlement(s);
+  });
+
+  readonly assignedOperator = computed(() => {
+    const id = this.assignedOperatorId().trim();
+    if (!id) {
+      return null;
+    }
+    return this.operatorsCatalog().find((o) => o.id === id) ?? null;
+  });
+
+  readonly operatorLicenseReadonly = computed(
+    () => this.assignedOperator()?.licenseNumber?.trim() ?? '',
+  );
+
+  readonly operatorLicenseExpiresReadonly = computed(() => {
+    const iso = this.assignedOperator()?.licenseExpiresOn?.trim();
+    if (!iso) {
+      return '';
+    }
+    return operatorLicenseExpiresLabelFromIso(iso);
+  });
+
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.doc.body.style.overflow = '';
     });
     this.doc.body.style.overflow = 'hidden';
+
+    forkJoin({
+      operators: this.operatorsRepo.list().pipe(catchError(() => of([] as Operator[]))),
+      units: this.unitsRepo.list().pipe(catchError(() => of([]))),
+    })
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: ({ operators, units }) => {
+          this.operatorsCatalog.set(operators);
+          this.unitOptions.set(
+            [...units]
+              .sort((a, b) => a.id.localeCompare(b.id))
+              .map((u) => ({
+                value: u.id,
+                label: formatUnitTrailerOperationalId(u),
+              })),
+          );
+          this.drawerLoading.set(false);
+        },
+        error: () => {
+          this.operatorsCatalog.set([]);
+          this.unitOptions.set([]);
+          this.drawerLoading.set(false);
+        },
+      });
 
     effect(() => {
       if (this.operationType() !== 'full') {
@@ -197,33 +344,256 @@ export class ManiobraNewDrawerComponent {
     });
 
     combineLatest([
-      toObservable(this.originCoords),
-      toObservable(this.destinationCoords),
+      toObservable(this.originLocalityKey),
+      toObservable(this.originSettlements),
+      toObservable(this.originCp),
+      toObservable(this.destinationLocalityKey),
     ])
       .pipe(
         debounceTime(200),
-        switchMap(([o, d]) => {
-          if (!o || !d) {
-            return of(null).pipe(tap(() => this.routeLoading.set(false)));
+        map(([oKey, oRows, rawOcp, dKeyPeer]) => {
+          const oCp = normalizeMxPostalCodeDigits(rawOcp);
+          const oS =
+            oKey && oRows.length > 0
+              ? (oRows.find((r) => localityKey(r) === oKey) ?? null)
+              : null;
+          return { oKey, oRows, oCp, oS, dKeyPeer };
+        }),
+        distinctUntilChanged(
+          (a, b) =>
+            a.oKey === b.oKey &&
+            a.oCp === b.oCp &&
+            a.dKeyPeer === b.dKeyPeer &&
+            a.oRows.length === b.oRows.length &&
+            a.oRows.map((r) => localityKey(r)).join('|') ===
+              b.oRows.map((r) => localityKey(r)).join('|'),
+        ),
+        tap(({ oS, oKey, oRows, oCp }) => {
+          const originGeoReady = !!(oKey && oS && oCp.length === 5);
+          if (!originGeoReady) {
+            this.originCoords.set(null);
+            this.routeKm.set(null);
+            this.routeLoading.set(false);
+            this.routeFailed.set(false);
+            this.originGeocodeFailed.set(false);
           }
+          if (oS && oCp.length === 5) {
+            this.origin.set(formatLocationLabelFromSettlement(oS, oCp));
+          } else if (!oKey || oRows.length === 0) {
+            this.origin.set('');
+          }
+        }),
+        switchMap(({ oS, oKey, oCp }) => {
+          if (!oKey || !oS || oCp.length !== 5) {
+            return EMPTY;
+          }
+          return this.photon
+            .firstCoordinatesForMexicanSepomex(geocodeQueryFromSettlement(oS, oCp), {
+              state: oS.state,
+              municipality: oS.municipality,
+              settlement: oS.settlement,
+            })
+            .pipe(
+              tap((ll) => {
+                this.originCoords.set(ll);
+                if (!ll) {
+                  this.routeKm.set(null);
+                  if (this.routePairReady()) {
+                    this.originGeocodeFailed.set(true);
+                  } else {
+                    this.originGeocodeFailed.set(false);
+                  }
+                } else {
+                  this.originGeocodeFailed.set(false);
+                }
+              }),
+            );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
+    combineLatest([
+      toObservable(this.destinationLocalityKey),
+      toObservable(this.destinationSettlements),
+      toObservable(this.destinationCp),
+      toObservable(this.originLocalityKey),
+    ])
+      .pipe(
+        debounceTime(200),
+        map(([dKey, dRows, rawDcp, oKeyPeer]) => {
+          const dCp = normalizeMxPostalCodeDigits(rawDcp);
+          const dS =
+            dKey && dRows.length > 0
+              ? (dRows.find((r) => localityKey(r) === dKey) ?? null)
+              : null;
+          return { dKey, dRows, dCp, dS, oKeyPeer };
+        }),
+        distinctUntilChanged(
+          (a, b) =>
+            a.dKey === b.dKey &&
+            a.dCp === b.dCp &&
+            a.oKeyPeer === b.oKeyPeer &&
+            a.dRows.length === b.dRows.length &&
+            a.dRows.map((r) => localityKey(r)).join('|') ===
+              b.dRows.map((r) => localityKey(r)).join('|'),
+        ),
+        tap(({ dS, dKey, dRows, dCp }) => {
+          const destGeoReady = !!(dKey && dS && dCp.length === 5);
+          if (!destGeoReady) {
+            this.destinationCoords.set(null);
+            this.routeKm.set(null);
+            this.routeLoading.set(false);
+            this.routeFailed.set(false);
+            this.destinationGeocodeFailed.set(false);
+          }
+          if (dS && dCp.length === 5) {
+            this.destination.set(formatLocationLabelFromSettlement(dS, dCp));
+          } else if (!dKey || dRows.length === 0) {
+            this.destination.set('');
+          }
+        }),
+        switchMap(({ dS, dKey, dCp }) => {
+          if (!dKey || !dS || dCp.length !== 5) {
+            return EMPTY;
+          }
+          return this.photon
+            .firstCoordinatesForMexicanSepomex(geocodeQueryFromSettlement(dS, dCp), {
+              state: dS.state,
+              municipality: dS.municipality,
+              settlement: dS.settlement,
+            })
+            .pipe(
+              tap((ll) => {
+                this.destinationCoords.set(ll);
+                if (!ll) {
+                  this.routeKm.set(null);
+                  if (this.routePairReady()) {
+                    this.destinationGeocodeFailed.set(true);
+                  } else {
+                    this.destinationGeocodeFailed.set(false);
+                  }
+                } else {
+                  this.destinationGeocodeFailed.set(false);
+                }
+              }),
+            );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
+    const sameLatLon = (a: LatLon | null, b: LatLon | null): boolean => {
+      if (a === b) {
+        return true;
+      }
+      if (!a || !b) {
+        return false;
+      }
+      return a.lat === b.lat && a.lon === b.lon;
+    };
+
+    combineLatest([toObservable(this.originCoords), toObservable(this.destinationCoords)])
+      .pipe(
+        debounceTime(100),
+        distinctUntilChanged(([oa, da], [ob, db]) => sameLatLon(oa, ob) && sameLatLon(da, db)),
+        tap(([o, d]) => {
+          if (!o || !d) {
+            this.routeKm.set(null);
+            this.routeLoading.set(false);
+          }
+        }),
+        filter((pair): pair is [LatLon, LatLon] => {
+          const [o, d] = pair;
+          return !!o && !!d;
+        }),
+        switchMap(([o, d]) => {
           this.routeLoading.set(true);
+          this.routeFailed.set(false);
           return this.osrm.drivingKm(o, d).pipe(
             map((km) => ({ km, failed: km === null })),
             catchError(() => of({ km: null, failed: true })),
             finalize(() => this.routeLoading.set(false)),
           );
         }),
+        tap((r) => {
+          if (r !== null && typeof r === 'object' && 'km' in r) {
+            const box = r as { km: number | null; failed: boolean };
+            this.routeKm.set(box.km);
+            this.routeFailed.set(box.failed);
+          }
+        }),
         takeUntilDestroyed(),
       )
-      .subscribe((r) => {
-        if (r === null) {
-          this.routeKm.set(null);
-          this.routeFailed.set(false);
-          return;
-        }
-        this.routeKm.set(r.km);
-        this.routeFailed.set(r.failed);
-      });
+      .subscribe();
+
+    toObservable(this.originCp)
+      .pipe(
+        map(() => normalizeMxPostalCodeDigits(this.originCp())),
+        debounceTime(400),
+        distinctUntilChanged(),
+        switchMap((cpDigits) => {
+          if (cpDigits.length !== 5) {
+            this.originCpLoading.set(false);
+            this.originSettlements.set([]);
+            this.originLocalityKey.set('');
+            this.origin.set('');
+            this.originCoords.set(null);
+            return EMPTY;
+          }
+          this.originCpLoading.set(true);
+          return this.sepomex.lookupByPostalCode(cpDigits).pipe(
+            tap((rows) => {
+              this.originSettlements.set(rows);
+              if (rows.length === 0) {
+                this.originLocalityKey.set('');
+                this.origin.set('');
+                this.originCoords.set(null);
+                this.toast.show('Código postal de origen no encontrado.', 'warning');
+              } else {
+                this.originLocalityKey.set('');
+              }
+            }),
+            finalize(() => this.originCpLoading.set(false)),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
+    toObservable(this.destinationCp)
+      .pipe(
+        map(() => normalizeMxPostalCodeDigits(this.destinationCp())),
+        debounceTime(400),
+        distinctUntilChanged(),
+        switchMap((cpDigits) => {
+          if (cpDigits.length !== 5) {
+            this.destinationCpLoading.set(false);
+            this.destinationSettlements.set([]);
+            this.destinationLocalityKey.set('');
+            this.destination.set('');
+            this.destinationCoords.set(null);
+            return EMPTY;
+          }
+          this.destinationCpLoading.set(true);
+          return this.sepomex.lookupByPostalCode(cpDigits).pipe(
+            tap((rows) => {
+              this.destinationSettlements.set(rows);
+              if (rows.length === 0) {
+                this.destinationLocalityKey.set('');
+                this.destination.set('');
+                this.destinationCoords.set(null);
+                this.toast.show('Código postal de destino no encontrado.', 'warning');
+              } else {
+                this.destinationLocalityKey.set('');
+              }
+            }),
+            finalize(() => this.destinationCpLoading.set(false)),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -247,38 +617,18 @@ export class ManiobraNewDrawerComponent {
     this.attachedFiles.update((prev) => prev.filter((_, i) => i !== index));
   }
 
-  /** Quita separadores de miles para enviar al backend. */
-  private stripGroupedNumber(raw: string): string {
-    return raw.replace(/\s/g, '').replace(/,/g, '').trim();
-  }
-
   private parseRequiredNonNegativeNumber(raw: string, fieldLabel: string): number | null {
-    const s = this.stripGroupedNumber(raw);
+    const s = stripGroupedNumberInput(raw);
     if (s === '') {
       this.toast.show(`El campo «${fieldLabel}» es obligatorio.`, 'warning');
       return null;
     }
-    const n = Number(s);
-    if (!Number.isFinite(n) || n < 0) {
+    const n = parseNonNegativeNumber(raw);
+    if (n === null) {
       this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
       return null;
     }
     return n;
-  }
-
-  private dateTimeLocalToIso(local: string): string | null {
-    const t = local.trim();
-    if (!t) {
-      return null;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t)) {
-      return null;
-    }
-    const d = new Date(t);
-    if (Number.isNaN(d.getTime())) {
-      return null;
-    }
-    return d.toISOString();
   }
 
   private parseCreditDays(raw: string): number {
@@ -318,13 +668,13 @@ export class ManiobraNewDrawerComponent {
   }
 
   private toastIfInvalidNonNegativeNumber(raw: string, fieldLabel: string): boolean {
-    const s = this.stripGroupedNumber(raw);
+    const s = stripGroupedNumberInput(raw);
     if (s === '') {
       this.toast.show(`El campo «${fieldLabel}» es obligatorio.`, 'warning');
       return true;
     }
-    const n = Number(s);
-    if (!Number.isFinite(n) || n < 0) {
+    const n = parseNonNegativeNumber(raw);
+    if (n === null) {
       this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
       return true;
     }
@@ -332,8 +682,8 @@ export class ManiobraNewDrawerComponent {
   }
 
   private maybeToastDateOrder(): void {
-    const depIso = this.dateTimeLocalToIso(this.departureDateTime());
-    const arrIso = this.dateTimeLocalToIso(this.arrivalDateTime());
+    const depIso = dateTimeLocalValueToIso(this.departureDateTime());
+    const arrIso = dateTimeLocalValueToIso(this.arrivalDateTime());
     if (!depIso || !arrIso) {
       return;
     }
@@ -345,12 +695,32 @@ export class ManiobraNewDrawerComponent {
     }
   }
 
-  onOriginBlur(): void {
-    this.toastIfRequiredEmpty(this.origin(), 'Origen');
+  onOriginCpBlur(): void {
+    const digits = normalizeMxPostalCodeDigits(this.originCp());
+    if (digits !== this.originCp()) {
+      this.originCp.set(digits);
+    }
+    if (digits.length === 0) {
+      this.toast.show('Indica el código postal de origen (5 dígitos).', 'warning');
+      return;
+    }
+    if (digits.length !== 5) {
+      this.toast.show('El código postal de origen debe tener 5 dígitos.', 'warning');
+    }
   }
 
-  onDestinationBlur(): void {
-    this.toastIfRequiredEmpty(this.destination(), 'Destino');
+  onDestinationCpBlur(): void {
+    const digits = normalizeMxPostalCodeDigits(this.destinationCp());
+    if (digits !== this.destinationCp()) {
+      this.destinationCp.set(digits);
+    }
+    if (digits.length === 0) {
+      this.toast.show('Indica el código postal de destino (5 dígitos).', 'warning');
+      return;
+    }
+    if (digits.length !== 5) {
+      this.toast.show('El código postal de destino debe tener 5 dígitos.', 'warning');
+    }
   }
 
   onClientBlur(): void {
@@ -388,7 +758,7 @@ export class ManiobraNewDrawerComponent {
       this.maybeToastDateOrder();
       return;
     }
-    if (!this.dateTimeLocalToIso(t)) {
+    if (!dateTimeLocalValueToIso(t)) {
       this.toast.show('La fecha y hora de salida no son válidas.', 'warning');
       return;
     }
@@ -402,7 +772,7 @@ export class ManiobraNewDrawerComponent {
       this.maybeToastDateOrder();
       return;
     }
-    if (!this.dateTimeLocalToIso(t)) {
+    if (!dateTimeLocalValueToIso(t)) {
       this.toast.show('La fecha y hora de llegada no son válidas.', 'warning');
       return;
     }
@@ -439,10 +809,51 @@ export class ManiobraNewDrawerComponent {
   }
 
   submit(): void {
+    const oCp = normalizeMxPostalCodeDigits(this.originCp());
+    const dCp = normalizeMxPostalCodeDigits(this.destinationCp());
+    if (oCp.length !== 5 || dCp.length !== 5) {
+      this.toast.show(
+        'Indica códigos postales de origen y destino (5 dígitos, solo México).',
+        'warning',
+      );
+      return;
+    }
+    if (this.originSettlements().length === 0 || this.destinationSettlements().length === 0) {
+      this.toast.show(
+        'No hay datos SEPOMex para uno de los códigos postales; revisa e intenta de nuevo.',
+        'warning',
+      );
+      return;
+    }
+    const okO = this.originSettlements().some(
+      (r) => localityKey(r) === this.originLocalityKey(),
+    );
+    const okD = this.destinationSettlements().some(
+      (r) => localityKey(r) === this.destinationLocalityKey(),
+    );
+    if (!okO || !okD) {
+      this.toast.show('Selecciona la localidad de origen y la de destino.', 'warning');
+      return;
+    }
+
+    const oKey = this.originLocalityKey().trim();
+    const dKey = this.destinationLocalityKey().trim();
+    const oS =
+      this.originSettlements().find((r) => localityKey(r) === oKey) ?? null;
+    const dS =
+      this.destinationSettlements().find((r) => localityKey(r) === dKey) ?? null;
+    if (!oS || !dS) {
+      this.toast.show('Selecciona la localidad de origen y la de destino.', 'warning');
+      return;
+    }
+
     const origin = this.origin().trim();
     const destination = this.destination().trim();
     if (!origin || !destination) {
-      this.toast.show('Indica origen y destino.', 'warning');
+      this.toast.show(
+        'No se pudo armar la ruta; espera un momento tras elegir CP y localidad.',
+        'warning',
+      );
       return;
     }
 
@@ -483,8 +894,8 @@ export class ManiobraNewDrawerComponent {
       return;
     }
 
-    const depIso = this.dateTimeLocalToIso(this.departureDateTime());
-    const arrIso = this.dateTimeLocalToIso(this.arrivalDateTime());
+    const depIso = dateTimeLocalValueToIso(this.departureDateTime());
+    const arrIso = dateTimeLocalValueToIso(this.arrivalDateTime());
     if (!depIso) {
       this.toast.show('Indica fecha y hora de salida.', 'warning');
       return;
@@ -535,6 +946,14 @@ export class ManiobraNewDrawerComponent {
         ? [this.labelForEquipmentValue(eq1), this.labelForEquipmentValue(eq2)]
         : [this.labelForEquipmentValue(eq1)];
 
+    const oCpDigits = normalizeMxPostalCodeDigits(this.originCp());
+    const dCpDigits = normalizeMxPostalCodeDigits(this.destinationCp());
+    const kmSnap = this.routeKm();
+    const maneuverKindSnap = maneuverKindFromRouteKm(kmSnap);
+    const opSnap = this.assignedOperator();
+    const licNum = opSnap?.licenseNumber?.trim() ?? '';
+    const licExp = this.operatorLicenseExpiresReadonly().trim();
+
     const payload: CreateTripPayload = {
       origin,
       destination,
@@ -555,10 +974,23 @@ export class ManiobraNewDrawerComponent {
       operatorId: oprId,
       unitId: uid,
       clientName: client,
+      clientId: includeBilling
+        ? this.clientId().trim() || undefined
+        : undefined,
       equipment: equipmentLabels,
       departureAt: depIso,
       arrivedAt: arrIso,
       attachedDocumentFileNames: this.attachedFiles().map((f) => f.name),
+      routeDistanceKm: kmSnap,
+      maneuverKind: maneuverKindSnap,
+      originPostalCode: oCpDigits.length === 5 ? oCpDigits : undefined,
+      originCityMunicipality: cityMunicipalityLineFromSettlement(oS),
+      originLocality: formatSettlementOptionLabel(oS),
+      destinationPostalCode: dCpDigits.length === 5 ? dCpDigits : undefined,
+      destinationCityMunicipality: cityMunicipalityLineFromSettlement(dS),
+      destinationLocality: formatSettlementOptionLabel(dS),
+      operatorLicenseNumber: licNum !== '' ? licNum : undefined,
+      operatorLicenseExpiresLabel: licExp !== '' ? licExp : undefined,
     };
     this.saved.emit(payload);
   }

@@ -1,0 +1,99 @@
+<div
+  class="fleet-drawer checklist-drawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="checklist-drawer-title"
+>
+  <button
+    type="button"
+    class="fleet-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="dismiss.emit()"
+  ></button>
+
+  <aside class="fleet-drawer__panel fleet-drawer__panel--wide checklist-drawer__panel">
+    <header class="fleet-drawer__header">
+      <h2 id="checklist-drawer-title" class="fleet-drawer__title">
+        <svg
+          class="fleet-drawer__title-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            fill="currentColor"
+            d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11 2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"
+          />
+        </svg>
+        Checklist
+      </h2>
+      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          />
+        </svg>
+      </to-icon-button>
+    </header>
+
+    <form class="checklist-drawer__add" (ngSubmit)="submitAdd()">
+      <to-input
+        class="checklist-drawer__add-input"
+        label="Nueva tarea"
+        placeholder="Escribe qué hay que hacer…"
+        [(value)]="draft"
+      />
+      <to-button type="submit" variant="primary">
+        Guardar
+      </to-button>
+    </form>
+
+    <div class="fleet-drawer__body checklist-drawer__body">
+      @if (store.todos().length === 0) {
+        <p class="checklist-drawer__empty">No hay tareas. Agrega la primera arriba.</p>
+      } @else {
+        <ul class="checklist-drawer__list" aria-label="Lista de tareas">
+          @for (todo of store.todos(); track todo.id) {
+            <li
+              class="checklist-drawer__item"
+              [class.checklist-drawer__item--done]="todo.completed"
+            >
+              <label class="checklist-drawer__check">
+                <input
+                  type="checkbox"
+                  class="checklist-drawer__check-input"
+                  [checked]="todo.completed"
+                  [attr.aria-label]="
+                    todo.completed ? 'Marcar como pendiente' : 'Marcar como completada'
+                  "
+                  (change)="store.toggleCompleted(todo.id)"
+                />
+              </label>
+              <div class="checklist-drawer__item-main">
+                <p class="checklist-drawer__text">{{ todo.text }}</p>
+                <time class="checklist-drawer__date" [attr.datetime]="todo.createdAt">
+                  {{ fmt(todo.createdAt) }}
+                </time>
+              </div>
+              <to-icon-button
+                type="button"
+                label="Eliminar tarea"
+                class="checklist-drawer__delete"
+                (click)="store.remove(todo.id)"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                  />
+                </svg>
+              </to-icon-button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </aside>
+</div>

@@ -1,0 +1,49 @@
+@let isNew = layout() === "new";
+
+<div
+  class="operator-emergency-contact-fields__row"
+  [class.operator-emergency-contact-fields__row--new]="isNew"
+  [class.operator-emergency-contact-fields__row--edit]="!isNew"
+>
+  <to-input label="Nombre completo" [(value)]="contactName" />
+  <to-select
+    label="Parentesco"
+    [options]="relationshipOptions()"
+    [(value)]="contactRelationship"
+  />
+</div>
+<div
+  class="operator-emergency-contact-fields__row"
+  [class.operator-emergency-contact-fields__row--new]="isNew"
+  [class.operator-emergency-contact-fields__row--edit]="!isNew"
+>
+  <to-input label="Teléfono" [(value)]="contactPhone" />
+  <to-input
+    label="Correo"
+    type="email"
+    [placeholder]="isNew ? 'correo@ejemplo.com' : ''"
+    [(value)]="contactEmail"
+  />
+</div>
+<div class="fleet-unit-toggle-row">
+  <span
+    class="fleet-unit-toggle-row__label"
+    [attr.id]="medicalAuthLabelledBy()"
+    >{{
+      isNew
+        ? "Autorizado para recibir información médica relevante (uso informativo; consiente según políticas internas y ley aplicable)."
+        : "Autorizado para recibir información médica relevante"
+    }}</span
+  >
+  <button
+    type="button"
+    class="fleet-unit-toggle"
+    [class.fleet-unit-toggle--on]="authorizedMedical()"
+    role="switch"
+    [attr.aria-checked]="authorizedMedical()"
+    [attr.aria-labelledby]="medicalAuthLabelledBy()"
+    (click)="toggleMedical()"
+  >
+    <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+  </button>
+</div>

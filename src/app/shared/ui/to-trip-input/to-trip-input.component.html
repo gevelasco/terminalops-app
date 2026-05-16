@@ -1,0 +1,60 @@
+<div class="to-trip-input">
+  @if (label()) {
+    <label class="to-trip-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-trip-input__wrap"
+    [class.to-trip-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-trip-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="searchText()"
+      [disabled]="disabled()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (loading()) {
+      <span class="to-trip-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-trip-input__list" role="listbox">
+        @for (tr of suggestions(); track tr.id) {
+          <li
+            class="to-trip-input__item"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(tr, $event)"
+          >
+            <span class="to-trip-input__item-main">{{ tripListLabel(tr) }}</span>
+            <span class="to-trip-input__item-meta">
+              <span [class]="tripStatusPillClass(tr)">
+                <span class="to-table-pill__dot" aria-hidden="true"></span>
+                <span class="to-table-pill__label">{{ tripStatusPillLabel(tr) }}</span>
+              </span>
+            </span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+  @if (selectedTrip(); as tr) {
+    <div class="to-trip-input__status" aria-live="polite">
+      <span class="to-trip-input__status-label">Estado</span>
+      <span [class]="tripStatusPillClass(tr)">
+        <span class="to-table-pill__dot" aria-hidden="true"></span>
+        <span class="to-table-pill__label">{{ tripStatusPillLabel(tr) }}</span>
+      </span>
+    </div>
+  }
+</div>

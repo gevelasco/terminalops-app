@@ -1,7 +1,26 @@
 import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
-import { Unit, UnitFleetMeta } from '@shared/models/logistics.models';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import {
+  Equipment,
+  EquipmentFleetMeta,
+  Unit,
+  UnitFleetMeta,
+} from '@shared/models/logistics.models';
+import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 
 export type FleetRenewalBucket = 'ok' | 'soon' | 'due' | 'na';
+
+/** Metadatos mínimos para ciclo de seguro (unidad o equipo). */
+export type FleetInsuranceRenewalMeta = Pick<
+  UnitFleetMeta,
+  'insurancePolicyNumber' | 'insuranceContractDate' | 'insurancePaymentCadence'
+>;
+
+/** Metadatos mínimos para próximo mantenimiento sugerido (unidad o equipo). */
+export type FleetLastMaintenanceMeta = Pick<
+  UnitFleetMeta,
+  'lastMaintenanceDate' | 'maintenanceNextDateOverride'
+>;
 
 export type FleetOperationalKey =
   | 'on_route'
@@ -11,6 +30,24 @@ export type FleetOperationalKey =
   | 'scheduled'
   | 'unknown';
 
+/** Misma leyenda que la columna «Estado operativo» en `to-table` (Flota). */
+export function fleetOperationalKeyLabel(key: FleetOperationalKey): string {
+  switch (key) {
+    case 'on_route':
+      return tripStatusUiLabel('in_transit');
+    case 'available':
+      return 'Disponible';
+    case 'in_use':
+      return 'Asignada';
+    case 'maintenance':
+      return 'Mantenimiento';
+    case 'scheduled':
+      return 'Programado';
+    default:
+      return '—';
+  }
+}
+
 function parseYmd(s: string): Date | null {
   const t = s.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
@@ -18,6 +55,12 @@ function parseYmd(s: string): Date | null {
   }
   const d = new Date(t + 'T12:00:00');
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function addYears(base: Date, years: number): Date {
+  const d = new Date(base.getTime());
+  d.setFullYear(d.getFullYear() + years);
+  return d;
 }
 
 function addMonths(base: Date, months: number): Date {
@@ -42,7 +85,7 @@ function fmtMx(d: Date): string {
   });
 }
 
-function lineRenewal(
+export function lineRenewal(
   label: string,
   iso: string | undefined,
   cycleMonths: number,
@@ -67,10 +110,10 @@ function lineRenewal(
   return `Próxima: ${nextFmt}. ${label}: al corriente (en ${d} días). Última: ${raw}.`;
 }
 
-function maintTooltip(meta: UnitFleetMeta | undefined): string {
+function maintTooltip(meta: FleetLastMaintenanceMeta | undefined): string {
   const iso = meta?.lastMaintenanceDate?.trim();
   if (!iso) {
-    return 'Sin fecha de último mantenimiento. El icono en gris indica «sin dato». Registra la fecha al dar de alta la unidad.';
+    return 'Sin fecha de último mantenimiento. El icono en gris indica «sin dato». Registra la fecha en el detalle del activo.';
   }
   const start = parseYmd(iso);
   if (!start) {
@@ -101,7 +144,7 @@ function verificationTooltip(meta: UnitFleetMeta | undefined): string {
   return parts.join(' ');
 }
 
-function insuranceTooltip(meta: UnitFleetMeta | undefined): string {
+function insuranceTooltip(meta: FleetInsuranceRenewalMeta | undefined): string {
   const policy = meta?.insurancePolicyNumber?.trim();
   const iso = meta?.insuranceContractDate?.trim();
   const cad = meta?.insurancePaymentCadence ?? 'annual';
@@ -149,6 +192,24 @@ export function renewalBucket(
     return 'na';
   }
   const next = addMonths(start, cycleMonths);
+  const d = daysFromToday(next);
+  if (d < 0) {
+    return 'due';
+  }
+  if (d <= 45) {
+    return 'soon';
+  }
+  return 'ok';
+}
+
+/** `iso` = fecha objetivo del próximo mantenimiento (`YYYY-MM-DD`). */
+export function renewalBucketFromTargetYmd(
+  iso: string | undefined,
+): FleetRenewalBucket {
+  const next = iso?.trim() ? parseYmd(iso.trim()) : null;
+  if (!next) {
+    return 'na';
+  }
   const d = daysFromToday(next);
   if (d < 0) {
     return 'due';
@@ -223,7 +284,61 @@ function operationalKey(u: Unit, onRoute: boolean): FleetOperationalKey {
   }
 }
 
-function maintenanceBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
+function maintenanceKmRemainingFromMeta(
+  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  completedTripKm: number | null | undefined,
+): number | null {
+  const interval = meta?.maintenanceKmInterval;
+  const tripKm = completedTripKm;
+  const hasComputed =
+    typeof interval === 'number' &&
+    Number.isFinite(interval) &&
+    interval > 0 &&
+    tripKm != null &&
+    Number.isFinite(tripKm);
+  if (hasComputed) {
+    const rawBase = meta?.maintenanceTripKmAtLastService;
+    const baseline =
+      typeof rawBase === 'number' && Number.isFinite(rawBase) ? rawBase : 0;
+    const consumed = Math.max(0, tripKm - baseline);
+    return Math.max(0, interval - consumed);
+  }
+  const raw = meta?.maintenanceKmRemaining;
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+    return raw;
+  }
+  return null;
+}
+
+/** Km restantes hasta el próximo servicio (intervalo + odómetro virtual por maniobras). */
+export function fleetMaintenanceKmRemaining(
+  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  completedTripKm?: number | null,
+): number | null {
+  return maintenanceKmRemainingFromMeta(meta, completedTripKm);
+}
+
+function maintenanceBucket(
+  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  completedTripKm?: number | null,
+): FleetRenewalBucket {
+  if (meta?.maintenanceAlertByKm === true) {
+    const rem = maintenanceKmRemainingFromMeta(meta, completedTripKm);
+    if (rem == null) {
+      return 'na';
+    }
+    if (rem <= 0) {
+      return 'due';
+    }
+    if (rem <= 300) {
+      return 'soon';
+    }
+    return 'ok';
+  }
+  const override = meta?.maintenanceNextDateOverride?.trim();
+  if (override) {
+    return renewalBucketFromTargetYmd(override);
+  }
   return renewalBucket(meta?.lastMaintenanceDate, 6);
 }
 
@@ -243,20 +358,23 @@ function verificationBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket
 }
 
 function cadenceToMonths(cad: string | undefined): number {
-  switch (cad) {
-    case 'weekly':
-      return 0;
-    case 'monthly':
-      return 1;
-    case 'quarterly':
-      return 3;
-    case 'annual':
-    default:
-      return 12;
+  const raw = (cad ?? '').trim().toLowerCase();
+  if (raw === 'weekly' || raw === 'semanal') {
+    return 0;
   }
+  if (raw === 'monthly' || raw === 'mensual') {
+    return 1;
+  }
+  if (raw === 'quarterly' || raw === 'trimestral') {
+    return 3;
+  }
+  if (raw === 'annual' || raw === 'anual') {
+    return 12;
+  }
+  return 12;
 }
 
-function insuranceBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
+function insuranceBucket(meta: FleetInsuranceRenewalMeta | undefined): FleetRenewalBucket {
   const policy = meta?.insurancePolicyNumber?.trim();
   const iso = meta?.insuranceContractDate?.trim();
   if (!policy && !iso) {
@@ -286,16 +404,69 @@ function insuranceBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
   return 'ok';
 }
 
-export function fleetMaintenanceRenewal(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
-  return maintenanceBucket(meta);
+export function fleetMaintenanceRenewal(
+  meta: UnitFleetMeta | undefined,
+  completedTripKm?: number | null,
+): FleetRenewalBucket {
+  return maintenanceBucket(meta, completedTripKm);
 }
 
 export function fleetVerificationRenewal(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
   return verificationBucket(meta);
 }
 
-export function fleetInsuranceRenewal(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
+export function fleetInsuranceRenewal(meta: FleetInsuranceRenewalMeta | undefined): FleetRenewalBucket {
   return insuranceBucket(meta);
+}
+
+function nextGpsPaymentDate(meta: UnitFleetMeta | undefined): Date | null {
+  if (!meta?.hasGps) {
+    return null;
+  }
+  const iso = meta.gpsContractDate?.trim();
+  if (!iso) {
+    return null;
+  }
+  const start = parseYmd(iso);
+  if (!start) {
+    return null;
+  }
+  const months = cadenceToMonths(meta.gpsPaymentCadence);
+  return months === 0
+    ? new Date(start.getTime() + 7 * 86400000)
+    : addMonths(start, months);
+}
+
+function gpsBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
+  if (!meta?.hasGps) {
+    return 'na';
+  }
+  const iso = meta.gpsContractDate?.trim();
+  if (!iso) {
+    return 'ok';
+  }
+  const next = nextGpsPaymentDate(meta);
+  if (!next) {
+    return 'ok';
+  }
+  const d = daysFromToday(next);
+  if (d < 0) {
+    return 'due';
+  }
+  if (d <= 30) {
+    return 'soon';
+  }
+  return 'ok';
+}
+
+export function fleetGpsRenewal(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
+  return gpsBucket(meta);
+}
+
+/** Próximo ciclo de pago GPS (solo fecha) para detalle / tablas. */
+export function nextGpsTableDate(meta: UnitFleetMeta | undefined): string | null {
+  const next = nextGpsPaymentDate(meta);
+  return next ? fmtMx(next) : null;
 }
 
 /** Fecha ISO `YYYY-MM-DD` a etiqueta corta es-MX, o `—`. */
@@ -323,7 +494,7 @@ function nextCycleDate(iso: string | undefined, cycleMonths: number): Date | nul
   return addMonths(start, cycleMonths);
 }
 
-function nextInsurancePaymentDate(meta: UnitFleetMeta | undefined): Date | null {
+function nextInsurancePaymentDate(meta: FleetInsuranceRenewalMeta | undefined): Date | null {
   const iso = meta?.insuranceContractDate?.trim();
   if (!iso) {
     return null;
@@ -338,8 +509,34 @@ function nextInsurancePaymentDate(meta: UnitFleetMeta | undefined): Date | null 
     : addMonths(start, months);
 }
 
+function formatYmdFromDate(d: Date): string {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${da}`;
+}
+
+/** Fecha ISO del próximo mantenimiento por tiempo (override o último + ciclo). */
+export function nextMaintenanceDueIso(
+  meta: FleetLastMaintenanceMeta | undefined,
+): string | null {
+  const override = meta?.maintenanceNextDateOverride?.trim();
+  if (override && parseYmd(override)) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(override) ? override : null;
+  }
+  const d = nextCycleDate(meta?.lastMaintenanceDate, MAINT_CYCLE_MO);
+  return d ? formatYmdFromDate(d) : null;
+}
+
 /** Fecha próxima (solo etiqueta localizada) para celda de tabla: mantenimiento. */
-export function nextMaintenanceTableDate(meta: UnitFleetMeta | undefined): string | null {
+export function nextMaintenanceTableDate(
+  meta: FleetLastMaintenanceMeta | undefined,
+): string | null {
+  const override = meta?.maintenanceNextDateOverride?.trim();
+  if (override) {
+    const d = parseYmd(override);
+    return d ? fmtMx(d) : null;
+  }
   const d = nextCycleDate(meta?.lastMaintenanceDate, MAINT_CYCLE_MO);
   return d ? fmtMx(d) : null;
 }
@@ -366,7 +563,7 @@ export function nextVerificationTableDate(meta: UnitFleetMeta | undefined): stri
 }
 
 /** Próximo pago de seguro (solo fecha) para celda de tabla. */
-export function nextInsuranceTableDate(meta: UnitFleetMeta | undefined): string | null {
+export function nextInsuranceTableDate(meta: FleetInsuranceRenewalMeta | undefined): string | null {
   const next = nextInsurancePaymentDate(meta);
   return next ? fmtMx(next) : null;
 }
@@ -386,9 +583,103 @@ export function nextInsurancePaymentFormatted(meta: UnitFleetMeta | undefined): 
   return next ? `Próximo pago: ${fmtMx(next)}` : null;
 }
 
+function startOfDay(d: Date): Date {
+  const x = new Date(d.getTime());
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+/**
+ * Fin del período de exención de 2 años para verificación físico-mecánica de equipo
+ * (regla de agencia y/o modelo del año calendario en curso). Si aplican ambas, se usa la fecha más tardía.
+ */
+export function equipmentPhysMechTwoYearExemptionEnd(
+  equipment: Equipment,
+  meta: EquipmentFleetMeta | undefined,
+  refNow = new Date(),
+): Date | null {
+  const ends: Date[] = [];
+  const cy = refNow.getFullYear();
+  if (meta?.equipmentOperatedByAgency === true) {
+    const startIso =
+      meta.physMechTwoYearExemptStartDate?.trim() || equipment.lastServiceDate?.trim();
+    const start = startIso ? parseYmd(startIso) : null;
+    if (start) {
+      ends.push(addYears(start, 2));
+    }
+  }
+  const modelYear = Number.parseInt((equipment.trailerYear ?? '').trim(), 10);
+  if (Number.isFinite(modelYear) && modelYear === cy) {
+    ends.push(addYears(new Date(modelYear, 0, 1), 2));
+  }
+  if (!ends.length) {
+    return null;
+  }
+  return ends.reduce((a, b) => (a.getTime() >= b.getTime() ? a : b));
+}
+
+function equipmentWithinPhysMechTwoYearExemption(
+  equipment: Equipment,
+  meta: EquipmentFleetMeta | undefined,
+  refNow = new Date(),
+): boolean {
+  const end = equipmentPhysMechTwoYearExemptionEnd(equipment, meta, refNow);
+  if (!end) {
+    return false;
+  }
+  return startOfDay(refNow).getTime() < startOfDay(end).getTime();
+}
+
+/** Solo físico-mecánica; respeta exención de 2 años (agencia / modelo año en curso). */
+export function equipmentPhysMechVerificationBucket(
+  equipment: Equipment,
+  meta: EquipmentFleetMeta | undefined,
+  refNow = new Date(),
+): FleetRenewalBucket {
+  if (equipmentWithinPhysMechTwoYearExemption(equipment, meta, refNow)) {
+    return 'ok';
+  }
+  return renewalBucket(meta?.verificationPhysMechDate, VERIF_CYCLE_MO);
+}
+
+export function equipmentPhysMechVerificationTooltip(
+  equipment: Equipment,
+  meta: EquipmentFleetMeta | undefined,
+  refNow = new Date(),
+): string {
+  if (equipmentWithinPhysMechTwoYearExemption(equipment, meta, refNow)) {
+    const end = equipmentPhysMechTwoYearExemptionEnd(equipment, meta, refNow)!;
+    const endFmt = fmtMx(end);
+    const bits: string[] = [];
+    if (meta?.equipmentOperatedByAgency === true) {
+      bits.push('equipo de agencia');
+    }
+    const y = Number.parseInt((equipment.trailerYear ?? '').trim(), 10);
+    if (Number.isFinite(y) && y === refNow.getFullYear()) {
+      bits.push(`modelo ${y} (año en curso)`);
+    }
+    const why = bits.length ? ` Motivo: ${bits.join(' · ')}.` : '';
+    return `Verificación físico-mecánica: no aplica el ciclo de 6 meses durante 2 años.${why} El seguimiento de verificación rige a partir del ${endFmt}.`;
+  }
+  return lineRenewal('Físico-mecánica (equipo)', meta?.verificationPhysMechDate, VERIF_CYCLE_MO);
+}
+
+export function nextEquipmentPhysMechTableDate(
+  equipment: Equipment,
+  meta: EquipmentFleetMeta | undefined,
+  refNow = new Date(),
+): string | null {
+  if (equipmentWithinPhysMechTwoYearExemption(equipment, meta, refNow)) {
+    const end = equipmentPhysMechTwoYearExemptionEnd(equipment, meta, refNow);
+    return end ? fmtMx(end) : null;
+  }
+  const d = nextCycleDate(meta?.verificationPhysMechDate, VERIF_CYCLE_MO);
+  return d ? fmtMx(d) : null;
+}
+
 export function buildFleetUnitTableRow(
   u: Unit,
-  options: { onRoute: boolean },
+  options: { onRoute: boolean; completedTripKm?: number | null },
 ): Record<string, unknown> {
   const meta = u.fleetMeta;
   return {
@@ -397,7 +688,7 @@ export function buildFleetUnitTableRow(
     fleetModel: modelLabel(u),
     fleetPlate: u.plate.trim() || '—',
     fleetOperational: operationalKey(u, options.onRoute),
-    fleetMaint: maintenanceBucket(meta),
+    fleetMaint: maintenanceBucket(meta, options.completedTripKm),
     fleetVerif: verificationBucket(meta),
     fleetIns: insuranceBucket(meta),
     fleetMaintTip: maintTooltip(meta),
@@ -406,5 +697,109 @@ export function buildFleetUnitTableRow(
     fleetMaintNext: nextMaintenanceTableDate(meta),
     fleetVerifNext: nextVerificationTableDate(meta),
     fleetInsNext: nextInsuranceTableDate(meta),
+  };
+}
+
+function equipmentOperationValueFromLabel(label: string | undefined): string {
+  if (!label) {
+    return '';
+  }
+  const t = label.trim().toLowerCase();
+  return (
+    EQUIPMENT_OPERATION_TYPE_OPTIONS.find((o) => o.label.trim().toLowerCase() === t)?.value ?? ''
+  );
+}
+
+function equipmentBrandLabel(e: Equipment): string {
+  const name = e.fleetMeta?.trailerBrandName?.trim();
+  if (name) {
+    return name;
+  }
+  const abbr = e.trailerBrandAbbr?.trim();
+  if (!abbr) {
+    return '—';
+  }
+  return TRAILER_BRAND_OPTIONS.find((o) => o.value === abbr)?.label ?? abbr;
+}
+
+function equipmentModelLabel(e: Equipment): string {
+  const y = (e.trailerYear ?? '').trim();
+  return y || '—';
+}
+
+function equipmentTypeLabel(e: Equipment): string {
+  const typeRaw = (e.type ?? '').trim();
+  if (!typeRaw) {
+    return '—';
+  }
+  if (EQUIPMENT_OPERATION_TYPE_OPTIONS.some((o) => o.value === typeRaw)) {
+    return EQUIPMENT_OPERATION_TYPE_OPTIONS.find((o) => o.value === typeRaw)!.label;
+  }
+  const value = equipmentOperationValueFromLabel(typeRaw);
+  if (value) {
+    return EQUIPMENT_OPERATION_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? typeRaw;
+  }
+  return typeRaw;
+}
+
+export function operationalKeyEquipment(e: Equipment, onRoute: boolean): FleetOperationalKey {
+  if (onRoute) {
+    return 'on_route';
+  }
+  const s = (e.status ?? '').trim().toLowerCase();
+  switch (s) {
+    case 'available':
+      return 'available';
+    case 'in_use':
+      return 'in_use';
+    case 'maintenance':
+      return 'maintenance';
+    case 'scheduled':
+      return 'scheduled';
+    default:
+      return 'unknown';
+  }
+}
+
+/** Fila de tabla Flota «Equipos»: mismas celdas de mantenimiento y seguro que la tabla de unidades. */
+export function buildFleetEquipmentTableRow(
+  e: Equipment,
+  options: {
+    onRoute: boolean;
+    completedTripKm?: number | null;
+  },
+): Record<string, unknown> {
+  const meta = e.fleetMeta;
+  const rowMaintMeta = meta;
+  const maintMeta: FleetLastMaintenanceMeta | undefined = rowMaintMeta
+    ? {
+        lastMaintenanceDate: rowMaintMeta.lastMaintenanceDate,
+        maintenanceNextDateOverride: rowMaintMeta.maintenanceNextDateOverride,
+      }
+    : undefined;
+  const insMeta: FleetInsuranceRenewalMeta | undefined = meta
+    ? {
+        insurancePolicyNumber: meta.insurancePolicyNumber,
+        insuranceContractDate: meta.insuranceContractDate,
+        insurancePaymentCadence: meta.insurancePaymentCadence,
+      }
+    : undefined;
+
+  return {
+    id: e.id,
+    fleetBrand: equipmentBrandLabel(e),
+    fleetModel: equipmentModelLabel(e),
+    fleetUnitType: equipmentTypeLabel(e),
+    fleetPlate: e.plate?.trim() || '—',
+    fleetOperational: operationalKeyEquipment(e, options.onRoute),
+    fleetMaint: maintenanceBucket(rowMaintMeta, options.completedTripKm),
+    fleetVerif: equipmentPhysMechVerificationBucket(e, meta),
+    fleetIns: insuranceBucket(insMeta),
+    fleetMaintTip: maintTooltip(maintMeta),
+    fleetVerifTip: equipmentPhysMechVerificationTooltip(e, meta),
+    fleetInsTip: insuranceTooltip(insMeta),
+    fleetMaintNext: nextMaintenanceTableDate(maintMeta),
+    fleetVerifNext: nextEquipmentPhysMechTableDate(e, meta),
+    fleetInsNext: nextInsuranceTableDate(insMeta),
   };
 }

@@ -1,4 +1,5 @@
 import { Component, input, model, output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 export interface ToSelectOption {
   value: string;
@@ -8,6 +9,7 @@ export interface ToSelectOption {
 @Component({
   selector: 'to-select',
   standalone: true,
+  imports: [FormsModule],
   templateUrl: './to-select.component.html',
   styleUrl: './to-select.component.scss',
 })
@@ -22,9 +24,4 @@ export class ToSelectComponent {
   readonly value = model('');
 
   readonly blurNotify = output<void>();
-
-  onChange(ev: Event): void {
-    const el = ev.target as HTMLSelectElement;
-    this.value.set(el.value);
-  }
 }

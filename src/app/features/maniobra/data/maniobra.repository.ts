@@ -23,6 +23,8 @@ export interface CreateTripPayload {
   unitId: string;
   /** Opcional; si falta, el mock usa un valor por defecto. */
   clientName?: string;
+  /** Id de catálogo; si falta, el mock resuelve por `clientName` o `cli-internal`. */
+  clientId?: string;
   /** Etiquetas de equipo(s) asignados (1 en sencillo/plana; 2 obligatorios en full). */
   equipment: string[];
   /** Fecha/hora programada de salida (ISO); `null` si no aplica. */
@@ -31,6 +33,17 @@ export interface CreateTripPayload {
   arrivedAt: string | null;
   /** Nombres de archivos adjuntos (PDF/imagen); el binario iría a storage en API real. */
   attachedDocumentFileNames: string[];
+  /** Distancia OSRM (km) al guardar; `null` si no se pudo calcular. */
+  routeDistanceKm?: number | null;
+  maneuverKind?: string;
+  originPostalCode?: string;
+  originCityMunicipality?: string;
+  originLocality?: string;
+  destinationPostalCode?: string;
+  destinationCityMunicipality?: string;
+  destinationLocality?: string;
+  operatorLicenseNumber?: string;
+  operatorLicenseExpiresLabel?: string;
 }
 
 /** Cómo registrar la baja de una maniobra en curso / programada. */
@@ -49,7 +62,11 @@ export abstract class ManiobraRepository {
   abstract create(payload: CreateTripPayload): Observable<Trip>;
 
   /** Agrega un incidente con marca de tiempo del momento del registro. */
-  abstract addIncident(tripId: string, description: string): Observable<Trip>;
+  abstract addIncident(
+    tripId: string,
+    description: string,
+    postedBy: string,
+  ): Observable<Trip>;
 
   /** Marca la maniobra como cancelada (si aún aplica). */
   abstract cancelManiobra(

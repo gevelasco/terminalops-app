@@ -1,0 +1,48 @@
+<div
+  class="to-drawer-skeleton"
+  [class.to-drawer-skeleton--detail]="variant() === 'detail'"
+  [class.to-drawer-skeleton--form]="variant() === 'form'"
+  [class.to-drawer-skeleton--list]="variant() === 'list'"
+  role="status"
+  aria-live="polite"
+  aria-busy="true"
+  aria-label="Cargando contenido"
+>
+  @switch (variant()) {
+    @case ('list') {
+      @for (i of [0, 1, 2, 3, 4]; track i) {
+        <div class="to-drawer-skeleton__list-item">
+          <div class="to-drawer-skeleton__icon"></div>
+          <div class="to-drawer-skeleton__list-body">
+            <div class="to-drawer-skeleton__line to-drawer-skeleton__line--lg"></div>
+            <div class="to-drawer-skeleton__line to-drawer-skeleton__line--md"></div>
+            <div class="to-drawer-skeleton__line to-drawer-skeleton__line--sm"></div>
+          </div>
+        </div>
+      }
+    }
+    @case ('form') {
+      @for (s of [0, 1, 2]; track s) {
+        <div class="to-drawer-skeleton__section">
+          <div class="to-drawer-skeleton__heading"></div>
+          <div class="to-drawer-skeleton__field-grid">
+            <div class="to-drawer-skeleton__field"></div>
+            <div class="to-drawer-skeleton__field"></div>
+          </div>
+          <div class="to-drawer-skeleton__field to-drawer-skeleton__field--wide"></div>
+          <div class="to-drawer-skeleton__line to-drawer-skeleton__line--md"></div>
+        </div>
+      }
+    }
+    @default {
+      @for (s of [0, 1, 2, 3]; track s) {
+        <div class="to-drawer-skeleton__section">
+          <div class="to-drawer-skeleton__heading"></div>
+          <div class="to-drawer-skeleton__line to-drawer-skeleton__line--lg"></div>
+          <div class="to-drawer-skeleton__line to-drawer-skeleton__line--md"></div>
+          <div class="to-drawer-skeleton__line to-drawer-skeleton__line--sm"></div>
+        </div>
+      }
+    }
+  }
+</div>

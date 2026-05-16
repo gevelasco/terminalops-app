@@ -1,0 +1,61 @@
+.clients-contact-empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--to-color-text-muted);
+}
+
+.clients-contact-scroll {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  min-width: 0;
+}
+
+.clients-contact-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.clients-contact-table th,
+.clients-contact-table td {
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 88%, transparent);
+}
+
+.clients-contact-table th {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.clients-contact-table td {
+  font-size: 0.8125rem;
+}
+
+.clients-contact-th--remove {
+  width: 2.25rem;
+  max-width: 2.25rem;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.clients-contact-td--remove {
+  width: 2.25rem;
+  max-width: 2.25rem;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.clients-contact-table td:last-child {
+  padding-right: 0;
+  white-space: nowrap;
+}

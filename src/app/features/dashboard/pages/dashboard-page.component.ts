@@ -1,22 +1,34 @@
-import { Component, inject, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  resource,
+} from '@angular/core';
+import { Router } from '@angular/router';
+import { catchError, firstValueFrom, of } from 'rxjs';
+import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { labelForUnitId } from '@app/sim-db/utils/unit-label';
 import { AlertRepository } from '@features/dashboard/data/alert.repository';
 import { CriticalAlertRepository } from '@features/dashboard/data/critical-alert.repository';
 import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-icon-paths';
 import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import {
-  MOCK_OPERATION_TYPE_SLICES,
-  MOCK_WEEKLY_TRIP_VOLUME,
-  OperationTypeSlice,
-  WeeklyTripPoint,
-} from '@app/mock-data/mock-dashboard-charts';
-import { labelForUnitId } from '@app/mock-data/mock-units';
+  buildOperationTypeSlicesFromTrips,
+  buildWeeklyCompletedTripsByDay,
+  filterTripsProgrammedInCalendarMonth,
+  type OperationTypeSlice,
+  type WeeklyTripPoint,
+} from '@app/sim-db/utils/dashboard-charts-from-trips';
+import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
+import { buildTripStatusSlices } from '@shared/utils/trip-status-slices';
 import {
   Alert,
   CriticalAlert,
   CriticalSeverity,
   Trip,
   TripStatus,
+  Unit,
 } from '@shared/models/logistics.models';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import {
@@ -30,9 +42,17 @@ import {
   ToTableComponent,
 } from '@shared/ui/to-table/to-table.component';
 
+type DashboardBundle = {
+  kpis: Alert[];
+  critical: CriticalAlert[];
+  maniobras: Trip[];
+  units: Unit[];
+};
+
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [DateShortPipe],
   imports: [
     ToCardComponent,
@@ -47,48 +67,79 @@ export class DashboardPageComponent {
   private readonly alertsRepo = inject(AlertRepository);
   private readonly criticalAlertsRepo = inject(CriticalAlertRepository);
   private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly unitsRepo = inject(UnitRepository);
   private readonly dateShort = inject(DateShortPipe);
+  private readonly router = inject(Router);
 
-  readonly loading = signal(true);
-  readonly alerts = signal<Alert[]>([]);
-  readonly criticalAlerts = signal<CriticalAlert[]>([]);
-  readonly tripRows = signal<Record<string, unknown>[]>([]);
-  /** Distribución por estado (todas las maniobras del mock). */
-  readonly tripStatusSlices = signal<
-    { label: string; count: number; pct: number; status: TripStatus }[]
-  >([]);
-  readonly weeklyTripVolume = signal<WeeklyTripPoint[]>(
-    MOCK_WEEKLY_TRIP_VOLUME,
+  private readonly dashResource = resource({
+    loader: async (): Promise<DashboardBundle> => {
+      const [kpis, critical, maniobras, units] = await Promise.all([
+        firstValueFrom(
+          this.alertsRepo.list().pipe(catchError(() => of([] as Alert[]))),
+        ),
+        firstValueFrom(
+          this.criticalAlertsRepo
+            .list()
+            .pipe(catchError(() => of([] as CriticalAlert[]))),
+        ),
+        firstValueFrom(
+          this.maniobrasRepo.list().pipe(catchError(() => of([] as Trip[]))),
+        ),
+        firstValueFrom(
+          this.unitsRepo.list().pipe(catchError(() => of([] as Unit[]))),
+        ),
+      ]);
+      return { kpis, critical, maniobras, units };
+    },
+  });
+
+  /** Solo skeleton en la carga inicial; recargas no ocultan el tablero. */
+  readonly loading = computed(
+    () => !this.dashResource.hasValue() && this.dashResource.isLoading(),
   );
-  readonly operationTypeSlices = signal<OperationTypeSlice[]>(
-    MOCK_OPERATION_TYPE_SLICES,
+
+  readonly alerts = computed(() => this.dashResource.value()?.kpis ?? []);
+
+  /** Solo incidentes con prioridad «crítico» (alto/medio/bajo van al panel de notificaciones). */
+  readonly criticalAlerts = computed(() =>
+    (this.dashResource.value()?.critical ?? []).filter((a) => a.severity === 'critical'),
+  );
+  readonly tripRows = computed(() => {
+    const v = this.dashResource.value();
+    return this.mapTripRows(v?.maniobras ?? [], v?.units ?? []);
+  });
+
+  /** Maniobras del mes en curso (por `programmedAt`) — mismas que alimentan el resumen mensual. */
+  readonly tripsProgrammedThisMonth = computed(() =>
+    filterTripsProgrammedInCalendarMonth(
+      this.dashResource.value()?.maniobras ?? [],
+      new Date(),
+    ),
+  );
+
+  readonly tripStatusSlices = computed(() =>
+    buildTripStatusSlices(this.tripsProgrammedThisMonth()),
+  );
+
+  readonly weeklyTripVolume = computed<WeeklyTripPoint[]>(() =>
+    buildWeeklyCompletedTripsByDay(this.dashResource.value()?.maniobras ?? []),
+  );
+  readonly operationTypeSlices = computed<OperationTypeSlice[]>(() =>
+    buildOperationTypeSlicesFromTrips(this.tripsProgrammedThisMonth()),
   );
 
   readonly criticalIconPaths = CRITICAL_ALERT_ICON_PATHS;
 
   readonly tripColumns: ToTableColumn[] = [
-    { key: 'code', label: 'Maniobras' },
+    { key: 'code', label: 'Código' },
     { key: 'route', label: 'Ruta' },
     { key: 'unitId', label: 'Unidad', cell: 'muted-badge' },
     { key: 'status', label: 'Estado', cell: 'maniobra-status' },
     { key: 'programmedAt', label: 'Programado' },
   ];
 
-  constructor() {
-    forkJoin({
-      kpis: this.alertsRepo.list(),
-      critical: this.criticalAlertsRepo.list(),
-      maniobras: this.maniobrasRepo.list(),
-    }).subscribe({
-      next: ({ kpis, critical, maniobras }) => {
-        this.alerts.set(kpis);
-        this.criticalAlerts.set(critical);
-        this.tripRows.set(this.mapTripRows(maniobras));
-        this.tripStatusSlices.set(this.buildTripStatusSlices(maniobras));
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+  onTripRowClick(_row: Record<string, unknown>): void {
+    void this.router.navigate(['/maniobra']);
   }
 
   iconPath(kind: CriticalAlert['kind']): string {
@@ -107,6 +158,8 @@ export class DashboardPageComponent {
         return 'Alto';
       case 'medium':
         return 'Medio';
+      case 'low':
+        return 'Bajo';
     }
   }
 
@@ -118,36 +171,27 @@ export class DashboardPageComponent {
         return 'warning';
       case 'medium':
         return 'neutral';
+      case 'low':
+        return 'success';
     }
   }
 
-  private mapTripRows(trips: Trip[]): Record<string, unknown>[] {
+  private mapTripRows(trips: Trip[], units: readonly Unit[]): Record<string, unknown>[] {
     const sorted = [...trips].sort(
       (a, b) =>
-        new Date(b.programmedAt).getTime() - new Date(a.programmedAt).getTime(),
+        new Date(b.programmedAt).getTime() -
+        new Date(a.programmedAt).getTime(),
     );
-    const top = sorted.slice(0, 10);
-    return top.map((t) => ({
+    const latest = sorted.slice(0, 10);
+    return latest.map((t) => ({
       id: t.id,
       code: t.maneuverCode,
-      route: `${t.origin} → ${t.destination}`,
-      unitId: labelForUnitId(t.unitId),
+      route: formatTripRouteLabel(t.origin, t.destination),
+      unitId: labelForUnitId(t.unitId, units),
       status: t.status,
+      falseManeuver: t.falseManeuver === true,
       programmedAt: this.formatDate(t.programmedAt),
     }));
-  }
-
-  private tripStatusLabel(status: TripStatus): string {
-    switch (status) {
-      case 'scheduled':
-        return 'Programado';
-      case 'in_transit':
-        return 'En curso';
-      case 'completed':
-        return 'Completado';
-      case 'cancelled':
-        return 'Cancelado';
-    }
   }
 
   weeklyBarHeightPct(value: number): number {
@@ -178,33 +222,5 @@ export class DashboardPageComponent {
       case 'c':
         return 'dash-chart-bar__fill--op-c';
     }
-  }
-
-  private buildTripStatusSlices(trips: Trip[]): {
-    label: string;
-    count: number;
-    pct: number;
-    status: TripStatus;
-  }[] {
-    const order: TripStatus[] = [
-      'in_transit',
-      'scheduled',
-      'completed',
-      'cancelled',
-    ];
-    const counts = new Map<TripStatus, number>();
-    for (const s of order) {
-      counts.set(s, 0);
-    }
-    for (const t of trips) {
-      counts.set(t.status, (counts.get(t.status) ?? 0) + 1);
-    }
-    const total = trips.length || 1;
-    return order.map((status) => ({
-      status,
-      label: this.tripStatusLabel(status),
-      count: counts.get(status) ?? 0,
-      pct: Math.round(((counts.get(status) ?? 0) / total) * 100),
-    }));
   }
 }

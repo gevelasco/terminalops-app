@@ -1,0 +1,451 @@
+<div
+  class="fleet-drawer profile-drawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="profile-drawer-title"
+>
+  <ng-template #toSaveIconSm>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path
+        d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+      />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  </ng-template>
+
+  <button
+    type="button"
+    class="fleet-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="dismiss.emit()"
+  ></button>
+
+  <aside class="fleet-drawer__panel fleet-drawer__panel--wide profile-drawer__panel">
+    <header class="fleet-drawer__header">
+      <h2 id="profile-drawer-title" class="fleet-drawer__title">
+        <svg
+          class="fleet-drawer__title-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            fill="currentColor"
+            d="M12 12.75c1.63 0 3.07.39 4.24.9 1.08.48 1.76 1.56 1.76 2.73V18H6v-1.61c0-1.18.68-2.26 1.76-2.73 1.17-.52 2.61-.91 4.24-.91zM4 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm1.13 1.1c-.37-.06-.74-.1-1.13-.1-.99 0-1.93.21-2.78.58C.48 14.9 0 15.62 0 16.43V18h4.5v-1.61c0-.83.23-1.61.63-2.29zM20 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm4 3.43c0-.81-.48-1.53-1.22-1.85-.85-.37-1.79-.58-2.78-.58-.39 0-.76.04-1.13.1.4.68.63 1.46.63 2.29V18H24v-1.57zM12 6c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z"
+          />
+        </svg>
+        Mi perfil
+      </h2>
+      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          />
+        </svg>
+      </to-icon-button>
+    </header>
+
+    <div class="fleet-drawer__body fleet-unit-body fleet-unit-detail profile-drawer__body">
+      @if (drawerLoading()) {
+        <to-drawer-skeleton variant="detail" />
+      } @else {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
+        aria-labelledby="profile-account-heading"
+      >
+        <h3 id="profile-account-heading" class="fleet-unit-sec__title">Cuenta</h3>
+
+        <div class="profile-drawer__identity">
+          <div class="profile-drawer__avatar-wrap">
+            @if (hasPhoto()) {
+              <img
+                class="profile-drawer__avatar"
+                [src]="photoDataUrl()"
+                alt=""
+                width="64"
+                height="64"
+              />
+            } @else {
+              <span
+                class="profile-drawer__avatar profile-drawer__avatar--initials"
+                aria-hidden="true"
+                >{{ avatarPreview() }}</span
+              >
+            }
+            <label
+              class="profile-drawer__avatar-edit"
+              [class.profile-drawer__avatar-edit--busy]="photoSaving()"
+              [attr.aria-busy]="photoSaving()"
+            >
+              <span class="profile-drawer__sr-only">Cambiar foto de perfil</span>
+              <input
+                type="file"
+                accept="image/*"
+                class="profile-drawer__file-input"
+                [disabled]="photoSaving() || saving()"
+                (change)="onPhotoSelected($event)"
+              />
+              @if (photoSaving()) {
+                <span class="profile-drawer__avatar-edit-spinner" aria-hidden="true"></span>
+              } @else {
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
+                  />
+                </svg>
+              }
+            </label>
+          </div>
+
+          <div class="profile-drawer__identity-meta">
+            <p class="profile-drawer__identity-name">{{ displayName() }}</p>
+            <p class="profile-drawer__identity-role">
+              {{ jobTitle().trim() || username() }}
+            </p>
+            <p class="profile-drawer__identity-email">{{ email() }}</p>
+            @if (hasPhoto()) {
+              <button
+                type="button"
+                class="profile-drawer__photo-remove"
+                [disabled]="photoSaving() || saving()"
+                (click)="removePhotoAndSave()"
+              >
+                Quitar foto
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="profile-drawer__theme">
+          <span id="profile-theme-label" class="profile-drawer__theme-label">Tema</span>
+          <div
+            class="fleet-segment profile-drawer__theme-segment"
+            role="group"
+            aria-labelledby="profile-theme-label"
+          >
+            <button
+              type="button"
+              class="fleet-segment__btn"
+              [class.fleet-segment__btn--active]="isThemeActive('light')"
+              [attr.aria-pressed]="isThemeActive('light')"
+              (click)="setTheme('light')"
+            >
+              <span class="fleet-segment__icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"
+                  />
+                </svg>
+              </span>
+              Claro
+            </button>
+            <button
+              type="button"
+              class="fleet-segment__btn"
+              [class.fleet-segment__btn--active]="isThemeActive('dark')"
+              [attr.aria-pressed]="isThemeActive('dark')"
+              (click)="setTheme('dark')"
+            >
+              <span class="fleet-segment__icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"
+                  />
+                </svg>
+              </span>
+              Oscuro
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="profile-collab-heading"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="profile-collab-heading" class="fleet-unit-sec__title">
+            Colaborador
+          </h3>
+          @if (!isEditing('collaborator')) {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar datos de colaborador"
+              [disabled]="saving()"
+              (click)="startEditSection('collaborator')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+
+        @if (!isEditing('collaborator')) {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Fecha de ingreso</dt>
+              <dd>{{ memberSinceLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Antigüedad</dt>
+              <dd>{{ tenureLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Área</dt>
+              <dd>{{ department().trim() || '—' }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ubicación</dt>
+              <dd>{{ workLocation().trim() || '—' }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>ID colaborador</dt>
+              <dd class="fleet-unit-detail__mono">{{ employeeId().trim() || '—' }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <dl class="fleet-unit-detail__dl profile-drawer__readonly-block">
+              <div class="fleet-unit-detail__row">
+                <dt>Fecha de ingreso</dt>
+                <dd>{{ memberSinceLine() }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Antigüedad</dt>
+                <dd>{{ tenureLine() }}</dd>
+              </div>
+            </dl>
+            <p class="fleet-unit-sec__docs-hint">
+              La fecha de ingreso la registra el sistema y no puede modificarse desde aquí.
+            </p>
+            <div class="fleet-unit-sec__edit-grid">
+              <to-input label="Área" placeholder="Ej. Operaciones logísticas" [(value)]="department" />
+              <to-input label="Ubicación" placeholder="Ej. Monterrey, NL" [(value)]="workLocation" />
+              <to-input label="ID colaborador" placeholder="Ej. VSC-0042" [(value)]="employeeId" />
+            </div>
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="saveCollaboratorSection()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? 'Guardando…' : 'Guardar' }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="profile-personal-heading"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="profile-personal-heading" class="fleet-unit-sec__title">Datos personales</h3>
+          @if (!isEditing('personal')) {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar datos personales"
+              [disabled]="saving()"
+              (click)="startEditSection('personal')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+
+        @if (!isEditing('personal')) {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Nombre</dt>
+              <dd>{{ displayName() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Usuario</dt>
+              <dd class="fleet-unit-detail__mono">{{ username() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Puesto</dt>
+              <dd>{{ jobTitle().trim() || '—' }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Correo electrónico</dt>
+              <dd>{{ email() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Teléfono</dt>
+              <dd>{{ phone().trim() || '—' }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <div class="fleet-unit-sec__edit-grid">
+              <to-input label="Nombre *" [(value)]="displayName" />
+              <to-input label="Usuario *" [(value)]="username" />
+              <to-input label="Puesto" placeholder="Ej. Coordinador de operaciones" [(value)]="jobTitle" />
+              <to-input label="Correo electrónico *" type="email" [(value)]="email" />
+              <to-input label="Teléfono" type="text" [(value)]="phone" />
+            </div>
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="savePersonalSection()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? 'Guardando…' : 'Guardar' }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="profile-pwd-heading"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="profile-pwd-heading" class="fleet-unit-sec__title">Contraseña</h3>
+          @if (!isEditing('password')) {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar contraseña"
+              [disabled]="saving()"
+              (click)="startEditSection('password')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+
+        @if (!isEditing('password')) {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Estado</dt>
+              <dd>{{ passwordStatusLabel() }}</dd>
+            </div>
+          </dl>
+          <p class="fleet-unit-sec__docs-hint">
+            Usa editar para establecer una nueva contraseña. Aplica en el próximo inicio de sesión.
+          </p>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <div class="fleet-unit-sec__edit-grid">
+              <to-input
+                label="Nueva contraseña *"
+                type="password"
+                [passwordToggle]="true"
+                autocomplete="new-password"
+                [(value)]="newPassword"
+              />
+              <to-input
+                label="Confirmar contraseña *"
+                type="password"
+                [passwordToggle]="true"
+                autocomplete="new-password"
+                [(value)]="confirmPassword"
+              />
+            </div>
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="savePasswordSection()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? 'Guardando…' : 'Guardar' }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+      }
+    </div>
+
+    @if (!drawerLoading()) {
+    <footer class="profile-drawer__footer">
+      <button
+        type="button"
+        class="profile-drawer__logout-btn"
+        [disabled]="saving()"
+        (click)="logout()"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+          />
+        </svg>
+        Cerrar sesión
+      </button>
+    </footer>
+    }
+  </aside>
+</div>

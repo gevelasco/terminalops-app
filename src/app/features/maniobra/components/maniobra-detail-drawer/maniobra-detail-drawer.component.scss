@@ -94,15 +94,29 @@
   background: var(--to-color-surface);
 }
 
-.maniobra-detail__incident-date {
-  display: block;
-  margin: 0 0 0.35rem;
-  font-size: 0.6875rem;
+.maniobra-detail__incident-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.maniobra-detail__incident-author {
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--to-color-primary);
+  letter-spacing: -0.01em;
+}
+
+.maniobra-detail__incident-date {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--to-color-text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .maniobra-detail__incident-desc {
@@ -358,4 +372,12 @@
   justify-content: flex-end;
   gap: 0.55rem;
   margin-top: 1.1rem;
+}
+
+/** Código de maniobra en cabecera (ellipsis si no cabe). */
+.maniobra-detail-drawer__title-code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

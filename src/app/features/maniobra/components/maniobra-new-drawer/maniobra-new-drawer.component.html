@@ -11,7 +11,7 @@
     (click)="dismiss.emit()"
   ></button>
 
-  <aside class="maniobra-drawer__panel">
+  <aside class="maniobra-drawer__panel maniobra-drawer__panel--wide">
     <header class="maniobra-drawer__header">
       <h2 id="maniobra-drawer-title" class="maniobra-drawer__title">
         <svg
@@ -40,6 +40,9 @@
 
     <form class="maniobra-drawer__form" (ngSubmit)="submit()">
       <div class="maniobra-drawer__body">
+        @if (drawerLoading()) {
+          <to-drawer-skeleton variant="form" />
+        } @else {
         <!-- Detalle de ruta -->
         <section
           class="maniobra-drawer__section maniobra-drawer__section--boxed"
@@ -61,35 +64,79 @@
             Detalle de ruta
           </h3>
           <div class="maniobra-drawer__grid2">
-            <to-place-input
-              label="Origen *"
-              placeholder="Buscar ciudad o lugar…"
-              [(value)]="origin"
-              (coordinatesChange)="originCoords.set($event)"
-              (blurNotify)="onOriginBlur()"
-            />
-            <to-place-input
-              label="Destino *"
-              placeholder="Buscar ciudad o lugar…"
-              [(value)]="destination"
-              (coordinatesChange)="destinationCoords.set($event)"
-              (blurNotify)="onDestinationBlur()"
-            />
+            <div class="maniobra-cp-stack">
+              <to-input
+                label="CP de Origen *"
+                placeholder="Ej. 64000"
+                [maxLength]="5"
+                inputName="originCp"
+                autocomplete="postal-code"
+                [(value)]="originCp"
+                (blurNotify)="onOriginCpBlur()"
+              />
+              @if (originCpLoading()) {
+                <p class="maniobra-drawer__route-line" aria-live="polite">
+                  Consultando catálogo postal…
+                </p>
+              }
+              <to-input
+                label="Ciudad / municipio origen"
+                placeholder="—"
+                [disabled]="true"
+                [displayValue]="originCityLine()"
+              />
+              <to-select
+                label="Localidad origen *"
+                placeholder="Elige localidad en la lista (requerido para calcular ruta)"
+                [options]="originLocalitySelectOptions()"
+                [(value)]="originLocalityKey"
+                [disabled]="originLocalitySelectOptions().length === 0"
+              />
+            </div>
+            <div class="maniobra-cp-stack">
+              <to-input
+                label="CP Destino *"
+                placeholder="Ej. 77560"
+                [maxLength]="5"
+                inputName="destinationCp"
+                autocomplete="postal-code"
+                [(value)]="destinationCp"
+                (blurNotify)="onDestinationCpBlur()"
+              />
+              @if (destinationCpLoading()) {
+                <p class="maniobra-drawer__route-line" aria-live="polite">
+                  Consultando catálogo postal…
+                </p>
+              }
+              <to-input
+                label="Ciudad / municipio Destino"
+                placeholder="—"
+                [disabled]="true"
+                [displayValue]="destinationCityLine()"
+              />
+              <to-select
+                label="Localidad Destino *"
+                placeholder="Elige localidad en la lista (requerido para calcular ruta)"
+                [options]="destinationLocalitySelectOptions()"
+                [(value)]="destinationLocalityKey"
+                [disabled]="destinationLocalitySelectOptions().length === 0"
+              />
+            </div>
           </div>
           <div class="maniobra-drawer__grid2">
             <div class="maniobra-drawer__distance-field">
               <to-input
                 label="Distancia"
-                placeholder="Se calcula al elegir origen y destino en la lista"
+                placeholder="Se calcula con OSRM al tener localidades y coordenadas"
                 [disabled]="true"
-                [value]="distanceInputValue()"
+                [displayValue]="distanceInputValue()"
               />
             </div>
             <to-input
               label="Tipo de maniobra"
               placeholder="Local o foránea según distancia"
               [disabled]="true"
-              [value]="maneuverKindInputValue()"
+              [displayValue]="maneuverKindInputValue()"
             />
           </div>
           @if (routeFailed() && originCoords() && destinationCoords()) {
@@ -98,6 +145,17 @@
             >
               No se pudo calcular la distancia ahora (servicio demo). Inténtalo
               de nuevo más tarde.
+            </p>
+          }
+          @if (
+            routePairReady() &&
+            (originGeocodeFailed() || destinationGeocodeFailed())
+          ) {
+            <p
+              class="maniobra-drawer__route-line maniobra-drawer__route-line--warn"
+            >
+              No se encontraron coordenadas para origen o destino; revisa CP y
+              localidad.
             </p>
           }
         </section>
@@ -175,48 +233,46 @@
             [(operatorId)]="assignedOperatorId"
             (blurNotify)="onAssignedOperatorBlur()"
           />
-          @if (isFullOperation()) {
-            <div class="maniobra-drawer__grid3">
-              <to-select
-                label="Unidad *"
-                [placeholder]="unitPlaceholder"
-                [options]="unitOptions"
-                [(value)]="unitId"
-                (blurNotify)="onUnitBlur()"
-              />
-              <to-select
-                label="Equipo 1 *"
-                [placeholder]="equipmentPlaceholder"
-                [options]="equipmentOptions"
-                [(value)]="equipmentPrimary"
-                (blurNotify)="onEquipmentPrimaryBlur()"
-              />
-              <to-select
-                label="Equipo 2 *"
-                [placeholder]="equipmentPlaceholder"
-                [options]="equipmentOptions"
-                [(value)]="equipmentSecondary"
-                (blurNotify)="onEquipmentSecondaryBlur()"
-              />
-            </div>
-          } @else {
-            <div class="maniobra-drawer__grid2">
-              <to-select
-                label="Unidad *"
-                [placeholder]="unitPlaceholder"
-                [options]="unitOptions"
-                [(value)]="unitId"
-                (blurNotify)="onUnitBlur()"
-              />
-              <to-select
-                label="Equipo *"
-                [placeholder]="equipmentPlaceholder"
-                [options]="equipmentOptions"
-                [(value)]="equipmentPrimary"
-                (blurNotify)="onEquipmentPrimaryBlur()"
-              />
-            </div>
-          }
+          <div class="maniobra-drawer__grid2">
+            <to-input
+              label="No. de licencia"
+              placeholder="—"
+              [disabled]="true"
+              [displayValue]="operatorLicenseReadonly()"
+            />
+            <to-input
+              label="Vencimiento de licencia"
+              placeholder="—"
+              [disabled]="true"
+              [displayValue]="operatorLicenseExpiresReadonly()"
+            />
+          </div>
+          <div class="maniobra-drawer__grid3">
+            <to-select
+              label="Unidad *"
+              [placeholder]="unitPlaceholder"
+              [options]="unitOptions()"
+              [(value)]="unitId"
+              (blurNotify)="onUnitBlur()"
+            />
+            <to-select
+              label="Equipo 1 *"
+              [placeholder]="equipmentPlaceholder"
+              [options]="equipmentOptions"
+              [(value)]="equipmentPrimary"
+              (blurNotify)="onEquipmentPrimaryBlur()"
+            />
+            <to-select
+              [label]="isFullOperation() ? 'Equipo 2 *' : 'Equipo 2'"
+              [placeholder]="
+                isFullOperation() ? equipmentPlaceholder : 'Solo en configuración Full'
+              "
+              [options]="equipmentOptions"
+              [(value)]="equipmentSecondary"
+              [disabled]="!isFullOperation()"
+              (blurNotify)="onEquipmentSecondaryBlur()"
+            />
+          </div>
           <div class="maniobra-drawer__grid2">
             <to-input
               label="Salida *"
@@ -333,49 +389,56 @@
               <span class="maniobra-drawer__toggle-text">Añadir</span>
             </label>
           </div>
-          @if (!includeClientBilling()) {
-            <p class="maniobra-drawer__client-hint">
-              Si tu maniobra es interna, no es necesario agregar cliente y cobro.
-            </p>
-          }
-          @if (includeClientBilling()) {
-            <div class="maniobra-drawer__client-fields">
-              <to-client-input
-                label="Cliente *"
-                placeholder="Buscar o elegir cliente…"
-                [(value)]="clientName"
-                (blurNotify)="onClientBlur()"
-              />
-              <div class="maniobra-drawer__grid2">
-                <to-input
-                  label="Cobro *"
-                  placeholder="0"
-                  prefix="$"
-                  [groupThousands]="true"
-                  [(value)]="clientCharge"
-                  (blurNotify)="onClientChargeBlur()"
-                />
-                <to-select
-                  label="Método de pago"
-                  [options]="paymentMethodOptions"
-                  [(value)]="paymentMethod"
-                />
-              </div>
+          <p class="maniobra-drawer__client-hint">
+            @if (!includeClientBilling()) {
+              Activa «Añadir» para registrar cliente, cobro y condiciones de pago.
+              Si la maniobra es interna, puedes dejarlo apagado.
+            } @else {
+              Completa cliente, cobro y condiciones de pago.
+            }
+          </p>
+          <div class="maniobra-drawer__client-fields">
+            <to-client-input
+              label="Cliente *"
+              placeholder="Buscar o elegir cliente…"
+              [disabled]="!includeClientBilling()"
+              [(value)]="clientName"
+              [(clientId)]="clientId"
+              (blurNotify)="onClientBlur()"
+            />
+            <div class="maniobra-drawer__grid2">
               <to-input
-                label="Días de crédito (opcional; vacío = 0)"
+                label="Cobro *"
                 placeholder="0"
-                [(value)]="creditDays"
+                prefix="$"
+                [groupThousands]="true"
+                [disabled]="!includeClientBilling()"
+                [(value)]="clientCharge"
+                (blurNotify)="onClientChargeBlur()"
               />
-              <label class="maniobra-drawer__check">
-                <input
-                  type="checkbox"
-                  [checked]="requiresInvoice()"
-                  (change)="requiresInvoice.set($any($event.target).checked)"
-                />
-                <span>Requiere factura</span>
-              </label>
+              <to-select
+                label="Método de pago"
+                [options]="paymentMethodOptions"
+                [disabled]="!includeClientBilling()"
+                [(value)]="paymentMethod"
+              />
             </div>
-          }
+            <to-input
+              label="Días de crédito (opcional; vacío = 0)"
+              placeholder="0"
+              [disabled]="!includeClientBilling()"
+              [(value)]="creditDays"
+            />
+            <label class="maniobra-drawer__check">
+              <input
+                type="checkbox"
+                [disabled]="!includeClientBilling()"
+                [checked]="requiresInvoice()"
+                (change)="requiresInvoice.set($any($event.target).checked)"
+              />
+              <span>Requiere factura</span>
+            </label>
+          </div>
         </section>
 
         <!-- Documentos -->
@@ -424,7 +487,7 @@
               class="maniobra-drawer__file-list"
               aria-label="Archivos seleccionados"
             >
-              @for (file of attachedFiles(); track $index) {
+              @for (file of attachedFiles(); track trackFileEntry($index, file)) {
                 <li class="maniobra-drawer__file-item">
                   <span class="maniobra-drawer__file-name">{{
                     file.name
@@ -439,10 +502,14 @@
                 </li>
               }
             </ul>
+          } @else {
+            <p class="maniobra-drawer__docs-empty">Ningún archivo seleccionado.</p>
           }
         </section>
+        }
       </div>
 
+      @if (!drawerLoading()) {
       <footer class="maniobra-drawer__footer">
         <button
           type="button"
@@ -455,6 +522,7 @@
           >Programar maniobra</to-button
         >
       </footer>
+      }
     </form>
   </aside>
 </div>

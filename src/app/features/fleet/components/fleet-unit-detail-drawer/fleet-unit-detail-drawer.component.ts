@@ -1,8 +1,11 @@
-import { DecimalPipe, DOCUMENT } from '@angular/common';
+import { DecimalPipe, DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
+  effect,
   HostListener,
   inject,
   input,
@@ -11,19 +14,29 @@ import {
 } from '@angular/core';
 import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
 import { ToastService } from '@core/notifications/toast.service';
-import {
-  formatUnitTrailerLabel,
-  formatUnitTrailerOperationalId,
-} from '@app/mock-data/mock-units';
+import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
+import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import {
   FleetRenewalBucket,
+  fleetGpsRenewal,
   fleetInsuranceRenewal,
+  fleetMaintenanceKmRemaining,
   formatFleetYmdMx,
+  nextGpsTableDate,
   nextInsuranceTableDate,
+  nextMaintenanceDueIso,
   nextMaintenanceTableDate,
   nextCycleFormatted,
   renewalBucket,
+  renewalBucketFromTargetYmd,
 } from '@app/features/fleet/utils/fleet-unit-table-row';
+import { downloadMockFleetDocument } from '@app/features/fleet/utils/fleet-mock-document-download';
+import {
+  trackFileEntry,
+  trackMaintenanceEntry,
+  trackStringEntry,
+} from '@features/fleet/utils/list-trackers';
+import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import {
   MaintenanceEntry,
   MaintenanceEntryStatus,
@@ -31,6 +44,7 @@ import {
   Unit,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
+import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -39,9 +53,22 @@ import {
   ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
+import {
+  buildFleetModelYearSelectOptions,
+  FLEET_MAINT_SCHEDULE_NEXT_MODE_OPTIONS,
+  FLEET_MAINTENANCE_ENTRY_STATUS_OPTIONS,
+  FLEET_MAINTENANCE_TYPE_OPTIONS,
+  FLEET_PAYMENT_CADENCE_OPTIONS,
+  FLEET_TRAILER_TENURE_OPTIONS,
+  FLEET_TRANSMISSION_SPEED_OPTIONS,
+  FLEET_TRANSMISSION_TYPE_OPTIONS,
+  FLEET_UNIT_STATUS_OPTIONS,
+} from '@shared/catalogs/fleet-form-options';
 
 const VERIF_MO = 6;
 const MAINT_MO = 6;
+
+type UnitDetailDrawerTab = 'ficha' | 'mant' | 'cob';
 
 function todayIso(): string {
   const d = new Date();
@@ -59,6 +86,18 @@ function parseOptionalAmount(raw: string): number | undefined | 'invalid' {
   }
   const n = Number(t);
   if (!Number.isFinite(n) || n < 0) {
+    return 'invalid';
+  }
+  return n;
+}
+
+function parsePositiveKm(raw: string): number | 'invalid' {
+  const t = raw.trim().replace(/\s/g, '').replace(/,/g, '');
+  if (t === '') {
+    return 'invalid';
+  }
+  const n = Number(t);
+  if (!Number.isFinite(n) || n <= 0) {
     return 'invalid';
   }
   return n;
@@ -90,14 +129,22 @@ function valueFromLabel(opts: ToSelectOption[], label: string | undefined): stri
   standalone: true,
   imports: [
     DecimalPipe,
+    NgTemplateOutlet,
     ToIconButtonComponent,
     ToButtonComponent,
     ToInputComponent,
     ToSelectComponent,
     ToTextareaComponent,
+    ToDrawerSkeletonComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-unit-detail-drawer.component.html',
-  styleUrls: ['../fleet-drawer.shared.scss', './fleet-unit-detail-drawer.component.scss'],
+  styleUrls: [
+    '../fleet-drawer.shared.scss',
+    '../styles/fleet-drawer-unit-sec.shared.scss',
+    './fleet-unit-detail-drawer-panel.scss',
+    './fleet-unit-detail-drawer-tables.scss',
+  ],
 })
 export class FleetUnitDetailDrawerComponent {
   private readonly doc = inject(DOCUMENT);
@@ -107,13 +154,28 @@ export class FleetUnitDetailDrawerComponent {
   readonly unit = input.required<Unit>();
   /** Si hay maniobra `in_transit` para esta unidad. */
   readonly onRoute = input(false);
+  /** Maniobras con estado `completed` asignadas a esta unidad (última carga en flota). */
+  readonly completedManeuverCount = input(0);
+  /**
+   * Suma de `routeDistanceKm` en maniobras completadas para esta unidad.
+   * `null` si no hay km registrados en esas maniobras.
+   */
+  readonly completedTripDistanceKm = input<number | null>(null);
 
   readonly verifCycleMo = VERIF_MO;
 
   /** Expuesto a la plantilla (no se pueden importar funciones sueltas en el HTML). */
   readonly formatYmd = formatFleetYmdMx;
 
+  readonly trackFileEntry = trackFileEntry;
+  readonly trackStringEntry = trackStringEntry;
+  readonly trackMaintenanceEntry = trackMaintenanceEntry;
+
+  /** Iconos de pestañas (Material Symbols, estilo tablero). */
+  readonly detailTabSymbols = FLEET_UNIT_DETAIL_TAB_SYMBOLS;
+
   readonly dismiss = output<void>();
+  readonly drawerLoading = signal(true);
 
   /** Overrides locales durante la sesión (mock; reemplazar con persistencia real). */
   private readonly unitOverride = signal<Partial<Unit>>({});
@@ -133,10 +195,14 @@ export class FleetUnitDetailDrawerComponent {
 
   /** Sección abierta en modo edición. `null` = solo lectura. */
   readonly editingSection = signal<
-    'id' | 'tenure' | 'cap' | 'maint' | 'verif' | 'insurance' | null
+    'id' | 'tenure' | 'cap' | 'maint' | 'verif' | 'insurance' | 'gps' | null
   >(null);
 
-  isEditing(section: 'id' | 'tenure' | 'cap' | 'maint' | 'verif' | 'insurance'): boolean {
+  readonly detailTab = signal<UnitDetailDrawerTab>('mant');
+
+  isEditing(
+    section: 'id' | 'tenure' | 'cap' | 'maint' | 'verif' | 'insurance' | 'gps',
+  ): boolean {
     return this.editingSection() === section;
   }
 
@@ -205,24 +271,16 @@ export class FleetUnitDetailDrawerComponent {
   readonly editPlate = signal('');
   readonly editColor = signal('');
   readonly editStatus = signal('available');
+  readonly editSerial = signal('');
+  readonly editAlias = signal('');
 
   readonly brandOptions = TRAILER_BRAND_OPTIONS;
-  readonly modelYearOptions: ToSelectOption[] = (() => {
-    const y = new Date().getFullYear();
-    const out: ToSelectOption[] = [];
-    for (let i = y + 1; i >= 1990; i--) {
-      out.push({ value: String(i), label: String(i) });
-    }
-    return out;
-  })();
-  readonly statusOptions: ToSelectOption[] = [
-    { value: 'available', label: 'Disponible' },
-    { value: 'in_use', label: 'En uso' },
-    { value: 'scheduled', label: 'Programado' },
-    { value: 'maintenance', label: 'Mantenimiento' },
-  ];
+  readonly modelYearOptions = buildFleetModelYearSelectOptions();
+  readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
 
   startEditId(): void {
+    this.focusDetailTab('ficha');
+    this.clearStagedDocUploads();
     const u = this.effUnit();
     const m = u.fleetMeta ?? {};
     this.editBrand.set(u.trailerBrandAbbr?.trim() || '');
@@ -232,11 +290,44 @@ export class FleetUnitDetailDrawerComponent {
     this.editPlate.set(u.plate ?? '');
     this.editColor.set(m.trailerColor?.trim() || '');
     this.editStatus.set((u.status || 'available').trim());
+    this.editSerial.set(u.serialNumber?.trim() || '');
+    this.editAlias.set(u.name?.trim() || '');
     this.editingSection.set('id');
   }
 
   cancelEdit(): void {
+    this.clearStagedDocUploads();
     this.editingSection.set(null);
+  }
+
+  selectDetailTab(tab: UnitDetailDrawerTab): void {
+    this.focusDetailTab(tab);
+  }
+
+  /** Cambia de pestaña y limpia edición / formularios inline al salir de una pestaña. */
+  private focusDetailTab(tab: UnitDetailDrawerTab): void {
+    if (this.detailTab() === tab) {
+      return;
+    }
+    this.cancelEdit();
+    this.cancelVerifEntry();
+    this.cancelMaintScheduleEdits();
+    this.addingMaint.set(false);
+    this.resetNewMaintForm();
+    this.detailTab.set(tab);
+  }
+
+  private cancelMaintScheduleEdits(): void {
+    this.editingMaintNextDate.set(false);
+    this.editingMaintKmInterval.set(false);
+    this.editMaintNextDate.set('');
+    this.editMaintKmIntervalStr.set('');
+  }
+
+  private clearStagedDocUploads(): void {
+    this.editOwnershipNewFiles.set([]);
+    this.editPolicyNewFiles.set([]);
+    this.editVerifNewFiles.set([]);
   }
 
   saveEditId(): void {
@@ -257,6 +348,8 @@ export class FleetUnitDetailDrawerComponent {
       status: this.editStatus(),
       trailerBrandAbbr: this.editBrand().trim() || undefined,
       trailerYear: this.editYear().trim() || undefined,
+      serialNumber: this.editSerial().trim() || undefined,
+      name: this.editAlias().trim() || undefined,
     }));
     this.metaOverride.update((prev) => ({
       ...prev,
@@ -275,13 +368,11 @@ export class FleetUnitDetailDrawerComponent {
   readonly editRecurringDate = signal('');
   readonly editRecurringInstallments = signal('');
   readonly editOwnerPayout = signal('');
+  /** Nombres de documentos de propiedad (copia editable al abrir tenencia). */
+  readonly editOwnershipNames = signal<string[]>([]);
+  readonly editOwnershipNewFiles = signal<File[]>([]);
 
-  readonly tenureOptions: ToSelectOption[] = [
-    { value: 'owned', label: 'Propio' },
-    { value: 'financed', label: 'Financiado' },
-    { value: 'leased', label: 'Arrendado' },
-    { value: 'managed', label: 'Administrado' },
-  ];
+  readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
 
   tenureRecurringAmountLabel(): string {
     return this.editTenureMode() === 'leased' ? 'Monto de renta' : 'Monto por cuota';
@@ -294,6 +385,8 @@ export class FleetUnitDetailDrawerComponent {
   }
 
   startEditTenure(): void {
+    this.focusDetailTab('ficha');
+    this.clearStagedDocUploads();
     const m = this.meta() ?? {};
     this.editTenureMode.set(m.trailerTenureMode ?? 'owned');
     this.editCommercialValue.set(
@@ -315,7 +408,26 @@ export class FleetUnitDetailDrawerComponent {
         ? String(m.trailerManagementOwnerPayout)
         : '',
     );
+    this.editOwnershipNames.set([...(m.documentOwnershipNames ?? [])]);
     this.editingSection.set('tenure');
+  }
+
+  removeEditOwnershipDoc(index: number): void {
+    this.editOwnershipNames.update((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  onEditTenureOwnershipFiles(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (list.length === 0) {
+      return;
+    }
+    this.editOwnershipNewFiles.update((prev) => [...prev, ...list]);
+    input.value = '';
+  }
+
+  removeEditTenureNewFile(index: number): void {
+    this.editOwnershipNewFiles.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   saveEditTenure(): void {
@@ -347,6 +459,12 @@ export class FleetUnitDetailDrawerComponent {
     } else if (mode === 'managed') {
       trailerManagementOwnerPayout = payout === undefined ? undefined : payout;
     }
+    const ownershipMerged = [
+      ...this.editOwnershipNames(),
+      ...this.editOwnershipNewFiles().map((f) => f.name),
+    ];
+    const documentOwnershipNames =
+      ownershipMerged.length > 0 ? [...new Set(ownershipMerged)] : undefined;
     this.metaOverride.update((prev) => ({
       ...prev,
       trailerTenureMode: mode,
@@ -355,7 +473,9 @@ export class FleetUnitDetailDrawerComponent {
       trailerRecurringPaymentDate,
       trailerRecurringInstallmentCount,
       trailerManagementOwnerPayout,
+      documentOwnershipNames,
     }));
+    this.editOwnershipNewFiles.set([]);
     this.toast.show('Propiedad y tenencia actualizadas.', 'success');
     this.editingSection.set(null);
   }
@@ -366,23 +486,9 @@ export class FleetUnitDetailDrawerComponent {
   readonly editGvwrLb = signal('');
   readonly editOdometerKm = signal('');
 
-  readonly transmissionOptions: ToSelectOption[] = [
-    { value: 'automatic', label: 'Automática' },
-    { value: 'standard', label: 'Estándar (manual)' },
-    { value: 'semi', label: 'Semiautomática (AMT)' },
-  ];
+  readonly transmissionOptions = FLEET_TRANSMISSION_TYPE_OPTIONS;
 
-  readonly speedOptions: ToSelectOption[] = [
-    { value: '6', label: '6 velocidades' },
-    { value: '7', label: '7 velocidades' },
-    { value: '8', label: '8 velocidades' },
-    { value: '9', label: '9 velocidades' },
-    { value: '10', label: '10 velocidades' },
-    { value: '12', label: '12 velocidades' },
-    { value: '13', label: '13 velocidades' },
-    { value: '14', label: '14 velocidades' },
-    { value: '18', label: '18 velocidades' },
-  ];
+  readonly speedOptions = FLEET_TRANSMISSION_SPEED_OPTIONS;
 
   /** Capacidad derivada del GVWR mientras se edita (kg). */
   readonly editCapacityPreviewKg = computed<number | null>(() => {
@@ -398,6 +504,8 @@ export class FleetUnitDetailDrawerComponent {
   });
 
   startEditCap(): void {
+    this.focusDetailTab('ficha');
+    this.clearStagedDocUploads();
     const m = this.meta() ?? {};
     this.editTransmissionType.set(
       valueFromLabel(this.transmissionOptions, m.transmissionType) ||
@@ -452,15 +560,18 @@ export class FleetUnitDetailDrawerComponent {
   readonly editInsContractDate = signal('');
   readonly editInsCadence = signal('');
   readonly editInsCost = signal('');
+  /** Póliza y comprobantes (copia editable al abrir seguro). */
+  readonly editPolicyNames = signal<string[]>([]);
+  readonly editPolicyNewFiles = signal<File[]>([]);
+  /** Documentos de verificación (copia editable). */
+  readonly editVerifNames = signal<string[]>([]);
+  readonly editVerifNewFiles = signal<File[]>([]);
 
-  readonly cadenceOptions: ToSelectOption[] = [
-    { value: 'weekly', label: 'Semanal' },
-    { value: 'monthly', label: 'Mensual' },
-    { value: 'quarterly', label: 'Trimestral' },
-    { value: 'annual', label: 'Anual' },
-  ];
+  readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
 
   startEditInsurance(): void {
+    this.focusDetailTab('cob');
+    this.clearStagedDocUploads();
     const m = this.meta() ?? {};
     this.editInsPolicyNumber.set(m.insurancePolicyNumber?.trim() || '');
     this.editInsContractDate.set(m.insuranceContractDate ?? '');
@@ -470,7 +581,65 @@ export class FleetUnitDetailDrawerComponent {
         '',
     );
     this.editInsCost.set(m.insuranceCost != null ? String(m.insuranceCost) : '');
+    this.editPolicyNames.set([...(m.documentPolicyNames ?? [])]);
     this.editingSection.set('insurance');
+  }
+
+  removeEditPolicyDoc(index: number): void {
+    this.editPolicyNames.update((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  onEditInsurancePolicyFiles(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (list.length === 0) {
+      return;
+    }
+    this.editPolicyNewFiles.update((prev) => [...prev, ...list]);
+    input.value = '';
+  }
+
+  removeEditInsurancePolicyNewFile(index: number): void {
+    this.editPolicyNewFiles.update((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  startEditVerif(): void {
+    this.focusDetailTab('cob');
+    this.clearStagedDocUploads();
+    const m = this.meta() ?? {};
+    this.editVerifNames.set([...(m.documentVerificationNames ?? [])]);
+    this.editingSection.set('verif');
+  }
+
+  removeEditVerifDoc(index: number): void {
+    this.editVerifNames.update((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  onEditVerifFiles(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (list.length === 0) {
+      return;
+    }
+    this.editVerifNewFiles.update((prev) => [...prev, ...list]);
+    input.value = '';
+  }
+
+  removeEditVerifNewFile(index: number): void {
+    this.editVerifNewFiles.update((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  saveEditVerif(): void {
+    const merged = [
+      ...this.editVerifNames(),
+      ...this.editVerifNewFiles().map((f) => f.name),
+    ];
+    const documentVerificationNames =
+      merged.length > 0 ? [...new Set(merged)] : undefined;
+    this.metaOverride.update((prev) => ({ ...prev, documentVerificationNames }));
+    this.editVerifNewFiles.set([]);
+    this.toast.show('Documentos de verificación actualizados.', 'success');
+    this.editingSection.set(null);
   }
 
   saveEditInsurance(): void {
@@ -483,18 +652,99 @@ export class FleetUnitDetailDrawerComponent {
       this.cadenceOptions.find((o) => o.value === this.editInsCadence())?.label ||
       this.editInsCadence().trim() ||
       undefined;
+    const policyMerged = [
+      ...this.editPolicyNames(),
+      ...this.editPolicyNewFiles().map((f) => f.name),
+    ];
+    const documentPolicyNames =
+      policyMerged.length > 0 ? [...new Set(policyMerged)] : undefined;
     this.metaOverride.update((prev) => ({
       ...prev,
       insurancePolicyNumber: this.editInsPolicyNumber().trim() || undefined,
       insuranceContractDate: this.editInsContractDate().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insuranceCost: cost === undefined ? undefined : cost,
+      documentPolicyNames,
     }));
+    this.editPolicyNewFiles.set([]);
     this.toast.show('Seguro actualizado.', 'success');
     this.editingSection.set(null);
   }
 
-  /** Entradas locales que se acumulan durante la sesión (mock). */
+  // -- GPS: form signals --
+  readonly editGpsHas = signal(false);
+  readonly editGpsBrand = signal('');
+  readonly editGpsContractDate = signal('');
+  readonly editGpsCadence = signal('annual');
+  readonly editGpsPrice = signal('');
+  readonly editGpsPortal = signal('');
+  readonly editGpsEndorse = signal(false);
+
+  startEditGps(): void {
+    this.focusDetailTab('cob');
+    this.clearStagedDocUploads();
+    const m = this.meta() ?? {};
+    this.editGpsHas.set(m.hasGps === true);
+    this.editGpsBrand.set(m.gpsProviderBrand?.trim() || '');
+    this.editGpsContractDate.set(m.gpsContractDate ?? '');
+    const cadRaw = m.gpsPaymentCadence?.trim() || '';
+    this.editGpsCadence.set(
+      valueFromLabel(this.cadenceOptions, cadRaw) ||
+        (this.cadenceOptions.some((o) => o.value === cadRaw) ? cadRaw : '') ||
+        'annual',
+    );
+    this.editGpsPrice.set(m.gpsPrice != null ? String(m.gpsPrice) : '');
+    this.editGpsPortal.set(m.gpsTrackingPortalUrl?.trim() || '');
+    this.editGpsEndorse.set(m.gpsCoveredByInsuranceEndorsement === true);
+    this.editingSection.set('gps');
+  }
+
+  toggleEditGpsHas(): void {
+    this.editGpsHas.set(!this.editGpsHas());
+  }
+
+  toggleEditGpsEndorse(): void {
+    this.editGpsEndorse.set(!this.editGpsEndorse());
+  }
+
+  saveEditGps(): void {
+    if (!this.editGpsHas()) {
+      this.metaOverride.update((prev) => ({
+        ...prev,
+        hasGps: false,
+        gpsProviderBrand: undefined,
+        gpsPrice: undefined,
+        gpsPaymentCadence: undefined,
+        gpsContractDate: undefined,
+        gpsTrackingPortalUrl: undefined,
+        gpsCoveredByInsuranceEndorsement: undefined,
+      }));
+      this.toast.show('GPS actualizado.', 'success');
+      this.editingSection.set(null);
+      return;
+    }
+    const price = parseOptionalAmount(this.editGpsPrice());
+    if (price === 'invalid') {
+      this.toast.show('El precio del GPS debe ser un número válido (≥ 0).', 'warning');
+      return;
+    }
+    const cadenceLabel =
+      this.cadenceOptions.find((o) => o.value === this.editGpsCadence())?.label ||
+      this.editGpsCadence().trim() ||
+      undefined;
+    this.metaOverride.update((prev) => ({
+      ...prev,
+      hasGps: true,
+      gpsProviderBrand: this.editGpsBrand().trim() || undefined,
+      gpsContractDate: this.editGpsContractDate().trim() || undefined,
+      gpsPaymentCadence: cadenceLabel,
+      gpsPrice: price === undefined ? undefined : price,
+      gpsTrackingPortalUrl: this.editGpsPortal().trim() || undefined,
+      gpsCoveredByInsuranceEndorsement: this.editGpsEndorse() ? true : undefined,
+    }));
+    this.toast.show('GPS actualizado.', 'success');
+    this.editingSection.set(null);
+  }
   private readonly localMaintEntries = signal<MaintenanceEntry[]>([]);
 
   /** Estado del formulario inline. */
@@ -506,20 +756,19 @@ export class FleetUnitDetailDrawerComponent {
   readonly newMaintNotes = signal('');
   readonly newMaintFiles = signal<File[]>([]);
 
-  readonly newMaintStatusOptions: ToSelectOption[] = [
-    { value: 'concluido', label: 'Concluido' },
-    { value: 'programado', label: 'Programado' },
-  ];
+  readonly newMaintNextMode = signal<'tiempo' | 'km'>('tiempo');
+  readonly newMaintNextDate = signal('');
+  readonly newMaintNextKmInterval = signal('');
+  readonly newMaintNextModeOptions = FLEET_MAINT_SCHEDULE_NEXT_MODE_OPTIONS;
 
-  readonly newMaintTypeOptions: ToSelectOption[] = [
-    { value: 'servicio_completo', label: 'Servicio completo' },
-    { value: 'medio_servicio', label: 'Medio servicio' },
-    { value: 'mecanica_general', label: 'Mecánica general' },
-    { value: 'reparacion_electrica', label: 'Reparación eléctrica' },
-    { value: 'accesorios', label: 'Accesorios' },
-    { value: 'cambio_llantas', label: 'Cambio de llantas' },
-    { value: 'otro', label: 'Otro' },
-  ];
+  readonly editingMaintNextDate = signal(false);
+  readonly editMaintNextDate = signal('');
+  readonly editingMaintKmInterval = signal(false);
+  readonly editMaintKmIntervalStr = signal('');
+
+  readonly newMaintStatusOptions = FLEET_MAINTENANCE_ENTRY_STATUS_OPTIONS;
+
+  readonly newMaintTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
   /** Hoy en formato ISO; cacheado para usarse como min/max del datepicker. */
   readonly today = todayIso();
@@ -536,6 +785,24 @@ export class FleetUnitDetailDrawerComponent {
     this.destroyRef.onDestroy(() => {
       this.doc.body.style.overflow = '';
     });
+
+    let priorUnitId = '';
+    effect(() => {
+      const id = this.unit().id;
+      if (priorUnitId !== '' && priorUnitId !== id) {
+        this.unitOverride.set({});
+        this.metaOverride.set({});
+        this.editingSection.set(null);
+        this.verifEntryKind.set(null);
+        this.addingMaint.set(false);
+        this.localMaintEntries.set([]);
+        this.resetNewMaintForm();
+        this.detailTab.set('mant');
+      }
+      priorUnitId = id;
+    });
+
+    afterNextRender(() => this.drawerLoading.set(false));
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -547,10 +814,6 @@ export class FleetUnitDetailDrawerComponent {
 
   trailerOperationalId(): string {
     return formatUnitTrailerOperationalId(this.effUnit());
-  }
-
-  friendlyTrailerLabel(): string {
-    return formatUnitTrailerLabel(this.effUnit());
   }
 
   meta(): UnitFleetMeta | undefined {
@@ -585,11 +848,22 @@ export class FleetUnitDetailDrawerComponent {
     return TRAILER_BRAND_OPTIONS.find((o) => o.value === abbr)?.label ?? abbr;
   }
 
+  /** Suma de km en maniobras completadas (rutas con distancia registrada). */
+  completedTripDistanceKmLabel(): string {
+    const v = this.completedTripDistanceKm();
+    if (v == null || !Number.isFinite(v) || v <= 0) {
+      return '—';
+    }
+    return `${new Intl.NumberFormat('es-MX', {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0,
+    }).format(v)} km`;
+  }
+
   statusBanner(): { label: string; sub?: string; mod: string } {
     if (this.onRoute()) {
       return {
-        label: 'En ruta',
-        sub: 'Maniobra activa',
+        label: tripStatusUiLabel('in_transit'),
         mod: 'fleet-unit-detail__status--route',
       };
     }
@@ -669,8 +943,141 @@ export class FleetUnitDetailDrawerComponent {
     return nextMaintenanceTableDate(this.meta()) ?? '—';
   }
 
+  /** `true` = alerta por km; `false`/ausente = por tiempo (calendario). */
+  maintenanceAlertUsesKm(): boolean {
+    return this.meta()?.maintenanceAlertByKm === true;
+  }
+
+  toggleMaintenanceAlertMode(): void {
+    const next = !this.maintenanceAlertUsesKm();
+    this.metaOverride.update((p) => ({
+      ...p,
+      maintenanceAlertByKm: next,
+    }));
+  }
+
+  /**
+   * Texto del badge de kms hasta próximo mantenimiento.
+   * Con `maintenanceKmInterval` y km de maniobras se calcula; si no, valor explícito en meta.
+   */
+  maintenanceKmRemainingDisplay(): string {
+    const raw = fleetMaintenanceKmRemaining(
+      this.meta(),
+      this.completedTripDistanceKm(),
+    );
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+      return `${new Intl.NumberFormat('es-MX', {
+        maximumFractionDigits: 0,
+      }).format(raw)} km`;
+    }
+    return '—';
+  }
+
+  maintKmRenewalBucket(): FleetRenewalBucket {
+    const v = fleetMaintenanceKmRemaining(
+      this.meta(),
+      this.completedTripDistanceKm(),
+    );
+    if (v == null) {
+      return 'na';
+    }
+    if (v <= 0) {
+      return 'due';
+    }
+    if (v <= 300) {
+      return 'soon';
+    }
+    return 'ok';
+  }
+
+  startEditMaintNextDate(): void {
+    this.editMaintNextDate.set(nextMaintenanceDueIso(this.meta()) ?? '');
+    this.editingMaintNextDate.set(true);
+  }
+
+  cancelEditMaintNextDate(): void {
+    this.editingMaintNextDate.set(false);
+    this.editMaintNextDate.set('');
+  }
+
+  saveEditMaintNextDate(): void {
+    const raw = this.editMaintNextDate().trim();
+    if (!raw) {
+      this.metaOverride.update((p) => ({
+        ...p,
+        maintenanceNextDateOverride: undefined,
+      }));
+      this.toast.show(
+        'Se quitó la fecha manual; se usará el ciclo sugerido desde el último servicio.',
+        'success',
+      );
+      this.cancelEditMaintNextDate();
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || raw < this.today) {
+      this.toast.show(
+        'Indica una fecha válida (hoy o futura) en formato año-mes-día.',
+        'warning',
+      );
+      return;
+    }
+    this.metaOverride.update((p) => ({
+      ...p,
+      maintenanceNextDateOverride: raw,
+    }));
+    this.toast.show('Fecha de próximo mantenimiento guardada.', 'success');
+    this.cancelEditMaintNextDate();
+  }
+
+  startEditMaintKmInterval(): void {
+    const m = this.meta();
+    const v = m?.maintenanceKmInterval;
+    this.editMaintKmIntervalStr.set(
+      typeof v === 'number' && Number.isFinite(v) && v > 0 ? String(v) : '',
+    );
+    this.editingMaintKmInterval.set(true);
+  }
+
+  cancelEditMaintKmInterval(): void {
+    this.editingMaintKmInterval.set(false);
+    this.editMaintKmIntervalStr.set('');
+  }
+
+  saveEditMaintKmInterval(): void {
+    const n = parsePositiveKm(this.editMaintKmIntervalStr());
+    if (n === 'invalid') {
+      this.toast.show(
+        'Indica un intervalo en kilómetros mayor a cero (ej. 1000 o 1500).',
+        'warning',
+      );
+      return;
+    }
+    this.metaOverride.update((p) => ({
+      ...p,
+      maintenanceKmInterval: n,
+      maintenanceKmRemaining: null,
+    }));
+    this.toast.show('Intervalo por kilómetros actualizado.', 'success');
+    this.cancelEditMaintKmInterval();
+  }
+
   insNext(): string {
     return nextInsuranceTableDate(this.meta()) ?? '—';
+  }
+
+  gpsNext(): string {
+    return nextGpsTableDate(this.meta()) ?? '—';
+  }
+
+  trackingPortalHref(raw: string | undefined): string {
+    const t = raw?.trim() ?? '';
+    if (!t) {
+      return '#';
+    }
+    if (/^https?:\/\//i.test(t)) {
+      return t;
+    }
+    return `https://${t}`;
   }
 
   /**
@@ -720,6 +1127,8 @@ export class FleetUnitDetailDrawerComponent {
   }
 
   openNewMaint(): void {
+    this.cancelMaintScheduleEdits();
+    this.focusDetailTab('mant');
     this.resetNewMaintForm();
     this.addingMaint.set(true);
   }
@@ -736,6 +1145,9 @@ export class FleetUnitDetailDrawerComponent {
     this.newMaintDate.set('');
     this.newMaintNotes.set('');
     this.newMaintFiles.set([]);
+    this.newMaintNextMode.set('tiempo');
+    this.newMaintNextDate.set('');
+    this.newMaintNextKmInterval.set('');
   }
 
   /** Cambia el estado y limpia la fecha si quedó fuera del rango permitido. */
@@ -794,6 +1206,76 @@ export class FleetUnitDetailDrawerComponent {
       );
       return;
     }
+
+    const hasScheduleTiempo =
+      this.newMaintNextMode() === 'tiempo' &&
+      this.newMaintNextDate().trim() !== '';
+    const hasScheduleKm =
+      this.newMaintNextMode() === 'km' &&
+      this.newMaintNextKmInterval().trim() !== '';
+
+    if (hasScheduleTiempo) {
+      const nd = this.newMaintNextDate().trim();
+      if (!nd || nd < this.today) {
+        this.toast.show(
+          'Indica la fecha del próximo mantenimiento (hoy o futura).',
+          'warning',
+        );
+        return;
+      }
+    }
+    if (hasScheduleKm) {
+      const km = parsePositiveKm(this.newMaintNextKmInterval());
+      if (km === 'invalid') {
+        this.toast.show(
+          'Indica los kilómetros hasta el próximo servicio (mayor a cero).',
+          'warning',
+        );
+        return;
+      }
+    }
+
+    const tripKmNow = this.completedTripDistanceKm();
+    const metaPatch: Partial<UnitFleetMeta> = {};
+    const status = this.newMaintStatus();
+
+    if (hasScheduleTiempo) {
+      metaPatch.maintenanceNextDateOverride = this.newMaintNextDate().trim();
+      metaPatch.maintenanceAlertByKm = false;
+      metaPatch.maintenanceKmInterval = undefined;
+      metaPatch.maintenanceTripKmAtLastService = undefined;
+      metaPatch.maintenanceKmRemaining = null;
+    } else if (hasScheduleKm) {
+      const km = parsePositiveKm(this.newMaintNextKmInterval());
+      if (km === 'invalid') {
+        return;
+      }
+      metaPatch.maintenanceKmInterval = km;
+      metaPatch.maintenanceTripKmAtLastService = tripKmNow ?? 0;
+      metaPatch.maintenanceAlertByKm = true;
+      metaPatch.maintenanceNextDateOverride = undefined;
+      metaPatch.maintenanceKmRemaining = null;
+    } else if (status === 'concluido') {
+      metaPatch.maintenanceNextDateOverride = undefined;
+      if (this.meta()?.maintenanceAlertByKm === true) {
+        metaPatch.maintenanceTripKmAtLastService = tripKmNow ?? 0;
+      }
+    }
+
+    if (status === 'concluido') {
+      metaPatch.lastMaintenanceDate = date;
+      metaPatch.lastMaintenanceType = this.maintTypeLabel(this.newMaintType());
+      if (cost !== undefined) {
+        metaPatch.lastMaintenanceCost = cost;
+      }
+      const notes = this.newMaintNotes().trim();
+      metaPatch.lastMaintenanceNotes = notes || undefined;
+    }
+
+    if (Object.keys(metaPatch).length > 0) {
+      this.metaOverride.update((p) => ({ ...p, ...metaPatch }));
+    }
+
     const docs = this.newMaintFiles().map((f) => f.name);
     const entry: MaintenanceEntry = {
       date,
@@ -819,7 +1301,7 @@ export class FleetUnitDetailDrawerComponent {
     return '';
   }
 
-  docNames(which: 'maint' | 'verif' | 'policy'): string[] {
+  docNames(which: 'maint' | 'verif' | 'policy' | 'ownership'): string[] {
     const m = this.meta();
     if (!m) {
       return [];
@@ -830,7 +1312,14 @@ export class FleetUnitDetailDrawerComponent {
     if (which === 'verif') {
       return m.documentVerificationNames ?? [];
     }
+    if (which === 'ownership') {
+      return m.documentOwnershipNames ?? [];
+    }
     return m.documentPolicyNames ?? [];
+  }
+
+  downloadStoredDocument(fileName: string): void {
+    downloadMockFleetDocument(this.doc, fileName);
   }
 
   doubleArticLabel(m: UnitFleetMeta | undefined): string {
@@ -862,10 +1351,22 @@ export class FleetUnitDetailDrawerComponent {
   }
 
   maintRenewalBucket(): FleetRenewalBucket {
-    return renewalBucket(this.meta()?.lastMaintenanceDate, MAINT_MO);
+    if (this.maintenanceAlertUsesKm()) {
+      return this.maintKmRenewalBucket();
+    }
+    const m = this.meta();
+    const override = m?.maintenanceNextDateOverride?.trim();
+    if (override) {
+      return renewalBucketFromTargetYmd(override);
+    }
+    return renewalBucket(m?.lastMaintenanceDate, MAINT_MO);
   }
 
   insRenewalBucket(): FleetRenewalBucket {
     return fleetInsuranceRenewal(this.meta());
+  }
+
+  gpsRenewalBucket(): FleetRenewalBucket {
+    return fleetGpsRenewal(this.meta());
   }
 }

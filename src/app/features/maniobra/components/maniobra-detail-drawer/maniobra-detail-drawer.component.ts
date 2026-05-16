@@ -1,7 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import {
+  ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -10,10 +12,20 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { labelForUnitId } from '@app/mock-data/mock-units';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { SimulatedDbService } from '@app/sim-db/simulated-db.service';
+import { SessionStore } from '@core/services/session.store';
 import { ToastService } from '@core/notifications/toast.service';
+import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { tripIncidentPostedBy } from '@features/maniobra/utils/trip-incidents';
+import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import {
+  snapshotTextOrDash,
+  storedRouteDistanceKmLabel,
+} from '@features/maniobra/utils/maniobra-route-display';
+import {
+  Operator,
   Trip,
   TripContainerType,
   TripIncident,
@@ -21,18 +33,22 @@ import {
   TripOperationType,
 } from '@shared/models/logistics.models';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
+import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 
 @Component({
   selector: 'app-maniobra-detail-drawer',
   standalone: true,
-  imports: [ToIconButtonComponent, ToButtonComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ToDrawerSkeletonComponent, ToIconButtonComponent, ToButtonComponent],
   providers: [DateShortPipe],
   templateUrl: './maniobra-detail-drawer.component.html',
   styleUrls: [
     '../maniobra-new-drawer/maniobra-new-drawer.component.scss',
     '../../../../shared/ui/to-table/to-table.component.scss',
+    '../../../fleet/components/fleet-drawer.shared.scss',
+    '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
     './maniobra-detail-drawer.component.scss',
   ],
 })
@@ -40,7 +56,14 @@ export class ManiobraDetailDrawerComponent {
   private readonly doc = inject(DOCUMENT);
   private readonly dateShort = inject(DateShortPipe);
   private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly session = inject(SessionStore);
   private readonly toast = inject(ToastService);
+  private readonly simDb = inject(SimulatedDbService);
+  private readonly operatorsRepo = inject(OperatorRepository);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly operators = signal<Operator[]>([]);
+  readonly drawerLoading = signal(true);
 
   readonly trip = input.required<Trip>();
   readonly operatorName = input.required<string>();
@@ -52,6 +75,9 @@ export class ManiobraDetailDrawerComponent {
   readonly incidentDraft = signal('');
   readonly incidentSaving = signal(false);
   readonly cancelSubmitting = signal(false);
+  /** Pestañas del panel: datos de la maniobra vs. seguimiento (actualizaciones e incidentes). */
+  readonly detailTab = signal<'maneuver' | 'tracking'>('maneuver');
+  private detailTabTripId: string | undefined;
   /** `operative` = cancelación sin cobro por no ejecución; `false` = maniobra en falso (con cobro). */
   readonly cancelKind = signal<'operative' | 'false'>('operative');
   readonly cancelNoteDraft = signal('');
@@ -61,10 +87,27 @@ export class ManiobraDetailDrawerComponent {
   );
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.doc.body.style.overflow = '';
     });
     this.doc.body.style.overflow = 'hidden';
+
+    this.operatorsRepo
+      .list()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => {
+        this.operators.set(rows);
+        this.drawerLoading.set(false);
+      });
+
+    effect(() => {
+      const trip = this.trip();
+      if (trip.id === this.detailTabTripId) {
+        return;
+      }
+      this.detailTabTripId = trip.id;
+      this.detailTab.set(defaultDetailTabForTrip(trip));
+    });
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -176,7 +219,7 @@ export class ManiobraDetailDrawerComponent {
 
   /** Misma etiqueta que en «Nueva maniobra» al elegir unidad. */
   unitDisplay(unitId: string): string {
-    return labelForUnitId(unitId);
+    return this.simDb.labelForUnitId(unitId);
   }
 
   isFullTrip(): boolean {
@@ -211,21 +254,9 @@ export class ManiobraDetailDrawerComponent {
 
   detailStatusLabel(): string {
     const t = this.trip();
-    if (t.status === 'cancelled' && t.falseManeuver === true) {
-      return 'En falso';
-    }
-    switch (t.status) {
-      case 'in_transit':
-        return 'En curso';
-      case 'completed':
-        return 'Completado';
-      case 'scheduled':
-        return 'Programado';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return '—';
-    }
+    return tripStatusUiLabel(t.status, {
+      falseManeuver: t.falseManeuver === true,
+    });
   }
 
   operationLabel(op: TripOperationType): string {
@@ -252,11 +283,11 @@ export class ManiobraDetailDrawerComponent {
   }
 
   distanceDisplay(): string {
-    const km = this.trip().routeDistanceKm;
-    if (km === undefined || km === null || Number.isNaN(km)) {
-      return '—';
-    }
-    return `${km.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+    return storedRouteDistanceKmLabel(this.trip().routeDistanceKm);
+  }
+
+  routeSnapshotOrDash(value: string | undefined): string {
+    return snapshotTextOrDash(value);
   }
 
   maneuverKindDisplay(): string {
@@ -320,7 +351,11 @@ export class ManiobraDetailDrawerComponent {
     const list = this.trip().equipment;
     const row = list[index];
     const s = row?.trim();
-    return s ? s : '—';
+    return s ? this.simDb.labelForEquipmentId(s) : '—';
+  }
+
+  incidentAuthorLabel(inc: TripIncident): string {
+    return tripIncidentPostedBy(inc, this.operators());
   }
 
   incidentsSorted(): TripIncident[] {
@@ -340,8 +375,13 @@ export class ManiobraDetailDrawerComponent {
       this.toast.show('Describe brevemente el incidente antes de registrarlo.', 'warning');
       return;
     }
+    const postedBy = this.session.username()?.trim();
+    if (!postedBy) {
+      this.toast.show('Inicia sesión para registrar incidentes.', 'warning');
+      return;
+    }
     this.incidentSaving.set(true);
-    this.maniobrasRepo.addIncident(this.trip().id, text).subscribe({
+    this.maniobrasRepo.addIncident(this.trip().id, text, postedBy).subscribe({
       next: (updated) => {
         this.incidentDraft.set('');
         this.incidentSaving.set(false);
@@ -354,4 +394,9 @@ export class ManiobraDetailDrawerComponent {
       },
     });
   }
+}
+
+/** Pestaña inicial al abrir el detalle: seguimiento si está en curso, si no datos de maniobra. */
+function defaultDetailTabForTrip(trip: Trip): 'maneuver' | 'tracking' {
+  return trip.status === 'in_transit' ? 'tracking' : 'maneuver';
 }

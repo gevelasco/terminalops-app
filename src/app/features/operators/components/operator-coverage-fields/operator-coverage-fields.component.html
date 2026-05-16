@@ -1,0 +1,164 @@
+@let isNew = layout() === "new";
+
+<div
+  class="operator-coverage-fields__row"
+  [class.operator-coverage-fields__row--new]="isNew"
+  [class.operator-coverage-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="Tipo de cobertura *"
+    [placeholder]="isNew ? 'Selecciona' : ''"
+    [options]="insuranceKindOptions()"
+    [(value)]="insuranceKind"
+  />
+</div>
+
+@if (insuranceKind() === "public") {
+  <div
+    class="operator-coverage-fields__row"
+    [class.operator-coverage-fields__row--new]="isNew"
+    [class.operator-coverage-fields__row--edit]="!isNew"
+  >
+    <to-input
+      label="NSS"
+      [placeholder]="isNew ? 'Número de seguridad social' : ''"
+      [(value)]="pubNss"
+    />
+    <to-input
+      [label]="
+        isNew ? 'Fecha de alta IMSS (referencia)' : 'Fecha de alta IMSS'
+      "
+      type="date"
+      [(value)]="pubImssAlta"
+    />
+  </div>
+  <div class="fleet-unit-toggle-row">
+    <span
+      class="fleet-unit-toggle-row__label"
+      [attr.id]="infonavitToggleLabelId()"
+      >{{
+        isNew ? "Tiene crédito o esquema Infonavit" : "Infonavit"
+      }}</span
+    >
+    <button
+      type="button"
+      class="fleet-unit-toggle"
+      [class.fleet-unit-toggle--on]="pubInfonavit()"
+      role="switch"
+      [attr.aria-checked]="pubInfonavit()"
+      [attr.aria-labelledby]="infonavitToggleLabelId()"
+      (click)="toggleInfonavit()"
+    >
+      <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+    </button>
+  </div>
+  @if (pubInfonavit()) {
+    @if (!isNew) {
+      <p class="fleet-unit-sec__docs-hint">
+        Número de crédito Infonavit (opcional).
+      </p>
+    }
+    <div
+      class="operator-coverage-fields__row"
+      [class.operator-coverage-fields__row--new]="isNew"
+      [class.operator-coverage-fields__row--edit]="!isNew"
+    >
+      <to-input
+        label="Número de crédito Infonavit"
+        [placeholder]="isNew ? 'Opcional' : ''"
+        [(value)]="pubInfonavitCredit"
+      />
+    </div>
+  }
+  <div class="fleet-unit-toggle-row">
+    <span
+      class="fleet-unit-toggle-row__label"
+      [attr.id]="fonacotToggleLabelId()"
+      >{{ isNew ? "FONACOT (crédito / descuento)" : "FONACOT" }}</span
+    >
+    <button
+      type="button"
+      class="fleet-unit-toggle"
+      [class.fleet-unit-toggle--on]="pubFonacot()"
+      role="switch"
+      [attr.aria-checked]="pubFonacot()"
+      [attr.aria-labelledby]="fonacotToggleLabelId()"
+      (click)="toggleFonacot()"
+    >
+      <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+    </button>
+  </div>
+  @if (pubFonacot()) {
+    @if (!isNew) {
+      <p class="fleet-unit-sec__docs-hint">
+        Número de crédito o folio FONACOT (opcional).
+      </p>
+    }
+    <div
+      class="operator-coverage-fields__row"
+      [class.operator-coverage-fields__row--new]="isNew"
+      [class.operator-coverage-fields__row--edit]="!isNew"
+    >
+      <to-input
+        label="Crédito / folio FONACOT"
+        [placeholder]="isNew ? 'Opcional' : ''"
+        [(value)]="pubFonacotCredit"
+      />
+    </div>
+  }
+  <to-textarea
+    [label]="isNew ? 'Notas (IMSS / prestaciones)' : 'Notas IMSS'"
+    [placeholder]="isNew ? 'Ej. descuentos, régimen…' : ''"
+    [(value)]="pubNotes"
+  />
+}
+
+@if (insuranceKind() === "private") {
+  <div
+    class="operator-coverage-fields__row"
+    [class.operator-coverage-fields__row--new]="isNew"
+    [class.operator-coverage-fields__row--edit]="!isNew"
+  >
+    <to-input
+      label="Aseguradora"
+      [placeholder]="isNew ? 'Ej. GNP, AXA…' : ''"
+      [(value)]="privCarrier"
+    />
+    <to-input label="Número de póliza" [(value)]="privPolicy" />
+  </div>
+  <div
+    class="operator-coverage-fields__row"
+    [class.operator-coverage-fields__row--new]="isNew"
+    [class.operator-coverage-fields__row--edit]="!isNew"
+  >
+    <to-input label="Vigencia desde" type="date" [(value)]="privValidFrom" />
+    <to-input label="Vigencia hasta" type="date" [(value)]="privValidTo" />
+  </div>
+  <div
+    class="operator-coverage-fields__row"
+    [class.operator-coverage-fields__row--new]="isNew"
+    [class.operator-coverage-fields__row--edit]="!isNew"
+  >
+    <to-input
+      label="Prima (monto o descripción)"
+      [placeholder]="isNew ? 'Ej. 980 MXN mensual' : ''"
+      [(value)]="privPremium"
+    />
+    <to-select
+      label="Periodo de prima"
+      [options]="premiumPeriodOptions()"
+      [(value)]="privPremiumPeriod"
+    />
+  </div>
+  <to-input
+    [label]="
+      isNew ? 'Deducible / coaseguro (notas)' : 'Deducible / coaseguro'
+    "
+    [(value)]="privDeductible"
+  />
+  <to-textarea
+    [label]="isNew ? 'Resumen de cobertura' : 'Resumen plan'"
+    [placeholder]="isNew ? 'Plan, cobertura territorial…' : ''"
+    [(value)]="privPlan"
+  />
+}

@@ -1,0 +1,581 @@
+<div
+  class="fleet-drawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="clients-detail-title"
+>
+  <ng-template #toSaveIconSm>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path
+        d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+      />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  </ng-template>
+
+  <button
+    type="button"
+    class="fleet-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="dismiss.emit()"
+  ></button>
+
+  <aside class="fleet-drawer__panel fleet-drawer__panel--wide">
+    <header class="fleet-drawer__header fleet-unit-detail__header">
+      <div class="fleet-unit-detail__header-text">
+        <h2
+          id="clients-detail-title"
+          class="fleet-drawer__title fleet-unit-detail__title"
+        >
+          <svg
+            class="fleet-drawer__title-icon"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M12 2c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-2.31C18.16 18.67 21 15.17 21 11c0-4.97-4.03-9-9-9zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+            />
+          </svg>
+          {{ client().name }}
+        </h2>
+        <div
+          class="fleet-unit-detail__status"
+          [class]="commercialHealthStatusMod()"
+        >
+          <span class="fleet-unit-detail__status-dot" aria-hidden="true"></span>
+          <span class="fleet-unit-detail__status-label">{{
+            healthSummary()
+          }}</span>
+        </div>
+      </div>
+      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          />
+        </svg>
+      </to-icon-button>
+    </header>
+
+    <div class="fleet-drawer__body fleet-unit-body fleet-unit-detail">
+      @if (drawerLoading()) {
+        <to-drawer-skeleton variant="detail" />
+      } @else {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-ident"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="cli-dv-ident" class="fleet-unit-sec__title">
+            Identificación comercial
+          </h3>
+          @if (editingSection() !== "ident") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar identificación comercial"
+              [disabled]="saving()"
+              (click)="startEditSection('ident')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (editingSection() !== "ident") {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Nombre o razón social</dt>
+              <dd>{{ client().name }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>RFC</dt>
+              <dd class="fleet-unit-detail__mono">
+                {{ client().rfc?.trim() || "—" }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Inicio de relación comercial</dt>
+              <dd>{{ relationshipStartedLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Notas internas</dt>
+              <dd>{{ client().notes?.trim() || "—" }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-client-identification-fields
+              layout="edit"
+              [showRenameHint]="true"
+              [(clientName)]="editName"
+              [(rfc)]="editRfc"
+              [(relationshipStartedOn)]="editRelationshipStartedOn"
+              [(notes)]="editNotes"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="saveIdentification()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-fiscal"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="cli-dv-fiscal" class="fleet-unit-sec__title">
+            Datos fiscales y de facturación
+          </h3>
+          @if (editingSection() !== "fiscal") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar datos fiscales"
+              [disabled]="saving()"
+              (click)="startEditSection('fiscal')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (editingSection() !== "fiscal") {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Razón social en factura</dt>
+              <dd>{{ client().billing?.invoiceLegalName?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Régimen fiscal</dt>
+              <dd>{{ client().billing?.taxRegime?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>C.P. fiscal</dt>
+              <dd>{{ client().billing?.fiscalZip?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Uso CFDI habitual</dt>
+              <dd>{{ client().billing?.cfdiUse?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Teléfono facturación</dt>
+              <dd>{{ client().billing?.billingPhone?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Correo para facturas</dt>
+              <dd>{{ client().billing?.billingEmail?.trim() || "—" }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-client-fiscal-fields
+              layout="edit"
+              [(billLegal)]="billLegal"
+              [(billRegime)]="billRegime"
+              [(billZip)]="billZip"
+              [(billCfdi)]="billCfdi"
+              [(billPhone)]="billPhone"
+              [(billEmail)]="billEmail"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="saveFiscal()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-contacts"
+      >
+        <div class="fleet-unit-detail__maint-history-block">
+          <div class="fleet-unit-detail__maint-section-header">
+            <p
+              id="cli-dv-contacts"
+              class="fleet-unit-detail__maint-section-label"
+            >
+              Personas de contacto
+            </p>
+            @if (editingSection() === "contacts" && !addingContact()) {
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="openContactForm()"
+              >
+                <span class="fleet-unit-detail__maint-add-label">
+                  <svg
+                    class="fleet-unit-detail__maint-add-icon"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                  Contacto
+                </span>
+              </to-button>
+            }
+            @if (editingSection() !== "contacts") {
+              <button
+                type="button"
+                class="fleet-unit-sec__edit-btn"
+                style="margin-left: auto"
+                aria-label="Editar personas de contacto"
+                [disabled]="saving()"
+                (click)="startEditSection('contacts')"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                  />
+                </svg>
+              </button>
+            }
+          </div>
+
+          @if (editingSection() === "contacts" && addingContact()) {
+            <div class="fleet-unit-detail__maint-form">
+              <app-client-contact-inline-fields
+                [(contactName)]="newContactName"
+                [(contactRole)]="newContactRole"
+                [(contactPhone)]="newContactPhone"
+                [(contactEmail)]="newContactEmail"
+              />
+              <div class="fleet-unit-detail__maint-form-actions">
+                <to-button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  (click)="cancelContactForm()"
+                >
+                  Cancelar
+                </to-button>
+                <to-button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  (click)="commitContact()"
+                >
+                  <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                  Guardar
+                </to-button>
+              </div>
+            </div>
+          }
+
+          @if (editingSection() !== "contacts") {
+            @if ((client().contacts ?? []).length === 0) {
+              <p class="clients-contact-empty">Sin contactos registrados.</p>
+            } @else {
+              <div class="clients-contact-scroll">
+                <table class="clients-contact-table" aria-label="Contactos">
+                  <thead>
+                    <tr>
+                      <th scope="col">Nombre</th>
+                      <th scope="col">Cargo / área</th>
+                      <th scope="col">Teléfono</th>
+                      <th scope="col">Correo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (c of client().contacts ?? []; track c.id) {
+                      <tr>
+                        <td>{{ c.name.trim() || "—" }}</td>
+                        <td>{{ c.role?.trim() || "—" }}</td>
+                        <td>{{ c.phone?.trim() || "—" }}</td>
+                        <td>{{ c.email?.trim() || "—" }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          } @else {
+            @if (contacts().length === 0) {
+              <p class="clients-contact-empty">Sin contactos registrados.</p>
+            } @else {
+              <div class="clients-contact-scroll">
+                <table class="clients-contact-table" aria-label="Contactos">
+                  <thead>
+                    <tr>
+                      <th scope="col">Nombre</th>
+                      <th scope="col">Cargo / área</th>
+                      <th scope="col">Teléfono</th>
+                      <th scope="col">Correo</th>
+                      <th
+                        scope="col"
+                        class="clients-contact-th--remove"
+                        aria-label="Eliminar contacto"
+                      ></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (c of contacts(); track c.id) {
+                      <tr>
+                        <td>{{ c.name.trim() || "—" }}</td>
+                        <td>{{ c.role?.trim() || "—" }}</td>
+                        <td>{{ c.phone?.trim() || "—" }}</td>
+                        <td>{{ c.email?.trim() || "—" }}</td>
+                        <td class="clients-contact-td--remove">
+                          <to-icon-button
+                            label="Eliminar contacto"
+                            type="button"
+                            size="sm"
+                            (click)="removeContact(c.id)"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path
+                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                              />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </to-icon-button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+            <div
+              class="fleet-unit-sec__edit-actions"
+              style="margin-top: 0.65rem"
+            >
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="saveContacts()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-pay"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="cli-dv-pay" class="fleet-unit-sec__title">
+            Condiciones de cobro y crédito
+          </h3>
+          @if (editingSection() !== "pay") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar condiciones de cobro"
+              [disabled]="saving()"
+              (click)="startEditSection('pay')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (editingSection() !== "pay") {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Crédito otorgado</dt>
+              <dd>{{ creditYesNoLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Días de crédito</dt>
+              <dd>{{ creditDaysLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Límite o volumen (aprox.)</dt>
+              <dd>{{ creditAmountLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Estatus comercial</dt>
+              <dd>{{ healthSummary() }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-client-pay-fields
+              layout="edit"
+              [yesNoOptions]="yesNoOptions"
+              [healthOptions]="healthOptions"
+              [(payHasCredit)]="payHasCredit"
+              [(payCreditDays)]="payCreditDays"
+              [(payCreditAmount)]="payCreditAmount"
+              [(payHealth)]="payHealth"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="saving()"
+                (click)="cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="saving()"
+                (click)="savePayment()"
+              >
+                <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                {{ saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-volume"
+      >
+        <h3 id="cli-dv-volume" class="fleet-unit-sec__title">
+          Volumen y rentabilidad (aprox.)
+        </h3>
+        <dl class="fleet-unit-detail__dl">
+          <div class="fleet-unit-detail__row">
+            <dt>Total de maniobras</dt>
+            <dd>{{ volumeTotalManeuversLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Maniobras al mes (aprox.)</dt>
+            <dd>{{ volumeManeuversPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Facturación al mes (aprox.)</dt>
+            <dd>{{ volumeBilledPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Costos operativos al mes (aprox.)</dt>
+            <dd>{{ volumeOperationalPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Ganancia neta al mes (aprox.)</dt>
+            <dd>{{ volumeProfitPerMonthLabel() }}</dd>
+          </div>
+        </dl>
+      </section>
+      }
+    </div>
+  </aside>
+</div>

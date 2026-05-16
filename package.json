@@ -7,7 +7,8 @@
     "start": "node scripts/serve-production.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "sim-db:validate": "node scripts/sim-db/validate-demo-bundle.mjs"
   },
   "private": true,
   "dependencies": {

@@ -160,7 +160,32 @@
     min-height: 100dvh;
   }
 
+  /* Evita scroll del documento cuando el shell ocupa el viewport. */
+  app-root:has(app-shell) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
   code {
     font-size: 0.9em;
   }
+}
+
+/* Código operativo (ej. UT-2019-45-RP-7M): mismo criterio visual que muted-badge en `to-table`. */
+.to-op-code-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--to-color-surface-muted);
+  color: var(--to-color-text);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 65%, transparent);
 }

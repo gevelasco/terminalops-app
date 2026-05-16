@@ -12,9 +12,12 @@
   ></button>
 
   <aside class="maniobra-drawer__panel">
-    <header class="maniobra-drawer__header">
-      <div>
-        <h2 id="maniobra-detail-title" class="maniobra-drawer__title">
+    <header class="maniobra-drawer__header fleet-unit-detail__header">
+      <div class="fleet-unit-detail__header-text">
+        <h2
+          id="maniobra-detail-title"
+          class="maniobra-drawer__title fleet-unit-detail__title"
+        >
           <svg
             class="maniobra-drawer__title-icon"
             width="22"
@@ -27,8 +30,16 @@
               d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z"
             />
           </svg>
-          Detalle de maniobra
+          <span class="maniobra-detail-drawer__title-code">{{
+            trip().maneuverCode
+          }}</span>
         </h2>
+        <span [class]="detailStatusPillClasses()">
+          <span class="to-table-pill__dot" aria-hidden="true"></span>
+          <span class="to-table-pill__label">{{
+            detailStatusLabel()
+          }}</span>
+        </span>
       </div>
       <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -41,60 +52,56 @@
     </header>
 
     <div class="maniobra-drawer__body">
-      <!-- Código + estado y fechas de ciclo -->
-      <section
-        class="maniobra-drawer__section maniobra-drawer__section--boxed"
-        aria-labelledby="maniobra-detail-code"
+      @if (drawerLoading()) {
+        <to-drawer-skeleton variant="detail" />
+      } @else {
+      <div
+        class="fleet-segment fleet-unit-detail__drawer-segment"
+        role="tablist"
+        aria-label="Secciones del detalle"
       >
-        <div class="maniobra-detail__code-status-row">
-          <h3
-            id="maniobra-detail-code"
-            class="maniobra-drawer__section-title maniobra-detail__section-title-code maniobra-detail__code-title-inline"
-          >
-            <svg
-              class="maniobra-drawer__section-icon"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+        <button
+          type="button"
+          id="maniobra-detail-tab-maneuver"
+          class="fleet-segment__btn"
+          role="tab"
+          [attr.aria-selected]="detailTab() === 'maneuver'"
+          [class.fleet-segment__btn--active]="detailTab() === 'maneuver'"
+          (click)="detailTab.set('maneuver')"
+        >
+          <span class="fleet-segment__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
-                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.41 13.41L7 11.83l1.41-1.41 2.18 2.17 5.59-5.59L17.59 9 10.59 16h-.01l-.01-.01z"
+                d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z"
               />
             </svg>
-            {{ trip().maneuverCode }}
-          </h3>
-          <span [class]="detailStatusPillClasses()">
-            <span class="to-table-pill__dot" aria-hidden="true"></span>
-            <span class="to-table-pill__label">{{
-              detailStatusLabel()
-            }}</span>
           </span>
-        </div>
-        <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
-          <dt>Programada</dt>
-          <dd>{{ fmt(trip().programmedAt) }}</dd>
-          <dt>En curso</dt>
-          <dd>{{ enCursoDisplay() }}</dd>
-          <dt>Completado</dt>
-          <dd>{{ completadaDisplay() }}</dd>
-          @if (trip().falseManeuver === true) {
-            <dt>Cobro</dt>
-            <dd class="maniobra-detail__dd-highlight">
-              Vigente según pacto / maniobra en falso
-            </dd>
-          }
-          @if (cancellationNoteDisplay().length > 0) {
-            <dt>Motivo registrado</dt>
-            <dd class="maniobra-detail__cancellation-note">{{
-              cancellationNoteDisplay()
-            }}</dd>
-          }
-        </dl>
-      </section>
+          Maniobra
+        </button>
+        <button
+          type="button"
+          id="maniobra-detail-tab-tracking"
+          class="fleet-segment__btn"
+          role="tab"
+          [attr.aria-selected]="detailTab() === 'tracking'"
+          [class.fleet-segment__btn--active]="detailTab() === 'tracking'"
+          (click)="detailTab.set('tracking')"
+        >
+          <span class="fleet-segment__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M9 3 5 6.99h3V14h2V6.99h3L9 3zm6 12.01V10h-2v6.01H10l4 3.99 4-3.99h-3z"
+              />
+            </svg>
+          </span>
+          Seguimiento
+        </button>
+      </div>
 
-      <!-- Detalle de ruta -->
+      @if (detailTab() === 'maneuver') {
+        <!-- Detalle de ruta -->
       <section
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
         aria-labelledby="maniobra-detail-route"
@@ -115,8 +122,20 @@
           Detalle de ruta
         </h3>
         <dl class="maniobra-detail__dl">
+          <dt>CP de Origen</dt>
+          <dd>{{ routeSnapshotOrDash(trip().originPostalCode) }}</dd>
+          <dt>Ciudad / municipio origen</dt>
+          <dd>{{ routeSnapshotOrDash(trip().originCityMunicipality) }}</dd>
+          <dt>Localidad origen</dt>
+          <dd>{{ routeSnapshotOrDash(trip().originLocality) }}</dd>
           <dt>Origen</dt>
           <dd>{{ trip().origin }}</dd>
+          <dt>CP Destino</dt>
+          <dd>{{ routeSnapshotOrDash(trip().destinationPostalCode) }}</dd>
+          <dt>Ciudad / municipio Destino</dt>
+          <dd>{{ routeSnapshotOrDash(trip().destinationCityMunicipality) }}</dd>
+          <dt>Localidad Destino</dt>
+          <dd>{{ routeSnapshotOrDash(trip().destinationLocality) }}</dd>
           <dt>Destino</dt>
           <dd>{{ trip().destination }}</dd>
           <dt>Distancia</dt>
@@ -181,6 +200,10 @@
         <dl class="maniobra-detail__dl">
           <dt>Nombre del operador</dt>
           <dd>{{ operatorName() }}</dd>
+          <dt>No. de licencia</dt>
+          <dd>{{ routeSnapshotOrDash(trip().operatorLicenseNumber) }}</dd>
+          <dt>Vencimiento de licencia</dt>
+          <dd>{{ routeSnapshotOrDash(trip().operatorLicenseExpiresLabel) }}</dd>
           <dt>Unidad</dt>
           <dd>{{ unitDisplay(trip().unitId) }}</dd>
           @if (isFullTrip()) {
@@ -305,6 +328,51 @@
           </ul>
         }
       </section>
+      } @else {
+      <!-- Actualizaciones del ciclo -->
+      <section
+        class="maniobra-drawer__section maniobra-drawer__section--boxed"
+        aria-labelledby="maniobra-detail-updates"
+      >
+        <h3
+          id="maniobra-detail-updates"
+          class="maniobra-drawer__section-title"
+        >
+          <svg
+            class="maniobra-drawer__section-icon"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M3 17h18v2H3v-2zm0-5h18v2H3v-2zm0-5h18v2H3V7zm0-4h18v2H3V3z"
+            />
+          </svg>
+          Actualizaciones
+        </h3>
+        <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
+          <dt>Programada</dt>
+          <dd>{{ fmt(trip().programmedAt) }}</dd>
+          <dt>En curso</dt>
+          <dd>{{ enCursoDisplay() }}</dd>
+          <dt>Completado</dt>
+          <dd>{{ completadaDisplay() }}</dd>
+          @if (trip().falseManeuver === true) {
+            <dt>Cobro</dt>
+            <dd class="maniobra-detail__dd-highlight">
+              Vigente según pacto / maniobra en falso
+            </dd>
+          }
+          @if (cancellationNoteDisplay().length > 0) {
+            <dt>Motivo registrado</dt>
+            <dd class="maniobra-detail__cancellation-note">{{
+              cancellationNoteDisplay()
+            }}</dd>
+          }
+        </dl>
+      </section>
 
       <!-- Incidentes -->
       <section
@@ -339,11 +407,16 @@
           >
             @for (inc of incidentsSorted(); track inc.id) {
               <li class="maniobra-detail__incident-item">
-                <time
-                  class="maniobra-detail__incident-date"
-                  [attr.datetime]="inc.occurredAt"
-                  >{{ fmt(inc.occurredAt) }}</time
-                >
+                <div class="maniobra-detail__incident-head">
+                  <span class="maniobra-detail__incident-author">{{
+                    incidentAuthorLabel(inc)
+                  }}</span>
+                  <time
+                    class="maniobra-detail__incident-date"
+                    [attr.datetime]="inc.occurredAt"
+                    >{{ fmt(inc.occurredAt) }}</time
+                  >
+                </div>
                 <p class="maniobra-detail__incident-desc">
                   {{ inc.description }}
                 </p>
@@ -379,6 +452,8 @@
           >
         </div>
       </section>
+      }
+      }
     </div>
 
     <footer class="maniobra-drawer__footer maniobra-detail__footer">

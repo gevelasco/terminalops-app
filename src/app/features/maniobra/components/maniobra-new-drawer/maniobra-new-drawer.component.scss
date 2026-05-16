@@ -43,6 +43,11 @@
   box-sizing: border-box;
 }
 
+/* Misma anchura que «Nueva unidad» (`fleet-drawer__panel--wide`). */
+.maniobra-drawer__panel--wide {
+  width: min(36rem, 100vw);
+}
+
 .maniobra-drawer__header {
   display: flex;
   align-items: center;
@@ -172,6 +177,27 @@
   min-width: 0;
 }
 
+.maniobra-drawer__cp-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-cp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.maniobra-drawer__route-line {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
 .maniobra-drawer__place-hint {
   margin: -0.35rem 0 0;
   font-size: 0.6875rem;
@@ -234,8 +260,15 @@
 }
 
 .maniobra-drawer__client-hint {
-  margin: 0;
+  margin: 0 0 0.65rem;
   font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-drawer__docs-empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--to-color-text-muted);
 }

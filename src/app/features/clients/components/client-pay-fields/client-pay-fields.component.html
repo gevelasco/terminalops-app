@@ -1,0 +1,35 @@
+@let isNew = layout() === "new";
+
+<div
+  class="client-pay-fields__row"
+  [class.client-pay-fields__row--new]="isNew"
+  [class.client-pay-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="¿Crédito otorgado? *"
+    [options]="yesNoOptions()"
+    [(value)]="payHasCredit"
+  />
+  <to-input
+    label="Días de crédito"
+    type="text"
+    [placeholder]="isNew ? 'Ej. 30' : ''"
+    [(value)]="payCreditDays"
+  />
+</div>
+<to-input
+  label="Límite o volumen de crédito (aprox.)"
+  [placeholder]="
+    isNew ? 'Ej. 5 MMXN, por definir con dirección…' : ''
+  "
+  [(value)]="payCreditAmount"
+/>
+<to-select
+  [label]="
+    isNew
+      ? 'Estatus comercial (manual por ahora) *'
+      : 'Estatus comercial *'
+  "
+  [options]="healthOptions()"
+  [(value)]="payHealth"
+/>

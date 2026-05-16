@@ -1,5 +1,20 @@
-import { Component, input, output } from '@angular/core';
-import type { TripOperationType, TripStatus } from '@shared/models/logistics.models';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logistics.models';
+import type { ClientCommercialHealth } from '@shared/models/client.models';
+import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
+import { operatorOperationalStatusLabel } from '@shared/catalogs/operator-form-options';
+import {
+  maneuverStatusPillClass,
+  maneuverStatusPillLabel,
+} from '@shared/utils/maneuver-status-pill';
+import {
+  tripOperationTypeBadgeClass,
+  tripOperationTypeBadgeLabel,
+} from '@shared/utils/trip-operation-type-badge';
+import {
+  fleetOperationalKeyLabel,
+  type FleetOperationalKey,
+} from '@features/fleet/utils/fleet-unit-table-row';
 
 export type ToTableCellKind =
   | 'text'
@@ -11,7 +26,9 @@ export type ToTableCellKind =
   | 'fleet-op-pill'
   | 'fleet-maintenance-icon'
   | 'fleet-verification-icon'
-  | 'fleet-insurance-icon';
+  | 'fleet-insurance-icon'
+  | 'operator-op-pill'
+  | 'client-health-pill';
 
 /** Valor en la fila para `cell: 'datetime-stacked'` (fecha + hora en dos líneas). */
 export interface ToTableStackedDatetime {
@@ -29,6 +46,7 @@ export interface ToTableColumn {
 @Component({
   selector: 'to-table',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './to-table.component.html',
   styleUrl: './to-table.component.scss',
 })
@@ -40,7 +58,87 @@ export class ToTableComponent {
   /** Filas clicables (p. ej. abrir detalle). */
   readonly interactiveRows = input(false);
 
+  /** Filas visibles por página. ≤0 desactiva paginación y muestra todas las filas. */
+  readonly pageSize = input<number>(12);
+
   readonly rowClick = output<Record<string, unknown>>();
+
+  protected readonly pageIndex = signal(0);
+  private prevRowsLength = -1;
+
+  constructor() {
+    effect(() => {
+      const n = this.rows().length;
+      const ps = this.pageSize();
+      const lenChanged = n !== this.prevRowsLength;
+      if (lenChanged) {
+        this.prevRowsLength = n;
+        this.pageIndex.set(0);
+        return;
+      }
+      if (ps != null && ps > 0 && n > 0) {
+        const pages = Math.max(1, Math.ceil(n / ps));
+        const pi = this.pageIndex();
+        if (pi >= pages) {
+          this.pageIndex.set(pages - 1);
+        }
+      }
+    });
+  }
+
+  protected readonly showPagination = computed(() => {
+    const ps = this.pageSize();
+    const n = this.rows().length;
+    return ps > 0 && n > ps;
+  });
+
+  protected readonly pagedRows = computed(() => {
+    const all = this.rows();
+    const ps = this.pageSize();
+    if (ps == null || ps <= 0) {
+      return [...all];
+    }
+    const n = all.length;
+    if (n === 0) {
+      return [];
+    }
+    const pages = Math.max(1, Math.ceil(n / ps));
+    const idx = Math.min(this.pageIndex(), pages - 1);
+    const start = idx * ps;
+    return all.slice(start, start + ps);
+  });
+
+  protected readonly paginationRange = computed(() => {
+    const all = this.rows();
+    const ps = this.pageSize();
+    const n = all.length;
+    if (ps <= 0 || n === 0) {
+      return null;
+    }
+    const pages = Math.max(1, Math.ceil(n / ps));
+    const idx = Math.min(this.pageIndex(), pages - 1);
+    return {
+      from: idx * ps + 1,
+      to: Math.min(n, (idx + 1) * ps),
+      total: n,
+      page: idx + 1,
+      pages,
+    };
+  });
+
+  prevTablePage(): void {
+    this.pageIndex.update((i) => Math.max(0, i - 1));
+  }
+
+  nextTablePage(): void {
+    const ps = this.pageSize();
+    const n = this.rows().length;
+    if (ps <= 0) {
+      return;
+    }
+    const pages = Math.max(1, Math.ceil(n / ps));
+    this.pageIndex.update((i) => Math.min(pages - 1, i + 1));
+  }
 
   trackRow = (index: number, row: Record<string, unknown>): string => {
     const k = this.trackByKey();
@@ -60,74 +158,27 @@ export class ToTableComponent {
     status: unknown,
     row?: Record<string, unknown>,
   ): string {
-    const base = 'to-table-pill';
-    const s = status as TripStatus;
-    if (s === 'cancelled' && row?.['falseManeuver'] === true) {
-      return `${base} ${base}--false-maneuver`;
-    }
-    switch (s) {
-      case 'in_transit':
-        return `${base} ${base}--course`;
-      case 'completed':
-        return `${base} ${base}--done`;
-      case 'scheduled':
-        return `${base} ${base}--delayed`;
-      case 'cancelled':
-        return `${base} ${base}--cancelled`;
-      default:
-        return `${base} ${base}--unknown`;
-    }
+    return maneuverStatusPillClass(status as TripStatus, {
+      falseManeuver: row?.['falseManeuver'] === true,
+    });
   }
 
   maniobraStatusLabel(status: unknown, row?: Record<string, unknown>): string {
-    const s = status as TripStatus;
-    if (s === 'cancelled' && row?.['falseManeuver'] === true) {
-      return 'En falso';
-    }
-    switch (s) {
-      case 'in_transit':
-        return 'En curso';
-      case 'completed':
-        return 'Completado';
-      case 'scheduled':
-        return 'Programado';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return '—';
-    }
+    return maneuverStatusPillLabel(status as TripStatus, {
+      falseManeuver: row?.['falseManeuver'] === true,
+    });
   }
 
   incidentHasIssue(row: Record<string, unknown>, key: string): boolean {
     return row[key] === true;
   }
 
-  /** Badge sobrio por tipo de maniobra (valor en fila: `TripOperationType`). */
   operationTypeBadgeClass(op: unknown): string {
-    const base = 'to-table-badge to-table-badge--op';
-    switch (op as TripOperationType) {
-      case 'sencillo':
-        return `${base} to-table-badge--op-sencillo`;
-      case 'full':
-        return `${base} to-table-badge--op-full`;
-      case 'plana':
-        return `${base} to-table-badge--op-plana`;
-      default:
-        return `${base} to-table-badge--op-unknown`;
-    }
+    return tripOperationTypeBadgeClass(op);
   }
 
   operationTypeCellLabel(op: unknown): string {
-    switch (op as TripOperationType) {
-      case 'sencillo':
-        return 'Sencillo';
-      case 'full':
-        return 'Full';
-      case 'plana':
-        return 'Plana';
-      default:
-        return '—';
-    }
+    return tripOperationTypeBadgeLabel(op);
   }
 
   fleetOpPillClass(v: unknown): string {
@@ -149,20 +200,54 @@ export class ToTableComponent {
   }
 
   fleetOpLabel(v: unknown): string {
+    return fleetOperationalKeyLabel(v as FleetOperationalKey);
+  }
+
+  operatorOperationalPillClass(v: unknown): string {
+    const base = 'to-table-pill';
     switch (v) {
-      case 'on_route':
-        return 'En Maniobra';
       case 'available':
-        return 'Disponible';
+        return `${base} to-table-pill--fleet-available`;
       case 'in_use':
-        return 'Asignada';
-      case 'maintenance':
-        return 'Mantenimiento';
+        return `${base} to-table-pill--fleet-in-use`;
       case 'scheduled':
-        return 'Programado';
+        return `${base} to-table-pill--fleet-scheduled`;
+      case 'maintenance':
+        return `${base} to-table-pill--fleet-maintenance`;
+      case 'on_route':
+        return `${base} to-table-pill--fleet-maneuver`;
+      case 'incapacitated':
+        return `${base} to-table-pill--operator-incapacitated`;
+      case 'leave':
+        return `${base} to-table-pill--operator-leave`;
+      case 'inactive':
+        return `${base} to-table-pill--operator-inactive`;
       default:
-        return '—';
+        return `${base} to-table-pill--fleet-unknown`;
     }
+  }
+
+  operatorOperationalPillLabel(v: unknown): string {
+    return operatorOperationalStatusLabel(v as OperatorOperationalStatus);
+  }
+
+  clientHealthPillClass(v: unknown): string {
+    const base = 'to-table-pill';
+    switch (v as ClientCommercialHealth) {
+      case 'good_standing':
+        return `${base} to-table-pill--client-good`;
+      case 'watch_list':
+        return `${base} to-table-pill--client-watch`;
+      case 'restricted':
+        return `${base} to-table-pill--client-restricted`;
+      case 'not_evaluated':
+      default:
+        return `${base} to-table-pill--client-na`;
+    }
+  }
+
+  clientHealthPillLabel(v: unknown): string {
+    return clientCommercialHealthLabel(v as string | undefined);
   }
 
   /** Iconos de salud flota: al corriente / sin dato = apagado; próximo; vencido. */
@@ -266,6 +351,16 @@ export class ToTableComponent {
       return this.fleetInsAria(v);
     }
     return '';
+  }
+
+  /** Resumen para `title` y `aria-label` (fallback nativo + lectores de pantalla). */
+  fleetIconAccessibleSummary(row: Record<string, unknown>, colKey: string): string {
+    const sev = this.fleetIconNextTitle(row, colKey).trim();
+    const detail = this.fleetIconTooltip(row, colKey).trim();
+    const nextRaw = this.fleetIconNextCell(row, colKey).trim();
+    const nextPart =
+      nextRaw && nextRaw !== '—' ? `Fecha en tabla: ${nextRaw}.` : '';
+    return [sev, detail, nextPart].filter(Boolean).join(' ');
   }
 
   stackedDatetime(

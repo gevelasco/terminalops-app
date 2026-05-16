@@ -1,5 +1,5 @@
 <div
-  class="app-shell group grid min-h-screen bg-app-bg text-app-fg lg:grid-cols-[260px_1fr]"
+  class="app-shell group grid h-dvh max-h-dvh overflow-hidden bg-app-bg text-app-fg lg:grid-cols-[260px_1fr]"
   [class.app-shell--nav-open]="navOpen()"
 >
   @if (navOpen()) {
@@ -15,7 +15,7 @@
   <aside
     data-shell-sidebar
     id="app-sidebar"
-    class="flex h-[100dvh] max-h-[100dvh] w-[min(280px,88vw)] flex-col gap-5 overflow-y-auto border-r border-[color:var(--shell-border)] bg-shell-bg px-4 pb-5 pt-6 text-shell-fg max-lg:fixed max-lg:left-0 max-lg:top-0 max-lg:bottom-0 max-lg:z-[100] max-lg:-translate-x-full max-lg:transition-transform max-lg:duration-200 max-lg:ease-in-out group-[.app-shell--nav-open]:max-lg:translate-x-0 group-[.app-shell--nav-open]:max-lg:shadow-[8px_0_32px_rgba(0,0,0,0.35)] lg:static lg:z-auto lg:h-auto lg:w-[260px] lg:max-h-none lg:translate-x-0 lg:overflow-visible lg:shadow-none"
+    class="flex h-full max-h-dvh w-[min(280px,88vw)] flex-col gap-5 overflow-y-auto border-r border-[color:var(--shell-border)] bg-shell-bg px-4 pb-5 pt-6 text-shell-fg max-lg:fixed max-lg:left-0 max-lg:top-0 max-lg:bottom-0 max-lg:z-[100] max-lg:h-dvh max-lg:max-h-dvh max-lg:-translate-x-full max-lg:transition-transform max-lg:duration-200 max-lg:ease-in-out group-[.app-shell--nav-open]:max-lg:translate-x-0 group-[.app-shell--nav-open]:max-lg:shadow-[8px_0_32px_rgba(0,0,0,0.35)] lg:static lg:z-auto lg:h-full lg:w-[260px] lg:max-h-dvh lg:translate-x-0 lg:overflow-y-auto lg:shadow-none"
     aria-label="Navegación principal"
   >
     <div class="shell-brand">
@@ -88,6 +88,20 @@
                 />
               </svg>
             }
+            @case ("/clients") {
+              <svg
+                width="20"
+                height="20"
+                class="h-5 w-5 shrink-0"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M12 2c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-2.31C18.16 18.67 21 15.17 21 11c0-4.97-4.03-9-9-9zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                />
+              </svg>
+            }
             @case ("/expenses") {
               <svg
                 width="20"
@@ -123,9 +137,9 @@
     </nav>
   </aside>
 
-  <div class="shell-main-wrap">
+  <div class="shell-main-wrap flex h-full min-h-0 flex-col overflow-hidden">
     <header
-      class="shell-header border-b border-app-border bg-app-surface px-[clamp(0.75rem,3vw,1.5rem)] py-2.5 text-app-fg"
+      class="shell-header shrink-0 border-b border-app-border bg-app-surface px-[clamp(0.75rem,3vw,1.5rem)] py-2.5 text-app-fg"
     >
       <div class="shell-header-start">
         <button
@@ -156,7 +170,14 @@
       </div>
 
       <div class="shell-header-actions">
-        <button type="button" class="shell-icon-text-btn">
+        <button
+          type="button"
+          class="shell-icon-text-btn"
+          [attr.aria-expanded]="checklistDrawerOpen()"
+          aria-haspopup="dialog"
+          aria-controls="checklist-drawer-title"
+          (click)="toggleChecklistDrawer()"
+        >
           <svg
             width="22"
             height="22"
@@ -174,8 +195,10 @@
 
         <button
           type="button"
-          class="shell-icon-btn"
-          aria-label="Notificaciones"
+          class="shell-icon-btn shell-notifications-btn"
+          aria-label="Notificaciones de incidentes"
+          [attr.aria-expanded]="notificationsDrawerOpen()"
+          (click)="toggleNotificationsDrawer()"
         >
           <svg
             width="22"
@@ -189,21 +212,34 @@
               d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
             />
           </svg>
+          @if (notificationCount() > 0) {
+            <span class="shell-notifications-btn__badge" aria-hidden="true">{{
+              notificationCount()
+            }}</span>
+          }
         </button>
 
-        <div data-user-area class="relative">
+        <div data-user-area>
           <button
             type="button"
             class="shell-user-trigger max-w-[16rem] cursor-pointer rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 text-left text-inherit hover:bg-app-surface-muted"
-            [attr.aria-expanded]="userMenuOpen()"
-            aria-haspopup="menu"
-            aria-controls="user-menu-dropdown"
-            id="user-menu-button"
-            (click)="toggleUserMenu($event)"
+            [attr.aria-expanded]="profileDrawerOpen()"
+            aria-haspopup="dialog"
+            aria-controls="profile-drawer-title"
+            id="user-profile-button"
+            (click)="openProfileDrawer()"
           >
-            <span class="shell-avatar" aria-hidden="true">{{
-              avatarInitials()
-            }}</span>
+            @if (avatarPhotoUrl()) {
+              <img
+                class="shell-avatar shell-avatar--photo"
+                [src]="avatarPhotoUrl()"
+                alt=""
+                width="36"
+                height="36"
+              />
+            } @else {
+              <span class="shell-avatar" aria-hidden="true">{{ avatarInitials() }}</span>
+            }
             <span class="shell-user-text">
               <span
                 class="truncate text-[0.8125rem] font-semibold text-app-fg"
@@ -213,152 +249,8 @@
                 roleLabel()
               }}</span>
             </span>
-            <svg
-              width="16"
-              height="16"
-              class="h-4 w-4 shrink-0 text-app-muted transition-transform duration-150"
-              [class.rotate-180]="userMenuOpen()"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                fill="currentColor"
-                d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"
-              />
-            </svg>
           </button>
 
-          @if (userMenuOpen()) {
-            <div
-              class="shell-menu-dropdown"
-              id="user-menu-dropdown"
-              role="menu"
-              aria-labelledby="user-menu-button"
-            >
-              <div class="flex items-center gap-3 px-4 pb-3 pt-2">
-                <span class="shell-avatar shell-avatar-lg" aria-hidden="true">{{
-                  avatarInitials()
-                }}</span>
-                <div class="flex min-w-0 flex-col gap-0.5">
-                  <span class="text-sm font-bold text-white">{{
-                    displayName()
-                  }}</span>
-                  <span class="break-all text-xs text-shell-fg-muted">{{
-                    email()
-                  }}</span>
-                </div>
-              </div>
-
-              <div class="my-1 h-px bg-white/10" role="presentation"></div>
-
-              <button
-                type="button"
-                class="shell-menu-item"
-                role="menuitem"
-                [attr.aria-label]="
-                  theme.activePreset() === 'dark'
-                    ? 'Cambiar a tema claro'
-                    : 'Cambiar a tema oscuro'
-                "
-                (click)="toggleTheme($event)"
-              >
-                @if (theme.activePreset() === "dark") {
-                  <svg
-                    width="20"
-                    height="20"
-                    class="h-5 w-5 shrink-0 text-shell-fg-muted"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"
-                    />
-                  </svg>
-                } @else {
-                  <svg
-                    width="20"
-                    height="20"
-                    class="h-5 w-5 shrink-0 text-shell-fg-muted"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"
-                    />
-                  </svg>
-                }
-                <span class="shell-menu-label">Cambiar tema</span>
-                <span class="shell-menu-hint">
-                  {{ theme.activePreset() === "dark" ? "Claro" : "Oscuro" }}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                class="shell-menu-item"
-                role="menuitem"
-                (click)="closeUserMenu()"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  class="h-5 w-5 shrink-0 text-shell-fg-muted"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 8c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4 8H8v-.57c0-.81.48-1.53 1.22-1.85.85-.37 1.79-.58 2.78-.58.99 0 1.93.21 2.78.58.74.32 1.22 1.04 1.22 1.85V18z"
-                  />
-                </svg>
-                Perfil
-              </button>
-
-              <button
-                type="button"
-                class="shell-menu-item"
-                role="menuitem"
-                (click)="closeUserMenu()"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  class="h-5 w-5 shrink-0 text-shell-fg-muted"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-4.43-.82-6.14-2.88C7.55 15.8 9.68 15 12 15s4.45.8 6.14 2.12C16.43 19.18 14.03 20 12 20z"
-                  />
-                </svg>
-                Cuenta
-              </button>
-
-              <button
-                type="button"
-                class="shell-menu-item shell-menu-item--danger"
-                role="menuitem"
-                (click)="logout()"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  class="h-5 w-5 shrink-0"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-                  />
-                </svg>
-                Cerrar sesión
-              </button>
-            </div>
-          }
         </div>
       </div>
     </header>
@@ -375,3 +267,19 @@
     </main>
   </div>
 </div>
+
+@if (profileDrawerOpen()) {
+  <app-profile-drawer
+    (dismiss)="closeProfileDrawer()"
+    (saved)="onProfileSaved()"
+    (sessionEnd)="onProfileSessionEnd()"
+  />
+}
+
+@if (notificationsDrawerOpen()) {
+  <app-incidents-notifications-drawer (dismiss)="closeNotificationsDrawer()" />
+}
+
+@if (checklistDrawerOpen()) {
+  <app-checklist-drawer (dismiss)="closeChecklistDrawer()" />
+}

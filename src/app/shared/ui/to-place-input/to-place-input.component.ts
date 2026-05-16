@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   HostListener,
@@ -31,11 +32,16 @@ let placeInputSeq = 0;
 @Component({
   selector: 'to-place-input',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './to-place-input.component.html',
   styleUrl: './to-place-input.component.scss',
 })
 export class ToPlaceInputComponent {
   private readonly photon = inject(PhotonPlaceSearchService);
+
+  trackPlaceSuggestion(index: number, s: PlaceSuggestion): string {
+    return `${s.lon}:${s.lat}:${s.label}:${index}`;
+  }
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 

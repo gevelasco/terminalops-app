@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ReportRepository } from '@features/reports/data/report.repository';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
@@ -7,6 +7,7 @@ import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.co
 @Component({
   selector: 'app-reports-page',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToPageHeaderComponent, ToTableComponent, ToSkeletonComponent],
   templateUrl: './reports-page.component.html',
 })

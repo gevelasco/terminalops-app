@@ -1,0 +1,258 @@
+<div
+  class="fleet-drawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="expenses-new-drawer-title"
+>
+  <button
+    type="button"
+    class="fleet-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="dismiss.emit()"
+  ></button>
+
+  <aside class="fleet-drawer__panel fleet-drawer__panel--wide">
+    <header class="fleet-drawer__header">
+      <h2 id="expenses-new-drawer-title" class="fleet-drawer__title">
+        <svg
+          class="fleet-drawer__title-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            fill="currentColor"
+            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
+          />
+        </svg>
+        Nuevo gasto
+      </h2>
+      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          />
+        </svg>
+      </to-icon-button>
+    </header>
+
+    <form class="fleet-drawer__form" (ngSubmit)="submit()">
+      <div class="fleet-drawer__body fleet-unit-body">
+        @if (drawerLoading()) {
+          <to-drawer-skeleton variant="form" />
+        } @else {
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="exp-new-sec-class"
+        >
+          <h3 id="exp-new-sec-class" class="fleet-unit-sec__title">
+            Clasificación
+          </h3>
+          <p class="fleet-unit-sec__docs-hint">
+            El rubro clasifica el gasto (combustible, casetas, mantenimiento,
+            operador, general…). La maniobra se vincula aparte y aplica a
+            cualquier rubro.
+          </p>
+          <div class="fleet-unit-sec__grid2">
+            <to-select
+              label="Rubro del gasto *"
+              [options]="kindOptions"
+              [(value)]="kind"
+            />
+            <to-input
+              label="Concepto / categoría *"
+              placeholder="Ej. Casetas, Póliza anual, Suscripción GPS"
+              [(value)]="category"
+            />
+          </div>
+          <to-textarea
+            label="Descripción"
+            placeholder="Detalle opcional (factura, cobertura, periodo…)"
+            [rows]="3"
+            [(value)]="description"
+          />
+        </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="exp-new-sec-rel"
+        >
+          <h3 id="exp-new-sec-rel" class="fleet-unit-sec__title">
+            Relación operativa
+          </h3>
+          <p class="fleet-unit-sec__docs-hint">
+            Opcional: busca por código, ruta o cliente para agrupar el gasto con una
+            maniobra (combustible, casetas, comisión, etc.).
+          </p>
+          <to-trip-input label="Maniobra" [(tripId)]="tripId" />
+          @if (kind() === "maintenance") {
+            <p class="fleet-unit-sec__docs-hint">
+              Indica si el mantenimiento fue a la unidad tractora o al equipo
+              (remolque / dolly) para enlazarlo con el registro de flota.
+            </p>
+            <to-select
+              label="Aplicó a *"
+              [options]="maintenanceTargetOptions"
+              [(value)]="maintenanceTarget"
+            />
+            @if (maintenanceTarget() === "unit") {
+              <to-select
+                label="Unidad *"
+                [options]="unitOptions()"
+                [(value)]="relatedUnitId"
+              />
+            } @else {
+              <to-select
+                label="Equipo *"
+                [options]="equipmentOptions()"
+                [(value)]="relatedEquipmentId"
+              />
+            }
+          } @else if (kind() === "insurance") {
+            <p class="fleet-unit-sec__docs-hint">
+              La póliza aplica a una unidad o a un equipo; elige un solo activo
+              asegurado.
+            </p>
+            <to-select
+              label="Póliza sobre *"
+              [options]="insuranceTargetOptions"
+              [(value)]="insuranceTarget"
+            />
+            @if (insuranceTarget() === "unit") {
+              <to-select
+                label="Unidad *"
+                [options]="unitOptions()"
+                [(value)]="relatedUnitId"
+              />
+            } @else {
+              <to-select
+                label="Equipo *"
+                [options]="equipmentOptions()"
+                [(value)]="relatedEquipmentId"
+              />
+            }
+          } @else if (kind() === "gps") {
+            <p class="fleet-unit-sec__docs-hint">
+              El servicio de GPS o telemetría se asocia a la unidad tractora.
+            </p>
+            <to-select
+              label="Unidad *"
+              [options]="unitOptions()"
+              [(value)]="relatedUnitId"
+            />
+          } @else if (kind() === "verification") {
+            <p class="fleet-unit-sec__docs-hint">
+              Verificaciones físico-mecánica, de emisiones o doble articulado
+              (SPP), alineadas con el registro de la unidad.
+            </p>
+            <div class="fleet-unit-sec__grid2">
+              <to-select
+                label="Unidad *"
+                [options]="unitOptions()"
+                [(value)]="relatedUnitId"
+              />
+              <to-select
+                label="Tipo de verificación *"
+                [options]="verificationScopeOptions"
+                [(value)]="verificationScope"
+              />
+            </div>
+          } @else if (isEquipmentOnlyKind(kind())) {
+            <p class="fleet-unit-sec__docs-hint">
+              Vincula el gasto al equipo o remolque correspondiente.
+            </p>
+            <to-select
+              label="Equipo *"
+              [options]="equipmentOptions()"
+              [(value)]="relatedEquipmentId"
+            />
+          } @else if (isUnitOnlyAssetKind(kind())) {
+            <p class="fleet-unit-sec__docs-hint">
+              Vincula el gasto a la unidad tractora correspondiente.
+            </p>
+            <to-select
+              label="Unidad *"
+              [options]="unitOptions()"
+              [(value)]="relatedUnitId"
+            />
+          } @else if (isOperatorKind(kind())) {
+            <p class="fleet-unit-sec__docs-hint">
+              Selecciona el operador al que corresponde el pago o la comisión.
+            </p>
+            <to-select
+              label="Operador *"
+              [options]="operatorOptions()"
+              [(value)]="relatedOperatorId"
+            />
+          } @else {
+            <p class="fleet-unit-sec__docs-hint">
+              Sin vínculo obligatorio a maniobra o flota. Usa el concepto y la
+              descripción para dejar constancia.
+            </p>
+          }
+        </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="exp-new-sec-money"
+        >
+          <h3 id="exp-new-sec-money" class="fleet-unit-sec__title">
+            Importe y pago
+          </h3>
+          <div class="fleet-unit-sec__grid2">
+            <to-input
+              label="Monto *"
+              type="text"
+              [groupThousands]="true"
+              placeholder="Ej. 3,500"
+              [(value)]="amountStr"
+            />
+            <to-select
+              label="Moneda *"
+              [options]="currencyOptions"
+              [(value)]="currency"
+            />
+          </div>
+          <div class="fleet-unit-sec__grid2">
+            <to-input label="Fecha *" type="date" [(value)]="incurredAt" />
+            <to-select
+              label="Forma de pago"
+              [options]="paymentMethodOptions"
+              [(value)]="paymentMethod"
+            />
+          </div>
+          <to-input
+            label="Proveedor / beneficiario"
+            placeholder="Taller, aseguradora, plataforma…"
+            [(value)]="vendor"
+          />
+          <label class="expenses-new__invoice-check">
+            <input
+              type="checkbox"
+              name="invoiceRequired"
+              [ngModel]="invoiceRequired()"
+              (ngModelChange)="invoiceRequired.set($event)"
+            />
+            <span>Factura fiscal requerida</span>
+          </label>
+          <p class="expenses-new__invoice-hint">
+            Marca si el gasto debe documentarse con factura para contabilidad o
+            deducibilidad.
+          </p>
+        </section>
+        }
+      </div>
+
+      @if (!drawerLoading()) {
+      <div class="fleet-drawer__footer">
+        <to-button type="button" variant="outline" (click)="dismiss.emit()">
+          Cancelar
+        </to-button>
+        <to-button type="submit" variant="primary"> Guardar gasto </to-button>
+      </div>
+      }
+    </form>
+  </aside>
+</div>

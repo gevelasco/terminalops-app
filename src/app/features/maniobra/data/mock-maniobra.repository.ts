@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { delay, Observable, of, throwError } from 'rxjs';
-import { MOCK_TRIPS } from '@app/mock-data/mock-trips';
+import { SimulatedDbService } from '@app/sim-db/simulated-db.service';
 import { Trip } from '@shared/models/logistics.models';
 import {
   buildManeuverCode,
@@ -15,21 +15,21 @@ import {
 
 @Injectable()
 export class MockManiobraRepository extends ManiobraRepository {
-  private maniobras: Trip[] = [...MOCK_TRIPS];
+  private readonly db = inject(SimulatedDbService);
 
   override list(): Observable<Trip[]> {
-    return of([...this.maniobras]).pipe(delay(280));
+    return of(this.db.listTrips()).pipe(delay(280));
   }
 
   override get(id: string): Observable<Trip | undefined> {
-    const trip = this.maniobras.find((t) => t.id === id);
+    const trip = this.db.getTrip(id);
     return of(trip).pipe(delay(90));
   }
 
   /** Correlativo global tomado del mayor sufijo numérico ya usado en códigos. */
   private nextManeuverSequence(): number {
     let max = 0;
-    for (const t of this.maniobras) {
+    for (const t of this.db.listTrips()) {
       const n = parseManeuverSequenceSuffix(t.maneuverCode);
       if (n > max) {
         max = n;
@@ -47,6 +47,8 @@ export class MockManiobraRepository extends ManiobraRepository {
           ? ['Equipo principal', 'Semirremolque / segundo equipo']
           : ['Equipo principal'];
     const clientLabel = payload.clientName?.trim() || 'Cliente general';
+    const clientId =
+      payload.clientId?.trim() || this.db.resolveClientIdByName(clientLabel);
     const initials = initialsFromClientName(clientLabel);
     const seq = this.nextManeuverSequence();
     const maneuverCode = buildManeuverCode(initials, seq);
@@ -58,6 +60,7 @@ export class MockManiobraRepository extends ManiobraRepository {
       origin: payload.origin.trim(),
       destination: payload.destination.trim(),
       clientName: clientLabel,
+      clientId,
       unitId: payload.unitId,
       operatorId: payload.operatorId.trim(),
       status: 'scheduled',
@@ -86,8 +89,18 @@ export class MockManiobraRepository extends ManiobraRepository {
         payload.attachedDocumentFileNames.length > 0
           ? [...payload.attachedDocumentFileNames]
           : undefined,
+      routeDistanceKm: payload.routeDistanceKm,
+      maneuverKind: payload.maneuverKind,
+      originPostalCode: payload.originPostalCode,
+      originCityMunicipality: payload.originCityMunicipality,
+      originLocality: payload.originLocality,
+      destinationPostalCode: payload.destinationPostalCode,
+      destinationCityMunicipality: payload.destinationCityMunicipality,
+      destinationLocality: payload.destinationLocality,
+      operatorLicenseNumber: payload.operatorLicenseNumber,
+      operatorLicenseExpiresLabel: payload.operatorLicenseExpiresLabel,
     };
-    this.maniobras = [trip, ...this.maniobras];
+    this.db.prependTripRow(clientId, trip);
     return of(trip).pipe(delay(320));
   }
 
@@ -101,11 +114,10 @@ export class MockManiobraRepository extends ManiobraRepository {
         () => new Error('La maniobra en falso requiere un detalle o explicación breve.'),
       );
     }
-    const i = this.maniobras.findIndex((t) => t.id === tripId);
-    if (i < 0) {
+    const row = this.db.getTrip(tripId);
+    if (!row) {
       return throwError(() => new Error('No se encontró la maniobra.'));
     }
-    const row = this.maniobras[i];
     if (row.status === 'cancelled') {
       return of(row).pipe(delay(90));
     }
@@ -118,14 +130,19 @@ export class MockManiobraRepository extends ManiobraRepository {
       falseManeuver: payload.falseManeuver === true ? true : undefined,
       cancellationNote: note !== '' ? note : undefined,
     };
-    this.maniobras = [...this.maniobras.slice(0, i), updated, ...this.maniobras.slice(i + 1)];
+    this.db.replaceTrip(tripId, updated);
     return of(updated).pipe(delay(220));
   }
 
-  override addIncident(tripId: string, description: string): Observable<Trip> {
-    const i = this.maniobras.findIndex((t) => t.id === tripId);
+  override addIncident(
+    tripId: string,
+    description: string,
+    postedBy: string,
+  ): Observable<Trip> {
     const text = description.trim();
-    if (i < 0 || text === '') {
+    const author = postedBy.trim();
+    const row = this.db.getTrip(tripId);
+    if (!row || text === '' || author === '') {
       return throwError(() => new Error('Maniobra no encontrada o incidente vacío.'));
     }
     const occurredAt = new Date().toISOString();
@@ -133,15 +150,14 @@ export class MockManiobraRepository extends ManiobraRepository {
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : `inc-${occurredAt}`;
-    const row = this.maniobras[i];
     const prev = row.incidents ? [...row.incidents] : [];
-    const incident = { id: incId, description: text, occurredAt };
+    const incident = { id: incId, description: text, occurredAt, postedBy: author };
     const updated: Trip = {
       ...row,
       incidents: [incident, ...prev],
       hasIncident: true,
     };
-    this.maniobras = [...this.maniobras.slice(0, i), updated, ...this.maniobras.slice(i + 1)];
+    this.db.replaceTrip(tripId, updated);
     return of(updated).pipe(delay(180));
   }
 }

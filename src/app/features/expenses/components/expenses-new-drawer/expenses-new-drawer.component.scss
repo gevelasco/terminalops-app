@@ -1,0 +1,27 @@
+.expenses-new__invoice-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--to-color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.expenses-new__invoice-check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--to-color-primary);
+}
+
+.expenses-new__invoice-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+  line-height: 1.35;
+}

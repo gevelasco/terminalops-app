@@ -1,3 +1,6 @@
+@use '../../fleet/components/fleet-drawer.shared.scss' as *;
+@use '../../../shared/styles/trip-operation-type-badge.scss';
+
 .maniobra-page-header__btn-icon {
   display: inline-flex;
   align-items: center;
@@ -17,6 +20,18 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  /* Altura de `.fleet-segment` / `to-input` con prefijo en la barra. */
+  --maniobra-toolbar-control-height: calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px);
+}
+
+.maniobra-toolbar__view-segment {
+  flex-shrink: 0;
+
+  .fleet-segment {
+    min-height: var(--maniobra-toolbar-control-height);
+    box-sizing: border-box;
+  }
 }
 
 .maniobra-toolbar__search {
@@ -29,6 +44,26 @@
     display: block;
     width: 100%;
   }
+
+  ::ng-deep .to-field__control-row--group {
+    min-height: var(--maniobra-toolbar-control-height);
+    box-sizing: border-box;
+  }
+
+  ::ng-deep .to-field__control {
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.maniobra-toolbar__filters {
+  margin-left: auto;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.maniobra-toolbar__filters--disabled .maniobra-filters {
+  opacity: 0.55;
 }
 
 .maniobra-empty-hint {
@@ -42,12 +77,17 @@
 }
 
 /* Misma caja que `to-input` con prefijo (control-row--group). */
+.maniobra-filters--status {
+  flex-wrap: nowrap;
+}
+
 .maniobra-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: 0.15rem;
-  padding: 0.15rem;
+  min-height: var(--maniobra-toolbar-control-height);
+  padding: 0.2rem;
   border-radius: var(--to-radius-md);
   background: var(--to-color-surface);
   border: 1px solid var(--to-color-border);
@@ -60,13 +100,14 @@
   align-items: center;
   gap: 0.35rem;
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.5rem;
   border: 1px solid transparent;
   border-radius: calc(var(--to-radius-md) - 2px);
   background: transparent;
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
+  white-space: nowrap;
   letter-spacing: -0.01em;
   line-height: 1.25;
   color: var(--to-color-text-muted);
@@ -85,6 +126,18 @@
     outline: 2px solid var(--to-focus-ring);
     outline-offset: 2px;
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+.maniobra-toolbar__filters--disabled .maniobra-filters__tab {
+  &:hover {
+    color: var(--to-color-text-muted);
+    background: transparent;
+  }
 }
 
 .maniobra-filters__tab--active {
@@ -96,8 +149,16 @@
 .maniobra-filters__icon {
   display: inline-flex;
   flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
   opacity: 0.72;
   color: currentColor;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .maniobra-filters__tab--active .maniobra-filters__icon {
@@ -106,6 +167,502 @@
 }
 
 /* Tabla ancha: scroll horizontal sin romper el layout del shell */
-:host ::ng-deep .to-table {
+.maniobra-table-wrap ::ng-deep .to-table {
   min-width: 54rem;
+}
+
+.maniobra-schema__hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-schema {
+  /* Misma altura en todos los iconos; el ancho sigue la proporción de cada PNG. */
+  --maniobra-schema-icon-h: 3.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 0.75rem;
+  padding: 0.35rem 0 0.5rem;
+  min-width: 0;
+  align-items: start;
+}
+
+.maniobra-schema__card {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface);
+  border: 1px solid var(--to-color-border);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--to-color-primary) 35%, var(--to-color-border));
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--to-color-primary) 12%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Full: 3 iconos con ancho natural (~19rem) + panel; columna apilada evita recorte. */
+.maniobra-schema__card--full {
+  min-width: min(100%, 23.5rem);
+}
+
+.maniobra-schema__card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sencillo/plana: fechas a la derecha si la card es ancha. Full queda en columna. */
+@container (min-width: 23.5rem) {
+  .maniobra-schema__card:not(.maniobra-schema__card--full) .maniobra-schema__card-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(9.25rem, 11.25rem);
+    align-items: start;
+    gap: 0.65rem 0.75rem;
+  }
+
+  .maniobra-schema__card:not(.maniobra-schema__card--full) .maniobra-schema__schedule {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+  }
+}
+
+.maniobra-schema__card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+  overflow: visible;
+}
+
+.maniobra-schema__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.maniobra-schema__identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.maniobra-schema__code-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  font-size: 0.9375rem;
+  line-height: 1;
+}
+
+.maniobra-schema__code {
+  display: block;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.maniobra-schema__incident-hit {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.125em;
+  height: 1.125em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--to-color-text-muted) 42%, transparent);
+  cursor: default;
+  outline: none;
+  line-height: 0;
+
+  &--active {
+    color: #ea580c;
+    cursor: help;
+
+    &:hover .maniobra-schema__incident-tip,
+    &:focus-visible .maniobra-schema__incident-tip {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
+  &:focus-visible {
+    border-radius: var(--to-radius-sm);
+    box-shadow: 0 0 0 2px var(--to-focus-ring, color-mix(in srgb, var(--to-color-primary) 45%, transparent));
+  }
+}
+
+.maniobra-schema__incident-icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+.maniobra-schema__incident-tip {
+  position: absolute;
+  z-index: 35;
+  left: 0;
+  top: calc(100% + 6px);
+  width: max-content;
+  min-width: 14rem;
+  max-width: min(22rem, 92vw);
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  text-align: left;
+  white-space: normal;
+  background: var(--to-color-surface);
+  border: 1px solid var(--to-color-border);
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--to-color-text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--to-color-border) 60%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease;
+}
+
+.maniobra-schema__incident-tip-title {
+  margin: 0 0 0.45rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #ea580c;
+}
+
+.maniobra-schema__incident-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.maniobra-schema__incident-item {
+  margin: 0;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--to-radius-sm);
+  background: color-mix(in srgb, var(--to-color-surface-muted) 55%, transparent);
+}
+
+.maniobra-schema__incident-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.maniobra-schema__incident-author {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--to-color-primary);
+}
+
+.maniobra-schema__incident-date {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.maniobra-schema__incident-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--to-color-text);
+}
+
+.maniobra-schema__incident-fallback {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+}
+
+:host-context([data-app-scheme='dark']) {
+  .maniobra-schema__incident-hit {
+    color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
+
+    &--active {
+      color: #fb923c;
+    }
+  }
+
+  .maniobra-schema__incident-tip-title {
+    color: #fb923c;
+  }
+}
+
+.maniobra-schema__route {
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.maniobra-schema__client {
+  font-size: 0.75rem;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-schema__graphic {
+  display: block;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: none;
+  padding: 0.35rem 0.45rem;
+  box-sizing: border-box;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface-muted) 88%, var(--to-color-surface));
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
+  overflow: visible;
+}
+
+.maniobra-schema__convoy-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0;
+  width: max-content;
+  margin: 0;
+  font-size: 0;
+  line-height: 0;
+  overflow: visible;
+}
+
+.maniobra-schema__segment {
+  position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  overflow: visible;
+}
+
+.maniobra-schema__convoy-part {
+  display: block;
+  height: var(--maniobra-schema-icon-h);
+  width: auto;
+  max-height: var(--maniobra-schema-icon-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-shrink: 0;
+  object-fit: contain;
+  object-position: left bottom;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Full: separación mínima entre 1.er y 2.º remolque + punto de enganche. */
+.maniobra-schema__coupling {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  width: 0.35rem;
+  height: 0.35rem;
+  margin: 0 0.15rem calc(var(--maniobra-schema-icon-h) * 0.2);
+  border-radius: 50%;
+  background: var(--to-color-text, #1b1b1b);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  pointer-events: none;
+}
+
+:host-context([data-app-scheme='dark']) {
+  .maniobra-schema__convoy-part {
+    filter: brightness(0) invert(1);
+    opacity: 0.94;
+  }
+
+  .maniobra-schema__coupling {
+    background: #ffffff;
+    opacity: 0.9;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-border) 65%, transparent);
+  }
+}
+
+.maniobra-schema__hit {
+  position: absolute;
+  inset: 0.15rem;
+  min-width: 0;
+  pointer-events: auto;
+  border-radius: calc(var(--to-radius-md) - 3px);
+  transition: background 0.12s ease;
+
+  &:hover,
+  &:focus-within {
+    background: color-mix(in srgb, var(--to-color-primary) 8%, transparent);
+  }
+}
+
+.maniobra-schema__schedule {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface-muted) 92%, var(--to-color-surface));
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 78%, transparent);
+}
+
+.maniobra-schema__schedule-dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.maniobra-schema__schedule-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.65rem;
+  align-items: baseline;
+
+  dt {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    color: var(--to-color-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: right;
+    word-break: break-word;
+    color: var(--to-color-text);
+  }
+
+  &--eta dd {
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--to-color-primary);
+  }
+}
+
+.maniobra-schema__badge {
+  flex-shrink: 0;
+}
+
+.maniobra-schema__hit:hover .maniobra-schema__tip,
+.maniobra-schema__hit:focus-within .maniobra-schema__tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.maniobra-schema__tip {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  width: max-content;
+  min-width: 16rem;
+  max-width: min(30rem, 96vw);
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  background: var(--to-color-surface);
+  border: 1px solid var(--to-color-border);
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--to-color-text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--to-color-border) 60%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease;
+}
+
+.maniobra-schema__tip-title {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-schema__tip-dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.maniobra-schema__tip-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.28rem 0;
+  white-space: nowrap;
+
+  dt {
+    margin: 0;
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--to-color-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    flex: 0 1 auto;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-align: right;
+    white-space: nowrap;
+  }
 }

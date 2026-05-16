@@ -1,0 +1,238 @@
+.profile-drawer {
+  z-index: 130;
+}
+
+.profile-drawer__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+}
+
+.profile-drawer__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.profile-drawer__account {
+  margin-bottom: 0.85rem;
+}
+
+.profile-drawer__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.profile-drawer__avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-drawer__avatar {
+  display: block;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface-muted);
+}
+
+.profile-drawer__avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--to-color-primary);
+}
+
+.profile-drawer__avatar-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--to-color-surface);
+  background: var(--to-color-primary);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover:not(.profile-drawer__avatar-edit--busy) {
+    filter: brightness(1.05);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--to-focus-ring, var(--to-color-primary));
+    outline-offset: 2px;
+  }
+}
+
+.profile-drawer__avatar-edit--busy {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.profile-drawer__avatar-edit-spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid color-mix(in srgb, #fff 35%, transparent);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: profile-drawer-spin 0.65s linear infinite;
+}
+
+@keyframes profile-drawer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profile-drawer__identity-meta {
+  min-width: 0;
+  flex: 1;
+  padding-top: 0.15rem;
+}
+
+.profile-drawer__identity-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+.profile-drawer__identity-role {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--to-color-primary);
+}
+
+.profile-drawer__identity-email {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+  word-break: break-word;
+}
+
+.profile-drawer__photo-remove {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--to-color-text);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.profile-drawer__theme {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
+}
+
+.profile-drawer__theme-label {
+  flex-shrink: 0;
+  width: 2.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.profile-drawer__theme-segment {
+  flex: 1;
+  max-width: none;
+}
+
+.profile-drawer__footer {
+  flex-shrink: 0;
+  padding: 0.85rem 1.15rem 1.1rem;
+  border-top: 1px solid var(--to-color-border);
+  background: var(--to-color-surface);
+}
+
+.profile-drawer__logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-danger, #c62828) 35%, var(--to-color-border));
+  border-radius: var(--to-radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--to-color-danger, #c62828) 8%, var(--to-color-surface));
+  color: var(--to-color-danger, #c62828);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-danger, #c62828) 14%, var(--to-color-surface));
+    border-color: color-mix(in srgb, var(--to-color-danger, #c62828) 50%, var(--to-color-border));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-color-danger, #c62828);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.profile-drawer__file-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.profile-drawer__readonly-block {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}

@@ -15,7 +15,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin } from 'rxjs';
 import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { TripStatus, Operator } from '@shared/models/logistics.models';
+import {
+  TripStatus,
+  Operator,
+  OperatorOperationalStatus,
+} from '@shared/models/logistics.models';
+
+/** Puede asignarse a maniobra si no está ya en una activa. */
+const PICKABLE_OPERATOR_STATUSES: OperatorOperationalStatus[] = [
+  'available',
+  'scheduled',
+  'in_use',
+];
 
 let seq = 0;
 
@@ -78,7 +89,8 @@ export class ToOperatorInputComponent {
             }
           }
           const avail = operators.filter(
-            (o) => o.status === 'active' && !busy.has(o.id),
+            (o) =>
+              PICKABLE_OPERATOR_STATUSES.includes(o.status) && !busy.has(o.id),
           );
           avail.sort((a, b) => a.name.localeCompare(b.name));
           this.availableOperators.set(avail);
