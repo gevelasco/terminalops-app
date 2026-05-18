@@ -1,0 +1,105 @@
+<div
+  class="to-clients-multi__wrap"
+  [class.to-clients-multi__wrap--open]="open()"
+>
+  <div #chipsRow class="to-clients-multi__chips" role="list" aria-label="Clientes seleccionados">
+    @for (c of visibleChips(); track c.id) {
+      <span class="to-clients-multi__chip" role="listitem">
+        <span class="to-clients-multi__chip-label">{{ c.name }}</span>
+        <button
+          type="button"
+          class="to-clients-multi__chip-remove"
+          [attr.aria-label]="'Quitar ' + c.name"
+          [disabled]="disabled()"
+          (click)="removeClient(c.id, $event)"
+        >
+          ×
+        </button>
+      </span>
+    }
+    @if (overflowCount() > 0) {
+      <span class="to-clients-multi__chip to-clients-multi__chip--overflow" role="listitem">
+        +{{ overflowCount() }}
+      </span>
+    }
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-clients-multi__input"
+      type="text"
+      [placeholder]="selectedClients().length ? '' : placeholder()"
+      [value]="query()"
+      [disabled]="disabled()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+  </div>
+
+  @if (loading()) {
+    <span class="to-clients-multi__spinner" aria-hidden="true"></span>
+  } @else {
+    <button
+      type="button"
+      class="to-clients-multi__toggle"
+      [attr.aria-label]="open() ? 'Cerrar lista de clientes' : 'Abrir lista de clientes'"
+      [attr.aria-expanded]="open()"
+      [disabled]="disabled()"
+      (click)="toggleOpen($event)"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
+      </svg>
+    </button>
+  }
+
+  @if (selectedClients().length > 0 && !disabled()) {
+    <button
+      type="button"
+      class="to-clients-multi__clear"
+      aria-label="Quitar todos los clientes"
+      (click)="clearAll($event)"
+    >
+      ×
+    </button>
+  }
+
+  @if (open()) {
+    <ul
+      [id]="listId"
+      class="to-clients-multi__list"
+      role="listbox"
+      aria-multiselectable="true"
+    >
+      @if (listClients().length === 0) {
+        <li class="to-clients-multi__empty">Sin coincidencias</li>
+      }
+      @for (c of listClients(); track c.id) {
+        <li
+          class="to-clients-multi__item"
+          role="option"
+          [attr.aria-selected]="isSelected(c.id)"
+          [class.to-clients-multi__item--selected]="isSelected(c.id)"
+          (pointerdown)="onTogglePointerDown(c, $event)"
+        >
+          <span class="to-clients-multi__check" aria-hidden="true">
+            @if (isSelected(c.id)) {
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                />
+              </svg>
+            }
+          </span>
+          <span class="to-clients-multi__item-label">{{ c.name }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>

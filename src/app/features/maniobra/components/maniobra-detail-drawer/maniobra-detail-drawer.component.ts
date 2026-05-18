@@ -74,6 +74,7 @@ export class ManiobraDetailDrawerComponent {
 
   readonly incidentDraft = signal('');
   readonly incidentSaving = signal(false);
+  readonly collectSaving = signal(false);
   readonly cancelSubmitting = signal(false);
   /** Pestañas del panel: datos de la maniobra vs. seguimiento (actualizaciones e incidentes). */
   readonly detailTab = signal<'maneuver' | 'tracking'>('maneuver');
@@ -229,6 +230,55 @@ export class ManiobraDetailDrawerComponent {
   /** `false` solo si se marcó explícitamente como maniobra sin cobro/cliente externo. */
   showsClientBillingBlock(): boolean {
     return this.trip().hasClientBilling !== false;
+  }
+
+  /** Solo maniobras terminadas (completada o cancelada) pueden confirmar cobro. */
+  canMarkClientCollected(): boolean {
+    const s = this.trip().status;
+    return this.showsClientBillingBlock() && (s === 'completed' || s === 'cancelled');
+  }
+
+  clientCollected(): boolean {
+    const at = this.trip().clientCollectedAt;
+    return typeof at === 'string' && at.trim().length > 0;
+  }
+
+  clientCollectedAtLabel(): string {
+    const at = this.trip().clientCollectedAt;
+    return at ? this.fmt(at) : '';
+  }
+
+  toggleClientCollected(): void {
+    if (!this.canMarkClientCollected() || this.collectSaving()) {
+      return;
+    }
+    const next = !this.clientCollected();
+    this.collectSaving.set(true);
+    this.maniobrasRepo.setClientCollected(this.trip().id, next).subscribe({
+      next: (updated) => {
+        this.collectSaving.set(false);
+        this.maniobraTripChange.emit(updated);
+        this.toast.show(
+          next
+            ? `Cobro de ${updated.maneuverCode} confirmado; cuenta como ingreso en reportes.`
+            : `Cobro de ${updated.maneuverCode} marcado como pendiente (crédito).`,
+          'success',
+        );
+      },
+      error: (err: unknown) => {
+        this.collectSaving.set(false);
+        const detail =
+          err instanceof Error
+            ? err.message.trim()
+            : typeof err === 'string'
+              ? err.trim()
+              : '';
+        this.toast.show(
+          detail || 'No se pudo actualizar el estado de cobro.',
+          'error',
+        );
+      },
+    });
   }
 
   /** Badge de estado en cabecera del detalle (incluye variante «en falso»). */

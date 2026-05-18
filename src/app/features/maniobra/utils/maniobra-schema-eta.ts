@@ -1,6 +1,10 @@
 import type { Trip } from '@shared/models/logistics.models';
 import { formatRouteKmEsMx } from '@features/maniobra/utils/maniobra-route-display';
-import { estimateReturnIsoFromSymmetricalOutbound } from '@features/maniobra/utils/maniobra-trip-schema-timeline';
+import {
+  schemaOperationalStatus,
+  schemaProgressFreezeMs,
+} from '@features/maniobra/utils/maniobra-schema-operational-status';
+import { estimateManeuverEndIso } from '@features/maniobra/utils/maniobra-trip-schema-timeline';
 
 function parseIsoMs(iso: string | null | undefined): number | null {
   if (!iso?.trim()) {
@@ -15,11 +19,7 @@ function maneuverStartMs(trip: Trip): number | null {
 }
 
 function maneuverEndMs(trip: Trip): number | null {
-  const closed = parseIsoMs(trip.returnAt);
-  if (closed !== null) {
-    return closed;
-  }
-  return parseIsoMs(estimateReturnIsoFromSymmetricalOutbound(trip));
+  return parseIsoMs(estimateManeuverEndIso(trip));
 }
 
 /** Duración aproximada de la maniobra (ida + regreso estimado o real). */
@@ -49,4 +49,35 @@ export function approximateManeuverKmLabel(trip: Trip): string {
   }
   const total = oneWay * 2;
   return `~${formatRouteKmEsMx(total)} km`;
+}
+
+/** Avance temporal: salida → hoy → regreso (real o estimado). */
+export interface ManeuverTimeProgress {
+  percent: number;
+  ariaLabel: string;
+}
+
+export function maneuverTimeProgress(trip: Trip): ManeuverTimeProgress | null {
+  const start = maneuverStartMs(trip);
+  const end = maneuverEndMs(trip);
+  if (start === null || end === null || end <= start) {
+    return null;
+  }
+  const freezeMs = schemaProgressFreezeMs(trip);
+  const now = freezeMs ?? Date.now();
+  const ratio = Math.max(0, Math.min(1, (now - start) / (end - start)));
+  const percent = Math.round(ratio * 100);
+  if (freezeMs !== null) {
+    const status = schemaOperationalStatus(trip);
+    const statusLabel =
+      status === 'detenido' ? 'detenida' : status === 'retrasado' ? 'retrasada' : status;
+    return {
+      percent,
+      ariaLabel: `Avance detenido al ${percent}% (maniobra ${statusLabel})`,
+    };
+  }
+  return {
+    percent,
+    ariaLabel: `Avance del plazo: ${percent}% entre salida y regreso estimado`,
+  };
 }

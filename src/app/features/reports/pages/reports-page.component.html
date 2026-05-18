@@ -1,7 +1,946 @@
-<to-page-header title="Reportes" subtitle="Resumen ejecutivo (mock)" />
+<to-page-header
+  title="Reportes"
+  subtitle="Análisis por periodo: maniobras, balance y flota"
+/>
 
 @if (loading()) {
-  <to-skeleton [lines]="4" />
+  <to-skeleton [lines]="6" />
 } @else {
-  <to-table [columns]="columns" [rows]="rows()" />
+  @if (view(); as v) {
+  <div class="reports-layout">
+    <app-reports-filter-bar
+      [(filter)]="filter"
+      [(tab)]="tab"
+      [tabs]="tabs"
+      [unitOptions]="unitSelectOptions()"
+    />
+
+    @switch (tab()) {
+      @case ('general') {
+        <section class="reports-section" aria-label="Reporte general">
+          <div class="reports-kpi-grid">
+            @for (k of v.general.kpis; track k.id) {
+              <to-card [title]="k.title" [titleIcon]="k.titleIcon">
+                <div class="reports-kpi">
+                  @if (k.legendPlacement === 'beside' && k.legend) {
+                    <div class="reports-kpi__value-row">
+                      <span class="reports-kpi__value">{{ k.value }}</span>
+                      <span class="reports-kpi__legend reports-kpi__legend--beside">{{ k.legend }}</span>
+                    </div>
+                  } @else {
+                    <span class="reports-kpi__value">{{ k.value }}</span>
+                    @if (k.legend) {
+                      <span class="reports-kpi__legend">{{ k.legend }}</span>
+                    }
+                  }
+                  @if (k.deltaLabel) {
+                    <span
+                      class="reports-kpi__delta"
+                      [class.reports-kpi__delta--up]="k.deltaTone === 'up'"
+                      [class.reports-kpi__delta--down]="k.deltaTone === 'down'"
+                    >
+                      {{ k.deltaLabel }}
+                    </span>
+                  }
+                </div>
+              </to-card>
+            }
+          </div>
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height">
+            <div class="reports-chart-card">
+            <to-card title="Margen diario (14 días)" titleIcon="chart-line">
+              <div class="reports-chart-col" role="img" aria-label="Margen diario">
+                @for (p of v.general.weeklyBalance; track p.label) {
+                  <div class="reports-chart-col__cell">
+                    <span class="reports-chart-col__value">{{ p.value | number: '1.0-0' }}</span>
+                    <div class="reports-chart-col__track">
+                      <div
+                        class="reports-chart-col__bar reports-chart-col__bar--margin"
+                        [style.height.%]="weeklyBarHeightPct(p.value, v.general.weeklyBalance)"
+                      ></div>
+                    </div>
+                    <span class="reports-chart-col__day">{{ p.label }}</span>
+                  </div>
+                }
+              </div>
+            </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+            <to-card title="Gastos por tipo" titleIcon="chart-donut">
+              <div class="reports-chart-bar">
+                @for (row of v.general.expenseByKind; track row.key) {
+                  <div class="reports-chart-bar__row">
+                    <span class="reports-chart-bar__label">{{ row.label }}</span>
+                    <div class="reports-chart-bar__track">
+                      <div
+                        [class]="'reports-chart-bar__fill ' + row.fillClass"
+                        [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                      ></div>
+                    </div>
+                    <span class="reports-chart-bar__meta">
+                      {{ row.count | number: '1.0-0' }}
+                      <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                    </span>
+                  </div>
+                }
+              </div>
+            </to-card>
+            </div>
+          </div>
+
+          <div class="reports-tables-grid reports-tables-grid--equal-height">
+            <div class="reports-panel-card">
+            <to-card title="Top clientes" titleIcon="clients">
+              <to-table [columns]="clientColumns" [rows]="clientRows()" [pageSize]="0" />
+            </to-card>
+            </div>
+            <div class="reports-panel-card">
+            <to-card title="Top clientes por margen" titleIcon="trophy">
+              <div class="reports-donut-chart">
+                @if (v.general.topClientsMarginDonut.length === 0) {
+                  <p class="reports-donut-chart__empty">
+                    Sin margen positivo por cliente en este periodo.
+                  </p>
+                } @else {
+                  <div
+                    class="reports-donut-chart__viz"
+                    role="img"
+                    [attr.aria-label]="donutAriaLabel(v.general.topClientsMarginDonut)"
+                  >
+                    <div
+                      class="reports-donut"
+                      [style.background]="donutConicGradient(v.general.topClientsMarginDonut)"
+                    >
+                      <div class="reports-donut__hole">
+                        <span class="reports-donut__total">{{
+                          formatMxn(donutMarginTotal(v.general.topClientsMarginDonut))
+                        }}</span>
+                        <span class="reports-donut__total-label">Margen</span>
+                      </div>
+                    </div>
+                  </div>
+                  <ul class="reports-donut-chart__legend">
+                    @for (s of v.general.topClientsMarginDonut; track s.key) {
+                      <li class="reports-donut-chart__legend-item">
+                        <span
+                          class="reports-donut-chart__swatch"
+                          [style.background-color]="s.color"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="reports-donut-chart__name">{{ s.label }}</span>
+                        <span class="reports-donut-chart__meta">
+                          {{ formatMxn(s.value) }}
+                          <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            </to-card>
+            </div>
+          </div>
+        </section>
+      }
+
+      @case ('maniobras') {
+        <section class="reports-section" aria-label="Reporte de maniobras">
+          <div class="reports-kpi-grid reports-kpi-grid--four">
+            @for (k of v.maniobras.kpis; track k.id) {
+              <to-card [title]="k.title" [titleIcon]="k.titleIcon">
+                <div class="reports-kpi">
+                  @if (k.legendPlacement === 'beside' && k.legend) {
+                    <div class="reports-kpi__value-row">
+                      <span class="reports-kpi__value">{{ k.value }}</span>
+                      <span class="reports-kpi__legend reports-kpi__legend--beside">{{ k.legend }}</span>
+                    </div>
+                  } @else {
+                    <span class="reports-kpi__value">{{ k.value }}</span>
+                    @if (k.legend) {
+                      <span class="reports-kpi__legend">{{ k.legend }}</span>
+                    }
+                  }
+                  @if (k.deltaLabel) {
+                    <span
+                      class="reports-kpi__delta"
+                      [class.reports-kpi__delta--up]="k.deltaTone === 'up'"
+                      [class.reports-kpi__delta--down]="k.deltaTone === 'down'"
+                    >
+                      {{ k.deltaLabel }}
+                    </span>
+                  }
+                </div>
+              </to-card>
+            }
+          </div>
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--maniobra">
+            <div class="reports-chart-card">
+            <to-card title="Destinos" titleIcon="route">
+              <div class="reports-chart-bar reports-chart-bar--fill">
+                @for (row of v.maniobras.destinationSlices; track row.key) {
+                  <div class="reports-chart-bar__row">
+                    <span class="reports-chart-bar__label">{{ row.label }}</span>
+                    <div class="reports-chart-bar__track">
+                      <div
+                        [class]="'reports-chart-bar__fill ' + row.fillClass"
+                        [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                      ></div>
+                    </div>
+                    <span class="reports-chart-bar__meta">
+                      {{ row.count }}
+                      <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                    </span>
+                  </div>
+                } @empty {
+                  <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                }
+              </div>
+            </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+            <to-card title="Clientes" titleIcon="clients">
+              <div class="reports-chart-bar reports-chart-bar--fill">
+                @for (row of v.maniobras.clientSlices; track row.key) {
+                  <div class="reports-chart-bar__row">
+                    <span class="reports-chart-bar__label">{{ row.label }}</span>
+                    <div class="reports-chart-bar__track">
+                      <div
+                        [class]="'reports-chart-bar__fill ' + row.fillClass"
+                        [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                      ></div>
+                    </div>
+                    <span class="reports-chart-bar__meta">
+                      {{ row.count }}
+                      <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                    </span>
+                  </div>
+                } @empty {
+                  <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                }
+              </div>
+            </to-card>
+            </div>
+          </div>
+
+          <div
+            class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--maniobra reports-charts-grid--maniobra-tall"
+          >
+            <div class="reports-chart-card reports-chart-card--performance">
+            <to-card title="Destino con mejor rendimiento" titleIcon="target">
+              <p class="reports-dest-margin-hint">
+                Margen por destino (ingresos − costos directos)
+              </p>
+              <div
+                class="reports-chart-col reports-chart-col--dest-margin"
+                role="img"
+                aria-label="Margen por destino"
+              >
+                @for (row of v.maniobras.destinationPerformance; track row.key; let i = $index) {
+                  <div
+                    class="reports-chart-col__cell"
+                    [class.reports-chart-col__cell--best]="i === 0 && row.margin > 0"
+                  >
+                    @if (i === 0 && row.margin > 0) {
+                      <span class="reports-chart-col__best">Mejor</span>
+                    }
+                    <span
+                      class="reports-chart-col__value"
+                      [class.reports-chart-col__value--neg]="row.margin < 0"
+                    >{{ formatMxn(row.margin) }}</span>
+                    <div class="reports-chart-col__track">
+                      <div
+                        class="reports-chart-col__bar reports-chart-col__bar--dest-margin"
+                        [class.reports-chart-col__bar--dest-margin-neg]="row.margin < 0"
+                        [style.height.%]="destMarginColHeightPct(row.margin, v.maniobras.destinationPerformance)"
+                      ></div>
+                    </div>
+                    <span class="reports-chart-col__day" [title]="row.label">{{
+                      row.label
+                    }}</span>
+                  </div>
+                } @empty {
+                  <p class="reports-chart-empty">Sin datos de destino en el periodo.</p>
+                }
+              </div>
+            </to-card>
+            </div>
+
+            <div class="reports-chart-card reports-chart-card--ops-incidents">
+            <to-card>
+              <div class="reports-maniobra-split">
+                <section class="reports-maniobra-split__pane" aria-labelledby="maniobra-op-heading">
+                  <h3 id="maniobra-op-heading" class="reports-maniobra-split__heading">
+                    <svg class="reports-maniobra-split__heading-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z"/>
+                    </svg>
+                    <span>Tipo de operación</span>
+                  </h3>
+                  <div class="reports-donut-chart reports-donut-chart--split">
+                    @if (v.maniobras.operationDonut.length === 0) {
+                      <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                    } @else {
+                      <div
+                        class="reports-donut-chart__viz"
+                        role="img"
+                        [attr.aria-label]="donutAriaLabel(v.maniobras.operationDonut)"
+                      >
+                        <div
+                          class="reports-donut reports-donut--lg"
+                          [style.background]="donutConicGradient(v.maniobras.operationDonut)"
+                        >
+                          <div class="reports-donut__hole">
+                            <span class="reports-donut__total">{{
+                              donutSliceTotal(v.maniobras.operationDonut)
+                            }}</span>
+                            <span class="reports-donut__total-label">Maniobras</span>
+                          </div>
+                        </div>
+                      </div>
+                      <ul class="reports-donut-chart__legend reports-donut-chart__legend--compact">
+                        @for (s of v.maniobras.operationDonut; track s.key) {
+                          <li class="reports-donut-chart__legend-item">
+                            <span
+                              class="reports-donut-chart__swatch"
+                              [style.background-color]="s.color"
+                              aria-hidden="true"
+                            ></span>
+                            <span class="reports-donut-chart__name">{{ s.label }}</span>
+                            <span class="reports-donut-chart__meta">
+                              {{ s.value }}
+                              <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                            </span>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                </section>
+
+                <section class="reports-maniobra-split__pane" aria-labelledby="maniobra-inc-heading">
+                  <h3 id="maniobra-inc-heading" class="reports-maniobra-split__heading">
+                    <svg class="reports-maniobra-split__heading-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M12 5.99 19.53 19H4.47L12 5.99M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v5h2v-5z"/>
+                    </svg>
+                    <span>Incidentes por ruta</span>
+                  </h3>
+                  <div class="reports-chart-bar reports-chart-bar--split">
+                    @for (row of v.maniobras.incidentsByRoute; track row.key) {
+                      <div class="reports-chart-bar__row">
+                        <span class="reports-chart-bar__label" [title]="row.label">{{
+                          row.label
+                        }}</span>
+                        <div class="reports-chart-bar__track">
+                          <div
+                            [class]="'reports-chart-bar__fill ' + row.fillClass"
+                            [style.width.%]="row.pct"
+                          ></div>
+                        </div>
+                        <span class="reports-chart-bar__meta">
+                          {{ row.count }}
+                          <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                        </span>
+                      </div>
+                    } @empty {
+                      <p class="reports-chart-empty">Sin incidentes en el periodo.</p>
+                    }
+                  </div>
+                </section>
+              </div>
+            </to-card>
+            </div>
+
+            <div class="reports-chart-card reports-chart-card--maniobra-operators">
+              <to-card title="Maniobras por operador" titleIcon="operators">
+                @if (v.maniobras.maneuversByOperator.length === 0) {
+                  <p class="reports-chart-empty">Sin maniobras por operador en el periodo.</p>
+                } @else {
+                  <ul class="reports-maniobra-operator-list">
+                    @for (row of v.maniobras.maneuversByOperator; track row.key) {
+                      <li class="reports-maniobra-operator-list__item">
+                        <span class="reports-maniobra-operator-list__name">{{ row.label }}</span>
+                        <div class="reports-maniobra-operator-list__metrics">
+                          <span class="reports-maniobra-operator-list__metric">
+                            <span class="reports-maniobra-operator-list__value">{{
+                              row.maneuverCount
+                            }}</span>
+                            <span class="reports-maniobra-operator-list__label">maniobras</span>
+                          </span>
+                          <span class="reports-maniobra-operator-list__metric">
+                            <span class="reports-maniobra-operator-list__value">{{
+                              row.avgDurationLabel
+                            }}</span>
+                            <span class="reports-maniobra-operator-list__label">prom. maniobra</span>
+                          </span>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                }
+              </to-card>
+            </div>
+          </div>
+
+        </section>
+      }
+
+      @case ('balance') {
+        <section class="reports-section" aria-label="Balance financiero">
+          <div class="reports-kpi-grid">
+            @for (k of v.balance.kpis; track k.id) {
+              <to-card [title]="k.title" [titleIcon]="k.titleIcon">
+                <div class="reports-kpi">
+                  @if (k.legendPlacement === 'beside' && k.legend) {
+                    <div class="reports-kpi__value-row">
+                      <span class="reports-kpi__value">{{ k.value }}</span>
+                      <span class="reports-kpi__legend reports-kpi__legend--beside">{{ k.legend }}</span>
+                    </div>
+                  } @else {
+                    <span class="reports-kpi__value">{{ k.value }}</span>
+                    @if (k.legend) {
+                      <span class="reports-kpi__legend">{{ k.legend }}</span>
+                    }
+                  }
+                  @if (k.deltaLabel) {
+                    <span
+                      class="reports-kpi__delta"
+                      [class.reports-kpi__delta--up]="k.deltaTone === 'up'"
+                      [class.reports-kpi__delta--down]="k.deltaTone === 'down'"
+                    >
+                      {{ k.deltaLabel }}
+                    </span>
+                  }
+                </div>
+              </to-card>
+            }
+          </div>
+
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--balance-top">
+            <div class="reports-chart-card">
+              <to-card title="Cobros por forma de pago" titleIcon="payment">
+                <p class="reports-dest-margin-hint">
+                  Monto cobrado confirmado (efectivo, transferencia, cheque)
+                </p>
+                <div class="reports-donut-chart reports-donut-chart--payment">
+                  @if (v.balance.collectionPaymentDonut.length === 0) {
+                    <p class="reports-donut-chart__empty">Sin cobros confirmados en el periodo.</p>
+                  } @else {
+                    <div
+                      class="reports-donut-chart__viz"
+                      role="img"
+                      [attr.aria-label]="donutAriaLabel(v.balance.collectionPaymentDonut)"
+                    >
+                      <div
+                        class="reports-donut reports-donut--payment"
+                        [style.background]="donutConicGradient(v.balance.collectionPaymentDonut)"
+                      >
+                        <div class="reports-donut__hole">
+                          <span class="reports-donut__total">{{
+                            formatMxn(collectionPaymentDonutTotal(v.balance.collectionPaymentDonut))
+                          }}</span>
+                          <span class="reports-donut__total-label">Cobrado</span>
+                        </div>
+                      </div>
+                    </div>
+                    <ul class="reports-donut-chart__legend reports-donut-chart__legend--compact">
+                      @for (s of v.balance.collectionPaymentDonut; track s.key) {
+                        <li class="reports-donut-chart__legend-item">
+                          <span
+                            class="reports-donut-chart__swatch"
+                            [style.background-color]="s.color"
+                            aria-hidden="true"
+                          ></span>
+                          <span class="reports-donut-chart__name">{{ s.label }}</span>
+                          <span class="reports-donut-chart__meta">
+                            {{ formatMxn(s.value) }}
+                            <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+              <to-card title="Gastos por área" titleIcon="chart-donut">
+                <div class="reports-donut-chart reports-donut-chart--expense-area">
+                  @if (v.balance.expenseByCategoryDonut.length === 0) {
+                    <p class="reports-donut-chart__empty">Sin gastos en el periodo.</p>
+                  } @else {
+                    <div
+                      class="reports-donut-chart__viz"
+                      role="img"
+                      [attr.aria-label]="donutAriaLabel(v.balance.expenseByCategoryDonut)"
+                    >
+                      <div class="reports-semi-donut">
+                        <div class="reports-semi-donut__arc">
+                          <div
+                            class="reports-semi-donut__ring"
+                            [style.background]="semiDonutConicGradient(v.balance.expenseByCategoryDonut)"
+                          ></div>
+                        </div>
+                        <div class="reports-semi-donut__hole">
+                          <span class="reports-semi-donut__total">{{
+                            formatMxn(expenseCategoryDonutTotal(v.balance.expenseByCategoryDonut))
+                          }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <ul class="reports-donut-chart__legend reports-donut-chart__legend--compact">
+                      @for (s of v.balance.expenseByCategoryDonut; track s.key) {
+                        <li class="reports-donut-chart__legend-item">
+                          <span
+                            class="reports-donut-chart__swatch"
+                            [style.background-color]="s.color"
+                            aria-hidden="true"
+                          ></span>
+                          <span class="reports-donut-chart__name">{{ s.label }}</span>
+                          <span class="reports-donut-chart__meta">
+                            {{ formatMxn(s.value) }}
+                            <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+              <to-card title="Por pagar a flota" titleIcon="wallet">
+                <div class="reports-chart-bar reports-chart-bar--compact reports-chart-bar--fleet-payables">
+                  @for (row of v.balance.fleetPayables; track row.key) {
+                    <div class="reports-chart-bar__row">
+                      <span class="reports-chart-bar__label">{{ row.label }}</span>
+                      <div class="reports-chart-bar__track">
+                        <div
+                          [class]="'reports-chart-bar__fill ' + row.fillClass"
+                          [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                        ></div>
+                      </div>
+                      <span class="reports-chart-bar__meta">{{ formatMxn(row.count) }}</span>
+                    </div>
+                  } @empty {
+                    <p class="reports-chart-empty">Sin saldos pendientes a flota.</p>
+                  }
+                </div>
+              </to-card>
+            </div>
+          </div>
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--balance-cost">
+            <div class="reports-chart-card">
+              <to-card title="Desglose de costos" titleIcon="chart-bar">
+                <div class="reports-chart-bar reports-chart-bar--compact">
+                  @for (row of v.balance.costBreakdown; track row.key) {
+                    <div class="reports-chart-bar__row">
+                      <span class="reports-chart-bar__label">{{ row.label }}</span>
+                      <div class="reports-chart-bar__track">
+                        <div
+                          [class]="'reports-chart-bar__fill ' + row.fillClass"
+                          [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                        ></div>
+                      </div>
+                      <span class="reports-chart-bar__meta">
+                        {{ formatMxn(row.count) }}
+                        <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                      </span>
+                    </div>
+                  } @empty {
+                    <p class="reports-chart-empty">Sin costos en el periodo.</p>
+                  }
+                </div>
+              </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+              <to-card title="Crédito por cliente" titleIcon="credit">
+                <div class="reports-chart-bar reports-chart-bar--compact reports-chart-bar--credit-client">
+                  @for (row of v.balance.creditByClient; track row.key) {
+                    <div class="reports-chart-bar__row reports-credit-client-row">
+                      <span class="reports-chart-bar__label">{{ row.label }}</span>
+                      <to-badge
+                        class="reports-credit-client-row__badge"
+                        [variant]="row.nextDueBadgeVariant"
+                        >{{ row.nextDueLabel }}</to-badge
+                      >
+                      <div class="reports-chart-bar__track">
+                        <div
+                          [class]="'reports-chart-bar__fill ' + row.fillClass"
+                          [style.width.%]="barFillWidthPct(row.amount, row.pct)"
+                        ></div>
+                      </div>
+                      <span class="reports-chart-bar__meta">{{ formatMxn(row.amount) }}</span>
+                    </div>
+                  } @empty {
+                    <p class="reports-chart-empty">Sin crédito pendiente en el periodo.</p>
+                  }
+                </div>
+              </to-card>
+            </div>
+          </div>
+
+          <div class="reports-route-profit-card">
+            <to-card title="Rentabilidad por ruta y cliente" titleIcon="revenue">
+              @if (routeClientProfitRows().length === 0) {
+                <p class="reports-chart-empty">Sin maniobras facturables en el periodo.</p>
+              } @else {
+                <to-table
+                  [columns]="routeClientProfitColumns"
+                  [rows]="routeClientProfitRows()"
+                  [pageSize]="0"
+                />
+              }
+            </to-card>
+          </div>
+
+        </section>
+      }
+
+      @case ('fleet') {
+        <section class="reports-section" aria-label="Reporte de flota">
+
+          <div class="reports-kpi-grid">
+            @for (k of v.fleet.kpis; track k.id) {
+              <to-card [title]="k.title" [titleIcon]="k.titleIcon">
+                <div class="reports-kpi">
+                  @if (k.legendPlacement === 'beside' && k.legend) {
+                    <div class="reports-kpi__value-row">
+                      <span class="reports-kpi__value">{{ k.value }}</span>
+                      <span class="reports-kpi__legend reports-kpi__legend--beside">{{ k.legend }}</span>
+                    </div>
+                  } @else {
+                    <span class="reports-kpi__value">{{ k.value }}</span>
+                    @if (k.legend) {
+                      <span class="reports-kpi__legend">{{ k.legend }}</span>
+                    }
+                  }
+                  @if (k.deltaLabel) {
+                    <span
+                      class="reports-kpi__delta"
+                      [class.reports-kpi__delta--up]="k.deltaTone === 'up'"
+                      [class.reports-kpi__delta--down]="k.deltaTone === 'down'"
+                    >
+                      {{ k.deltaLabel }}
+                    </span>
+                  }
+                </div>
+              </to-card>
+            }
+          </div>
+
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--fleet reports-charts-grid--fleet-top">
+            <div class="reports-chart-card">
+              <to-card title="Unidades con más km y maniobras" titleIcon="units">
+                @if (v.fleet.topUnitsByActivity.length > 0) {
+                  <div class="reports-chart-bar">
+                    @for (row of v.fleet.topUnitsByActivity; track row.key) {
+                      <div class="reports-chart-bar__row">
+                        <span class="reports-chart-bar__label">{{ row.label }}</span>
+                        <div class="reports-chart-bar__track">
+                          <div
+                            [class]="'reports-chart-bar__fill ' + row.fillClass"
+                            [style.width.%]="barFillWidthPct(row.km, row.pct)"
+                          ></div>
+                        </div>
+                        <span class="reports-chart-bar__meta">
+                          {{ row.maneuvers }} man.
+                          <span class="reports-chart-bar__pct">· {{ row.km | number: '1.0-0' }} km</span>
+                        </span>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                }
+              </to-card>
+            </div>
+
+            <div class="reports-chart-card reports-chart-card--operation">
+              <to-card title="Tipo de operación (Full / Sencillo / Plana)" titleIcon="chart-donut">
+                <div class="reports-donut-chart reports-donut-chart--operation">
+                  @if (v.fleet.operationDonut.length === 0) {
+                    <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                  } @else {
+                    <div
+                      class="reports-donut-chart__viz"
+                      role="img"
+                      [attr.aria-label]="donutAriaLabel(v.fleet.operationDonut)"
+                    >
+                      <div class="reports-semi-donut reports-semi-donut--operation">
+                        <div class="reports-semi-donut__arc">
+                          <div
+                            class="reports-semi-donut__ring"
+                            [style.background]="semiDonutConicGradient(v.fleet.operationDonut)"
+                          ></div>
+                        </div>
+                        <div class="reports-semi-donut__hole">
+                          <span class="reports-semi-donut__total">{{
+                            donutSliceTotal(v.fleet.operationDonut)
+                          }}</span>
+                          <span class="reports-semi-donut__total-label">Maniobras</span>
+                        </div>
+                      </div>
+                    </div>
+                    <ul class="reports-donut-chart__legend reports-donut-chart__legend--compact">
+                      @for (s of v.fleet.operationDonut; track s.key) {
+                        <li class="reports-donut-chart__legend-item">
+                          <span
+                            class="reports-donut-chart__swatch"
+                            [style.background-color]="s.color"
+                            aria-hidden="true"
+                          ></span>
+                          <span class="reports-donut-chart__name">{{ s.label }}</span>
+                          <span class="reports-donut-chart__meta">
+                            {{ s.value }}
+                            <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </to-card>
+            </div>
+
+            <div class="reports-chart-card">
+              <to-card title="Equipos con más km y maniobras" titleIcon="equipment">
+                @if (v.fleet.topEquipmentByActivity.length > 0) {
+                  <div class="reports-chart-bar">
+                    @for (row of v.fleet.topEquipmentByActivity; track row.key) {
+                      <div class="reports-chart-bar__row">
+                        <span class="reports-chart-bar__label">{{ row.label }}</span>
+                        <div class="reports-chart-bar__track">
+                          <div
+                            [class]="'reports-chart-bar__fill ' + row.fillClass"
+                            [style.width.%]="barFillWidthPct(row.km, row.pct)"
+                          ></div>
+                        </div>
+                        <span class="reports-chart-bar__meta">
+                          {{ row.maneuvers }} man.
+                          <span class="reports-chart-bar__pct">· {{ row.km | number: '1.0-0' }} km</span>
+                        </span>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <p class="reports-chart-empty">Sin maniobras en el periodo.</p>
+                }
+              </to-card>
+            </div>
+          </div>
+
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--fleet-incidents-row">
+            <div class="reports-chart-card reports-chart-card--incidents">
+              <to-card title="Unidades con más incidentes" titleIcon="alert">
+                @if (v.fleet.unitsWithIncidents.length > 0) {
+                  <div class="reports-chart-bar reports-chart-bar--incidents reports-chart-bar--fleet-incidents">
+                    @for (row of v.fleet.unitsWithIncidents; track row.key) {
+                      <div class="reports-chart-bar__row reports-chart-bar__row--incident">
+                        <span class="reports-chart-bar__label">
+                          <span class="reports-fleet-chart__unit">{{ row.label }}</span>
+                          <span class="reports-fleet-chart__routes">{{ row.routes }}</span>
+                        </span>
+                        <div class="reports-chart-bar__track">
+                          <div
+                            [class]="'reports-chart-bar__fill ' + row.fillClass"
+                            [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                          ></div>
+                        </div>
+                        <span class="reports-chart-bar__meta">
+                          {{ row.count }}
+                          <span class="reports-chart-bar__pct">incidente{{ row.count === 1 ? '' : 's' }}</span>
+                        </span>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <p class="reports-chart-empty">Sin incidentes en el periodo.</p>
+                }
+              </to-card>
+            </div>
+            <div class="reports-chart-card reports-chart-card--maint-costs">
+              <to-card title="Costos por mantenimiento" titleIcon="maintenance">
+                @if (v.fleet.maintenanceByTargetDonut.length === 0) {
+                  <p class="reports-chart-empty">Sin mantenimiento en el periodo.</p>
+                } @else {
+                  <div class="reports-fleet-maint-costs">
+                    <div class="reports-fleet-maint-costs__donut">
+                      <div class="reports-donut-chart reports-donut-chart--operation">
+                        <div
+                          class="reports-donut-chart__viz"
+                          role="img"
+                          [attr.aria-label]="donutAriaLabel(v.fleet.maintenanceByTargetDonut)"
+                        >
+                          <div
+                            class="reports-donut reports-donut--lg"
+                            [style.background]="donutConicGradient(v.fleet.maintenanceByTargetDonut)"
+                          >
+                            <div class="reports-donut__hole">
+                              <span class="reports-donut__total">{{
+                                formatMxn(donutSliceTotal(v.fleet.maintenanceByTargetDonut))
+                              }}</span>
+                              <span class="reports-donut__total-label">Total</span>
+                            </div>
+                          </div>
+                        </div>
+                        <ul class="reports-donut-chart__legend reports-donut-chart__legend--compact">
+                          @for (s of v.fleet.maintenanceByTargetDonut; track s.key) {
+                            <li class="reports-donut-chart__legend-item">
+                              <span
+                                class="reports-donut-chart__swatch"
+                                [style.background-color]="s.color"
+                                aria-hidden="true"
+                              ></span>
+                              <span class="reports-donut-chart__name">{{ s.label }}</span>
+                              <span class="reports-donut-chart__meta">
+                                {{ formatMxn(s.value) }}
+                                <span class="reports-donut-chart__pct">({{ s.pct }}%)</span>
+                              </span>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    </div>
+                    @if (v.fleet.maintenanceTargetCounts.length > 0) {
+                      <div class="reports-fleet-maint-costs__counts">
+                        <p class="reports-fleet-maint-costs__counts-title">Desglose por tipo</p>
+                        <ul class="reports-fleet-maint-costs__counts-list">
+                          @for (row of v.fleet.maintenanceTargetCounts; track row.key) {
+                            <li class="reports-fleet-maint-costs__counts-item">
+                              <span
+                                class="reports-fleet-maint-costs__counts-swatch"
+                                [style.background-color]="row.color"
+                                aria-hidden="true"
+                              ></span>
+                              <span class="reports-fleet-maint-costs__counts-label">{{ row.label }}</span>
+                              <span class="reports-fleet-maint-costs__counts-value">
+                                {{ row.count }}
+                                mantenimiento{{ row.count === 1 ? '' : 's' }}
+                              </span>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
+                  </div>
+                }
+              </to-card>
+            </div>
+            <div class="reports-chart-card reports-chart-card--maint-serviced">
+              <to-card title="Unidades y equipos atendidos en el periodo" titleIcon="calendar">
+                @if (v.fleet.maintenanceServicedInPeriod.length > 0) {
+                  <ul class="reports-fleet-maint-serviced-list">
+                    @for (row of v.fleet.maintenanceServicedInPeriod; track row.key) {
+                      <li class="reports-fleet-maint-serviced-list__item">
+                        <span class="reports-fleet-maint-serviced-list__name">{{ row.label }}</span>
+                        <span class="reports-fleet-maint-serviced-list__target">{{ row.targetLabel }}</span>
+                        <span class="reports-fleet-maint-serviced-list__dates">{{
+                          row.serviceDatesLabel
+                        }}</span>
+                        <span class="reports-fleet-maint-serviced-list__cost">{{
+                          formatMxn(row.periodSpend)
+                        }}</span>
+                        <span class="reports-fleet-maint-serviced-list__meta">
+                          {{ row.periodServices }}
+                          servicio{{ row.periodServices === 1 ? '' : 's' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="reports-chart-empty">
+                    Sin mantenimiento registrado en unidades o equipos en el periodo.
+                  </p>
+                }
+              </to-card>
+            </div>
+          </div>
+          <div class="reports-charts-grid reports-charts-grid--equal-height reports-charts-grid--fleet reports-charts-grid--fleet-bottom">
+            <div class="reports-chart-card reports-chart-card--units-maneuvers">
+              <to-card title="Maniobras por unidad" titleIcon="maniobras">
+                <div class="reports-kpi reports-kpi--inline">
+                  <span class="reports-kpi__value">{{ v.fleet.avgManeuversPerUnit }}</span>
+                  <span class="reports-kpi__legend">promedio · {{ v.fleet.unitsWithManeuversInPeriod }} unidades</span>
+                </div>
+                @if (v.fleet.maneuversPerUnit.length > 0) {
+                  <div class="reports-chart-bar reports-chart-bar--fill reports-chart-bar--fleet-units">
+                    @for (row of v.fleet.maneuversPerUnit; track row.key) {
+                      <div class="reports-chart-bar__row">
+                        <span class="reports-chart-bar__label">{{ row.label }}</span>
+                        <div class="reports-chart-bar__track">
+                          <div
+                            [class]="'reports-chart-bar__fill ' + row.fillClass"
+                            [style.width.%]="barFillWidthPct(row.count, row.pct)"
+                          ></div>
+                        </div>
+                        <span class="reports-chart-bar__meta">
+                          {{ row.count }} man.
+                          <span class="reports-chart-bar__pct">({{ row.pct }}%)</span>
+                        </span>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <p class="reports-chart-empty">Sin maniobras por unidad en el periodo.</p>
+                }
+              </to-card>
+            </div>
+            <div class="reports-chart-card reports-chart-card--operators-side">
+              <to-card title="Costos por operador" titleIcon="operators">
+                @if (v.fleet.operatorPayments.length === 0) {
+                  <p class="reports-chart-empty">Sin pagos ni saldos de operadores en el periodo.</p>
+                } @else {
+                  <div class="reports-fleet-operator-list">
+                    @for (row of v.fleet.operatorPayments; track row.key) {
+                      <div class="reports-fleet-operator-list__row">
+                        <span class="reports-fleet-operator-list__name">{{ row.label }}</span>
+                        <div class="reports-fleet-operator-list__amounts">
+                          @if (row.paidAmount > 0) {
+                            <span class="reports-fleet-operator-list__paid">
+                              Pagado {{ formatMxn(row.paidAmount) }}
+                            </span>
+                          }
+                          @if (row.pendingCompletedAmount > 0) {
+                            <span class="reports-fleet-operator-list__pending">
+                              Por pagar {{ formatMxn(row.pendingCompletedAmount) }}
+                            </span>
+                          }
+                          @if (row.pendingInTransitAmount > 0) {
+                            <span class="reports-fleet-operator-list__in-transit">
+                              En curso {{ formatMxn(row.pendingInTransitAmount) }}
+                            </span>
+                          }
+                        </div>
+                        <span class="reports-fleet-operator-list__due">{{ row.pendingDueLabel }}</span>
+                        @if (row.paidAmount > 0) {
+                          <div class="reports-fleet-operator-list__bar">
+                            <div
+                              class="reports-chart-bar__fill reports-chart-bar__fill--cost-1"
+                              [style.width.%]="
+                                barFillWidthPct(row.paidAmount, operatorPaidBarPct(row))
+                              "
+                            ></div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </to-card>
+            </div>
+          </div>
+        </section>
+      }
+    }
+  </div>
+  }
 }

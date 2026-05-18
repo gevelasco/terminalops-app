@@ -248,27 +248,27 @@
             />
           </div>
           <div class="maniobra-drawer__grid3">
-            <to-select
+            <to-unit-input
               label="Unidad *"
               [placeholder]="unitPlaceholder"
-              [options]="unitOptions()"
-              [(value)]="unitId"
+              [(unitId)]="unitId"
+              (unitPicked)="onUnitPicked($event)"
               (blurNotify)="onUnitBlur()"
             />
-            <to-select
+            <to-equipment-input
               label="Equipo 1 *"
               [placeholder]="equipmentPlaceholder"
-              [options]="equipmentOptions"
-              [(value)]="equipmentPrimary"
+              [unitId]="unitId()"
+              [(equipmentId)]="equipmentPrimary"
               (blurNotify)="onEquipmentPrimaryBlur()"
             />
-            <to-select
+            <to-equipment-input
               [label]="isFullOperation() ? 'Equipo 2 *' : 'Equipo 2'"
               [placeholder]="
                 isFullOperation() ? equipmentPlaceholder : 'Solo en configuración Full'
               "
-              [options]="equipmentOptions"
-              [(value)]="equipmentSecondary"
+              [unitId]="unitId()"
+              [(equipmentId)]="equipmentSecondary"
               [disabled]="!isFullOperation()"
               (blurNotify)="onEquipmentSecondaryBlur()"
             />

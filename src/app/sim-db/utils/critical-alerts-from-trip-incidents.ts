@@ -12,12 +12,22 @@ function incidentTitle(description: string): string {
 
 /** Alertas del dashboard: un registro por incidente de maniobra. */
 export function buildCriticalAlertsFromTrips(trips: readonly Trip[]): CriticalAlert[] {
-  return buildTripIncidentFeed(trips).map((item) => ({
-    id: `ca-${item.incidentId}`,
-    severity: item.severity,
-    kind: item.kind ?? inferIncidentKind(item.description),
-    title: incidentTitle(item.description),
-    description: `${item.maneuverCode} · ${item.clientName} · ${item.routeLabel} · ${item.authorLabel}`,
-    detectedAt: item.occurredAt,
-  }));
+  return buildTripIncidentFeed(trips).map((item) => {
+    const maneuverCode = item.maneuverCode;
+    const clientName = item.clientName;
+    const routeLabel = item.routeLabel;
+    const authorLabel = item.authorLabel;
+    return {
+      id: `ca-${item.incidentId}`,
+      severity: item.severity,
+      kind: item.kind ?? inferIncidentKind(item.description),
+      title: incidentTitle(item.description),
+      maneuverCode,
+      clientName,
+      routeLabel,
+      authorLabel,
+      description: `${maneuverCode} · ${clientName} · ${routeLabel} · ${authorLabel}`,
+      detectedAt: item.occurredAt,
+    };
+  });
 }

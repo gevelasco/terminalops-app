@@ -24,6 +24,11 @@ import {
   buildFleetUnitTableRow,
 } from '@features/fleet/utils/fleet-unit-table-row';
 import { buildUnitCompletedTripStats } from '@features/fleet/utils/unit-completed-trip-stats';
+import {
+  equipmentAssignedToUnit,
+  unitConvoyFromEquipment,
+} from '@features/fleet/utils/unit-hitched-equipment';
+import { tripOperationTypeBadgeLabel } from '@shared/utils/trip-operation-type-badge';
 import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import { Equipment, Trip, Unit } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -113,6 +118,14 @@ export class FleetPageComponent {
   readonly detailEquipmentOnRoute = signal(false);
 
   /** `Equipment` del drawer con campos UI (`uiTractorCompletedTripDistanceKm`). */
+  readonly detailUnitHitchedEquipment = computed(() => {
+    const u = this.detailUnit();
+    if (!u) {
+      return [];
+    }
+    return equipmentAssignedToUnit(this.equipmentList(), u.id);
+  });
+
   readonly detailEquipmentForDrawer = computed((): Equipment | null => {
     const e = this.detailEquipment();
     if (!e) {
@@ -141,17 +154,25 @@ export class FleetPageComponent {
     const list = this.unitList();
     const onSet = this.unitsInTransitIds();
     const kmById = this.unitTripStats().completedDistanceKmSumByUnitId;
-    const rowOpts = (u: Unit) => ({
-      onRoute: onSet.has(u.id),
-      completedTripKm: kmById.get(u.id) ?? null,
-    });
+    const equipment = this.equipmentList();
+    const rowOpts = (u: Unit) => {
+      const hitched = equipmentAssignedToUnit(equipment, u.id);
+      return {
+        onRoute: onSet.has(u.id),
+        completedTripKm: kmById.get(u.id) ?? null,
+        hitchedEquipment: hitched,
+      };
+    };
     const filtered = q
       ? list.filter((u) => {
+          const hitched = equipmentAssignedToUnit(equipment, u.id);
           const row = buildFleetUnitTableRow(u, rowOpts(u));
           const blob = [
             row['fleetBrand'],
             row['fleetModel'],
             row['fleetPlate'],
+            tripOperationTypeBadgeLabel(row['fleetConfig']),
+            unitConvoyFromEquipment(hitched).label,
             u.id,
             u.type,
             u.status,
@@ -243,12 +264,17 @@ export class FleetPageComponent {
       cell: 'fleet-verification-icon',
     },
     { key: 'fleetIns', label: 'Seguro', cell: 'fleet-insurance-icon' },
+    {
+      key: 'fleetConfig',
+      label: 'Configuración',
+      cell: 'operation-type',
+    },
   ];
 
   readonly equipmentColumns: ToTableColumn[] = [
     { key: 'fleetBrand', label: 'Marca' },
     { key: 'fleetModel', label: 'Modelo' },
-    { key: 'fleetUnitType', label: 'Tipo de unidad' },
+    { key: 'fleetUnitType', label: 'Tipo de remolque' },
     { key: 'fleetPlate', label: 'Placa' },
     {
       key: 'fleetOperational',
@@ -309,6 +335,17 @@ export class FleetPageComponent {
   onUnitDetailDismiss(): void {
     this.detailUnit.set(null);
     this.detailUnitOnRoute.set(false);
+  }
+
+  onUnitDetailViewEquipment(e: Equipment): void {
+    this.detailUnit.set(null);
+    this.detailUnitOnRoute.set(false);
+    this.tab.set('equipment');
+    this.detailEquipmentOnRoute.set(
+      Boolean(e.unitId?.trim()) &&
+        this.unitsInTransitIds().has(e.unitId.trim()),
+    );
+    this.detailEquipment.set(e);
   }
 
   onEquipmentRowClick(row: Record<string, unknown>): void {

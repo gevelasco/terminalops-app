@@ -16,6 +16,8 @@ import {
 })
 export class OperatorOperationFieldsComponent {
   readonly layout = input<'new' | 'edit'>('new');
+  /** Oculto en detalle (el estado ya va en la cabecera del drawer). */
+  readonly showOperationalStatus = input(true);
   readonly statusOptions = input.required<ToSelectOption[]>();
   readonly employmentContractOptions =
     input.required<ToSelectOption[]>();

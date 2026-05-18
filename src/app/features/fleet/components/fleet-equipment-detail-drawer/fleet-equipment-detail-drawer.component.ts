@@ -16,6 +16,7 @@ import { EQUIPMENT_CONTAINER_SLOT_OPTIONS } from '@app/mock-data/equipment-conta
 import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
 import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
 import { formatEquipmentOperationalId } from '@app/sim-db/utils/fleet-id-builders';
+import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
 import { ToastService } from '@core/notifications/toast.service';
 import { SimulatedDbService } from '@app/sim-db/simulated-db.service';
 import {
@@ -49,6 +50,7 @@ import {
   MaintenanceEntry,
   MaintenanceEntryStatus,
   TrailerTenureMode,
+  Unit,
 } from '@shared/models/logistics.models';
 import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -158,6 +160,8 @@ export class FleetEquipmentDetailDrawerComponent {
   readonly equipment = input.required<Equipment>();
   /** Opciones de unidad tractora (mismo catálogo que alta de equipo). */
   readonly unitOptions = input<ToSelectOption[]>([]);
+  /** Catálogo de tractoras para resolver enganche en ficha técnica. */
+  readonly unitCatalog = input<Unit[]>([]);
   /** Maniobra en curso del enganche (`unitId`), misma regla que la tabla Flota. */
   readonly onRoute = input(false);
   /** Maniobras completadas de la unidad tractora (para contexto de km). */
@@ -226,6 +230,28 @@ export class FleetEquipmentDetailDrawerComponent {
     }
     const opt = this.unitOptions().find((o) => o.value === id);
     return opt?.label ?? this.simDb.labelForUnitId(id);
+  });
+
+  readonly assignedTractor = computed(() => {
+    const id = this.effEquipment().unitId?.trim();
+    if (!id) {
+      return null;
+    }
+    return this.unitCatalog().find((u) => u.id === id) ?? null;
+  });
+
+  readonly hitchAssignmentAvailable = computed(
+    () => !this.effEquipment().unitId?.trim(),
+  );
+
+  readonly hitchTractorOperationalId = computed(() => {
+    const u = this.assignedTractor();
+    return u ? formatUnitTrailerOperationalId(u) : '—';
+  });
+
+  readonly hitchTractorPlate = computed(() => {
+    const u = this.assignedTractor();
+    return u?.plate?.trim() || '—';
   });
 
   // -- Identificación: form signals --

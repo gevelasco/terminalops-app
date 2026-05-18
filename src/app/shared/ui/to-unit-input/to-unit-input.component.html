@@ -1,0 +1,50 @@
+<div class="to-unit-input">
+  @if (label()) {
+    <label class="to-unit-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-unit-input__wrap"
+    [class.to-unit-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-unit-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="inputText()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (loading()) {
+      <span class="to-unit-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && !loading()) {
+      <ul [id]="listId" class="to-unit-input__list" role="listbox">
+        @if (suggestions().length > 0) {
+          @for (row of suggestions(); track row.unit.id) {
+            <li
+              class="to-unit-input__item"
+              role="option"
+              tabindex="-1"
+              (pointerdown)="onPickPointerDown(row, $event)"
+            >
+              {{ row.displayLabel }}
+            </li>
+          }
+        } @else {
+          <li class="to-unit-input__empty" role="presentation">
+            No hay unidades disponibles (en maniobra o no activas).
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

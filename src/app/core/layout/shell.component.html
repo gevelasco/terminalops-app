@@ -19,8 +19,18 @@
     aria-label="Navegación principal"
   >
     <div class="shell-brand">
-      <span class="shell-brand__title">Grupo VSC</span>
-      <span class="shell-brand__legend">Operaciones Logísticas</span>
+      <img
+        class="shell-brand__logo"
+        src="/favicon.png"
+        width="44"
+        height="44"
+        alt=""
+        aria-hidden="true"
+      />
+      <div class="shell-brand__text">
+        <span class="shell-brand__title">Grupo VSC</span>
+        <span class="shell-brand__legend">Operaciones Logísticas</span>
+      </div>
     </div>
 
     <nav class="flex flex-1 flex-col gap-1">
@@ -261,9 +271,6 @@
       <div class="shell-main__outlet">
         <router-outlet />
       </div>
-      <footer class="shell-content-foot">
-        Última actualizacion: 5 minutos atras.
-      </footer>
     </main>
   </div>
 </div>

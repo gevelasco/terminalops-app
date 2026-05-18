@@ -23,8 +23,14 @@ import { tripContainerTypeLabelMx } from '@features/maniobra/utils/trip-containe
 import {
   approximateManeuverDaysLabel,
   approximateManeuverKmLabel,
+  maneuverTimeProgress,
+  type ManeuverTimeProgress,
 } from '@features/maniobra/utils/maniobra-schema-eta';
 import { formatTripIsoOneLine } from '@features/maniobra/utils/maniobra-trip-schema-timeline';
+import {
+  schemaOperationalStatusClass,
+  schemaOperationalStatusLabel,
+} from '@features/maniobra/utils/maniobra-schema-operational-status';
 import {
   tripHasIncidents,
   tripIncidentPostedBy,
@@ -253,6 +259,10 @@ export class ManiobraPageComponent {
     return approximateManeuverKmLabel(trip);
   }
 
+  schemaProgressForTrip(trip: Trip): ManeuverTimeProgress | null {
+    return maneuverTimeProgress(trip);
+  }
+
   /** Códigos de equipo a mostrar (1 sencillo/plana, 2 full). */
   equipmentSlotsForTrip(trip: Trip): (string | null)[] {
     const max = trip.operationType === 'full' ? 2 : 1;
@@ -273,6 +283,8 @@ export class ManiobraPageComponent {
 
   readonly tripOperationTypeBadgeClass = tripOperationTypeBadgeClass;
   readonly tripOperationTypeBadgeLabel = tripOperationTypeBadgeLabel;
+  readonly schemaOperationalStatusClass = schemaOperationalStatusClass;
+  readonly schemaOperationalStatusLabel = schemaOperationalStatusLabel;
   readonly tripHasIncidents = tripHasIncidents;
   readonly tripIncidentsSorted = tripIncidentsSorted;
   readonly formatStackedMx = formatStackedMx;

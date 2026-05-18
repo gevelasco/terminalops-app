@@ -73,4 +73,7 @@ export abstract class ManiobraRepository {
     tripId: string,
     payload: CancelManiobraPayload,
   ): Observable<Trip>;
+
+  /** Confirma o revierte el cobro al cliente (afecta ingresos vs crédito en reportes). */
+  abstract setClientCollected(tripId: string, collected: boolean): Observable<Trip>;
 }

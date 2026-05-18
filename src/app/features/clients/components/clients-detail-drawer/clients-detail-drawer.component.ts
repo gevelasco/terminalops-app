@@ -28,6 +28,7 @@ import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fie
 import { ClientFiscalFieldsComponent } from '../client-fiscal-fields/client-fiscal-fields.component';
 import { ClientIdentificationFieldsComponent } from '../client-identification-fields/client-identification-fields.component';
 import { ClientPayFieldsComponent } from '../client-pay-fields/client-pay-fields.component';
+import { buildClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
 import { buildClientManeuverVolumeSummary } from '@features/clients/utils/client-maneuver-volume-summary';
 import { ClientRepository } from '@shared/data/client.repository';
 import {
@@ -41,12 +42,15 @@ import type {
   ClientContactPerson,
 } from '@shared/models/client.models';
 import type { Trip } from '@shared/models/logistics.models';
+import { ToBadgeComponent, type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
+import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
 type ClientDetailEditSection = 'ident' | 'fiscal' | 'contacts' | 'pay';
+type ClientDrawerTab = 'details' | 'balance';
 
 @Component({
   selector: 'app-clients-detail-drawer',
@@ -59,6 +63,7 @@ type ClientDetailEditSection = 'ident' | 'fiscal' | 'contacts' | 'pay';
     ClientPayFieldsComponent,
     FormsModule,
     NgTemplateOutlet,
+    ToBadgeComponent,
     ToButtonComponent,
     ToIconButtonComponent,
     ToDrawerSkeletonComponent,
@@ -87,6 +92,7 @@ export class ClientsDetailDrawerComponent {
   readonly dismiss = output<void>();
   readonly clientChange = output<Client>();
 
+  readonly drawerTab = signal<ClientDrawerTab>('balance');
   readonly editingSection = signal<ClientDetailEditSection | null>(null);
   readonly saving = signal(false);
 
@@ -122,6 +128,10 @@ export class ClientsDetailDrawerComponent {
     buildClientManeuverVolumeSummary(this.client().id, this.tripsSignal()),
   );
 
+  readonly balanceSummary = computed(() =>
+    buildClientBalanceSummary(this.client().id, this.tripsSignal()),
+  );
+
   private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
@@ -137,6 +147,7 @@ export class ClientsDetailDrawerComponent {
     effect(() => {
       const c = this.client();
       this.patchFormFromClient(c);
+      this.drawerTab.set('balance');
       this.editingSection.set(null);
       this.cancelContactForm();
     });
@@ -168,8 +179,32 @@ export class ClientsDetailDrawerComponent {
     this.dismiss.emit();
   }
 
+  selectDrawerTab(tab: ClientDrawerTab): void {
+    if (this.drawerTab() === tab) {
+      return;
+    }
+    this.cancelSectionEdit();
+    this.drawerTab.set(tab);
+  }
+
   healthSummary(): string {
     return clientCommercialHealthLabel(this.client().payment?.commercialHealth);
+  }
+
+  balanceMoney(value: number): string {
+    return this.mxMoney0.format(value);
+  }
+
+  balanceMarginLabel(): string {
+    const b = this.balanceSummary();
+    if (!b.hasBillable) {
+      return '—';
+    }
+    return `${this.balanceMoney(b.margin)} (${b.marginPct}%)`;
+  }
+
+  paymentDueBadgeVariant(v: ClientPaymentDueBadgeVariant): ToBadgeVariant {
+    return v;
   }
 
   /** Total de filas de maniobra/viaje con este cliente en los datos actuales. */

@@ -1,32 +1,221 @@
-/* Vista de acceso: fondo corporativo y tarjeta centrada */
+/* Vista de acceso: fondo con gradiente + patrón ligero (sin imagen) */
 .login-page {
+  --login-pattern-line: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
+  --login-pattern-line-fine: color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  --login-glow-strong: color-mix(in srgb, var(--to-color-primary) 28%, transparent);
+  --login-glow-soft: color-mix(in srgb, var(--to-color-primary) 10%, transparent);
+  --login-terminal-fg: color-mix(in srgb, #0f766e 18%, var(--to-color-text-muted));
+  --login-terminal-ok: color-mix(in srgb, #059669 22%, transparent);
+  --login-terminal-dim: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
+  --login-terminal-prompt: color-mix(in srgb, var(--to-color-primary) 45%, var(--to-color-text-muted));
+
   position: relative;
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(1rem, 4vw, 2.5rem);
-  background: var(--to-color-bg);
   color: var(--to-color-text);
   overflow-x: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--to-color-primary) 8%, var(--to-color-bg)) 0%,
+      var(--to-color-bg) 42%,
+      color-mix(in srgb, var(--to-color-primary) 5%, var(--to-color-bg)) 100%
+    );
+}
+
+:root[data-app-scheme='dark'] .login-page {
+  --login-pattern-line: color-mix(in srgb, var(--to-color-primary) 22%, transparent);
+  --login-pattern-line-fine: color-mix(in srgb, var(--to-color-border) 35%, transparent);
+  --login-glow-strong: color-mix(in srgb, var(--to-color-primary) 35%, transparent);
+  --login-glow-soft: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
+  --login-terminal-fg: color-mix(in srgb, #34d399 12%, var(--to-color-text-muted));
+  --login-terminal-ok: color-mix(in srgb, #34d399 28%, transparent);
+  --login-terminal-dim: color-mix(in srgb, var(--to-color-text-muted) 45%, transparent);
+  --login-terminal-prompt: color-mix(in srgb, #6ee7b7 35%, var(--to-color-text-muted));
 }
 
 .login-page__ambient {
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background:
     radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      color-mix(in srgb, var(--to-color-primary) 22%, transparent),
-      transparent 55%
+      ellipse 90% 55% at 12% 8%,
+      var(--login-glow-strong),
+      transparent 58%
     ),
     radial-gradient(
-      circle at 100% 100%,
-      color-mix(in srgb, var(--to-color-primary) 12%, transparent),
-      transparent 45%
+      ellipse 45% 35% at 6% 88%,
+      color-mix(in srgb, #14b8a6 8%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 88% 92%,
+      var(--login-glow-soft),
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse 55% 40% at 50% 100%,
+      color-mix(in srgb, var(--to-color-primary) 6%, transparent),
+      transparent 65%
     );
-  opacity: 0.9;
+}
+
+.login-page__pattern {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 1;
+  background-image:
+    repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 47px,
+      var(--login-pattern-line) 47px,
+      var(--login-pattern-line) 48px
+    ),
+    repeating-linear-gradient(
+      72deg,
+      transparent,
+      transparent 71px,
+      color-mix(in srgb, var(--login-pattern-line) 55%, transparent) 71px,
+      color-mix(in srgb, var(--login-pattern-line) 55%, transparent) 72px
+    ),
+    linear-gradient(var(--login-pattern-line-fine) 1px, transparent 1px),
+    linear-gradient(90deg, var(--login-pattern-line-fine) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    2.75rem 2.75rem,
+    2.75rem 2.75rem;
+  mask-image: radial-gradient(
+    ellipse 92% 78% at 50% 42%,
+    rgb(0 0 0 / 0.55) 0%,
+    rgb(0 0 0 / 0.2) 55%,
+    transparent 78%
+  );
+}
+
+.login-page__pattern::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 100% 85% at 50% 50%,
+    transparent 35%,
+    color-mix(in srgb, var(--to-color-bg) 35%, transparent) 100%
+  );
+}
+
+/* Decoración tipo consola de servidor — muy baja opacidad, fuera del formulario */
+.login-page__terminal {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: var(--login-terminal-fg);
+}
+
+.login-page__terminal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    color-mix(in srgb, var(--to-color-text) 4%, transparent) 2px,
+    color-mix(in srgb, var(--to-color-text) 4%, transparent) 3px
+  );
+  mask-image: radial-gradient(ellipse 95% 80% at 50% 50%, black 15%, transparent 72%);
+}
+
+.login-page__terminal-log {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: pre;
+  font: inherit;
+  opacity: 0.42;
+  user-select: none;
+
+  &--left {
+    left: clamp(0.75rem, 4vw, 2.5rem);
+    bottom: clamp(1.25rem, 6vh, 3rem);
+    max-width: min(22rem, 38vw);
+    mask-image: linear-gradient(135deg, black 25%, transparent 88%);
+  }
+
+  &--right {
+    right: clamp(0.75rem, 4vw, 2.5rem);
+    top: clamp(1.25rem, 8vh, 3.5rem);
+    text-align: left;
+    max-width: min(18rem, 34vw);
+    opacity: 0.32;
+    mask-image: linear-gradient(225deg, black 20%, transparent 85%);
+  }
+}
+
+.login-page__terminal-prompt {
+  color: var(--login-terminal-prompt);
+  font-weight: 600;
+}
+
+.login-page__terminal-ok {
+  color: var(--login-terminal-ok);
+}
+
+.login-page__terminal-dim {
+  color: var(--login-terminal-dim);
+}
+
+.login-page__terminal-cursor {
+  color: var(--login-terminal-prompt);
+  font-weight: 600;
+  animation: login-terminal-cursor 1.15s step-end infinite;
+}
+
+@media (max-width: 720px) {
+  .login-page__terminal-log--right {
+    display: none;
+  }
+
+  .login-page__terminal-log--left {
+    max-width: min(16rem, 52vw);
+    opacity: 0.28;
+    font-size: 0.625rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page__terminal-cursor {
+    animation: none;
+  }
+}
+
+@keyframes login-terminal-cursor {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  46%,
+  100% {
+    opacity: 0.15;
+  }
 }
 
 .login-page__frame {
@@ -50,15 +239,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 3.25rem;
   height: 3.25rem;
   border-radius: var(--to-radius-lg);
-  background: var(--to-color-surface);
+  background: color-mix(in srgb, var(--to-color-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
   border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
-  color: var(--to-color-primary);
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--to-color-border) 40%, transparent),
     0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.login-page__logo-img {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
 }
 
 .login-page__brand-text {
@@ -86,18 +283,22 @@
 
 .login-page__card {
   border-radius: var(--to-radius-lg);
-  background: var(--to-color-surface);
+  background: color-mix(in srgb, var(--to-color-surface) 94%, transparent);
+  backdrop-filter: blur(12px);
   border: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--to-color-border) 35%, transparent),
-    0 24px 48px rgba(15, 23, 42, 0.1);
+    0 24px 48px rgba(15, 23, 42, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--to-color-primary) 6%, transparent);
   padding: clamp(1.35rem, 4vw, 2rem);
 }
 
 :root[data-app-scheme='dark'] .login-page__card {
+  background: color-mix(in srgb, var(--to-color-surface) 88%, transparent);
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--to-color-border) 25%, transparent),
-    0 24px 56px rgba(0, 0, 0, 0.35);
+    0 24px 56px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, var(--to-color-primary) 10%, transparent);
 }
 
 .login-page__title {
@@ -160,4 +361,25 @@
   text-transform: uppercase;
   color: var(--to-color-text-muted);
   opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .login-page__ambient {
+    animation: login-ambient-drift 18s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes login-ambient-drift {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.03) translate(1.5%, -1%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page__ambient {
+    animation: none;
+  }
 }

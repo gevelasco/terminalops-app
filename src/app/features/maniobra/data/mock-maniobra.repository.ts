@@ -99,6 +99,7 @@ export class MockManiobraRepository extends ManiobraRepository {
       destinationLocality: payload.destinationLocality,
       operatorLicenseNumber: payload.operatorLicenseNumber,
       operatorLicenseExpiresLabel: payload.operatorLicenseExpiresLabel,
+      clientCollectedAt: null,
     };
     this.db.prependTripRow(clientId, trip);
     return of(trip).pipe(delay(320));
@@ -159,5 +160,31 @@ export class MockManiobraRepository extends ManiobraRepository {
     };
     this.db.replaceTrip(tripId, updated);
     return of(updated).pipe(delay(180));
+  }
+
+  override setClientCollected(tripId: string, collected: boolean): Observable<Trip> {
+    const row = this.db.getTrip(tripId);
+    if (!row) {
+      return throwError(() => new Error('No se encontró la maniobra.'));
+    }
+    if (row.hasClientBilling === false) {
+      return throwError(
+        () => new Error('Esta maniobra no tiene cobro a cliente registrado.'),
+      );
+    }
+    if (row.status !== 'completed' && row.status !== 'cancelled') {
+      return throwError(
+        () =>
+          new Error(
+            'Solo maniobras completadas o canceladas pueden marcarse como cobradas.',
+          ),
+      );
+    }
+    const updated: Trip = {
+      ...row,
+      clientCollectedAt: collected ? new Date().toISOString() : null,
+    };
+    this.db.replaceTrip(tripId, updated);
+    return of(updated).pipe(delay(160));
   }
 }

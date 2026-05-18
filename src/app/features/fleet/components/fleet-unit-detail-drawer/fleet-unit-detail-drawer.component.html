@@ -147,13 +147,14 @@
       </div>
 
       @if (detailTab() === "ficha") {
+
         <section
           class="fleet-unit-sec fleet-unit-sec--boxed"
           aria-labelledby="fleet-udv-id"
         >
           <div class="fleet-unit-sec__header">
             <h3 id="fleet-udv-id" class="fleet-unit-sec__title">
-              Identificación
+              Identificación (tractora)
             </h3>
             @if (!isEditing("id")) {
               <button
@@ -191,7 +192,7 @@
                 <dd>{{ meta()?.trailerVersion?.trim() || "—" }}</dd>
               </div>
               <div class="fleet-unit-detail__row">
-                <dt>Tipo de unidad / caja</dt>
+                <dt>Tipo de tractora</dt>
                 <dd>{{ effUnit().type }}</dd>
               </div>
               <div class="fleet-unit-detail__row">
@@ -661,6 +662,72 @@
                 </to-button>
               </div>
             </div>
+          }
+        </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed fleet-unit-hitch"
+          aria-labelledby="fleet-udv-hitch"
+        >
+          <h3 id="fleet-udv-hitch" class="fleet-unit-sec__title">
+            Remolques enganchados
+          </h3>
+          <div class="fleet-unit-hitch__summary">
+            <span
+              class="to-table-badge to-table-badge--op"
+              [class]="convoySummary().badgeClass"
+              >{{ convoySummary().label }}</span
+            >
+            <span class="fleet-unit-hitch__summary-text">{{
+              convoySummary().description
+            }}</span>
+          </div>
+          @if (hitchedEquipmentRows().length === 0) {
+            <p class="fleet-unit-sec__hint">
+              Sin remolques asignados. Registre equipos en Flota → Equipos y
+              asígnelos a esta tractora.
+            </p>
+          } @else {
+            <ul class="fleet-unit-hitch__list">
+              @for (row of hitchedEquipmentRows(); track row.equipment.id) {
+                <li class="fleet-unit-hitch__card">
+                  <div class="fleet-unit-hitch__card-head">
+                    <span class="fleet-unit-hitch__position">{{
+                      row.positionLabel
+                    }}</span>
+                    <button
+                      type="button"
+                      class="fleet-unit-hitch__link"
+                      (click)="viewHitchedEquipment.emit(row.equipment)"
+                    >
+                      Ver equipo
+                    </button>
+                  </div>
+                  <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
+                    <div class="fleet-unit-detail__row">
+                      <dt>ID operativo</dt>
+                      <dd class="fleet-unit-detail__mono">
+                        {{ row.operationalId }}
+                      </dd>
+                    </div>
+                    <div class="fleet-unit-detail__row">
+                      <dt>Placa</dt>
+                      <dd>{{ row.plate }}</dd>
+                    </div>
+                    <div class="fleet-unit-detail__row">
+                      <dt>Tipo de remolque</dt>
+                      <dd>{{ row.typeLabel }}</dd>
+                    </div>
+                    @if (row.equipment.name.trim()) {
+                      <div class="fleet-unit-detail__row">
+                        <dt>Alias</dt>
+                        <dd>{{ row.equipment.name.trim() }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </li>
+              }
+            </ul>
           }
         </section>
       }

@@ -16,3 +16,96 @@
   background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface));
   border-color: color-mix(in srgb, #71717a 28%, transparent);
 }
+
+.operators-op-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 1rem;
+}
+
+.operators-op-status-grid__total {
+  grid-column: 1 / -1;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 65%, transparent);
+}
+
+.operators-op-pay-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.operators-op-pay-summary__amount {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.operators-op-empty {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--to-color-text-muted);
+}
+
+.operators-op-muted {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.operators-op-pay-scroll {
+  overflow-x: auto;
+  margin-top: 0.85rem;
+  min-width: 0;
+}
+
+.operators-op-pay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.operators-op-pay-table th,
+.operators-op-pay-table td {
+  padding: 0.5rem 0.65rem 0.5rem 0;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 88%, transparent);
+}
+
+.operators-op-pay-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.operators-op-pay-table td {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.operators-op-pay-table__amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.operators-op-pay-table td:last-child {
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+.operators-op-pay-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+:host ::ng-deep .operators-op-pay-table .to-badge {
+  vertical-align: middle;
+}

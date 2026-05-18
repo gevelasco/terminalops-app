@@ -16,6 +16,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { EQUIPMENT_CONTAINER_SLOT_OPTIONS } from '@app/mock-data/equipment-container-slot-options';
 import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import {
+  equipmentAssignedToUnit,
+  newEquipmentHitchHint,
+} from '@app/features/fleet/utils/unit-hitched-equipment';
+import { Equipment } from '@shared/models/logistics.models';
 import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
 import { ToastService } from '@core/notifications/toast.service';
 import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
@@ -134,8 +139,20 @@ export class FleetNewEquipmentDrawerComponent {
   private readonly toast = inject(ToastService);
 
   readonly unitOptions = input.required<ToSelectOption[]>();
+  readonly equipmentCatalog = input<Equipment[]>([]);
 
   readonly dismiss = output<void>();
+
+  readonly hitchHint = computed(() => {
+    const uid = this.unitId().trim();
+    if (!uid) {
+      return null;
+    }
+    const unitLabel =
+      this.unitOptions().find((o) => o.value === uid)?.label ?? uid;
+    const count = equipmentAssignedToUnit(this.equipmentCatalog(), uid).length;
+    return newEquipmentHitchHint(count, unitLabel);
+  });
   readonly drawerLoading = signal(true);
   readonly saved = output<void>();
 

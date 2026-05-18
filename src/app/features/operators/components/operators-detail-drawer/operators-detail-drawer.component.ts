@@ -1,6 +1,5 @@
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
-  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -15,8 +14,13 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { catchError, forkJoin, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { ExpenseRepository } from '@features/expenses/data/expense.repository';
+import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { buildOperatorOperationSummary } from '@features/operators/utils/operator-operation-summary';
 import { downloadMockFleetDocument } from '@features/fleet/utils/fleet-mock-document-download';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { companyTenureLabelEs } from '@features/operators/utils/operator-company-tenure';
@@ -34,14 +38,23 @@ import {
   operatorOperationalStatusLabel,
   operatorRelationshipLabel,
 } from '@shared/catalogs/operator-form-options';
+import { operatorOperationalStatusMod } from '@shared/utils/operator-operational-pill';
+import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import type {
+  Expense,
   Operator,
   OperatorAttachedDocument,
   OperatorDocumentSlot,
   OperatorInsuranceKind,
   OperatorLicenseType,
   OperatorOperationalStatus,
+  Trip,
+  Unit,
 } from '@shared/models/logistics.models';
+import {
+  ToBadgeComponent,
+  type ToBadgeVariant,
+} from '@shared/ui/to-badge/to-badge.component';
 import { OperatorCoverageFieldsComponent } from '../operator-coverage-fields/operator-coverage-fields.component';
 import { OperatorEmergencyContactFieldsComponent } from '../operator-emergency-contact-fields/operator-emergency-contact-fields.component';
 import { OperatorIdentificationFieldsComponent } from '../operator-identification-fields/operator-identification-fields.component';
@@ -51,6 +64,7 @@ import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 
 type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
+type OperatorDrawerTab = 'details' | 'operation';
 
 @Component({
   selector: 'app-operators-detail-drawer',
@@ -63,6 +77,7 @@ type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
     OperatorEmergencyContactFieldsComponent,
     OperatorIdentificationFieldsComponent,
     OperatorOperationFieldsComponent,
+    ToBadgeComponent,
     ToButtonComponent,
     ToIconButtonComponent,
     ToDrawerSkeletonComponent,
@@ -80,16 +95,22 @@ export class OperatorsDetailDrawerComponent {
   private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly repo = inject(OperatorRepository);
+  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly expenseRepo = inject(ExpenseRepository);
+  private readonly unitsRepo = inject(UnitRepository);
   private readonly toast = inject(ToastService);
 
   readonly operator = input.required<Operator>();
-  /** Maniobras con estado `completed` asignadas a este operador (última carga en página). */
-  readonly completedManeuverCount = input(0);
+
+  private readonly tripsSignal = signal<readonly Trip[]>([]);
+  private readonly expensesSignal = signal<readonly Expense[]>([]);
+  private readonly unitsSignal = signal<readonly Unit[]>([]);
 
   readonly dismiss = output<void>();
   readonly operatorChange = output<Operator>();
 
   readonly drawerLoading = signal(true);
+  readonly drawerTab = signal<OperatorDrawerTab>('operation');
   readonly editingSection = signal<OperatorEditSection | null>(null);
   readonly saving = signal(false);
 
@@ -155,17 +176,52 @@ export class OperatorsDetailDrawerComponent {
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
 
+  readonly operationSummary = computed(() =>
+    buildOperatorOperationSummary(
+      this.operator().id,
+      this.tripsSignal(),
+      this.expensesSignal(),
+      this.unitsSignal(),
+    ),
+  );
+
+  private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  });
+
   constructor() {
     this.doc.body.style.overflow = 'hidden';
     this.destroyRef.onDestroy(() => {
       this.doc.body.style.overflow = '';
     });
 
-    afterNextRender(() => this.drawerLoading.set(false));
-
     effect(() => {
+      this.operator();
       this.patchFormFromOperator(this.operator());
+      this.drawerTab.set('operation');
       this.editingSection.set(null);
+    });
+
+    effect((onCleanup) => {
+      this.operator();
+      this.drawerLoading.set(true);
+      const sub = forkJoin({
+        trips: this.maniobrasRepo
+          .list()
+          .pipe(catchError(() => of([] as Trip[]))),
+        expenses: this.expenseRepo
+          .list()
+          .pipe(catchError(() => of([] as Expense[]))),
+        units: this.unitsRepo.list().pipe(catchError(() => of([] as Unit[]))),
+      }).subscribe(({ trips, expenses, units }) => {
+        this.tripsSignal.set(trips);
+        this.expensesSignal.set(expenses);
+        this.unitsSignal.set(units);
+        this.drawerLoading.set(false);
+      });
+      onCleanup(() => sub.unsubscribe());
     });
   }
 
@@ -184,26 +240,7 @@ export class OperatorsDetailDrawerComponent {
 
   /** Modificador de color para la franja bajo el nombre (misma convención que Flota). */
   operatorStatusMod(): string {
-    switch (this.operator().status) {
-      case 'available':
-        return 'fleet-unit-detail__status--available';
-      case 'in_use':
-        return 'fleet-unit-detail__status--inuse';
-      case 'scheduled':
-        return 'fleet-unit-detail__status--scheduled';
-      case 'maintenance':
-        return 'fleet-unit-detail__status--maintenance';
-      case 'on_route':
-        return 'fleet-unit-detail__status--route';
-      case 'incapacitated':
-        return 'fleet-unit-detail__status--operator-incapacitated';
-      case 'leave':
-        return 'fleet-unit-detail__status--operator-leave';
-      case 'inactive':
-        return 'fleet-unit-detail__status--operator-inactive';
-      default:
-        return 'fleet-unit-detail__status--unknown';
-    }
+    return operatorOperationalStatusMod(this.operator().status);
   }
 
   operationalStatusLabel(): string {
@@ -252,6 +289,16 @@ export class OperatorsDetailDrawerComponent {
     return this.displayIsoDate(this.operator().birthDate);
   }
 
+  operationMoney(value: number): string {
+    return this.mxMoney0.format(value);
+  }
+
+  payDueBadgeVariant(
+    v: ClientPaymentDueBadgeVariant,
+  ): ToBadgeVariant {
+    return v;
+  }
+
   displayIsoDate(iso: string): string {
     const t = iso.trim();
     if (!t) {
@@ -267,8 +314,17 @@ export class OperatorsDetailDrawerComponent {
     return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(d);
   }
 
+  selectDrawerTab(tab: OperatorDrawerTab): void {
+    if (this.drawerTab() === tab) {
+      return;
+    }
+    this.cancelSectionEdit();
+    this.drawerTab.set(tab);
+  }
+
   startEditSection(section: OperatorEditSection): void {
     this.patchFormFromOperator(this.operator());
+    this.drawerTab.set('details');
     this.editingSection.set(section);
   }
 
@@ -368,7 +424,6 @@ export class OperatorsDetailDrawerComponent {
       ...this.operator(),
       companyHireDate,
       employmentContractType: this.editEmploymentContractType().trim(),
-      status: this.editStatus(),
       documents: [...this.editDocuments()],
     }) as Operator;
     this.persistOperator(updated);

@@ -292,6 +292,42 @@
             <dt>Requiere factura</dt>
             <dd>{{ invoiceLabel() }}</dd>
           </dl>
+          @if (canMarkClientCollected()) {
+          <div
+            class="maniobra-detail__collect-row"
+            role="group"
+            aria-labelledby="maniobra-detail-collected-label"
+          >
+            <div class="maniobra-detail__collect-copy">
+              <span id="maniobra-detail-collected-label" class="maniobra-detail__collect-label">
+                Maniobra cobrada
+              </span>
+              <span class="maniobra-detail__collect-hint">
+                @if (clientCollected()) {
+                  Cobro confirmado{{ clientCollectedAtLabel() ? ' · ' + clientCollectedAtLabel() : '' }}
+                } @else {
+                  Pendiente de cobro; se refleja como crédito en reportes.
+                }
+              </span>
+            </div>
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="clientCollected()"
+              role="switch"
+              [attr.aria-checked]="clientCollected()"
+              aria-labelledby="maniobra-detail-collected-label"
+              [disabled]="collectSaving()"
+              (click)="toggleClientCollected()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+          } @else {
+            <p class="maniobra-detail__collect-pending-hint">
+              El cobro se confirma cuando la maniobra esté completada o cancelada.
+            </p>
+          }
         }
       </section>
 

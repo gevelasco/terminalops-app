@@ -666,6 +666,43 @@
           </div>
         }
       </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="fleet-eq-hitch"
+      >
+        <h3 id="fleet-eq-hitch" class="fleet-unit-sec__title">
+          Enganche a unidad tractora
+        </h3>
+        @if (hitchAssignmentAvailable()) {
+          <p class="fleet-unit-sec__hint" style="margin: 0">
+            <strong>Disponible</strong> — sin unidad tractora asignada.
+          </p>
+        } @else {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Estado</dt>
+              <dd>Enganchado</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Unidad tractora</dt>
+              <dd class="fleet-unit-detail__mono">
+                {{ hitchTractorOperationalId() }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Placa tractora</dt>
+              <dd>{{ hitchTractorPlate() }}</dd>
+            </div>
+            @if (assignedTractor()?.name?.trim()) {
+              <div class="fleet-unit-detail__row">
+                <dt>Alias tractora</dt>
+                <dd>{{ assignedTractor()!.name!.trim() }}</dd>
+              </div>
+            }
+          </dl>
+        }
+      </section>
       }
 
       @if (detailTab() === "cob") {

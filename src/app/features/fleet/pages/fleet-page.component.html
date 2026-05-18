@@ -36,6 +36,7 @@
 @if (newEquipmentOpen()) {
   <app-fleet-new-equipment-drawer
     [unitOptions]="unitSelectOptions()"
+    [equipmentCatalog]="equipmentList()"
     (dismiss)="newEquipmentOpen.set(false)"
     (saved)="loadEquipment()"
   />
@@ -45,6 +46,7 @@
   <app-fleet-unit-detail-drawer
     [unit]="du"
     [onRoute]="detailUnitOnRoute()"
+    [hitchedEquipment]="detailUnitHitchedEquipment()"
     [completedManeuverCount]="
       unitTripStats().completedCountByUnitId.get(du.id) ?? 0
     "
@@ -52,6 +54,7 @@
       unitTripStats().completedDistanceKmSumByUnitId.get(du.id) ?? null
     "
     (dismiss)="onUnitDetailDismiss()"
+    (viewHitchedEquipment)="onUnitDetailViewEquipment($event)"
   />
 }
 
@@ -59,6 +62,7 @@
   <app-fleet-equipment-detail-drawer
     [equipment]="deq"
     [onRoute]="detailEquipmentOnRoute()"
+    [unitCatalog]="unitList()"
     [unitOptions]="unitSelectOptions()"
     [completedManeuverCount]="
       unitTripStats().completedCountByUnitId.get(deq.unitId) ?? 0

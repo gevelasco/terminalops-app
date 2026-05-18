@@ -1,0 +1,168 @@
+<div class="reports-toolbar" aria-label="Filtros y secciones de reportes">
+  <section class="reports-toolbar__card reports-toolbar__card--filters">
+    <div class="reports-toolbar__field reports-toolbar__field--period">
+      <span class="reports-toolbar__label" id="reports-period-label">
+        <span class="reports-toolbar__label-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"
+            />
+          </svg>
+        </span>
+        Periodo
+      </span>
+      <div class="reports-toolbar__period-controls">
+        <select
+          class="reports-toolbar__control to-field__control"
+          aria-labelledby="reports-period-label"
+          [ngModel]="filter().preset"
+          (ngModelChange)="onPresetChange($event)"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          @for (opt of presetOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+        @if (periodRangeLabel()) {
+          <span class="reports-toolbar__period-badge" role="status">{{
+            periodRangeLabel()
+          }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="reports-toolbar__field">
+      <span class="reports-toolbar__label" id="reports-unit-label">
+        <span class="reports-toolbar__label-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zm-1.5 1.5 1.96 2.5H17V9.5h1.5zM6 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2.22-3c-.55-.61-1.33-1-2.22-1H4V6h12v9H8.22c-.89 0-1.67.39-2.22 1zM18 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm3-3h-1v-1h-1v-1h1v-1h1v1h1v1h-1v1z"
+            />
+          </svg>
+        </span>
+        Unidad
+      </span>
+      <select
+        class="reports-toolbar__control to-field__control"
+        aria-labelledby="reports-unit-label"
+        [class.to-field__control--placeholder]="!filter().unitId"
+        [ngModel]="filter().unitId"
+        (ngModelChange)="patch({ unitId: $event })"
+        [ngModelOptions]="{ standalone: true }"
+      >
+        <option value="">Todas</option>
+        @for (opt of unitOptions(); track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="reports-toolbar__clients-group">
+      <div class="reports-toolbar__field reports-toolbar__field--clients">
+        <span class="reports-toolbar__label" id="reports-clients-label">
+          <span class="reports-toolbar__label-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
+            </svg>
+          </span>
+          Cliente
+        </span>
+        <to-clients-multi-input
+          class="reports-toolbar__control"
+          aria-labelledby="reports-clients-label"
+          [clientIds]="filter().clientIds"
+          (clientIdsChange)="patch({ clientIds: $event })"
+        />
+      </div>
+
+      <div class="reports-toolbar__field reports-toolbar__field--payment">
+        <span
+          class="reports-toolbar__label reports-toolbar__label--icon-only"
+          id="reports-payment-label"
+          title="Forma de cobro al cliente"
+        >
+          <span class="reports-toolbar__label-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
+              />
+            </svg>
+          </span>
+        </span>
+        <select
+          class="reports-toolbar__control reports-toolbar__control--payment to-field__control"
+          aria-label="Forma de cobro al cliente: combinado, efectivo o transferencia"
+          [ngModel]="filter().clientPaymentMethod"
+          (ngModelChange)="onClientPaymentMethodChange($event)"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          @for (opt of clientPaymentMethodOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="reports-toolbar__card reports-toolbar__card--tabs" aria-label="Sección de reporte">
+    <div
+      class="maniobra-filters maniobra-filters--status reports-toolbar__section-tabs"
+      role="tablist"
+    >
+      @for (t of tabs(); track t.id) {
+        <button
+          type="button"
+          class="maniobra-filters__tab"
+          role="tab"
+          [attr.aria-selected]="tab() === t.id"
+          [class.maniobra-filters__tab--active]="tab() === t.id"
+          (click)="selectTab(t.id)"
+        >
+          <span class="maniobra-filters__icon" aria-hidden="true">
+            @switch (t.id) {
+              @case ('general') {
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7v-7zm4-5h2v12h-2V5zm4 7h2v5h-2v-5z"
+                  />
+                </svg>
+              }
+              @case ('maniobras') {
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z"
+                  />
+                </svg>
+              }
+              @case ('balance') {
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
+                  />
+                </svg>
+              }
+              @case ('fleet') {
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zm-1.5 1.5 1.96 2.5H17V9.5h1.5zM6 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2.22-3c-.55-.61-1.33-1-2.22-1H4V6h12v9H8.22c-.89 0-1.67.39-2.22 1zM18 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm3-3h-1v-1h-1v-1h1v-1h1v1h1v1h-1v1z"
+                  />
+                </svg>
+              }
+            }
+          </span>
+          {{ t.label }}
+        </button>
+      }
+    </div>
+  </section>
+</div>

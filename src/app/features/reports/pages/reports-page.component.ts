@@ -1,35 +1,184 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { ReportRepository } from '@features/reports/data/report.repository';
+import { DecimalPipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import { ReportsFilterBarComponent } from '@features/reports/components/reports-filter-bar/reports-filter-bar.component';
+import { ReportsAnalyticsService } from '@features/reports/data/reports-analytics.service';
+import type { ReportsTabId } from '@features/reports/models/reports-view.models';
+import type { ReportsRawBundle } from '@features/reports/utils/reports-bundle-filter';
+import { defaultReportsFilter } from '@features/reports/utils/reports-filter';
+import {
+  donutConicGradient,
+  donutMarginTotal,
+} from '@features/reports/utils/reports-client-margin-donut';
+import { formatMxn } from '@features/reports/utils/reports-money';
+import type {
+  ReportsDestinationPerformanceRow,
+  ReportsDonutSlice,
+  ReportsFleetOperatorPayRow,
+} from '@features/reports/models/reports-view.models';
+import { barFillWidthPct as resolveBarFillWidthPct } from '@features/reports/utils/reports-chart-mappers';
+import { collectionPaymentDonutTotal } from '@features/reports/utils/reports-collection-payment-donut';
+import {
+  expenseCategoryDonutTotal,
+  semiDonutConicGradient,
+} from '@features/reports/utils/reports-expense-category-slices';
+import { donutSliceTotal } from '@features/reports/utils/reports-operation-donut';
+import { ToCardComponent } from '@shared/ui/to-card/to-card.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
+import { ToBadgeComponent } from '@shared/ui/to-badge/to-badge.component';
 import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.component';
 
 @Component({
   selector: 'app-reports-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToPageHeaderComponent, ToTableComponent, ToSkeletonComponent],
+  imports: [
+    DecimalPipe,
+    ToPageHeaderComponent,
+    ToSkeletonComponent,
+    ToBadgeComponent,
+    ToCardComponent,
+    ToTableComponent,
+    ReportsFilterBarComponent,
+  ],
   templateUrl: './reports-page.component.html',
+  styleUrl: './reports-page.component.scss',
 })
 export class ReportsPageComponent {
-  private readonly repo = inject(ReportRepository);
+  private readonly analytics = inject(ReportsAnalyticsService);
 
   readonly loading = signal(true);
-  readonly rows = signal<Record<string, unknown>[]>([]);
+  readonly tab = signal<ReportsTabId>('general');
+  readonly filter = signal(defaultReportsFilter());
+  readonly raw = signal<ReportsRawBundle | null>(null);
 
-  readonly columns: ToTableColumn[] = [
-    { key: 'metric', label: 'Métrica' },
-    { key: 'period', label: 'Periodo' },
-    { key: 'value', label: 'Valor' },
+  readonly view = computed(() => {
+    const bundle = this.raw();
+    if (!bundle) {
+      return null;
+    }
+    return this.analytics.buildView(bundle, this.filter());
+  });
+
+  readonly unitSelectOptions = computed((): ToSelectOption[] => {
+    const units = this.raw()?.units ?? [];
+    return units.map((u) => ({
+      value: u.id,
+      label: labelForUnitId(u.id, units),
+    }));
+  });
+
+  readonly clientRows = computed(() =>
+    (this.view()?.general.topClients ?? []).map((r) => ({
+      clientName: r.clientName,
+      maneuvers: r.maneuvers,
+      km: Math.round(r.km).toLocaleString('es-MX'),
+      revenue: formatMxn(r.revenue),
+      revenueShare: `${r.revenuePct}%`,
+    })),
+  );
+
+  readonly clientColumns: ToTableColumn[] = [
+    { key: 'clientName', label: 'Cliente' },
+    { key: 'maneuvers', label: 'Maniobras compl.' },
+    { key: 'km', label: 'Km' },
+    { key: 'revenue', label: 'Ingresos' },
+    { key: 'revenueShare', label: '% ingresos' },
+  ];
+
+  readonly formatMxn = formatMxn;
+  readonly donutConicGradient = donutConicGradient;
+  readonly donutMarginTotal = donutMarginTotal;
+  readonly donutSliceTotal = donutSliceTotal;
+  readonly collectionPaymentDonutTotal = collectionPaymentDonutTotal;
+  readonly semiDonutConicGradient = semiDonutConicGradient;
+  readonly expenseCategoryDonutTotal = expenseCategoryDonutTotal;
+
+  donutAriaLabel(slices: readonly ReportsDonutSlice[]): string {
+    if (slices.length === 0) {
+      return 'Sin datos de margen por cliente';
+    }
+    return slices.map((s) => `${s.label} ${s.pct}%`).join(', ');
+  }
+
+  readonly tabs: { id: ReportsTabId; label: string }[] = [
+    { id: 'general', label: 'General' },
+    { id: 'balance', label: 'Balance' },
+    { id: 'maniobras', label: 'Maniobras' },
+    { id: 'fleet', label: 'Flota' },
+  ];
+
+  readonly routeClientProfitRows = computed(() =>
+    (this.view()?.balance.routeClientProfitability ?? []).map((r) => ({
+      client: r.client,
+      route: r.route,
+      maneuvers: r.maneuvers,
+      volumeTons: r.volumeTons.toLocaleString('es-MX'),
+      km: r.km.toLocaleString('es-MX'),
+      revenue: formatMxn(r.revenue),
+      cost: formatMxn(r.cost),
+      margin: formatMxn(r.margin),
+      marginPct: `${r.marginPct}%`,
+    })),
+  );
+
+  readonly routeClientProfitColumns: ToTableColumn[] = [
+    { key: 'client', label: 'Cliente' },
+    { key: 'route', label: 'Ruta' },
+    { key: 'maneuvers', label: 'Viajes' },
+    { key: 'volumeTons', label: 'Ton' },
+    { key: 'km', label: 'Km' },
+    { key: 'revenue', label: 'Ingresos' },
+    { key: 'cost', label: 'Costo' },
+    { key: 'margin', label: 'Margen' },
+    { key: 'marginPct', label: 'Margen %' },
   ];
 
   constructor() {
-    this.repo.summary().subscribe({
-      next: (rows) => {
-        this.rows.set(rows.map((r) => ({ ...r } as Record<string, unknown>)));
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    this.analytics
+      .loadRawBundle()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (bundle) => {
+          this.raw.set(bundle);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+  }
+
+  weeklyBarHeightPct(value: number, series: readonly { value: number }[]): number {
+    const max = Math.max(1, ...series.map((p) => Math.abs(p.value)));
+    return Math.max(4, Math.round((Math.abs(value) / max) * 100));
+  }
+
+  destMarginColHeightPct(
+    margin: number,
+    rows: readonly ReportsDestinationPerformanceRow[],
+  ): number {
+    const max = Math.max(1, ...rows.map((r) => Math.abs(r.margin)));
+    return Math.max(6, Math.round((Math.abs(margin) / max) * 100));
+  }
+
+  barFillWidthPct(count: number, pct: number): number {
+    return resolveBarFillWidthPct(count, pct);
+  }
+
+  operatorPaidBarPct(row: ReportsFleetOperatorPayRow): number {
+    const total =
+      row.paidAmount + row.pendingCompletedAmount + row.pendingInTransitAmount;
+    if (total <= 0) {
+      return 0;
+    }
+    return Math.round((row.paidAmount / total) * 100);
   }
 }

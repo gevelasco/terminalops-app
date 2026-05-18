@@ -5,12 +5,14 @@
   [class.operator-operation-fields__row--new]="isNew"
   [class.operator-operation-fields__row--edit]="!isNew"
 >
-  <to-select
-    label="Estado operativo *"
-    [placeholder]="isNew ? 'Selecciona' : ''"
-    [options]="statusOptions()"
-    [(value)]="status"
-  />
+  @if (showOperationalStatus()) {
+    <to-select
+      label="Estado operativo *"
+      [placeholder]="isNew ? 'Selecciona' : ''"
+      [options]="statusOptions()"
+      [(value)]="status"
+    />
+  }
   <to-input
     label="Fecha de ingreso a la empresa"
     type="date"

@@ -1,15 +1,28 @@
 <div class="login-page">
   <div class="login-page__ambient" aria-hidden="true"></div>
+  <div class="login-page__pattern" aria-hidden="true"></div>
+  <div class="login-page__terminal" aria-hidden="true">
+    <pre class="login-page__terminal-log login-page__terminal-log--left"><span class="login-page__terminal-prompt">$</span> terminalops session --init
+<span class="login-page__terminal-ok">ok</span>  fleet.db          sync
+<span class="login-page__terminal-ok">ok</span>  maniobras.api     ready
+<span class="login-page__terminal-dim">…</span>  auth.gateway      listening :443
+<span class="login-page__terminal-prompt">&gt;</span><span class="login-page__terminal-cursor">_</span></pre>
+    <pre class="login-page__terminal-log login-page__terminal-log--right"><span class="login-page__terminal-dim">[sys]</span> uptime 14d 06:22:01
+<span class="login-page__terminal-dim">[sys]</span> load   0.42  0.38  0.35
+<span class="login-page__terminal-ok">ok</span>   reports.worker    idle
+<span class="login-page__terminal-dim">[sys]</span> tls    verified</pre>
+  </div>
 
   <div class="login-page__frame">
     <header class="login-page__brand">
-      <div class="login-page__logo" aria-hidden="true">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-          <path
-            fill="currentColor"
-            d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 2.18l6 3.33v5.49c0 4.52-3.13 8.71-6 9.81-2.87-1.1-6-5.29-6-9.81V7.51l6-3.33zM11 10h2v5h-2v-5zm0-3h2v2h-2V7z"
-          />
-        </svg>
+      <div class="login-page__logo">
+        <img
+          class="login-page__logo-img"
+          src="/favicon.png"
+          width="44"
+          height="44"
+          alt="Grupo VSC"
+        />
       </div>
       <div class="login-page__brand-text">
         <span class="login-page__product">TerminalOps</span>
@@ -65,6 +78,6 @@
       </p>
     </section>
 
-    <p class="login-page__legal">© {{ currentYear }} Grupo VSC</p>
+    <p class="login-page__legal">© {{ currentYear }} AXOLOTL TECHNOLOGY</p>
   </div>
 </div>

@@ -1,0 +1,55 @@
+<div class="to-equipment-input">
+  @if (label()) {
+    <label class="to-equipment-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-equipment-input__wrap"
+    [class.to-equipment-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-equipment-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="inputText()"
+      [disabled]="controlDisabled()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (loading()) {
+      <span class="to-equipment-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && !loading() && !controlDisabled()) {
+      <ul [id]="listId" class="to-equipment-input__list" role="listbox">
+        @if (suggestions().length > 0) {
+          @for (eq of suggestions(); track eq.id) {
+            <li
+              class="to-equipment-input__item"
+              role="option"
+              tabindex="-1"
+              (pointerdown)="onPickPointerDown(eq, $event)"
+            >
+              {{ labelFor(eq) }}
+            </li>
+          }
+        } @else {
+          <li class="to-equipment-input__empty" role="presentation">
+            @if (unitId().trim()) {
+              No hay equipos enganchados a esta unidad.
+            } @else {
+              Selecciona una unidad primero.
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

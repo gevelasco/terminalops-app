@@ -3,6 +3,7 @@ import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logis
 import type { ClientCommercialHealth } from '@shared/models/client.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import { operatorOperationalStatusLabel } from '@shared/catalogs/operator-form-options';
+import { operatorOperationalPillClass as operatorOpPillClass } from '@shared/utils/operator-operational-pill';
 import {
   maneuverStatusPillClass,
   maneuverStatusPillLabel,
@@ -204,27 +205,7 @@ export class ToTableComponent {
   }
 
   operatorOperationalPillClass(v: unknown): string {
-    const base = 'to-table-pill';
-    switch (v) {
-      case 'available':
-        return `${base} to-table-pill--fleet-available`;
-      case 'in_use':
-        return `${base} to-table-pill--fleet-in-use`;
-      case 'scheduled':
-        return `${base} to-table-pill--fleet-scheduled`;
-      case 'maintenance':
-        return `${base} to-table-pill--fleet-maintenance`;
-      case 'on_route':
-        return `${base} to-table-pill--fleet-maneuver`;
-      case 'incapacitated':
-        return `${base} to-table-pill--operator-incapacitated`;
-      case 'leave':
-        return `${base} to-table-pill--operator-leave`;
-      case 'inactive':
-        return `${base} to-table-pill--operator-inactive`;
-      default:
-        return `${base} to-table-pill--fleet-unknown`;
-    }
+    return operatorOpPillClass(v as OperatorOperationalStatus);
   }
 
   operatorOperationalPillLabel(v: unknown): string {

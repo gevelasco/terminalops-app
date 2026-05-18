@@ -39,15 +39,22 @@
     </header>
 
     <form class="checklist-drawer__add" (ngSubmit)="submitAdd()">
-      <to-input
-        class="checklist-drawer__add-input"
-        label="Nueva tarea"
-        placeholder="Escribe qué hay que hacer…"
-        [(value)]="draft"
-      />
-      <to-button type="submit" variant="primary">
-        Guardar
-      </to-button>
+      <p class="checklist-drawer__add-label" id="checklist-add-label">Nueva tarea</p>
+      <div class="checklist-drawer__add-row">
+        <to-input
+          class="checklist-drawer__add-input"
+          ariaLabel="Nueva tarea"
+          placeholder="Escribe qué hay que hacer…"
+          [(value)]="draft"
+        />
+        <to-button
+          type="submit"
+          variant="primary"
+          class="checklist-drawer__add-btn"
+        >
+          Guardar
+        </to-button>
+      </div>
     </form>
 
     <div class="fleet-drawer__body checklist-drawer__body">

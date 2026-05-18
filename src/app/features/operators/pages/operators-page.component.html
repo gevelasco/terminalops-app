@@ -26,7 +26,6 @@
 @if (detailOperator(); as op) {
   <app-operators-detail-drawer
     [operator]="op"
-    [completedManeuverCount]="completedManeuverCounts().get(op.id) ?? 0"
     (dismiss)="onDetailDismiss()"
     (operatorChange)="onDetailOperatorChange($event)"
   />

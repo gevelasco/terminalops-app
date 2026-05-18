@@ -6,6 +6,7 @@ import {
   Unit,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
+import { unitConvoyOperationTypeForTable } from '@app/features/fleet/utils/unit-hitched-equipment';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 
 export type FleetRenewalBucket = 'ok' | 'soon' | 'due' | 'na';
@@ -265,7 +266,7 @@ function modelLabel(u: Unit): string {
   return parts.length ? parts.join(' · ') : '—';
 }
 
-function operationalKey(u: Unit, onRoute: boolean): FleetOperationalKey {
+export function operationalKey(u: Unit, onRoute: boolean): FleetOperationalKey {
   if (onRoute) {
     return 'on_route';
   }
@@ -679,14 +680,20 @@ export function nextEquipmentPhysMechTableDate(
 
 export function buildFleetUnitTableRow(
   u: Unit,
-  options: { onRoute: boolean; completedTripKm?: number | null },
+  options: {
+    onRoute: boolean;
+    completedTripKm?: number | null;
+    hitchedEquipment?: Equipment[];
+  },
 ): Record<string, unknown> {
   const meta = u.fleetMeta;
+  const hitched = options.hitchedEquipment ?? [];
   return {
     id: u.id,
     fleetBrand: trailerBrandLabel(u),
     fleetModel: modelLabel(u),
     fleetPlate: u.plate.trim() || '—',
+    fleetConfig: unitConvoyOperationTypeForTable(hitched),
     fleetOperational: operationalKey(u, options.onRoute),
     fleetMaint: maintenanceBucket(meta, options.completedTripKm),
     fleetVerif: verificationBucket(meta),
@@ -742,7 +749,10 @@ function equipmentTypeLabel(e: Equipment): string {
   return typeRaw;
 }
 
-export function operationalKeyEquipment(e: Equipment, onRoute: boolean): FleetOperationalKey {
+export function operationalKeyEquipment(
+  e: Equipment,
+  onRoute: boolean,
+): FleetOperationalKey {
   if (onRoute) {
     return 'on_route';
   }

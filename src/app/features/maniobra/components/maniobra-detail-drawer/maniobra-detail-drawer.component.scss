@@ -66,6 +66,44 @@
   color: var(--to-color-text-muted);
 }
 
+.maniobra-detail__collect-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.maniobra-detail__collect-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.maniobra-detail__collect-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__collect-hint {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-detail__collect-pending-hint {
+  margin: 0.85rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--to-color-text-muted);
+}
+
 .maniobra-detail__doc-list {
   margin: 0;
   padding-left: 1.1rem;

@@ -106,6 +106,11 @@ export interface Trip {
   falseManeuver?: boolean;
   /** Motivo o detalle al cancelar / marcar en falso (p. ej. auditoría frente al cliente). */
   cancellationNote?: string;
+  /**
+   * Fecha/hora ISO en que se confirmó el cobro al cliente.
+   * Ausente o `null`: pendiente (cuenta por cobrar / crédito en reportes).
+   */
+  clientCollectedAt?: string | null;
 }
 
 /** Estado operativo (misma lógica de catálogo que unidades en Flota + RRHH). */
@@ -535,8 +540,26 @@ export interface Expense {
 
 export type AlertSeverity = 'success' | 'warning' | 'danger' | 'neutral';
 
-/** Icono opcional junto al título en tarjetas KPI (dashboard). */
-export type KpiTitleIcon = 'maniobras' | 'units' | 'equipment' | 'revenue';
+/** Icono opcional junto al título en tarjetas KPI / gráficas. */
+export type KpiTitleIcon =
+  | 'maniobras'
+  | 'units'
+  | 'equipment'
+  | 'operators'
+  | 'revenue'
+  | 'chart-line'
+  | 'chart-bar'
+  | 'chart-donut'
+  | 'clients'
+  | 'trophy'
+  | 'route'
+  | 'target'
+  | 'payment'
+  | 'wallet'
+  | 'credit'
+  | 'alert'
+  | 'maintenance'
+  | 'calendar';
 
 export interface Alert {
   id: string;
@@ -569,7 +592,12 @@ export interface CriticalAlert {
   severity: CriticalSeverity;
   kind: CriticalAlertKind;
   title: string;
+  /** Línea combinada (maniobra · cliente · ruta · autor) para listados compactos. */
   description: string;
+  maneuverCode: string;
+  clientName: string;
+  routeLabel: string;
+  authorLabel: string;
   detectedAt: string;
 }
 

@@ -1,5 +1,7 @@
-@use '../../fleet/components/fleet-drawer.shared.scss' as *;
-@use '../../../shared/styles/trip-operation-type-badge.scss';
+@use "../../fleet/components/fleet-drawer.shared.scss" as *;
+@use "../../../shared/styles/toolbar-filter-tabs.scss";
+@use "../../../shared/styles/trip-operation-type-badge.scss";
+@use "../../../shared/styles/trip-maneuver-status-pill.scss";
 
 .maniobra-page-header__btn-icon {
   display: inline-flex;
@@ -22,7 +24,10 @@
   gap: 0.75rem 1rem;
   margin-bottom: 0.75rem;
   /* Altura de `.fleet-segment` / `to-input` con prefijo en la barra. */
-  --maniobra-toolbar-control-height: calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px);
+  --maniobra-toolbar-control-height: calc(
+    0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px
+  );
+  --toolbar-filter-tabs-height: var(--maniobra-toolbar-control-height);
 }
 
 .maniobra-toolbar__view-segment {
@@ -76,96 +81,6 @@
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
 }
 
-/* Misma caja que `to-input` con prefijo (control-row--group). */
-.maniobra-filters--status {
-  flex-wrap: nowrap;
-}
-
-.maniobra-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0.15rem;
-  min-height: var(--maniobra-toolbar-control-height);
-  padding: 0.2rem;
-  border-radius: var(--to-radius-md);
-  background: var(--to-color-surface);
-  border: 1px solid var(--to-color-border);
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.maniobra-filters__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0.5rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: calc(var(--to-radius-md) - 2px);
-  background: transparent;
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  color: var(--to-color-text-muted);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
-
-  &:hover {
-    color: var(--to-color-text);
-    background: color-mix(in srgb, var(--to-color-text-muted) 8%, var(--to-color-surface));
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--to-focus-ring);
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-}
-
-.maniobra-toolbar__filters--disabled .maniobra-filters__tab {
-  &:hover {
-    color: var(--to-color-text-muted);
-    background: transparent;
-  }
-}
-
-.maniobra-filters__tab--active {
-  border-color: color-mix(in srgb, var(--to-color-border) 88%, transparent);
-  background: var(--to-color-surface-muted);
-  color: var(--to-color-text);
-}
-
-.maniobra-filters__icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  width: 1.125rem;
-  height: 1.125rem;
-  opacity: 0.72;
-  color: currentColor;
-
-  svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-}
-
-.maniobra-filters__tab--active .maniobra-filters__icon {
-  opacity: 1;
-  color: var(--to-color-primary);
-}
-
 /* Tabla ancha: scroll horizontal sin romper el layout del shell */
 .maniobra-table-wrap ::ng-deep .to-table {
   min-width: 54rem;
@@ -204,8 +119,13 @@
     box-shadow 0.15s ease;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--to-color-primary) 35%, var(--to-color-border));
-    box-shadow: 0 1px 0 color-mix(in srgb, var(--to-color-primary) 12%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--to-color-primary) 35%,
+      var(--to-color-border)
+    );
+    box-shadow: 0 1px 0
+      color-mix(in srgb, var(--to-color-primary) 12%, transparent);
   }
 
   &:focus-visible {
@@ -229,14 +149,16 @@
 
 /* Sencillo/plana: fechas a la derecha si la card es ancha. Full queda en columna. */
 @container (min-width: 23.5rem) {
-  .maniobra-schema__card:not(.maniobra-schema__card--full) .maniobra-schema__card-grid {
+  .maniobra-schema__card:not(.maniobra-schema__card--full)
+    .maniobra-schema__card-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(9.25rem, 11.25rem);
     align-items: start;
     gap: 0.65rem 0.75rem;
   }
 
-  .maniobra-schema__card:not(.maniobra-schema__card--full) .maniobra-schema__schedule {
+  .maniobra-schema__card:not(.maniobra-schema__card--full)
+    .maniobra-schema__schedule {
     grid-column: 2;
     grid-row: 1;
     align-self: stretch;
@@ -313,7 +235,11 @@
 
   &:focus-visible {
     border-radius: var(--to-radius-sm);
-    box-shadow: 0 0 0 2px var(--to-focus-ring, color-mix(in srgb, var(--to-color-primary) 45%, transparent));
+    box-shadow: 0 0 0 2px
+      var(
+        --to-focus-ring,
+        color-mix(in srgb, var(--to-color-primary) 45%, transparent)
+      );
   }
 }
 
@@ -355,7 +281,8 @@
 .maniobra-schema__incident-tip-title {
   margin: 0 0 0.45rem;
   padding-bottom: 0.4rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--to-color-border) 70%, transparent);
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -376,7 +303,11 @@
   margin: 0;
   padding: 0.45rem 0.5rem;
   border-radius: var(--to-radius-sm);
-  background: color-mix(in srgb, var(--to-color-surface-muted) 55%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--to-color-surface-muted) 55%,
+    transparent
+  );
 }
 
 .maniobra-schema__incident-head {
@@ -416,7 +347,7 @@
   color: var(--to-color-text-muted);
 }
 
-:host-context([data-app-scheme='dark']) {
+:host-context([data-app-scheme="dark"]) {
   .maniobra-schema__incident-hit {
     color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
 
@@ -437,20 +368,33 @@
   word-break: break-word;
 }
 
+.maniobra-schema__client-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
 .maniobra-schema__client {
   font-size: 0.75rem;
   color: var(--to-color-text-muted);
+  min-width: 0;
 }
 
 .maniobra-schema__graphic {
   display: block;
-  flex: 0 0 auto;
-  width: max-content;
-  max-width: none;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
   padding: 0.35rem 0.45rem;
   box-sizing: border-box;
   border-radius: var(--to-radius-md);
-  background: color-mix(in srgb, var(--to-color-surface-muted) 88%, var(--to-color-surface));
+  background: color-mix(
+    in srgb,
+    var(--to-color-surface-muted) 88%,
+    var(--to-color-surface)
+  );
   border: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
   overflow: visible;
 }
@@ -460,10 +404,10 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-end;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0;
-  width: max-content;
-  margin: 0;
+  width: 100%;
+  margin: 0 auto;
   font-size: 0;
   line-height: 0;
   overflow: visible;
@@ -472,6 +416,8 @@
 .maniobra-schema__segment {
   position: relative;
   flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
   width: auto;
   height: auto;
   margin: 0;
@@ -485,14 +431,16 @@
   height: var(--maniobra-schema-icon-h);
   width: auto;
   max-height: var(--maniobra-schema-icon-h);
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   border: 0;
   flex-shrink: 0;
   object-fit: contain;
-  object-position: left bottom;
+  object-position: center bottom;
   pointer-events: none;
   user-select: none;
+  /* PNG en negro: tono más suave sobre fondo claro */
+  opacity: 0.68;
 }
 
 /* Full: separación mínima entre 1.er y 2.º remolque + punto de enganche. */
@@ -504,20 +452,23 @@
   margin: 0 0.15rem calc(var(--maniobra-schema-icon-h) * 0.2);
   border-radius: 50%;
   background: var(--to-color-text, #1b1b1b);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--to-color-border) 55%, transparent);
   pointer-events: none;
+  opacity: 0.68;
 }
 
-:host-context([data-app-scheme='dark']) {
+:host-context([data-app-scheme="dark"]) {
   .maniobra-schema__convoy-part {
     filter: brightness(0) invert(1);
-    opacity: 0.94;
+    opacity: 0.72;
   }
 
   .maniobra-schema__coupling {
     background: #ffffff;
-    opacity: 0.9;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-border) 65%, transparent);
+    opacity: 0.72;
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--to-color-border) 65%, transparent);
   }
 }
 
@@ -536,10 +487,17 @@
 }
 
 .maniobra-schema__schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   min-width: 0;
   padding: 0.55rem 0.65rem;
   border-radius: var(--to-radius-md);
-  background: color-mix(in srgb, var(--to-color-surface-muted) 92%, var(--to-color-surface));
+  background: color-mix(
+    in srgb,
+    var(--to-color-surface-muted) 92%,
+    var(--to-color-surface)
+  );
   border: 1px solid color-mix(in srgb, var(--to-color-border) 78%, transparent);
 }
 
@@ -584,8 +542,99 @@
   }
 }
 
+.maniobra-schema__progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.maniobra-schema__progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.maniobra-schema__progress-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-schema__progress-value {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--to-color-primary) 58%, var(--to-color-text-muted));
+}
+
+.maniobra-schema__progress {
+  height: 0.45rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--to-color-border) 55%, var(--to-color-surface));
+}
+
+.maniobra-schema__progress-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--to-color-primary) 32%, var(--to-color-surface)),
+    color-mix(in srgb, var(--to-color-primary) 48%, var(--to-color-surface))
+  );
+  transition: width 0.25s ease;
+}
+
+:host-context([data-app-scheme='dark']) {
+  .maniobra-schema__progress-value {
+    color: var(--to-color-primary);
+  }
+
+  .maniobra-schema__progress-fill {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--to-color-primary) 88%, #fff),
+      var(--to-color-primary)
+    );
+  }
+}
+
 .maniobra-schema__badge {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  max-width: 100%;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.maniobra-schema__badge--op {
+  padding: 0.1rem 0.38rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.maniobra-schema__status-pill {
+  flex-shrink: 0;
+}
+
+.maniobra-schema__status-pill--accidente {
+  color: #c2410c;
+  background: color-mix(in srgb, #f97316 18%, var(--to-color-surface));
+}
+
+:host-context([data-app-scheme='dark']) {
+  .maniobra-schema__status-pill--accidente {
+    color: #fdba74;
+    background: color-mix(in srgb, #f97316 22%, var(--to-color-surface));
+  }
 }
 
 .maniobra-schema__hit:hover .maniobra-schema__tip,
@@ -624,7 +673,8 @@
 .maniobra-schema__tip-title {
   margin: 0 0 0.5rem;
   padding-bottom: 0.45rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--to-color-border) 70%, transparent);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;

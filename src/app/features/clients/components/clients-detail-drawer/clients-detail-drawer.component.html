@@ -76,6 +76,52 @@
       @if (drawerLoading()) {
         <to-drawer-skeleton variant="detail" />
       } @else {
+      <div
+        class="fleet-segment fleet-unit-detail__drawer-segment"
+        role="tablist"
+        aria-label="Secciones del cliente"
+      >
+        <button
+          type="button"
+          id="clients-detail-tab-details"
+          class="fleet-segment__btn"
+          role="tab"
+          [attr.aria-selected]="drawerTab() === 'details'"
+          [class.fleet-segment__btn--active]="drawerTab() === 'details'"
+          (click)="selectDrawerTab('details')"
+        >
+          <span class="fleet-segment__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+              />
+            </svg>
+          </span>
+          Detalles
+        </button>
+        <button
+          type="button"
+          id="clients-detail-tab-balance"
+          class="fleet-segment__btn"
+          role="tab"
+          [attr.aria-selected]="drawerTab() === 'balance'"
+          [class.fleet-segment__btn--active]="drawerTab() === 'balance'"
+          (click)="selectDrawerTab('balance')"
+        >
+          <span class="fleet-segment__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
+              />
+            </svg>
+          </span>
+          Balance
+        </button>
+      </div>
+
+      @if (drawerTab() === 'details') {
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
         aria-labelledby="cli-dv-ident"
@@ -544,6 +590,175 @@
           </div>
         }
       </section>
+      } @else {
+      @if (!balanceSummary().hasTrips) {
+        <p class="clients-contact-empty">
+          Este cliente aún no tiene maniobras registradas en el sistema.
+        </p>
+      } @else {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-maneuvers"
+      >
+        <h3 id="cli-dv-maneuvers" class="fleet-unit-sec__title">
+          Maniobras por estado
+        </h3>
+        <dl class="fleet-unit-detail__dl clients-balance-status-grid">
+          <div class="fleet-unit-detail__row">
+            <dt>Completadas</dt>
+            <dd>{{ balanceSummary().statusCounts.completed }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>En curso</dt>
+            <dd>{{ balanceSummary().statusCounts.inTransit }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Programadas</dt>
+            <dd>{{ balanceSummary().statusCounts.scheduled }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Canceladas</dt>
+            <dd>{{ balanceSummary().statusCounts.cancelled }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row clients-balance-status-grid__total">
+            <dt>Total</dt>
+            <dd>{{ balanceSummary().statusCounts.total }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Km en completadas</dt>
+            <dd>
+              {{
+                balanceSummary().totalKm === 0
+                  ? "—"
+                  : balanceSummary().totalKm.toLocaleString("es-MX") + " km"
+              }}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-cartera"
+      >
+        <h3 id="cli-dv-cartera" class="fleet-unit-sec__title">Cartera</h3>
+        @if (!balanceSummary().hasBillable) {
+          <p class="clients-contact-empty">
+            Sin cobros pactados con este cliente en maniobras facturables.
+          </p>
+        } @else {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row clients-balance-highlight">
+              <dt>Saldo por cobrar</dt>
+              <dd>
+                <span class="clients-balance-highlight__amount">{{
+                  balanceMoney(balanceSummary().receivable)
+                }}</span>
+                @if (balanceSummary().receivable > 0) {
+                  <to-badge
+                    [variant]="
+                      paymentDueBadgeVariant(balanceSummary().nextDueBadgeVariant)
+                    "
+                    >Próximo: {{ balanceSummary().nextDueLabel }}</to-badge
+                  >
+                }
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ingresos cobrados</dt>
+              <dd>{{ balanceMoney(balanceSummary().collected) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ingresos pactados (total)</dt>
+              <dd>{{ balanceMoney(balanceSummary().totalRevenue) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Costos operativos directos</dt>
+              <dd>{{ balanceMoney(balanceSummary().directCost) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Margen estimado</dt>
+              <dd>{{ balanceMarginLabel() }}</dd>
+            </div>
+          </dl>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-upcoming"
+      >
+        <h3 id="cli-dv-upcoming" class="fleet-unit-sec__title">
+          Próximos cobros
+        </h3>
+        @if (balanceSummary().upcomingPayments.length === 0) {
+          <p class="clients-contact-empty">
+            No hay saldos pendientes de cobro para este cliente.
+          </p>
+        } @else {
+          <div class="clients-contact-scroll">
+            <table class="clients-contact-table" aria-label="Próximos cobros">
+              <thead>
+                <tr>
+                  <th scope="col">Fecha límite</th>
+                  <th scope="col">Maniobra</th>
+                  <th scope="col">Monto</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of balanceSummary().upcomingPayments; track row.tripId) {
+                  <tr>
+                    <td>{{ row.dueLabel }}</td>
+                    <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
+                    <td>{{ balanceMoney(row.amount) }}</td>
+                    <td>
+                      <to-badge [variant]="paymentDueBadgeVariant(row.badgeVariant)">{{
+                        row.statusHint
+                      }}</to-badge>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-payments"
+      >
+        <h3 id="cli-dv-payments" class="fleet-unit-sec__title">
+          Cobros registrados
+        </h3>
+        @if (balanceSummary().paymentHistory.length === 0) {
+          <p class="clients-contact-empty">
+            Aún no hay cobros confirmados en maniobras de este cliente.
+          </p>
+        } @else {
+          <div class="clients-contact-scroll">
+            <table class="clients-contact-table" aria-label="Historial de cobros">
+              <thead>
+                <tr>
+                  <th scope="col">Fecha de cobro</th>
+                  <th scope="col">Maniobra</th>
+                  <th scope="col">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of balanceSummary().paymentHistory; track row.tripId) {
+                  <tr>
+                    <td>{{ row.collectedLabel }}</td>
+                    <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
+                    <td>{{ balanceMoney(row.amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
 
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
@@ -575,6 +790,8 @@
           </div>
         </dl>
       </section>
+      }
+      }
       }
     </div>
   </aside>

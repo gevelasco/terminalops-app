@@ -8,7 +8,7 @@ import type {
 /** Mismos valores que estado operativo de unidad en Flota + RRHH. */
 export const OPERATOR_OPERATIONAL_STATUS_OPTIONS: ToSelectOption[] = [
   { value: 'available', label: 'Disponible' },
-  { value: 'in_use', label: 'En uso' },
+  { value: 'in_use', label: 'En curso' },
   { value: 'scheduled', label: 'Programado' },
   { value: 'maintenance', label: 'Mantenimiento' },
   { value: 'on_route', label: 'En ruta' },
@@ -65,7 +65,7 @@ export function operatorOperationalStatusLabel(
     case 'available':
       return 'Disponible';
     case 'in_use':
-      return 'En uso';
+      return 'En curso';
     case 'scheduled':
       return 'Programado';
     case 'maintenance':

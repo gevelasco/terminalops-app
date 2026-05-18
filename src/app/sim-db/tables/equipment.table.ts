@@ -19,10 +19,17 @@ export const SIM_DB_EQUIPMENT: Equipment[] = [
       equipmentCapacityTons: "32",
       verificationPhysMechDate: "2025-09-18",
       verificationPhysMechCost: 1380,
-      lastMaintenanceDate: "2026-03-22",
-      lastMaintenanceType: "servicio_completo",
-      lastMaintenanceCost: 9800,
+      lastMaintenanceDate: "2026-05-18",
+      lastMaintenanceType: "medio_servicio",
+      lastMaintenanceCost: 7200,
       maintenanceEntries: [
+        {
+          date: "2026-05-18",
+          type: "medio_servicio",
+          cost: 7200,
+          status: "concluido",
+          notes: "Balatas y muelles eje trasero.",
+        },
         {
           date: "2026-03-22",
           type: "servicio_completo",

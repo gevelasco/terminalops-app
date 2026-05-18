@@ -1,0 +1,186 @@
+@use '../../../../shared/styles/toolbar-filter-tabs.scss';
+@use '../../../fleet/components/fleet-drawer.shared.scss' as *;
+
+:host {
+  display: block;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
+
+.reports-toolbar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: var(--toolbar-filter-tabs-height);
+  overflow: visible;
+  --toolbar-filter-tabs-height: calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px);
+}
+
+.reports-toolbar__card {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--toolbar-filter-tabs-height);
+  box-sizing: border-box;
+  border-radius: var(--to-radius-lg);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+}
+
+.reports-toolbar__card--filters {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1.55rem;
+  padding: 0.4rem 0.85rem;
+  min-width: min(100%, 20rem);
+  overflow: visible;
+}
+
+.reports-toolbar__card--tabs {
+  margin-left: auto;
+  padding: 0.2rem;
+  background: var(--to-color-surface-muted);
+  overflow: visible;
+}
+
+.reports-toolbar__section-tabs.maniobra-filters {
+  min-height: 100%;
+  height: 100%;
+  border: none;
+  background: var(--to-color-surface);
+  overflow: hidden;
+}
+
+.reports-toolbar__field {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex-shrink: 0;
+
+  &--clients {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+}
+
+.reports-toolbar__period-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.reports-toolbar__period-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 22%, var(--to-color-border));
+  background: color-mix(in srgb, var(--to-color-primary) 10%, var(--to-color-surface));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.reports-toolbar__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.reports-toolbar__label-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  opacity: 0.78;
+  color: currentColor;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.reports-toolbar__field--period {
+  align-items: center;
+}
+
+.reports-toolbar__control {
+  flex: 1;
+  min-width: 0;
+
+  &.to-field__control {
+    max-width: 7.5rem;
+  }
+}
+
+.reports-toolbar__field--clients .reports-toolbar__control {
+  flex: 0 0 16.5rem;
+  width: 16.5rem;
+  max-width: 16.5rem;
+}
+
+.reports-toolbar__clients-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .reports-toolbar__field--clients .to-clients-multi__wrap {
+  flex: 0 0 16.5rem;
+  width: 16.5rem;
+  max-width: 16.5rem;
+}
+
+.reports-toolbar__field--payment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.reports-toolbar__label--icon-only {
+  padding: 0;
+  margin: 0;
+}
+
+.reports-toolbar__control--payment.to-field__control {
+  flex: 0 0 auto;
+  min-width: 6.75rem;
+  max-width: 9rem;
+}
+.reports-toolbar__field--clients {
+  position: relative;
+  z-index: 0;
+}
+
+:host ::ng-deep .reports-toolbar__field--clients .to-clients-multi__wrap--open {
+  z-index: 401;
+}
+
+:host ::ng-deep .reports-toolbar__field--clients .to-clients-multi__list {
+  z-index: 402;
+}

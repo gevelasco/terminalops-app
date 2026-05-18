@@ -64,17 +64,34 @@
         } @else {
         <section
           class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-id"
+          aria-labelledby="fleet-eq-new-hitch"
         >
-          <h3 id="fleet-eq-new-id" class="fleet-unit-sec__title">
-            Identificación
+          <h3 id="fleet-eq-new-hitch" class="fleet-unit-sec__title">
+            Enganche a unidad tractora
           </h3>
+          <p class="fleet-unit-sec__hint">
+            Asigne el remolque a la tractora que lo arrastra. Con un remolque la
+            convoy opera como <strong>sencillo</strong>; con dos, como
+            <strong>full</strong>.
+          </p>
           <to-select
-            label="Unidad tractora (opcional)"
-            placeholder="Sin asignar"
+            label="Unidad tractora"
+            placeholder="Seleccionar tractora…"
             [options]="unitOptions()"
             [(value)]="unitId"
           />
+          @if (hitchHint(); as hint) {
+            <p class="fleet-unit-sec__hint">{{ hint }}</p>
+          }
+        </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="fleet-eq-new-id"
+        >
+          <h3 id="fleet-eq-new-id" class="fleet-unit-sec__title">
+            Datos del remolque
+          </h3>
           <div class="fleet-unit-sec__grid2">
             <to-select
               label="Marca *"
@@ -96,8 +113,8 @@
               [(value)]="trailerVersion"
             />
             <to-select
-              label="Tipo de unidad *"
-              placeholder="Tipo"
+              label="Tipo de remolque / caja *"
+              placeholder="Ej. Caja seca, plataforma…"
               [options]="operationTypeOptions"
               [(value)]="operationTypeCode"
             />

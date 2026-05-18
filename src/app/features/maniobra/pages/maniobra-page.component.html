@@ -265,15 +265,23 @@
                       </span>
                     </div>
                     <span class="maniobra-schema__route">{{ routeLabelForTrip(trip) }}</span>
-                    <span class="maniobra-schema__client">{{ trip.clientName }}</span>
+                    <div class="maniobra-schema__client-line">
+                      <span
+                        [class]="
+                          'maniobra-schema__badge maniobra-schema__badge--op ' +
+                          tripOperationTypeBadgeClass(trip.operationType)
+                        "
+                        >{{ tripOperationTypeBadgeLabel(trip.operationType) }}</span
+                      >
+                      <span class="maniobra-schema__client">{{ trip.clientName }}</span>
+                    </div>
                   </div>
-                  <span
-                    [class]="
-                      'maniobra-schema__badge ' + tripOperationTypeBadgeClass(trip.operationType)
-                    "
-                    aria-hidden="true"
-                    >{{ tripOperationTypeBadgeLabel(trip.operationType) }}</span
-                  >
+                  <span [class]="schemaOperationalStatusClass(trip)">
+                    <span class="to-table-pill__dot" aria-hidden="true"></span>
+                    <span class="to-table-pill__label">{{
+                      schemaOperationalStatusLabel(trip)
+                    }}</span>
+                  </span>
                 </header>
               <div class="maniobra-schema__graphic">
                 <div
@@ -410,6 +418,27 @@
                     <dd>{{ schemaEtaKmLabel(trip) }}</dd>
                   </div>
                 </dl>
+                @if (schemaProgressForTrip(trip); as progress) {
+                  <div class="maniobra-schema__progress-wrap">
+                    <div class="maniobra-schema__progress-head">
+                      <span class="maniobra-schema__progress-label">Avance</span>
+                      <span class="maniobra-schema__progress-value">{{ progress.percent }}%</span>
+                    </div>
+                    <div
+                      class="maniobra-schema__progress"
+                      role="progressbar"
+                      [attr.aria-valuenow]="progress.percent"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      [attr.aria-label]="progress.ariaLabel"
+                    >
+                      <div
+                        class="maniobra-schema__progress-fill"
+                        [style.width.%]="progress.percent"
+                      ></div>
+                    </div>
+                  </div>
+                }
               </aside>
             </div>
           </article>

@@ -13,8 +13,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ASSIGNABLE_EQUIPMENT_OPTIONS } from '@app/mock-data/assignable-equipment';
-import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
+import { formatManeuverEquipmentLabel } from '@features/maniobra/utils/assignable-fleet-for-maneuver';
 import { ToastService } from '@core/notifications/toast.service';
 import { CreateTripPayload } from '@features/maniobra/data/maniobra.repository';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
@@ -37,9 +36,10 @@ import {
   stripGroupedNumberInput,
 } from '@features/maniobra/utils/parse-non-negative';
 import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
 import {
   Operator,
+  Equipment,
   TripContainerType,
   TripLoadType,
 } from '@shared/models/logistics.models';
@@ -62,7 +62,12 @@ import {
 import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
-import { combineLatest, EMPTY, forkJoin, of } from 'rxjs';
+import {
+  ToUnitInputComponent,
+  type UnitPickedEvent,
+} from '@shared/ui/to-unit-input/to-unit-input.component';
+import { ToEquipmentInputComponent } from '@shared/ui/to-equipment-input/to-equipment-input.component';
+import { combineLatest, EMPTY, of } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -85,6 +90,8 @@ import {
     ToSelectComponent,
     ToClientInputComponent,
     ToOperatorInputComponent,
+    ToUnitInputComponent,
+    ToEquipmentInputComponent,
     ToDrawerSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -100,7 +107,7 @@ export class ManiobraNewDrawerComponent {
   private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly toast = inject(ToastService);
   private readonly operatorsRepo = inject(OperatorRepository);
-  private readonly unitsRepo = inject(UnitRepository);
+  private readonly equipmentRepo = inject(EquipmentRepository);
 
   readonly dismiss = output<void>();
   readonly saved = output<CreateTripPayload>();
@@ -166,10 +173,10 @@ export class ManiobraNewDrawerComponent {
    */
   readonly includeClientBilling = model(false);
 
-  readonly equipmentOptions = ASSIGNABLE_EQUIPMENT_OPTIONS;
+  readonly equipmentPlaceholder = 'Buscar remolque enganchado…';
 
-  readonly equipmentPlaceholder =
-    'Porta contenedor, plataforma, góndola, etc.';
+  /** Catálogo de equipos para resolver etiquetas al guardar. */
+  private readonly equipmentCatalog = signal<Equipment[]>([]);
 
   /** Full → dos equipos obligatorios; sencillo/plana → uno. */
   readonly isFullOperation = computed(() => this.operationType() === 'full');
@@ -198,9 +205,8 @@ export class ManiobraNewDrawerComponent {
     { value: 'check', label: 'Cheque' },
   ];
 
-  readonly unitPlaceholder = 'Tractocamión';
+  readonly unitPlaceholder = 'Buscar unidad disponible…';
 
-  readonly unitOptions = signal<ToSelectOption[]>([]);
   readonly drawerLoading = signal(true);
 
   /** CP + localidad válidos en origen y destino (listo para OSRM / mensajes de error de par). */
@@ -312,33 +318,40 @@ export class ManiobraNewDrawerComponent {
     });
     this.doc.body.style.overflow = 'hidden';
 
-    forkJoin({
-      operators: this.operatorsRepo.list().pipe(catchError(() => of([] as Operator[]))),
-      units: this.unitsRepo.list().pipe(catchError(() => of([]))),
-    })
-      .pipe(takeUntilDestroyed())
+    this.operatorsRepo
+      .list()
+      .pipe(
+        catchError(() => of([] as Operator[])),
+        takeUntilDestroyed(),
+      )
       .subscribe({
-        next: ({ operators, units }) => {
+        next: (operators) => {
           this.operatorsCatalog.set(operators);
-          this.unitOptions.set(
-            [...units]
-              .sort((a, b) => a.id.localeCompare(b.id))
-              .map((u) => ({
-                value: u.id,
-                label: formatUnitTrailerOperationalId(u),
-              })),
-          );
           this.drawerLoading.set(false);
         },
         error: () => {
           this.operatorsCatalog.set([]);
-          this.unitOptions.set([]);
           this.drawerLoading.set(false);
         },
       });
 
+    this.equipmentRepo
+      .list()
+      .pipe(
+        catchError(() => of([] as Equipment[])),
+        takeUntilDestroyed(),
+      )
+      .subscribe((rows) => this.equipmentCatalog.set(rows));
+
     effect(() => {
       if (this.operationType() !== 'full') {
+        this.equipmentSecondary.set('');
+      }
+    });
+
+    effect(() => {
+      if (!this.unitId().trim()) {
+        this.equipmentPrimary.set('');
         this.equipmentSecondary.set('');
       }
     });
@@ -650,13 +663,19 @@ export class ManiobraNewDrawerComponent {
     return 'cash';
   }
 
-  private labelForEquipmentValue(value: string): string {
-    const v = value.trim();
+  onUnitPicked(ev: UnitPickedEvent): void {
+    this.operationType.set(ev.operationType);
+    this.equipmentPrimary.set(ev.equipmentIds[0] ?? '');
+    this.equipmentSecondary.set(ev.equipmentIds[1] ?? '');
+  }
+
+  private labelForEquipmentId(id: string): string {
+    const v = id.trim();
     if (!v) {
       return '';
     }
-    const row = this.equipmentOptions.find((o) => o.value === v);
-    return row?.label ?? v;
+    const row = this.equipmentCatalog().find((e) => e.id === v);
+    return row ? formatManeuverEquipmentLabel(row) : v;
   }
 
   private toastIfRequiredEmpty(value: string, fieldLabel: string): boolean {
@@ -943,8 +962,8 @@ export class ManiobraNewDrawerComponent {
     const op = config;
     const equipmentLabels =
       config === 'full'
-        ? [this.labelForEquipmentValue(eq1), this.labelForEquipmentValue(eq2)]
-        : [this.labelForEquipmentValue(eq1)];
+        ? [this.labelForEquipmentId(eq1), this.labelForEquipmentId(eq2)]
+        : [this.labelForEquipmentId(eq1)];
 
     const oCpDigits = normalizeMxPostalCodeDigits(this.originCp());
     const dCpDigits = normalizeMxPostalCodeDigits(this.destinationCp());

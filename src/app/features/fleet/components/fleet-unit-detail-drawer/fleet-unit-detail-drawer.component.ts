@@ -38,6 +38,13 @@ import {
 } from '@features/fleet/utils/list-trackers';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import {
+  equipmentTypeDisplayLabel,
+  hitchPositionLabel,
+  unitConvoyFromEquipment,
+} from '@app/features/fleet/utils/unit-hitched-equipment';
+import { formatEquipmentOperationalId } from '@app/sim-db/utils/fleet-id-builders';
+import {
+  Equipment,
   MaintenanceEntry,
   MaintenanceEntryStatus,
   TrailerTenureMode,
@@ -161,6 +168,8 @@ export class FleetUnitDetailDrawerComponent {
    * `null` si no hay km registrados en esas maniobras.
    */
   readonly completedTripDistanceKm = input<number | null>(null);
+  /** Remolques asignados a esta tractora (`equipment.unitId`). */
+  readonly hitchedEquipment = input<Equipment[]>([]);
 
   readonly verifCycleMo = VERIF_MO;
 
@@ -175,7 +184,24 @@ export class FleetUnitDetailDrawerComponent {
   readonly detailTabSymbols = FLEET_UNIT_DETAIL_TAB_SYMBOLS;
 
   readonly dismiss = output<void>();
+  readonly viewHitchedEquipment = output<Equipment>();
   readonly drawerLoading = signal(true);
+
+  readonly convoySummary = computed(() =>
+    unitConvoyFromEquipment(this.hitchedEquipment()),
+  );
+
+  readonly hitchedEquipmentRows = computed(() => {
+    const list = this.hitchedEquipment();
+    const total = list.length;
+    return list.map((eq, index) => ({
+      equipment: eq,
+      positionLabel: hitchPositionLabel(index, total),
+      typeLabel: equipmentTypeDisplayLabel(eq),
+      operationalId: formatEquipmentOperationalId(eq),
+      plate: eq.plate?.trim() || '—',
+    }));
+  });
 
   /** Overrides locales durante la sesión (mock; reemplazar con persistencia real). */
   private readonly unitOverride = signal<Partial<Unit>>({});
