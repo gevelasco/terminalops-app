@@ -7,19 +7,17 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, firstValueFrom, of } from 'rxjs';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
-import { AlertRepository } from '@features/dashboard/data/alert.repository';
-import { CriticalAlertRepository } from '@features/dashboard/data/critical-alert.repository';
+import { UnitsService } from '@services/api/units';
+import { labelForUnitId } from '@shared/utils/fleet/unit-label';
+import { DashboardService } from '@services/api/dashboard';
 import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-icon-paths';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import {
   buildOperationTypeSlicesFromTrips,
   buildWeeklyCompletedTripsByDay,
   filterTripsProgrammedInCalendarMonth,
   type OperationTypeSlice,
   type WeeklyTripPoint,
-} from '@app/sim-db/utils/dashboard-charts-from-trips';
+} from '@features/reports/utils/dashboard-charts-from-trips';
 import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
 import { buildTripStatusSlices } from '@shared/utils/trip-status-slices';
 import {
@@ -64,32 +62,27 @@ type DashboardBundle = {
   styleUrl: './dashboard-page.component.scss',
 })
 export class DashboardPageComponent {
-  private readonly alertsRepo = inject(AlertRepository);
-  private readonly criticalAlertsRepo = inject(CriticalAlertRepository);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
-  private readonly unitsRepo = inject(UnitRepository);
+  private readonly dashboard = inject(DashboardService);
+  private readonly unitsApi = inject(UnitsService);
   private readonly dateShort = inject(DateShortPipe);
   private readonly router = inject(Router);
 
   private readonly dashResource = resource({
     loader: async (): Promise<DashboardBundle> => {
-      const [kpis, critical, maniobras, units] = await Promise.all([
+      const [kpis, critical, units] = await Promise.all([
         firstValueFrom(
-          this.alertsRepo.list().pipe(catchError(() => of([] as Alert[]))),
+          this.dashboard.getAlertsList().pipe(catchError(() => of([] as Alert[]))),
         ),
         firstValueFrom(
-          this.criticalAlertsRepo
-            .list()
+          this.dashboard
+            .getCriticalAlertsList()
             .pipe(catchError(() => of([] as CriticalAlert[]))),
         ),
         firstValueFrom(
-          this.maniobrasRepo.list().pipe(catchError(() => of([] as Trip[]))),
-        ),
-        firstValueFrom(
-          this.unitsRepo.list().pipe(catchError(() => of([] as Unit[]))),
+          this.unitsApi.getUnitsList().pipe(catchError(() => of([] as Unit[]))),
         ),
       ]);
-      return { kpis, critical, maniobras, units };
+      return { kpis, critical, maniobras: [] as Trip[], units };
     },
   });
 

@@ -1,17 +1,16 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   HostListener,
   inject,
   model,
   output,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChecklistTodosStore } from '@core/services/checklist-todos.store';
+import { ChecklistTodosStore } from '@core/services/state/checklist-todos';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 
@@ -20,6 +19,7 @@ import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ToSideDrawerComponent,
     FormsModule,
     ToButtonComponent,
     ToIconButtonComponent,
@@ -33,8 +33,6 @@ import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
   ],
 })
 export class ChecklistDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly dateShort = inject(DateShortPipe);
   readonly store = inject(ChecklistTodosStore);
 
@@ -43,11 +41,7 @@ export class ChecklistDrawerComponent {
   readonly draft = model('');
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
     this.store.ensureLoaded();
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
   }
 
   fmt(iso: string): string {

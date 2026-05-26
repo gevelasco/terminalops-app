@@ -22,18 +22,22 @@
 </to-page-header>
 
 @if (newClientOpen()) {
-  <app-clients-new-drawer
-    (dismiss)="newClientOpen.set(false)"
-    (saved)="onClientCreated($event)"
-  />
+  @defer {
+    <app-clients-new-drawer
+      (dismiss)="newClientOpen.set(false)"
+      (saved)="onClientCreated($event)"
+    />
+  }
 }
 
 @if (detailClient(); as cli) {
-  <app-clients-detail-drawer
-    [client]="cli"
-    (dismiss)="onDetailDismiss()"
-    (clientChange)="onDetailClientChange($event)"
-  />
+  @defer {
+    <app-clients-detail-drawer
+      [client]="cli"
+      (dismiss)="onDetailDismiss()"
+      (clientChange)="onDetailClientChange($event)"
+    />
+  }
 }
 
 @if (loading()) {

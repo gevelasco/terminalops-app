@@ -1,0 +1,487 @@
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="operators-dv-ident"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="operators-dv-ident" class="fleet-unit-sec__title">
+            Identificación
+          </h3>
+          @if (vm.editingSection() !== "ident") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar Identificación"
+              [disabled]="vm.saving()"
+              (click)="vm.startEditSection('ident')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (vm.editingSection() !== "ident") {
+          <div class="operators-detail-photo" aria-label="Foto del operador">
+            @if (vm.operatorPhotoVisible()) {
+              <img
+                class="operators-detail-photo__img"
+                [src]="vm.operator().photoDataUrl"
+                [alt]="'Foto de ' + vm.operator().name"
+                width="96"
+                height="96"
+              />
+            } @else {
+              <span
+                class="operators-detail-photo__img operators-detail-photo__img--initials"
+                aria-hidden="true"
+                >{{ vm.operatorPhotoInitialsLabel() }}</span
+              >
+            }
+            <p class="operators-detail-photo__name">{{ vm.operator().name }}</p>
+          </div>
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>ID interno</dt>
+              <dd class="fleet-unit-detail__mono">{{ vm.operator().id }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Nombre</dt>
+              <dd>{{ vm.operator().name }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Fecha de nacimiento</dt>
+              <dd>{{ vm.birthDateLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>CURP</dt>
+              <dd class="fleet-unit-detail__mono">
+                {{ vm.operator().curp.trim() || "—" }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>RFC</dt>
+              <dd class="fleet-unit-detail__mono">
+                {{ vm.operator().rfc.trim() || "—" }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Licencia</dt>
+              <dd>{{ vm.operator().licenseNumber }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Vence licencia</dt>
+              <dd>{{ vm.licenseExpiresLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Tipo de licencia</dt>
+              <dd>{{ vm.licenseTypeLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Endosos</dt>
+              <dd>{{ vm.operator().licenseEndorsements.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Teléfono</dt>
+              <dd>{{ vm.operator().phone }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Tel. secundario / WhatsApp</dt>
+              <dd>{{ vm.operator().phoneSecondary.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Domicilio</dt>
+              <dd>{{ vm.operator().address.trim() || "—" }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-operator-identification-fields
+              layout="edit"
+              [licenseTypeOptions]="vm.licenseTypeOptions"
+              [(fullName)]="vm.editName"
+              [(birthDate)]="vm.editBirthDate"
+              [(curp)]="vm.editCurp"
+              [(rfc)]="vm.editRfc"
+              [(licenseNumber)]="vm.editLicenseNumber"
+              [(licenseExpiresOn)]="vm.editLicenseExpiresOn"
+              [(licenseType)]="vm.editLicenseType"
+              [(licenseEndorsements)]="vm.editLicenseEndorsements"
+              [(phone)]="vm.editPhone"
+              [(phoneSecondary)]="vm.editPhoneSecondary"
+              [(address)]="vm.editAddress"
+              [(photoDataUrl)]="vm.editPhotoDataUrl"
+              [photoDisabled]="vm.saving()"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.saveIdentification()"
+              >
+                <to-icon name="save" [size]="14" />
+                {{ vm.saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="operators-dv-ec"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="operators-dv-ec" class="fleet-unit-sec__title">
+            Persona de contacto
+          </h3>
+          @if (vm.editingSection() !== "contact") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar Persona de contacto"
+              [disabled]="vm.saving()"
+              (click)="vm.startEditSection('contact')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (vm.editingSection() !== "contact") {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Nombre</dt>
+              <dd>{{ vm.operator().emergencyContact.name.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Parentesco</dt>
+              <dd>
+                {{
+                  vm.relationshipLabel(vm.operator().emergencyContact.relationship)
+                }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Teléfono</dt>
+              <dd>{{ vm.operator().emergencyContact.phone.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Correo</dt>
+              <dd>{{ vm.operator().emergencyContact.email.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Autorizado info. médica</dt>
+              <dd>
+                {{
+                  vm.operator().emergencyContact.authorizedMedicalInfo
+                    ? "Sí"
+                    : "No"
+                }}
+              </dd>
+            </div>
+          </dl>
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-operator-emergency-contact-fields
+              layout="edit"
+              medicalAuthLabelledBy="operators-ed-ec-auth"
+              [relationshipOptions]="vm.relationshipOptions"
+              [(contactName)]="vm.editEcName"
+              [(contactRelationship)]="vm.editEcRelationship"
+              [(contactPhone)]="vm.editEcPhone"
+              [(contactEmail)]="vm.editEcEmail"
+              [(authorizedMedical)]="vm.editEcAuthMedical"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.saveContact()"
+              >
+                <to-icon name="save" [size]="14" />
+                {{ vm.saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="operators-dv-cov-data"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="operators-dv-cov-data" class="fleet-unit-sec__title">
+            Datos de cobertura y prestaciones
+          </h3>
+          @if (vm.editingSection() !== "coverage") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar Cobertura y prestaciones"
+              [disabled]="vm.saving()"
+              (click)="vm.startEditSection('coverage')"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (vm.editingSection() !== "coverage") {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row">
+              <dt>Tipo</dt>
+              <dd>{{ vm.insuranceKindLabel() }}</dd>
+            </div>
+            @if (vm.operator().insuranceKind === "public") {
+              <div class="fleet-unit-detail__row">
+                <dt>NSS</dt>
+                <dd class="fleet-unit-detail__mono">
+                  {{ vm.operator().publicInsurance.nss.trim() || "—" }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Alta IMSS (ref.)</dt>
+                <dd>
+                  {{ vm.displayIsoDate(vm.operator().publicInsurance.imssAltaDate) }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Infonavit</dt>
+                <dd>{{ vm.operator().publicInsurance.infonavit ? "Sí" : "No" }}</dd>
+              </div>
+              @if (vm.operator().publicInsurance.infonavit) {
+                <div class="fleet-unit-detail__row">
+                  <dt>Núm. crédito Infonavit</dt>
+                  <dd class="fleet-unit-detail__mono">
+                    {{
+                      vm.operator().publicInsurance.infonavitCreditNumber.trim() ||
+                        "—"
+                    }}
+                  </dd>
+                </div>
+              }
+              <div class="fleet-unit-detail__row">
+                <dt>FONACOT</dt>
+                <dd>{{ vm.operator().publicInsurance.fonacot ? "Sí" : "No" }}</dd>
+              </div>
+              @if (vm.operator().publicInsurance.fonacot) {
+                <div class="fleet-unit-detail__row">
+                  <dt>Crédito / folio FONACOT</dt>
+                  <dd class="fleet-unit-detail__mono">
+                    {{
+                      vm.operator().publicInsurance.fonacotCreditNumber.trim() ||
+                        "—"
+                    }}
+                  </dd>
+                </div>
+              }
+              <div class="fleet-unit-detail__row">
+                <dt>Notas</dt>
+                <dd>{{ vm.operator().publicInsurance.notes.trim() || "—" }}</dd>
+              </div>
+            }
+            @if (vm.operator().insuranceKind === "private") {
+              <div class="fleet-unit-detail__row">
+                <dt>Aseguradora</dt>
+                <dd>{{ vm.operator().privateInsurance.carrier.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Póliza</dt>
+                <dd class="fleet-unit-detail__mono">
+                  {{ vm.operator().privateInsurance.policyNumber.trim() || "—" }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Vigencia</dt>
+                <dd>
+                  {{ vm.displayIsoDate(vm.operator().privateInsurance.validFrom) }}
+                  —
+                  {{ vm.displayIsoDate(vm.operator().privateInsurance.validTo) }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Prima</dt>
+                <dd>
+                  {{ vm.operator().privateInsurance.premiumAmount.trim() || "—" }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Periodo prima</dt>
+                <dd>{{ vm.premiumPeriodLabel() }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Deducible / coaseguro</dt>
+                <dd>
+                  {{
+                    vm.operator().privateInsurance.deductibleNotes.trim() || "—"
+                  }}
+                </dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Resumen plan</dt>
+                <dd>{{ vm.operator().privateInsurance.planSummary.trim() || "—" }}</dd>
+              </div>
+            }
+          </dl>
+          <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
+          @if (vm.insuranceDocuments().length > 0) {
+            <ul
+              class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+            >
+              @for (d of vm.insuranceDocuments(); track d.id) {
+                <li class="fleet-unit-detail__file-line">
+                  <span class="fleet-unit-detail__file-name">
+                    {{ d.fileName }}
+                    <span class="fleet-unit-detail__mono">
+                      · {{ vm.displayIsoDate(d.addedAt) }}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    class="fleet-unit-detail__file-dl"
+                    (click)="vm.downloadOperatorDocument(d)"
+                  >
+                    Descargar
+                  </button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="fleet-unit-sec__docs-hint">Sin archivos registrados.</p>
+          }
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-operator-coverage-fields
+              layout="edit"
+              [insuranceKindOptions]="vm.insuranceKindOptions"
+              [premiumPeriodOptions]="vm.premiumPeriodOptions"
+              infonavitToggleLabelId="operators-ed-infonavit"
+              fonacotToggleLabelId="operators-ed-fonacot"
+              [(insuranceKind)]="vm.editInsuranceKind"
+              [(pubNss)]="vm.editPubNss"
+              [(pubImssAlta)]="vm.editPubImssAlta"
+              [(pubInfonavit)]="vm.editPubInfonavit"
+              [(pubInfonavitCredit)]="vm.editPubInfonavitCredit"
+              [(pubFonacot)]="vm.editPubFonacot"
+              [(pubFonacotCredit)]="vm.editPubFonacotCredit"
+              [(pubNotes)]="vm.editPubNotes"
+              [(privCarrier)]="vm.editPrivCarrier"
+              [(privPolicy)]="vm.editPrivPolicy"
+              [(privValidFrom)]="vm.editPrivValidFrom"
+              [(privValidTo)]="vm.editPrivValidTo"
+              [(privPremium)]="vm.editPrivPremium"
+              [(privPremiumPeriod)]="vm.editPrivPremiumPeriod"
+              [(privDeductible)]="vm.editPrivDeductible"
+              [(privPlan)]="vm.editPrivPlan"
+            />
+            <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
+            <p class="fleet-unit-sec__docs-hint">
+              Constancias IMSS, credencial, póliza PDF, etc.
+            </p>
+            <div class="fleet-unit-upload">
+              <input
+                #edInsDocInput
+                type="file"
+                class="fleet-unit-upload__input"
+                tabindex="-1"
+                multiple
+                accept="image/*,.pdf,application/pdf"
+                (change)="vm.onEditDocumentsSelected($event, 'insurance')"
+              />
+              <button
+                type="button"
+                class="fleet-unit-upload__btn"
+                (click)="edInsDocInput.click()"
+              >
+                Elegir archivos
+              </button>
+            </div>
+            @if (vm.editInsuranceDocuments().length > 0) {
+              <ul class="fleet-unit-files">
+                @for (d of vm.editInsuranceDocuments(); track d.id) {
+                  <li class="fleet-unit-files__row">
+                    <span class="fleet-unit-files__name">{{ d.fileName }}</span>
+                    <button
+                      type="button"
+                      class="fleet-unit-files__rm"
+                      (click)="vm.removeEditDocument(d.id)"
+                    >
+                      Quitar
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.saveCoverage()"
+              >
+                <to-icon name="save" [size]="14" />
+                {{ vm.saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>

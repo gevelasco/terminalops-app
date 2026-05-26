@@ -73,7 +73,8 @@
               "buildTarget": "terminalops-app:build:production"
             },
             "development": {
-              "buildTarget": "terminalops-app:build:development"
+              "buildTarget": "terminalops-app:build:development",
+              "hmr": false
             }
           },
           "defaultConfiguration": "development"

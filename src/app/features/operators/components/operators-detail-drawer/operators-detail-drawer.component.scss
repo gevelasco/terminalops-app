@@ -1,20 +1,45 @@
-/* Estado operativo en cabecera (complementa modificadores de fleet-unit-detail). */
-.fleet-unit-detail__status--operator-incapacitated {
-  color: #9d174d;
-  background: color-mix(in srgb, #f472b6 14%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #f472b6 32%, transparent);
+.operators-detail-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 0.75rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(
+    in srgb,
+    var(--to-color-surface-muted) 55%,
+    var(--to-color-surface)
+  );
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
 }
 
-.fleet-unit-detail__status--operator-leave {
-  color: #0e7490;
-  background: color-mix(in srgb, #06b6d4 14%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #06b6d4 30%, transparent);
+.operators-detail-photo__img {
+  display: block;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface-muted);
 }
 
-.fleet-unit-detail__status--operator-inactive {
-  color: #52525b;
-  background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #71717a 28%, transparent);
+.operators-detail-photo__img--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--to-color-primary);
+}
+
+.operators-detail-photo__name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--to-color-text);
 }
 
 .operators-op-status-grid {

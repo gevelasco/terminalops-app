@@ -1,5 +1,6 @@
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import { Equipment, TripOperationType } from '@shared/models/logistics.models';
+import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
 export type UnitConvoyKind = 'none' | 'sencillo' | 'full' | 'plana';
 
@@ -13,15 +14,15 @@ export type UnitConvoySummary = {
 /** Equipos (remolques) asignados a una unidad tractora, orden estables. */
 export function equipmentAssignedToUnit(
   equipment: Equipment[],
-  unitId: string,
+  unitId: unknown,
 ): Equipment[] {
-  const id = unitId.trim();
+  const id = resourceIdKey(unitId);
   if (!id) {
     return [];
   }
   return equipment
-    .filter((e) => (e.unitId ?? '').trim() === id)
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .filter((e) => resourceIdsEqual(e.unitId, id))
+    .sort((a, b) => resourceIdKey(a.id).localeCompare(resourceIdKey(b.id)));
 }
 
 function equipmentOperationValue(e: Equipment): string {

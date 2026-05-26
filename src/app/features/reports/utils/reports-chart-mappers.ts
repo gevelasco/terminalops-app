@@ -1,5 +1,5 @@
 import type { TripStatus } from '@shared/models/logistics.models';
-import type { OperationTypeSlice } from '@app/sim-db/utils/dashboard-charts-from-trips';
+import type { OperationTypeSlice } from '@features/reports/utils/dashboard-charts-from-trips';
 import type { TripStatusSliceRow } from '@shared/utils/trip-status-slices';
 import type { ReportsBarSlice } from '../models/reports-view.models';
 
@@ -68,6 +68,8 @@ const NUMBERED_BAR_FILL_PREFIXES = new Set([
   'reports-chart-bar__fill--cancelled',
   'reports-chart-bar__fill--maint',
   'reports-chart-bar__fill--unit',
+  'reports-chart-bar__fill--provision',
+  'reports-chart-bar__fill--payable',
 ]);
 
 export function countBarFillClass(fillPrefix: string, index: number): string {

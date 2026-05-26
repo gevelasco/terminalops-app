@@ -57,6 +57,8 @@ export interface Client {
   billing?: ClientBilling;
   contacts?: ClientContactPerson[];
   payment?: ClientPaymentTerms;
+  /** Total de maniobras vinculadas por `clientId` (solo en listado). */
+  maneuverCount?: number;
 }
 
 export type CreateClientPayload = Omit<Client, 'id'>;

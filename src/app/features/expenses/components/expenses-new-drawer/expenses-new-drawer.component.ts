@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,16 +11,13 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import { formatEquipmentOperationalId } from '@app/sim-db/utils/fleet-id-builders';
-import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
+import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import { ToastService } from '@core/notifications/toast.service';
-import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
-import {
-  CreateExpensePayload,
-  ExpenseRepository,
-} from '@features/expenses/data/expense.repository';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { EquipmentService } from '@services/api/equipment';
+import { UnitsService } from '@services/api/units';
+import { ExpensesService } from '@services/api/expenses';
+import { OperatorsService } from '@services/api/operators';
 import {
   EXPENSE_CURRENCY_OPTIONS,
   EXPENSE_INSURANCE_TARGET_OPTIONS,
@@ -37,14 +33,13 @@ import type {
   ExpenseVerificationScope,
 } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
+import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import {
   ToSelectComponent,
   ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
-import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToTripInputComponent } from '@shared/ui/to-trip-input/to-trip-input.component';
 
 function todayYmd(): string {
@@ -74,12 +69,11 @@ function parseAmount(raw: string): number | 'invalid' {
   imports: [
     FormsModule,
     ToButtonComponent,
-    ToIconButtonComponent,
     ToInputComponent,
     ToSelectComponent,
+    ToSideDrawerComponent,
     ToTextareaComponent,
     ToTripInputComponent,
-    ToDrawerSkeletonComponent,
   ],
   templateUrl: './expenses-new-drawer.component.html',
   styleUrls: [
@@ -89,13 +83,12 @@ function parseAmount(raw: string): number | 'invalid' {
   ],
 })
 export class ExpensesNewDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
-  private readonly expenseRepo = inject(ExpenseRepository);
-  private readonly unitsRepo = inject(UnitRepository);
-  private readonly equipmentRepo = inject(EquipmentRepository);
-  private readonly operatorsRepo = inject(OperatorRepository);
+  private readonly expensesApi = inject(ExpensesService);
+  private readonly unitsApi = inject(UnitsService);
+  private readonly equipmentApi = inject(EquipmentService);
+  private readonly operatorsApi = inject(OperatorsService);
 
   readonly dismiss = output<void>();
   readonly saved = output<Expense>();
@@ -132,15 +125,10 @@ export class ExpensesNewDrawerComponent {
   readonly drawerLoading = signal(true);
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
-
     forkJoin({
-      units: this.unitsRepo.list(),
-      equipment: this.equipmentRepo.list(),
-      operators: this.operatorsRepo.list(),
+      units: this.unitsApi.getUnitsList(),
+      equipment: this.equipmentApi.getEquipmentList(),
+      operators: this.operatorsApi.getOperatorsList(),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -294,7 +282,7 @@ export class ExpensesNewDrawerComponent {
       relatedOperatorId = oid;
     }
 
-    const payload: CreateExpensePayload = {
+    const payload: Omit<Expense, 'id'> = {
       tripId,
       category: categoryText,
       amount: amountResult,
@@ -313,8 +301,8 @@ export class ExpensesNewDrawerComponent {
       verificationScope,
     };
 
-    this.expenseRepo
-      .create(payload)
+    this.expensesApi
+      .postExpense(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row: Expense) => {

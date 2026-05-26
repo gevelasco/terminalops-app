@@ -112,23 +112,20 @@
   align-items: center;
 }
 
-.fleet-unit-detail__header .fleet-drawer__title-icon,
-.fleet-unit-detail__header .fleet-drawer__title > svg[aria-hidden='true'],
-.fleet-unit-detail__header .maniobra-drawer__title-icon,
-.fleet-unit-detail__header .maniobra-drawer__title > svg[aria-hidden='true'] {
-  display: block;
+.fleet-unit-detail__header .to-side-drawer__title-icon,
+.fleet-unit-detail__header .to-side-drawer__title > to-icon,
+.fleet-unit-detail__header .to-side-drawer__title > svg[aria-hidden='true'] {
+  display: inline-flex;
   flex-shrink: 0;
-}
-
-.fleet-unit-detail__header .fleet-drawer__title,
-.fleet-unit-detail__header .maniobra-drawer__title {
   align-items: center;
-  line-height: 1.25;
+  justify-content: center;
 }
 
-.fleet-unit-detail__header > to-icon-button {
-  flex-shrink: 0;
-  align-self: center;
+.fleet-unit-detail__header .to-side-drawer__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.25;
 }
 
 .fleet-unit-detail__header-text {
@@ -170,102 +167,6 @@
   font-weight: 500;
   color: var(--to-color-text-muted);
   line-height: 1.35;
-}
-
-.fleet-unit-detail__status {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-  margin-top: 0;
-  flex-shrink: 0;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid transparent;
-}
-
-.fleet-unit-detail__status-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: currentColor;
-}
-
-.fleet-unit-detail__status-label {
-  line-height: 1.2;
-}
-
-.fleet-unit-detail__status-sub {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  opacity: 0.88;
-}
-
-.fleet-unit-detail__status--route {
-  color: #1d4ed8;
-  background: color-mix(in srgb, #3b82f6 16%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #3b82f6 35%, transparent);
-}
-
-.fleet-unit-detail__status--available {
-  color: #166534;
-  background: color-mix(in srgb, #22c55e 16%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #22c55e 32%, transparent);
-}
-
-.fleet-unit-detail__status--maintenance {
-  color: #334155;
-  background: color-mix(in srgb, #64748b 14%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #64748b 28%, transparent);
-}
-
-.fleet-unit-detail__status--inuse {
-  color: #9a3412;
-  background: color-mix(in srgb, #fb923c 14%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #fb923c 30%, transparent);
-}
-
-.fleet-unit-detail__status--scheduled {
-  color: #a16207;
-  background: color-mix(in srgb, #eab308 18%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #eab308 32%, transparent);
-}
-
-.fleet-unit-detail__status--unknown {
-  color: var(--to-color-text-muted);
-  background: var(--to-color-surface-muted);
-  border-color: var(--to-color-border);
-}
-
-.fleet-unit-detail__status--client-good {
-  color: #166534;
-  background: color-mix(in srgb, #22c55e 16%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #22c55e 32%, transparent);
-}
-
-.fleet-unit-detail__status--client-watch {
-  color: #a16207;
-  background: color-mix(in srgb, #eab308 18%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #eab308 32%, transparent);
-}
-
-.fleet-unit-detail__status--client-restricted {
-  color: #9a3412;
-  background: color-mix(in srgb, #f97316 16%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #ea580c 30%, transparent);
-}
-
-.fleet-unit-detail__status--client-na {
-  color: var(--to-color-text-muted);
-  background: var(--to-color-surface-muted);
-  border-color: var(--to-color-border);
 }
 
 .fleet-unit-detail__dl {
@@ -316,18 +217,6 @@
 
 .fleet-unit-detail__notes-block {
   margin: 0.35rem 0 0.25rem;
-}
-
-/* Mismo control que listado Flota; ancho completo y sticky en el panel. */
-.fleet-unit-detail__drawer-segment.fleet-segment {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  max-width: none;
-  width: 100%;
-  flex-shrink: 0;
-  margin: 0 0 0.5rem;
-  background: var(--to-color-surface);
 }
 
 .fleet-unit-detail__maint-stack {

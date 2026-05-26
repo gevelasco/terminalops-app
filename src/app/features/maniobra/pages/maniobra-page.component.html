@@ -18,19 +18,24 @@
 </to-page-header>
 
 @if (newManiobraOpen()) {
-  <app-maniobra-new-drawer
-    (dismiss)="newManiobraOpen.set(false)"
-    (saved)="onManiobraSaved($event)"
-  />
+  @defer {
+    <app-maniobra-new-drawer
+      [activeTrips]="tripsList()"
+      (dismiss)="newManiobraOpen.set(false)"
+      (saved)="onManiobraSaved($event)"
+    />
+  }
 }
 
 @if (detailTrip(); as trip) {
-  <app-maniobra-detail-drawer
-    [trip]="trip"
-    [operatorName]="detailOperatorName()"
-    (dismiss)="onDetailDismiss()"
-    (maniobraTripChange)="onDetailTripUpdated($event)"
-  />
+  @defer {
+    <app-maniobra-detail-drawer
+      [trip]="trip"
+      [operatorName]="detailOperatorName()"
+      (dismiss)="onDetailDismiss()"
+      (maniobraTripChange)="onDetailTripUpdated($event)"
+    />
+  }
 }
 
 @if (loading()) {
@@ -38,50 +43,13 @@
 } @else {
   <div class="maniobra-table-block">
     <div class="maniobra-toolbar">
-      <div
-        class="fleet-segment maniobra-toolbar__view-segment"
-        role="tablist"
-        aria-label="Vista de maniobras"
-      >
-        <button
-          type="button"
-          id="maniobra-tab-table"
-          class="fleet-segment__btn"
-          role="tab"
-          [attr.aria-selected]="viewMode() === 'table'"
-          [class.fleet-segment__btn--active]="viewMode() === 'table'"
-          (click)="viewMode.set('table')"
-        >
-          <span class="fleet-segment__icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"
-              />
-            </svg>
-          </span>
-          Tabla
-        </button>
-        <button
-          type="button"
-          id="maniobra-tab-schema"
-          class="fleet-segment__btn"
-          role="tab"
-          [attr.aria-selected]="viewMode() === 'schema'"
-          [class.fleet-segment__btn--active]="viewMode() === 'schema'"
-          (click)="viewMode.set('schema')"
-        >
-          <span class="fleet-segment__icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z"
-              />
-            </svg>
-          </span>
-          Esquema
-        </button>
-      </div>
+      <to-segment-control
+        layout="toolbar"
+        ariaLabel="Vista de maniobras"
+        [tabs]="viewSegmentTabs"
+        [activeId]="viewMode()"
+        (tabSelect)="viewMode.set($event)"
+      />
 
       <div class="maniobra-toolbar__search">
         <to-input
@@ -97,70 +65,13 @@
         class="maniobra-toolbar__filters"
         [class.maniobra-toolbar__filters--disabled]="viewMode() !== 'table'"
       >
-        <div
-          class="maniobra-filters maniobra-filters--status"
-          role="tablist"
-          aria-label="Filtrar maniobras por estado"
-          [attr.aria-disabled]="viewMode() !== 'table'"
-        >
-          @for (tab of filterTabs; track tab.value) {
-            <button
-              type="button"
-              class="maniobra-filters__tab"
-              role="tab"
-              [disabled]="viewMode() !== 'table'"
-              [attr.aria-selected]="statusFilter() === tab.value"
-              [class.maniobra-filters__tab--active]="statusFilter() === tab.value"
-              (click)="onStatusFilterSelect(tab.value)"
-            >
-              <span class="maniobra-filters__icon" aria-hidden="true">
-                @switch (tab.value) {
-                  @case ('all') {
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"
-                      />
-                    </svg>
-                  }
-                  @case ('in_transit') {
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"
-                      />
-                    </svg>
-                  }
-                  @case ('scheduled') {
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"
-                      />
-                    </svg>
-                  }
-                  @case ('completed') {
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                      />
-                    </svg>
-                  }
-                  @case ('cancelled') {
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59 15.59 17 12 13.41z"
-                      />
-                    </svg>
-                  }
-                }
-              </span>
-              {{ tab.label }}
-            </button>
-          }
-        </div>
+        <to-filter-tabs
+          [tabs]="filterTabs"
+          [activeId]="statusFilter()"
+          [disabled]="viewMode() !== 'table'"
+          ariaLabel="Filtrar maniobras por estado"
+          (tabSelect)="onStatusFilterSelect($event)"
+        />
       </div>
     </div>
 
@@ -182,7 +93,7 @@
           }
         </p>
       }
-    } @else {
+    } @else if (viewMode() === "route") {
       <p class="maniobra-schema__hint">
         Maniobras <strong>en tránsito</strong>. Pasa el cursor sobre la unidad o los remolques para ver
         detalle; haz clic en la tarjeta para abrir la ficha. El buscador también filtra aquí.
@@ -283,9 +194,15 @@
                     }}</span>
                   </span>
                 </header>
-              <div class="maniobra-schema__graphic">
+              <div
+                class="maniobra-schema__graphic"
+                [class.maniobra-schema__graphic--full-standard]="
+                  trip.operationType === 'full' && !schemaUsesPlataformaConvoy(trip)
+                "
+              >
                 <div
                   class="maniobra-schema__convoy-strip"
+                  [class.maniobra-schema__convoy-strip--plana]="schemaUsesPlataformaConvoy(trip)"
                   role="group"
                   [attr.aria-label]="
                     trip.operationType === 'full'
@@ -325,10 +242,15 @@
                   <div class="maniobra-schema__segment">
                     <img
                       class="maniobra-schema__convoy-part"
-                      [src]="schemaRemolqueAsset"
+                      [class.maniobra-schema__convoy-part--plana]="schemaUsesPlataformaConvoy(trip)"
+                      [src]="schemaPrimaryTrailerAssetForTrip(trip)"
                       loading="lazy"
                       decoding="async"
-                      alt="Remolque"
+                      [alt]="
+                        schemaUsesPlataformaConvoy(trip)
+                          ? 'Plataforma (primer remolque)'
+                          : 'Remolque'
+                      "
                     />
                     <div class="maniobra-schema__hit maniobra-schema__hit--eq">
                       <div class="maniobra-schema__tip maniobra-schema__tip--eq">
@@ -348,6 +270,10 @@
                             <dt>Tipo de contenedor</dt>
                             <dd>{{ tripContainerLabel(trip) }}</dd>
                           </div>
+                          <div class="maniobra-schema__tip-row maniobra-schema__tip-row--wrap">
+                            <dt>Carga</dt>
+                            <dd>{{ tripCargoDescriptionForTrip(trip) }}</dd>
+                          </div>
                           <div class="maniobra-schema__tip-row">
                             <dt>Peso (aprox.)</dt>
                             <dd>{{ weightLineForTrip(trip) }}</dd>
@@ -366,10 +292,16 @@
                     <div class="maniobra-schema__segment">
                       <img
                         class="maniobra-schema__convoy-part"
-                        [src]="schemaEngancheAsset"
+                        [class.maniobra-schema__convoy-part--plana]="schemaUsesPlataformaConvoy(trip)"
+                        [class.maniobra-schema__convoy-part--plana-second]="schemaUsesPlataformaConvoy(trip)"
+                        [src]="schemaSecondaryTrailerAssetForTrip(trip)"
                         loading="lazy"
                         decoding="async"
-                        alt="Enganche y segundo remolque"
+                        [alt]="
+                          schemaUsesPlataformaConvoy(trip)
+                            ? 'Plataforma (segundo remolque)'
+                            : 'Enganche y segundo remolque'
+                        "
                       />
                       <div class="maniobra-schema__hit maniobra-schema__hit--eq">
                         <div class="maniobra-schema__tip maniobra-schema__tip--eq">
@@ -382,6 +314,10 @@
                             <div class="maniobra-schema__tip-row">
                               <dt>Tipo de contenedor</dt>
                               <dd>{{ tripContainerLabel(trip) }}</dd>
+                            </div>
+                            <div class="maniobra-schema__tip-row maniobra-schema__tip-row--wrap">
+                              <dt>Carga</dt>
+                              <dd>{{ tripCargoDescriptionForTrip(trip) }}</dd>
                             </div>
                             <div class="maniobra-schema__tip-row">
                               <dt>Peso (aprox.)</dt>

@@ -1,29 +1,44 @@
 # TerminalOps (Angular)
 
-Aplicación web de gestión logística con Angular 19 (standalone), routing por features con lazy loading, UI compartida con prefijo `to-`, y datos mock intercambiables por API HTTP.
+Aplicación web de gestión logística con Angular 19. Consume **`terminalops-api`** (NestJS + PostgreSQL) vía HTTP con JWT.
 
-## Capas
+## Requisitos
 
-- **`src/app/core/`** — Layout (`ShellComponent`), sesión (`SessionStore`), interceptores HTTP (`auth`, `error`), guard (`authGuard`), servicios globales (`ThemeService`, `AuthFacade`).
-- **`src/app/shared/`** — Modelos de dominio (`shared/models`), pipes (`currencyMx`, `dateShort`), utilidades y componentes UI genéricos (`shared/ui`, selectores `to-*`).
-- **`src/app/features/*`** — Un directorio por dominio (`dashboard`, `maniobra`, `fleet`, `operators`, `expenses`, `reports`). Cada uno expone `routes.ts` y usa repositorios abstractos en `data/` con implementación mock.
-- **`src/app/mock-data/`** — Constantes de ejemplo consumidas por los mocks.
-- **`src/environments/`** — `environment.ts` (producción) y `environment.development.ts` (reemplazo en build `development` vía `angular.json`).
-
-## Sustituir mocks por API real
-
-1. Implementa clases **Http\*** que extiendan los mismos abstractos (`ManiobraRepository`, `AlertRepository`, etc.) usando `HttpClient` y las URLs de `environment.apiUrl`.
-2. En `app.config.ts`, cambia los `useClass` de cada `provide` de repositorio de `Mock*` a la implementación HTTP (o usa `environment.production` para alternar).
-3. Los interceptores ya añaden `Authorization` desde `SessionStore` cuando exista token; ajusta reglas y manejo de 401 en `error.interceptor.ts`.
-
-## Alias de rutas TypeScript
-
-`@app/*`, `@core/*`, `@shared/*`, `@features/*` están definidos en `tsconfig.json`.
+- Node.js 20+
+- API en ejecución: ver [`../terminalops-api/README.md`](../terminalops-api/README.md)
 
 ## Desarrollo
 
 ```bash
-npm start
+npm install
+npm run dev
 ```
 
-Abre `http://localhost:4200/`; la ruta vacía redirige a `/dashboard`. En desarrollo, `authDevBypass` permite navegar sin login; con producción sin bypass, el guard redirige a `/login`.
+Abre http://localhost:4200 — login contra la API (`gvelasco` / `Admin123` con seed de desarrollo).
+
+## Estructura
+
+| Ruta | Contenido |
+|------|-----------|
+| `src/app/core/` | Layout, sesión JWT, interceptores, guards |
+| `src/app/shared/` | Modelos, catálogos de formulario, UI `to-*` |
+| `src/app/core/services/api/` | Servicios HTTP (`ClientsService`, `TripsService`, …) estilo fintrack |
+| `src/app/features/*` | Dominios (UI, rutas, utilidades); sin capa `data/` de repositorios |
+| `src/environments/` | `apiUrl` por entorno |
+
+## Datos
+
+- **Backend:** esquema SQL, migraciones y seed en `terminalops-api/db/`.
+- **Frontend:** solo catálogos estáticos de UI (`shared/catalogs/`) y preferencias locales temporales hasta endpoints de usuario en la API.
+
+## Scripts
+
+| Script | Uso |
+|--------|-----|
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm start` | Sirve `dist/` (producción) |
+
+## Alias TypeScript
+
+`@app/*`, `@core/*`, `@shared/*`, `@features/*` en `tsconfig.json`.

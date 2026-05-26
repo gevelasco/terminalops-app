@@ -4,6 +4,7 @@ import type {
 } from '../models/reports-view.models';
 import type { ReportsFilteredBundle } from './reports-bundle-filter';
 import { deltaLabel, formatMxn } from './reports-money';
+import { sumCreditPayableExpensesMxn } from '@shared/utils/expense-credit-payable';
 import {
   sumTripCollectedRevenue,
   sumTripCreditReceivable,
@@ -31,8 +32,12 @@ function generalKpi(
   invertTone = false,
   legend?: string,
   legendPlacement?: ReportsKpiLegendPlacement,
+  trackAmount = true,
 ): ReportsKpiCard {
   const card: ReportsKpiCard = { id, title, titleIcon: icon, value };
+  if (trackAmount && Number.isFinite(current)) {
+    card.amount = current;
+  }
   if (legend) {
     card.legend = legend;
   }
@@ -56,11 +61,13 @@ export function buildGeneralKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
   const income = sumTripCollectedRevenue(trips);
   const credit = sumTripCreditReceivable(trips);
   const gastos = totalGastos(expenses, trips);
+  const deuda = sumCreditPayableExpensesMxn(expenses);
   const margin = income + credit - gastos;
 
   const prevIncome = sumTripCollectedRevenue(bundle.previousTrips);
   const prevCredit = sumTripCreditReceivable(bundle.previousTrips);
   const prevGastos = totalGastos(bundle.previousExpenses, bundle.previousTrips);
+  const prevDeuda = sumCreditPayableExpensesMxn(bundle.previousExpenses);
   const prevMargin = prevIncome + prevCredit - prevGastos;
 
   return [
@@ -71,6 +78,10 @@ export function buildGeneralKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
       String(trips.length),
       trips.length,
       bundle.previousTrips.length,
+      false,
+      undefined,
+      undefined,
+      false,
     ),
     generalKpi(
       'gastos',
@@ -101,6 +112,17 @@ export function buildGeneralKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
       'beside',
     ),
     generalKpi(
+      'deuda',
+      'Deuda',
+      'credit',
+      formatMxn(deuda),
+      deuda,
+      prevDeuda,
+      true,
+      'Crédito, TDC y proveedor',
+      'beside',
+    ),
+    generalKpi(
       'margen',
       'Margen',
       'revenue',
@@ -111,7 +133,7 @@ export function buildGeneralKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
   ];
 }
 
-/** Ingreso total, Gastos, Ingresos, Crédito, Margen — pestaña Balance. */
+/** Ingreso total, Gastos, Ingresos, Crédito, Por pagar, Margen — pestaña Balance. */
 export function buildBalanceKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[] {
   const trips = bundle.trips;
   const expenses = bundle.expenses;
@@ -121,11 +143,15 @@ export function buildBalanceKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
   const gastos = totalGastos(expenses, trips);
   const margin = ingresoTotal - gastos;
 
+  const porPagarPeriodo = sumCreditPayableExpensesMxn(expenses);
+  const porPagarAcumulado = sumCreditPayableExpensesMxn(bundle.allExpenses);
+
   const prevCobrado = sumTripCollectedRevenue(bundle.previousTrips);
   const prevPorCobrar = sumTripCreditReceivable(bundle.previousTrips);
   const prevIngresoTotal = prevCobrado + prevPorCobrar;
   const prevGastos = totalGastos(bundle.previousExpenses, bundle.previousTrips);
   const prevMargin = prevIngresoTotal - prevGastos;
+  const prevPorPagarPeriodo = sumCreditPayableExpensesMxn(bundle.previousExpenses);
 
   return [
     generalKpi(
@@ -162,6 +188,17 @@ export function buildBalanceKpis(bundle: ReportsFilteredBundle): ReportsKpiCard[
       prevPorCobrar,
       false,
       'Por cobrar a clientes',
+      'beside',
+    ),
+    generalKpi(
+      'por-pagar',
+      'Por pagar',
+      'credit',
+      formatMxn(porPagarAcumulado),
+      porPagarPeriodo,
+      prevPorPagarPeriodo,
+      true,
+      'Crédito, TDC y proveedor',
       'beside',
     ),
     generalKpi(

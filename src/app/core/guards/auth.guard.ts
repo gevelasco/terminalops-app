@@ -1,20 +1,12 @@
 import { inject } from '@angular/core';
-import { CanActivateChildFn, Router } from '@angular/router';
-import { environment } from '../../../environments/environment';
-import { SessionStore } from '../services/session.store';
+import { CanActivateFn, Router } from '@angular/router';
+import { SessionService } from '../services/state/session';
 
-/** Stub: allows feature routes when authDevBypass; otherwise requires a token */
-export const authGuard: CanActivateChildFn = (_child, state) => {
-  if (environment.authDevBypass) {
-    return true;
-  }
-  const session = inject(SessionStore);
+export const authGuard: CanActivateFn = () => {
+  const session = inject(SessionService);
   const router = inject(Router);
-  session.syncSessionWithStorage();
-  if (session.token()) {
+  if (session.isLoggedIn()) {
     return true;
   }
-  return router.createUrlTree(['/login'], {
-    queryParams: { returnUrl: state.url },
-  });
+  return router.createUrlTree(['/login']);
 };

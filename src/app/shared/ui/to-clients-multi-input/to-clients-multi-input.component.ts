@@ -13,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ClientRepository } from '@shared/data/client.repository';
+import { ClientsService } from '@services/api/clients';
 import type { Client } from '@shared/models/client.models';
 
 let clientsMultiSeq = 0;
@@ -25,7 +25,7 @@ let clientsMultiSeq = 0;
   styleUrl: './to-clients-multi-input.component.scss',
 })
 export class ToClientsMultiInputComponent {
-  private readonly clientsRepo = inject(ClientRepository);
+  private readonly clientsApi = inject(ClientsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hostEl = inject(ElementRef<HTMLElement>);
 
@@ -78,8 +78,8 @@ export class ToClientsMultiInputComponent {
   });
 
   constructor() {
-    this.clientsRepo
-      .list()
+    this.clientsApi
+      .getClientsList()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (rows) => {

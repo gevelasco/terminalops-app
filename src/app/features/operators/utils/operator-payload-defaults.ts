@@ -89,6 +89,7 @@ export function defaultOperatorShell(
     companyHireDate: '',
     employmentContractType: '',
     insuranceKind: 'none',
+    photoDataUrl: '',
     ...rest,
     documents: Array.isArray(docs) ? docs.map((d) => ({ ...d })) : [],
     emergencyContact: { ...EMPTY_EMERGENCY, ...ec },

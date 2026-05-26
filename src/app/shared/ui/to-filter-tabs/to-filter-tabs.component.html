@@ -1,0 +1,23 @@
+<div
+  class="maniobra-filters maniobra-filters--status"
+  role="tablist"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-disabled]="disabled() ? true : null"
+>
+  @for (tab of tabs(); track tab.id) {
+    <button
+      type="button"
+      class="maniobra-filters__tab"
+      role="tab"
+      [disabled]="disabled()"
+      [attr.aria-selected]="activeId() === tab.id"
+      [class.maniobra-filters__tab--active]="activeId() === tab.id"
+      (click)="onSelect(tab.id)"
+    >
+      <span class="maniobra-filters__icon" aria-hidden="true">
+        <to-icon [name]="tab.icon" [size]="18" />
+      </span>
+      {{ tab.label }}
+    </button>
+  }
+</div>

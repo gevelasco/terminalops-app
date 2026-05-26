@@ -1,0 +1,31 @@
+@import './login-page.component.scss';
+
+:host {
+  display: block;
+}
+
+.login-page__frame {
+  width: min(100%, 32rem);
+}
+
+.login-page__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.login-page__link {
+  color: var(--to-color-primary);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-page__row {
+    grid-template-columns: 1fr;
+  }
+}

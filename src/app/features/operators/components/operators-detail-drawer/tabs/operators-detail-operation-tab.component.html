@@ -1,0 +1,343 @@
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed"
+  aria-labelledby="operators-dv-op"
+>
+  <div class="fleet-unit-sec__header">
+    <h3 id="operators-dv-op" class="fleet-unit-sec__title">Alta y contrato</h3>
+    @if (vm.editingSection() !== "operation") {
+      <button
+        type="button"
+        class="fleet-unit-sec__edit-btn"
+        aria-label="Editar alta y contrato"
+        [disabled]="vm.saving()"
+        (click)="vm.startEditSection('operation')"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+  @if (vm.editingSection() !== "operation") {
+    <dl class="fleet-unit-detail__dl">
+      <div class="fleet-unit-detail__row">
+        <dt>Estado operativo</dt>
+        <dd>{{ vm.operationalStatusLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Fecha de ingreso</dt>
+        <dd>{{ vm.companyHireDateLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Antigüedad (referencia)</dt>
+        <dd>{{ vm.companyTenureLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Contratación</dt>
+        <dd>
+          {{
+            vm.employmentContractLabel(vm.operator().employmentContractType)
+          }}
+        </dd>
+      </div>
+    </dl>
+    <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
+    @if (vm.operationDocuments().length > 0) {
+      <ul
+        class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+      >
+        @for (d of vm.operationDocuments(); track d.id) {
+          <li class="fleet-unit-detail__file-line">
+            <span class="fleet-unit-detail__file-name">
+              {{ d.fileName }}
+              <span class="fleet-unit-detail__mono">
+                · {{ vm.displayIsoDate(d.addedAt) }}
+              </span>
+            </span>
+            <button
+              type="button"
+              class="fleet-unit-detail__file-dl"
+              (click)="vm.downloadOperatorDocument(d)"
+            >
+              Descargar
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="fleet-unit-sec__docs-hint">Sin archivos registrados.</p>
+    }
+  } @else {
+    <div class="fleet-unit-sec__edit-form">
+      <app-operator-operation-fields
+        layout="edit"
+        [statusOptions]="vm.statusOptions"
+        [employmentContractOptions]="vm.employmentContractOptions"
+        [(status)]="vm.editStatus"
+        [(companyHireDate)]="vm.editCompanyHireDate"
+        [(employmentContractType)]="vm.editEmploymentContractType"
+      />
+      <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
+      <p class="fleet-unit-sec__docs-hint">
+        Contrato, formatos de alta u otros PDF o imágenes.
+      </p>
+      <div class="fleet-unit-upload">
+        <input
+          #edOpDocInput
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="vm.onEditDocumentsSelected($event, 'operation')"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="edOpDocInput.click()"
+        >
+          Elegir archivos
+        </button>
+      </div>
+      @if (vm.editOperationDocuments().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (d of vm.editOperationDocuments(); track d.id) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ d.fileName }}</span>
+              <button
+                type="button"
+                class="fleet-unit-files__rm"
+                (click)="vm.removeEditDocument(d.id)"
+              >
+                Quitar
+              </button>
+            </li>
+          }
+        </ul>
+      }
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          [disabled]="vm.saving()"
+          (click)="vm.cancelSectionEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button
+          type="button"
+          variant="primary"
+          size="sm"
+          [disabled]="vm.saving()"
+          (click)="vm.saveOperation()"
+        >
+          <to-icon name="save" [size]="14" />
+          {{ vm.saving() ? "Guardando…" : "Guardar" }}
+        </to-button>
+      </div>
+    </div>
+  }
+</section>
+
+@if (vm.editingSection() !== "operation") {
+  @if (!vm.operationSummary().hasTrips) {
+    <p class="operators-op-empty">
+      Este operador aún no tiene maniobras asignadas en el sistema.
+    </p>
+  } @else {
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="operators-dv-maneuvers"
+    >
+      <h3 id="operators-dv-maneuvers" class="fleet-unit-sec__title">
+        Maniobras por estado
+      </h3>
+      <dl class="fleet-unit-detail__dl operators-op-status-grid">
+        <div class="fleet-unit-detail__row">
+          <dt>Completadas</dt>
+          <dd>{{ vm.operationSummary().statusCounts.completed }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>En curso</dt>
+          <dd>{{ vm.operationSummary().statusCounts.inTransit }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Programadas</dt>
+          <dd>{{ vm.operationSummary().statusCounts.scheduled }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Canceladas</dt>
+          <dd>{{ vm.operationSummary().statusCounts.cancelled }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row operators-op-status-grid__total">
+          <dt>Total</dt>
+          <dd>{{ vm.operationSummary().statusCounts.total }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Km en completadas</dt>
+          <dd>
+            {{
+              vm.operationSummary().completedKm === 0
+                ? "—"
+                : vm.operationSummary().completedKm.toLocaleString("es-MX") +
+                  " km"
+            }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    @if (vm.operationSummary().activeAssignment; as active) {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="operators-dv-active"
+      >
+        <h3 id="operators-dv-active" class="fleet-unit-sec__title">
+          En servicio ahora
+        </h3>
+        <dl class="fleet-unit-detail__dl">
+          <div class="fleet-unit-detail__row">
+            <dt>Estado</dt>
+            <dd>{{ active.statusLabel }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Maniobra</dt>
+            <dd>{{ active.maneuverCode }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Ruta</dt>
+            <dd>{{ active.routeLabel }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Cliente</dt>
+            <dd>{{ active.clientName }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Unidad</dt>
+            <dd>{{ active.unitLabel }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Equipo</dt>
+            <dd>{{ active.equipmentLabel }}</dd>
+          </div>
+        </dl>
+      </section>
+    }
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="operators-dv-insights"
+    >
+      <h3 id="operators-dv-insights" class="fleet-unit-sec__title">
+        Resumen operativo
+      </h3>
+      <dl class="fleet-unit-detail__dl">
+        <div class="fleet-unit-detail__row">
+          <dt>Ruta más frecuente</dt>
+          <dd>
+            @if (vm.operationSummary().topRouteCount > 0) {
+              {{ vm.operationSummary().topRouteLabel }}
+              <span class="operators-op-muted">
+                ({{ vm.operationSummary().topRouteCount }}
+                {{
+                  vm.operationSummary().topRouteCount === 1
+                    ? "maniobra"
+                    : "maniobras"
+                }})
+              </span>
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Clientes atendidos</dt>
+          <dd>{{ vm.operationSummary().distinctClients }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="operators-dv-pay"
+    >
+      <h3 id="operators-dv-pay" class="fleet-unit-sec__title">
+        Pagos al operador
+      </h3>
+      @if (vm.operationSummary().owedTripCount === 0) {
+        <p class="operators-op-empty">
+          Sin cuotas pendientes de pago en maniobras completadas.
+        </p>
+      } @else {
+        <dl class="fleet-unit-detail__dl">
+          <div class="fleet-unit-detail__row">
+            <dt>Maniobras por pagar</dt>
+            <dd>{{ vm.operationSummary().owedTripCount }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Saldo pendiente</dt>
+            <dd>
+              <div class="operators-op-pay-summary">
+                <span class="operators-op-pay-summary__amount">{{
+                  vm.operationMoney(vm.operationSummary().owedAmount)
+                }}</span>
+                <to-badge
+                  [variant]="
+                    vm.payDueBadgeVariant(
+                      vm.operationSummary().nextPayDueBadgeVariant
+                    )
+                  "
+                  >Próximo pago:
+                  {{ vm.operationSummary().nextPayDueLabel }}</to-badge
+                >
+              </div>
+            </dd>
+          </div>
+        </dl>
+        @if (vm.operationSummary().upcomingPayments.length > 0) {
+          <div class="operators-op-pay-scroll">
+            <table
+              class="operators-op-pay-table"
+              aria-label="Próximos pagos al operador"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Maniobra</th>
+                  <th scope="col">Vence</th>
+                  <th scope="col">Monto</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (
+                  row of vm.operationSummary().upcomingPayments;
+                  track row.tripId
+                ) {
+                  <tr>
+                    <td class="fleet-unit-detail__mono">
+                      {{ row.maneuverCode }}
+                    </td>
+                    <td>{{ row.dueLabel }}</td>
+                    <td class="operators-op-pay-table__amount">
+                      {{ vm.operationMoney(row.amount) }}
+                    </td>
+                    <td>
+                      <to-badge
+                        [variant]="vm.payDueBadgeVariant(row.badgeVariant)"
+                        >{{ row.statusHint }}</to-badge
+                      >
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    </section>
+  }
+}

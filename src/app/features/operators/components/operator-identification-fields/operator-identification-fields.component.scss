@@ -11,6 +11,160 @@ to-select {
   width: 100%;
 }
 
+.operator-ident-photo {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(
+    in srgb,
+    var(--to-color-surface-muted) 55%,
+    var(--to-color-surface)
+  );
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+}
+
+.operator-ident-photo__avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.operator-ident-photo__avatar {
+  display: block;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface-muted);
+}
+
+.operator-ident-photo__avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--to-color-primary);
+}
+
+.operator-ident-photo__edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--to-color-surface);
+  background: var(--to-color-primary);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover:not(.operator-ident-photo__edit--busy):not(
+      .operator-ident-photo__edit--disabled
+    ) {
+    filter: brightness(1.05);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--to-focus-ring, var(--to-color-primary));
+    outline-offset: 2px;
+  }
+
+  &--busy {
+    opacity: 0.85;
+    cursor: wait;
+  }
+
+  &--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.operator-ident-photo__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.operator-ident-photo__spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid color-mix(in srgb, #fff 35%, transparent);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: operator-ident-photo-spin 0.65s linear infinite;
+}
+
+@keyframes operator-ident-photo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.operator-ident-photo__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.operator-ident-photo__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding-top: 0.15rem;
+}
+
+.operator-ident-photo__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.operator-ident-photo__remove {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--to-color-text);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .operator-identification-fields__row {
   display: grid;
   min-width: 0;

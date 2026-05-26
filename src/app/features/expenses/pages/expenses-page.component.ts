@@ -4,20 +4,20 @@ import {
   computed,
   inject,
   model,
+  resource,
   signal,
 } from '@angular/core';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { ExpensesDetailDrawerComponent } from '@features/expenses/components/expenses-detail-drawer/expenses-detail-drawer.component';
 import { ExpensesNewDrawerComponent } from '@features/expenses/components/expenses-new-drawer/expenses-new-drawer.component';
-import { ExpenseRepository } from '@features/expenses/data/expense.repository';
+import { ExpensesService } from '@services/api/expenses';
 import {
   expenseFleetRelationCode,
   expenseKindLabel,
   expenseManeuverCode,
   expensePaymentMethodLabel,
 } from '@features/expenses/utils/expense-row-labels';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
-import { Expense, Trip } from '@shared/models/logistics.models';
+import { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -47,17 +47,32 @@ import {
   styleUrl: './expenses-page.component.scss',
 })
 export class ExpensesPageComponent {
-  private readonly repo = inject(ExpenseRepository);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly expensesApi = inject(ExpensesService);
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly dateShort = inject(DateShortPipe);
 
-  readonly loading = signal(true);
-  readonly expenses = signal<Expense[]>([]);
-  readonly rows = signal<Record<string, unknown>[]>([]);
+  private readonly listResource = resource({
+    loader: async (): Promise<Expense[]> =>
+      firstValueFrom(
+        this.expensesApi.getExpensesList().pipe(catchError(() => of([] as Expense[]))),
+      ),
+  });
+
+  readonly loading = computed(
+    () => !this.listResource.hasValue() && this.listResource.isLoading(),
+  );
+  readonly expenses = computed(() => this.listResource.value() ?? []);
+  readonly rows = computed(() => {
+    const list = this.listResource.value();
+    if (!list) {
+      return [] as Record<string, unknown>[];
+    }
+    return list.map((e) => this.mapExpenseRow(e));
+  });
   readonly searchQuery = model('');
-  /** `trip.id` → código de maniobra para columna Maniobra. */
-  readonly tripManeuverByTripId = signal<Map<string, string>>(new Map());
+  readonly tripManeuverByTripId = computed(
+    () => new Map<string, string>() as ReadonlyMap<string, string>,
+  );
   readonly newExpenseOpen = signal(false);
   readonly detailExpense = signal<Expense | null>(null);
 
@@ -78,31 +93,8 @@ export class ExpensesPageComponent {
     return all.filter((row) => ExpensesPageComponent.rowMatchesQuery(row, q));
   });
 
-  constructor() {
-    this.reloadExpenses();
-  }
-
   reloadExpenses(): void {
-    this.loading.set(true);
-    forkJoin({
-      expenses: this.repo.list().pipe(catchError(() => of([] as Expense[]))),
-      trips: this.maniobrasRepo
-        .list()
-        .pipe(catchError(() => of([] as Trip[]))),
-    }).subscribe({
-      next: ({ expenses, trips }) => {
-        const maneuverMap = new Map(
-          trips.map((t) => [t.id, (t.maneuverCode ?? t.id).trim()]),
-        );
-        this.tripManeuverByTripId.set(maneuverMap);
-        this.expenses.set(expenses);
-        this.rows.set(
-          expenses.map((e) => this.mapExpenseRow(e, maneuverMap)),
-        );
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    void this.listResource.reload();
   }
 
   onExpenseSaved(): void {
@@ -143,11 +135,8 @@ export class ExpensesPageComponent {
     return haystack.includes(q);
   }
 
-  private mapExpenseRow(
-    e: Expense,
-    tripManeuverByTripId: ReadonlyMap<string, string>,
-  ): Record<string, unknown> {
-    const maneuver = expenseManeuverCode(e, tripManeuverByTripId);
+  private mapExpenseRow(e: Expense): Record<string, unknown> {
+    const maneuver = expenseManeuverCode(e);
     const fleetRelation = expenseFleetRelationCode(e);
     const searchBlob = [
       e.description,

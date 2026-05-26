@@ -1,0 +1,59 @@
+@use './trip-maneuver-status-pill.scss';
+
+/* Flota / unidad: estado operativo (en ruta vs catálogo) — también fuera de `to-table`. */
+.to-table-pill--fleet-maneuver {
+  color: #1e40af;
+  background: color-mix(in srgb, #3b82f6 14%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--fleet-available {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--fleet-in-use {
+  color: #9a3412;
+  background: color-mix(in srgb, #fb923c 18%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--fleet-maintenance {
+  color: #334155;
+  background: color-mix(in srgb, #64748b 12%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--fleet-scheduled {
+  color: #a16207;
+  background: color-mix(in srgb, #eab308 22%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--fleet-unknown {
+  color: var(--to-color-text-muted);
+  background: color-mix(in srgb, var(--to-color-text-muted) 10%, var(--to-color-surface));
+}
+
+:host-context([data-app-scheme='dark']) {
+  .to-table-pill--fleet-maneuver {
+    color: #93c5fd;
+    background: color-mix(in srgb, #3b82f6 22%, var(--to-color-surface));
+  }
+
+  .to-table-pill--fleet-available {
+    color: #86efac;
+    background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--fleet-in-use {
+    color: #fdba74;
+    background: color-mix(in srgb, #fb923c 20%, var(--to-color-surface));
+  }
+
+  .to-table-pill--fleet-maintenance {
+    color: #cbd5e1;
+    background: color-mix(in srgb, #64748b 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--fleet-scheduled {
+    color: #fde047;
+    background: color-mix(in srgb, #eab308 18%, var(--to-color-surface));
+  }
+}

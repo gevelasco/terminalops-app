@@ -1,0 +1,87 @@
+:host {
+  display: block;
+  min-width: 0;
+  height: 100%;
+}
+
+::ng-deep .to-card {
+  height: 100%;
+}
+
+::ng-deep .to-card__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.7rem 0.6rem;
+}
+
+::ng-deep .to-card__eyebrow {
+  margin: 0 0 0.4rem;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+::ng-deep .to-card__eyebrow-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+::ng-deep .to-card__eyebrow-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+::ng-deep .to-card__default {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.to-kpi-card__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.to-kpi-card__value {
+  font-size: clamp(1.2rem, 1.45vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  color: var(--to-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.to-kpi-card__legend {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.to-kpi-card__delta {
+  margin-top: auto;
+  padding-top: 0.15rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--to-color-text-muted);
+
+  &--up {
+    color: color-mix(in srgb, #16a34a 90%, var(--to-color-text));
+  }
+
+  &--down {
+    color: color-mix(in srgb, var(--to-color-danger) 90%, var(--to-color-text));
+  }
+}

@@ -1,5 +1,65 @@
 @let isNew = layout() === "new";
 
+<div class="operator-ident-photo" aria-label="Foto del operador">
+  <div class="operator-ident-photo__avatar-wrap">
+    @if (hasPhoto()) {
+      <img
+        class="operator-ident-photo__avatar"
+        [src]="photoDataUrl()"
+        alt=""
+        width="80"
+        height="80"
+      />
+    } @else {
+      <span
+        class="operator-ident-photo__avatar operator-ident-photo__avatar--initials"
+        aria-hidden="true"
+        >{{ photoInitials() }}</span
+      >
+    }
+    <label
+      class="operator-ident-photo__edit"
+      [class.operator-ident-photo__edit--busy]="photoSaving()"
+      [class.operator-ident-photo__edit--disabled]="photoDisabled()"
+      [attr.aria-busy]="photoSaving()"
+    >
+      <span class="operator-ident-photo__sr-only">Cargar o cambiar foto</span>
+      <input
+        type="file"
+        accept="image/*"
+        class="operator-ident-photo__file-input"
+        [disabled]="photoSaving() || photoDisabled()"
+        (change)="onPhotoSelected($event)"
+      />
+      @if (photoSaving()) {
+        <span class="operator-ident-photo__spinner" aria-hidden="true"></span>
+      } @else {
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
+          />
+        </svg>
+      }
+    </label>
+  </div>
+  <div class="operator-ident-photo__meta">
+    <p class="operator-ident-photo__hint">
+      Foto para reconocer al operador en coordinación y monitoreo.
+    </p>
+    @if (hasPhoto()) {
+      <button
+        type="button"
+        class="operator-ident-photo__remove"
+        [disabled]="photoSaving() || photoDisabled()"
+        (click)="removePhoto()"
+      >
+        Quitar foto
+      </button>
+    }
+  </div>
+</div>
+
 <div
   class="operator-identification-fields__row"
   [class.operator-identification-fields__row--new]="isNew"

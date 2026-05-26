@@ -14,15 +14,17 @@ export type ReportsPeriodPreset =
   | 'semester'
   | 'year';
 
-/** Filtro por forma de cobro pactada al cliente en la maniobra (`Trip.paymentMethod`). */
-export type ReportsClientPaymentMethodFilter = 'both' | 'cash' | 'transfer';
+import type { TripClientPaymentMethod } from '@shared/models/logistics.models';
+
+/** Forma de cobro pactada al cliente en la maniobra (`Trip.paymentMethod`). */
+export type ReportsTripPaymentMethod = TripClientPaymentMethod;
 
 export interface ReportsFilter {
   preset: ReportsPeriodPreset;
   from: string;
   to: string;
-  /** Incluye efectivo, transferencia y cheque; al filtrar por efectivo o transferencia solo coinciden esos valores explícitos. */
-  clientPaymentMethod: ReportsClientPaymentMethodFilter;
+  /** Vacío = combinado (efectivo y transferencia). */
+  clientPaymentMethods: ReportsTripPaymentMethod[];
   clientIds: string[];
   unitId: string;
 }
@@ -36,6 +38,8 @@ export interface ReportsKpiCard {
   title: string;
   titleIcon?: KpiTitleIcon;
   value: string;
+  /** Monto numérico (MXN) para gráficas; ausente en KPIs no monetarios. */
+  amount?: number;
   legend?: string;
   /** `beside`: leyenda a la derecha del monto (p. ej. Crédito). */
   legendPlacement?: ReportsKpiLegendPlacement;
@@ -51,7 +55,13 @@ export interface ReportsBarSlice {
   fillClass: string;
 }
 
-export interface ReportsWeeklyPoint {
+export type ReportsWeeklyPoint = {
+  label: string;
+  value: number;
+};
+
+export interface ReportsPeriodBalanceBar {
+  key: string;
   label: string;
   value: number;
 }
@@ -100,17 +110,9 @@ export interface ReportsExpenseKindRow {
   pct: number;
 }
 
-export interface ReportsMaintenanceRow {
-  date: string;
-  target: string;
-  unitOrEquipment: string;
-  amount: number;
-  description: string;
-}
-
 export interface ReportsGeneralTabView {
   kpis: ReportsKpiCard[];
-  weeklyBalance: ReportsWeeklyPoint[];
+  periodBalance: ReportsPeriodBalanceBar[];
   expenseByKind: ReportsBarSlice[];
   topClients: ReportsClientRow[];
   topClientsMarginDonut: ReportsDonutSlice[];
@@ -154,8 +156,43 @@ export interface ReportsCreditByClientRow {
   nextDueBadgeVariant: ReportsCreditDueBadgeVariant;
 }
 
+export interface ReportsOperationalProvisionView {
+  kpis: ReportsKpiCard[];
+  breakdown: ReportsBarSlice[];
+  accumulatedBreakdown: ReportsBarSlice[];
+  detailHint: string;
+  period: {
+    totalProvision: number;
+    totalExercised: number;
+    balance: number;
+    maneuverCount: number;
+  };
+  accumulated: {
+    totalProvision: number;
+    totalExercised: number;
+    balance: number;
+  };
+}
+
+export interface ReportsExpensePayablesView {
+  kpis: ReportsKpiCard[];
+  breakdownByKind: ReportsBarSlice[];
+  byVendor: ReportsBarSlice[];
+  detailHint: string;
+  period: {
+    total: number;
+    count: number;
+  };
+  accumulated: {
+    total: number;
+    count: number;
+  };
+}
+
 export interface ReportsBalanceTabView {
   kpis: ReportsKpiCard[];
+  operationalProvision: ReportsOperationalProvisionView;
+  expensePayables: ReportsExpensePayablesView;
   collectionPaymentDonut: ReportsDonutSlice[];
   costBreakdown: ReportsBarSlice[];
   expenseByCategoryDonut: ReportsDonutSlice[];
@@ -242,13 +279,6 @@ export interface ReportsFleetTabView {
   avgManeuversPerUnit: number;
   unitsWithManeuversInPeriod: number;
   maneuversPerUnit: ReportsBarSlice[];
-}
-
-export interface ReportsMaintenanceTabView {
-  kpis: ReportsKpiCard[];
-  spendByMonth: ReportsWeeklyPoint[];
-  byTarget: ReportsBarSlice[];
-  table: ReportsMaintenanceRow[];
 }
 
 export interface ReportsRouteClientProfitRow {

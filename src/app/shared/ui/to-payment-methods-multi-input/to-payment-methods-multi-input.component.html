@@ -1,0 +1,83 @@
+<div
+  class="to-payment-methods-multi__wrap"
+  [class.to-payment-methods-multi__wrap--open]="open()"
+>
+  <div
+    class="to-payment-methods-multi__chips"
+    role="list"
+    aria-label="Formas de cobro seleccionadas"
+  >
+    @for (opt of selectedOptions(); track opt.value) {
+      <span class="to-payment-methods-multi__chip" role="listitem">
+        <span class="to-payment-methods-multi__chip-label">{{ opt.label }}</span>
+        <button
+          type="button"
+          class="to-payment-methods-multi__chip-remove"
+          [attr.aria-label]="'Quitar ' + opt.label"
+          [disabled]="disabled()"
+          (click)="removeMethod(opt.value, $event)"
+        >
+          ×
+        </button>
+      </span>
+    }
+    @if (selectedOptions().length === 0) {
+      <span class="to-payment-methods-multi__placeholder">{{ placeholder() }}</span>
+    }
+  </div>
+
+  <button
+    type="button"
+    class="to-payment-methods-multi__toggle"
+    [attr.aria-label]="open() ? 'Cerrar formas de cobro' : 'Abrir formas de cobro'"
+    [attr.aria-expanded]="open()"
+    [disabled]="disabled()"
+    (click)="toggleOpen($event)"
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
+    </svg>
+  </button>
+
+  @if (selectedOptions().length > 0 && !disabled()) {
+    <button
+      type="button"
+      class="to-payment-methods-multi__clear"
+      aria-label="Quitar todas las formas de cobro"
+      (click)="clearAll($event)"
+    >
+      ×
+    </button>
+  }
+
+  @if (open()) {
+    <ul
+      [id]="listId"
+      class="to-payment-methods-multi__list"
+      role="listbox"
+      aria-multiselectable="true"
+    >
+      @for (opt of options; track opt.value) {
+        <li
+          class="to-payment-methods-multi__item"
+          role="option"
+          [attr.aria-selected]="isSelected(opt.value)"
+          [class.to-payment-methods-multi__item--selected]="isSelected(opt.value)"
+          (pointerdown)="onTogglePointerDown(opt.value, $event)"
+        >
+          <span class="to-payment-methods-multi__check" aria-hidden="true">
+            @if (isSelected(opt.value)) {
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                />
+              </svg>
+            }
+          </span>
+          <span class="to-payment-methods-multi__item-label">{{ opt.label }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>

@@ -1,0 +1,200 @@
+      @if (!vm.balanceSummary().hasTrips) {
+        <p class="clients-contact-empty">
+          Este cliente aún no tiene maniobras registradas en el sistema.
+        </p>
+      } @else {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-maneuvers"
+      >
+        <h3 id="cli-dv-maneuvers" class="fleet-unit-sec__title">
+          Maniobras por estado
+        </h3>
+        <dl class="fleet-unit-detail__dl clients-balance-status-grid">
+          <div class="fleet-unit-detail__row">
+            <dt>Completadas</dt>
+            <dd>{{ vm.balanceSummary().statusCounts.completed }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>En curso</dt>
+            <dd>{{ vm.balanceSummary().statusCounts.inTransit }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Programadas</dt>
+            <dd>{{ vm.balanceSummary().statusCounts.scheduled }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Canceladas</dt>
+            <dd>{{ vm.balanceSummary().statusCounts.cancelled }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row clients-balance-status-grid__total">
+            <dt>Total</dt>
+            <dd>{{ vm.balanceSummary().statusCounts.total }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Km en completadas</dt>
+            <dd>
+              {{
+                vm.balanceSummary().totalKm === 0
+                  ? "—"
+                  : vm.balanceSummary().totalKm.toLocaleString("es-MX") + " km"
+              }}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-cartera"
+      >
+        <h3 id="cli-dv-cartera" class="fleet-unit-sec__title">Cartera</h3>
+        @if (!vm.balanceSummary().hasBillable) {
+          <p class="clients-contact-empty">
+            Sin cobros pactados con este cliente en maniobras facturables.
+          </p>
+        } @else {
+          <dl class="fleet-unit-detail__dl">
+            <div class="fleet-unit-detail__row clients-balance-highlight">
+              <dt>Saldo por cobrar</dt>
+              <dd>
+                <span class="clients-balance-highlight__amount">{{
+                  vm.balanceMoney(vm.balanceSummary().receivable)
+                }}</span>
+                @if (vm.balanceSummary().receivable > 0) {
+                  <to-badge
+                    [variant]="
+                      vm.paymentDueBadgeVariant(vm.balanceSummary().nextDueBadgeVariant)
+                    "
+                    >Próximo: {{ vm.balanceSummary().nextDueLabel }}</to-badge
+                  >
+                }
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ingresos cobrados</dt>
+              <dd>{{ vm.balanceMoney(vm.balanceSummary().collected) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ingresos pactados (total)</dt>
+              <dd>{{ vm.balanceMoney(vm.balanceSummary().totalRevenue) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Costos operativos directos</dt>
+              <dd>{{ vm.balanceMoney(vm.balanceSummary().directCost) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Margen estimado</dt>
+              <dd>{{ vm.balanceMarginLabel() }}</dd>
+            </div>
+          </dl>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-upcoming"
+      >
+        <h3 id="cli-dv-upcoming" class="fleet-unit-sec__title">
+          Próximos cobros
+        </h3>
+        @if (vm.balanceSummary().upcomingPayments.length === 0) {
+          <p class="clients-contact-empty">
+            No hay saldos pendientes de cobro para este cliente.
+          </p>
+        } @else {
+          <div class="clients-contact-scroll">
+            <table class="clients-contact-table" aria-label="Próximos cobros">
+              <thead>
+                <tr>
+                  <th scope="col">Fecha límite</th>
+                  <th scope="col">Maniobra</th>
+                  <th scope="col">Monto</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of vm.balanceSummary().upcomingPayments; track row.tripId) {
+                  <tr>
+                    <td>{{ row.dueLabel }}</td>
+                    <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
+                    <td>{{ vm.balanceMoney(row.amount) }}</td>
+                    <td>
+                      <to-badge [variant]="vm.paymentDueBadgeVariant(row.badgeVariant)">{{
+                        row.statusHint
+                      }}</to-badge>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-payments"
+      >
+        <h3 id="cli-dv-payments" class="fleet-unit-sec__title">
+          Cobros registrados
+        </h3>
+        @if (vm.balanceSummary().paymentHistory.length === 0) {
+          <p class="clients-contact-empty">
+            Aún no hay cobros confirmados en maniobras de este cliente.
+          </p>
+        } @else {
+          <div class="clients-contact-scroll">
+            <table class="clients-contact-table" aria-label="Historial de cobros">
+              <thead>
+                <tr>
+                  <th scope="col">Fecha de cobro</th>
+                  <th scope="col">Maniobra</th>
+                  <th scope="col">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of vm.balanceSummary().paymentHistory; track row.tripId) {
+                  <tr>
+                    <td>{{ row.collectedLabel }}</td>
+                    <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
+                    <td>{{ vm.balanceMoney(row.amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-volume"
+      >
+        <h3 id="cli-dv-volume" class="fleet-unit-sec__title">
+          Volumen y rentabilidad (aprox.)
+        </h3>
+        <dl class="fleet-unit-detail__dl">
+          <div class="fleet-unit-detail__row">
+            <dt>Total de maniobras</dt>
+            <dd>{{ vm.volumeTotalManeuversLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Maniobras al mes (aprox.)</dt>
+            <dd>{{ vm.volumeManeuversPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Facturación al mes (aprox.)</dt>
+            <dd>{{ vm.volumeBilledPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Costos operativos al mes (aprox.)</dt>
+            <dd>{{ vm.volumeOperationalPerMonthLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Ganancia neta al mes (aprox.)</dt>
+            <dd>{{ vm.volumeProfitPerMonthLabel() }}</dd>
+          </div>
+        </dl>
+      </section>
+      }

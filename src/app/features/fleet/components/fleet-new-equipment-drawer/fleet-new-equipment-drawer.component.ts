@@ -1,4 +1,3 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -14,26 +13,24 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EQUIPMENT_CONTAINER_SLOT_OPTIONS } from '@app/mock-data/equipment-container-slot-options';
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import { EQUIPMENT_CONTAINER_SLOT_OPTIONS, EQUIPMENT_OPERATION_TYPE_OPTIONS, TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import {
   equipmentAssignedToUnit,
   newEquipmentHitchHint,
 } from '@app/features/fleet/utils/unit-hitched-equipment';
 import { Equipment } from '@shared/models/logistics.models';
-import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
 import { ToastService } from '@core/notifications/toast.service';
-import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
+import { EquipmentService } from '@services/api/equipment';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   EquipmentFleetMeta,
   MaintenanceEntry,
   TrailerTenureMode,
 } from '@shared/models/logistics.models';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import {
   ToSelectComponent,
   type ToSelectOption,
@@ -117,14 +114,14 @@ function parseOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
   selector: 'app-fleet-new-equipment-drawer',
   standalone: true,
   imports: [
+    ToSideDrawerComponent,
     FormsModule,
-    NgTemplateOutlet,
+    
     ToButtonComponent,
-    ToIconButtonComponent,
+    ToIconComponent,
     ToInputComponent,
     ToSelectComponent,
     ToTextareaComponent,
-    ToDrawerSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-new-equipment-drawer.component.html',
@@ -133,9 +130,8 @@ function parseOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
 export class FleetNewEquipmentDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly equipmentRepo = inject(EquipmentRepository);
+  private readonly equipmentApi = inject(EquipmentService);
   private readonly toast = inject(ToastService);
 
   readonly unitOptions = input.required<ToSelectOption[]>();
@@ -249,10 +245,6 @@ export class FleetNewEquipmentDrawerComponent {
   });
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 
@@ -462,8 +454,8 @@ export class FleetNewEquipmentDrawerComponent {
     const lastSvc = this.lastMaintenanceDate().trim() || new Date().toISOString().slice(0, 10);
 
     this.saving.set(true);
-    this.equipmentRepo
-      .create({
+    this.equipmentApi
+      .postEquipment({
         unitId: uid || undefined,
         name: this.name().trim() || serial,
         serialNumber: serial,

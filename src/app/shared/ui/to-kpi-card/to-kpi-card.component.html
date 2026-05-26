@@ -1,0 +1,17 @@
+<to-card [title]="title()" [titleIcon]="titleIcon()">
+  <div class="to-kpi-card__metric">
+    <span class="to-kpi-card__value">{{ value() }}</span>
+    @if (legend()) {
+      <span class="to-kpi-card__legend">{{ legend() }}</span>
+    }
+    @if (deltaLabel()) {
+      <span
+        class="to-kpi-card__delta"
+        [class.to-kpi-card__delta--up]="deltaTone() === 'up'"
+        [class.to-kpi-card__delta--down]="deltaTone() === 'down'"
+      >
+        {{ deltaLabel() }}
+      </span>
+    }
+  </div>
+</to-card>

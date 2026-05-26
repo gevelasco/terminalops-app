@@ -1,0 +1,57 @@
+@use './to-side-drawer-shell' as shell;
+
+:host {
+  display: contents;
+}
+
+.to-side-drawer {
+  @include shell.root;
+}
+
+.to-side-drawer__backdrop {
+  @include shell.backdrop;
+}
+
+.to-side-drawer__panel {
+  @include shell.panel;
+
+  &--wide {
+    @include shell.panel-wide;
+  }
+}
+
+.to-side-drawer__header {
+  @include shell.header;
+}
+
+.to-side-drawer__header-main {
+  @include shell.header-main;
+}
+
+.to-side-drawer__title {
+  @include shell.title;
+}
+
+.to-side-drawer__title-icon {
+  @include shell.title-icon;
+}
+
+.to-side-drawer__form {
+  @include shell.form;
+}
+
+.to-side-drawer__body {
+  @include shell.body;
+  position: relative;
+}
+
+.to-side-drawer__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--to-color-surface);
+}
+
+.to-side-drawer__footer {
+  @include shell.footer;
+}

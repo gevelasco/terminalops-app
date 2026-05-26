@@ -21,8 +21,13 @@ export function expensePaymentMethodLabel(code: string | undefined): string {
   if (!code?.trim()) {
     return '—';
   }
+  const normalized = code.trim();
+  if (normalized === 'card') {
+    return 'Tarjeta (legado)';
+  }
   return (
-    EXPENSE_PAYMENT_METHOD_OPTIONS.find((o) => o.value === code)?.label ?? code
+    EXPENSE_PAYMENT_METHOD_OPTIONS.find((o) => o.value === normalized)?.label ??
+    normalized
   );
 }
 
@@ -63,6 +68,8 @@ export function expenseFleetRelationCode(e: Expense): string {
         return e.relatedEquipmentId?.trim() || '—';
       }
       return '—';
+    case 'tires':
+      return e.relatedUnitId?.trim() || '—';
     case 'insurance':
       if (e.insuranceTarget === 'unit') {
         return e.relatedUnitId?.trim() || '—';
@@ -89,18 +96,6 @@ export function expenseFleetRelationCode(e: Expense): string {
   }
 }
 
-/** @deprecated Use `expenseManeuverCode` / `expenseFleetRelationCode`. */
-export function expenseRelationCode(
-  e: Expense,
-  tripManeuverByTripId?: ReadonlyMap<string, string>,
-): string {
-  const maneuver = expenseManeuverCode(e, tripManeuverByTripId);
-  if (maneuver !== '—') {
-    return maneuver;
-  }
-  return expenseFleetRelationCode(e);
-}
-
 /** Texto legible para detalle de flota (verificación incluye tipo). */
 export function expenseFleetRelationDetail(e: Expense): string {
   const code = expenseFleetRelationCode(e);
@@ -109,16 +104,4 @@ export function expenseFleetRelationDetail(e: Expense): string {
     return code !== '—' && v ? `${code} · ${v}` : code;
   }
   return code;
-}
-
-/** @deprecated Use `expenseFleetRelationDetail`. */
-export function expenseRelationDetail(
-  e: Expense,
-  tripManeuverByTripId?: ReadonlyMap<string, string>,
-): string {
-  const maneuver = expenseManeuverCode(e, tripManeuverByTripId);
-  if (maneuver !== '—') {
-    return maneuver;
-  }
-  return expenseFleetRelationDetail(e);
 }

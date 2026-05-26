@@ -1,5 +1,13 @@
 export type TripStatus = 'scheduled' | 'in_transit' | 'completed' | 'cancelled';
 
+/** Forma de cobro pactada al cliente en la maniobra. */
+export type TripClientPaymentMethod =
+  | 'cash'
+  | 'transfer'
+  | 'check'
+  | 'debit_card'
+  | 'credit_card';
+
 /** Full suele llevar hasta 2 equipos; sencillo/plana típicamente uno. */
 export type TripOperationType = 'sencillo' | 'full' | 'plana';
 
@@ -47,10 +55,14 @@ export interface Trip {
   operationType: TripOperationType;
   loadType: TripLoadType;
   containerType: TripContainerType;
+  /** Qué transporta el contenedor (mercancía, producto, referencia del cliente). */
+  cargoDescription?: string;
   /** Peso aproximado en toneladas (texto libre, ej. decimales). */
   approximateWeightTons: string;
   /** Nombres o códigos de equipo visibles en tabla (1 o hasta 2 si es full). */
   equipment: string[];
+  /** Ids de catálogo de equipos en convoy (principal; secundario en full). */
+  equipmentIds?: string[];
   /** Salida real (null si aún no aplica). */
   departureAt: string | null;
   /** Llegada a destino. */
@@ -89,7 +101,7 @@ export interface Trip {
   casetasAmount?: string;
   operatorQuota?: string;
   clientCharge?: string;
-  paymentMethod?: 'cash' | 'transfer' | 'check';
+  paymentMethod?: TripClientPaymentMethod;
   requiresInvoice?: boolean;
   /** Nombres de archivos adjuntos al programar. */
   attachedDocumentFileNames?: string[];
@@ -198,6 +210,8 @@ export interface Operator {
    * cuando el operador reporta incidentes en carretera.
    */
   portalUsername?: string;
+  /** Foto del operador (`data:image/...` en mock; URL de storage en API). */
+  photoDataUrl?: string;
   /** Nacimiento (ISO `YYYY-MM-DD`). */
   birthDate: string;
   curp: string;
@@ -476,6 +490,7 @@ export type ExpenseKind =
   | 'per_diem'
   | 'lodging'
   | 'repair'
+  | 'tires'
   | 'maintenance'
   | 'insurance'
   | 'gps'
@@ -534,6 +549,8 @@ export interface Expense {
   relatedOperatorId?: string;
   /** Solo si `kind === 'verification'`. */
   verificationScope?: ExpenseVerificationScope;
+  /** Si es reserva estimada por maniobra (provisión operativa), no un pago real. */
+  isOperationalProvision?: boolean;
   /** Si el gasto debe contar con factura fiscal. */
   invoiceRequired?: boolean;
 }
@@ -599,11 +616,4 @@ export interface CriticalAlert {
   routeLabel: string;
   authorLabel: string;
   detectedAt: string;
-}
-
-export interface ReportSummaryRow {
-  id: string;
-  metric: string;
-  period: string;
-  value: string;
 }

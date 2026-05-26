@@ -1,11 +1,15 @@
-import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS, TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import type { CompanyMaintenancePolicy } from '@shared/models/company-operational-settings.models';
 import {
   Equipment,
   EquipmentFleetMeta,
   Unit,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
+import {
+  effectiveFleetMetaForMaintenance,
+  resolveMaintenanceContext,
+} from '@shared/utils/fleet/company-maintenance-policy';
 import { unitConvoyOperationTypeForTable } from '@app/features/fleet/utils/unit-hitched-equipment';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 
@@ -46,6 +50,24 @@ export function fleetOperationalKeyLabel(key: FleetOperationalKey): string {
       return 'Programado';
     default:
       return '—';
+  }
+}
+
+export function fleetOperationalPillClass(key: FleetOperationalKey): string {
+  const base = 'to-table-pill';
+  switch (key) {
+    case 'on_route':
+      return `${base} to-table-pill--fleet-maneuver`;
+    case 'available':
+      return `${base} to-table-pill--fleet-available`;
+    case 'in_use':
+      return `${base} to-table-pill--fleet-in-use`;
+    case 'maintenance':
+      return `${base} to-table-pill--fleet-maintenance`;
+    case 'scheduled':
+      return `${base} to-table-pill--fleet-scheduled`;
+    default:
+      return `${base} to-table-pill--fleet-unknown`;
   }
 }
 
@@ -315,16 +337,24 @@ function maintenanceKmRemainingFromMeta(
 export function fleetMaintenanceKmRemaining(
   meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
   completedTripKm?: number | null,
+  policy?: CompanyMaintenancePolicy,
 ): number | null {
-  return maintenanceKmRemainingFromMeta(meta, completedTripKm);
+  const effective = policy
+    ? effectiveFleetMetaForMaintenance(meta, policy)
+    : meta;
+  return maintenanceKmRemainingFromMeta(effective, completedTripKm);
 }
 
 function maintenanceBucket(
   meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
   completedTripKm?: number | null,
+  policy?: CompanyMaintenancePolicy,
 ): FleetRenewalBucket {
-  if (meta?.maintenanceAlertByKm === true) {
-    const rem = maintenanceKmRemainingFromMeta(meta, completedTripKm);
+  const effective = policy
+    ? effectiveFleetMetaForMaintenance(meta, policy)
+    : meta;
+  if (effective?.maintenanceAlertByKm === true) {
+    const rem = maintenanceKmRemainingFromMeta(effective, completedTripKm);
     if (rem == null) {
       return 'na';
     }
@@ -340,7 +370,10 @@ function maintenanceBucket(
   if (override) {
     return renewalBucketFromTargetYmd(override);
   }
-  return renewalBucket(meta?.lastMaintenanceDate, 6);
+  const months = policy
+    ? resolveMaintenanceContext(meta, policy).scheduleMonths
+    : MAINT_CYCLE_MO;
+  return renewalBucket(meta?.lastMaintenanceDate, months);
 }
 
 function verificationBucket(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
@@ -406,10 +439,11 @@ function insuranceBucket(meta: FleetInsuranceRenewalMeta | undefined): FleetRene
 }
 
 export function fleetMaintenanceRenewal(
-  meta: UnitFleetMeta | undefined,
+  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
   completedTripKm?: number | null,
+  policy?: CompanyMaintenancePolicy,
 ): FleetRenewalBucket {
-  return maintenanceBucket(meta, completedTripKm);
+  return maintenanceBucket(meta, completedTripKm, policy);
 }
 
 export function fleetVerificationRenewal(meta: UnitFleetMeta | undefined): FleetRenewalBucket {
@@ -520,25 +554,33 @@ function formatYmdFromDate(d: Date): string {
 /** Fecha ISO del próximo mantenimiento por tiempo (override o último + ciclo). */
 export function nextMaintenanceDueIso(
   meta: FleetLastMaintenanceMeta | undefined,
+  policy?: CompanyMaintenancePolicy,
 ): string | null {
   const override = meta?.maintenanceNextDateOverride?.trim();
   if (override && parseYmd(override)) {
     return /^\d{4}-\d{2}-\d{2}$/.test(override) ? override : null;
   }
-  const d = nextCycleDate(meta?.lastMaintenanceDate, MAINT_CYCLE_MO);
+  const months = policy
+    ? resolveMaintenanceContext(meta, policy).scheduleMonths
+    : MAINT_CYCLE_MO;
+  const d = nextCycleDate(meta?.lastMaintenanceDate, months);
   return d ? formatYmdFromDate(d) : null;
 }
 
 /** Fecha próxima (solo etiqueta localizada) para celda de tabla: mantenimiento. */
 export function nextMaintenanceTableDate(
   meta: FleetLastMaintenanceMeta | undefined,
+  policy?: CompanyMaintenancePolicy,
 ): string | null {
   const override = meta?.maintenanceNextDateOverride?.trim();
   if (override) {
     const d = parseYmd(override);
     return d ? fmtMx(d) : null;
   }
-  const d = nextCycleDate(meta?.lastMaintenanceDate, MAINT_CYCLE_MO);
+  const months = policy
+    ? resolveMaintenanceContext(meta, policy).scheduleMonths
+    : MAINT_CYCLE_MO;
+  const d = nextCycleDate(meta?.lastMaintenanceDate, months);
   return d ? fmtMx(d) : null;
 }
 

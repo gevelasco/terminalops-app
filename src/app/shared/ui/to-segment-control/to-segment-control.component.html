@@ -1,0 +1,38 @@
+<div
+  class="to-segment-control"
+  [class.to-segment-control--drawer]="layout() === 'drawer'"
+  [class.to-segment-control--toolbar]="layout() === 'toolbar'"
+  [class.to-segment-control--fill]="layout() === 'fill'"
+  [ngClass]="hostClass()"
+  role="tablist"
+  [attr.aria-label]="ariaLabel()"
+>
+  @for (tab of tabs(); track tab.id) {
+    <button
+      type="button"
+      class="to-segment-control__btn"
+      role="tab"
+      [id]="tab.htmlId ?? null"
+      [attr.aria-selected]="activeId() === tab.id"
+      [class.to-segment-control__btn--active]="activeId() === tab.id"
+      (click)="onSelect(tab.id)"
+    >
+      @if (tab.icon || tab.iconPath) {
+        <span class="to-segment-control__icon" aria-hidden="true">
+          @if (tab.iconPath) {
+            <svg
+              width="18"
+              height="18"
+              [attr.viewBox]="tab.iconViewBox ?? '0 0 24 24'"
+            >
+              <path fill="currentColor" [attr.d]="tab.iconPath" />
+            </svg>
+          } @else if (tab.icon) {
+            <to-icon [name]="tab.icon!" [size]="18" />
+          }
+        </span>
+      }
+      {{ tab.label }}
+    </button>
+  }
+</div>

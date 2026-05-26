@@ -45,6 +45,7 @@ function expenseCategoryForKind(kind: ExpenseKind): ReportsExpenseCategoryId {
       return 'operacion';
     case 'maintenance':
     case 'repair':
+    case 'tires':
       return 'mantenimiento';
     case 'verification':
       return 'verificacion';

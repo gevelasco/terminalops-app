@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,6 +6,7 @@ import {
   effect,
   HostListener,
   inject,
+  input,
   model,
   output,
   signal,
@@ -15,7 +15,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { formatManeuverEquipmentLabel } from '@features/maniobra/utils/assignable-fleet-for-maneuver';
 import { ToastService } from '@core/notifications/toast.service';
-import { CreateTripPayload } from '@features/maniobra/data/maniobra.repository';
+import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/maniobra/utils/datetime-local';
 import {
@@ -31,15 +31,15 @@ import {
   maneuverKindFromRouteKm,
 } from '@features/maniobra/utils/maniobra-route-display';
 import { operatorLicenseExpiresLabelFromIso } from '@features/maniobra/utils/operator-license-display';
+import { ManiobraFormCatalogService } from '@features/maniobra/services/maniobra-form-catalog.service';
 import {
   parseNonNegativeNumber,
   stripGroupedNumberInput,
 } from '@features/maniobra/utils/parse-non-negative';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
 import {
-  Operator,
   Equipment,
+  Operator,
+  Trip,
   TripContainerType,
   TripLoadType,
 } from '@shared/models/logistics.models';
@@ -53,13 +53,12 @@ import {
 } from '@shared/services/mexico-postal-code.service';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import {
   ToSelectComponent,
   ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
 import {
@@ -83,34 +82,37 @@ import {
   selector: 'app-maniobra-new-drawer',
   standalone: true,
   imports: [
+    ToSideDrawerComponent,
     FormsModule,
     ToButtonComponent,
-    ToIconButtonComponent,
     ToInputComponent,
     ToSelectComponent,
     ToClientInputComponent,
     ToOperatorInputComponent,
     ToUnitInputComponent,
     ToEquipmentInputComponent,
-    ToDrawerSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './maniobra-new-drawer.component.html',
-  styleUrl: './maniobra-new-drawer.component.scss',
+  styleUrls: [
+    '../../../fleet/components/fleet-drawer.shared.scss',
+    './maniobra-new-drawer.component.scss',
+  ],
 })
 export class ManiobraNewDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
-  private readonly doc = inject(DOCUMENT);
   private readonly osrm = inject(OsrmDrivingRouteService);
   private readonly photon = inject(PhotonPlaceSearchService);
   private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly toast = inject(ToastService);
-  private readonly operatorsRepo = inject(OperatorRepository);
-  private readonly equipmentRepo = inject(EquipmentRepository);
+  readonly catalog = inject(ManiobraFormCatalogService);
 
   readonly dismiss = output<void>();
   readonly saved = output<CreateTripPayload>();
+
+  /** Maniobras activas ya cargadas en la página (disponibilidad operador/unidad). */
+  readonly activeTrips = input<Trip[]>([]);
 
   /** Escaneos / fotos adjuntos (solo en cliente hasta envío al backend). */
   readonly attachedFiles = signal<File[]>([]);
@@ -145,6 +147,7 @@ export class ManiobraNewDrawerComponent {
   readonly operationType = model('sencillo');
   readonly loadType = model<TripLoadType>('vacio');
   readonly containerType = model<TripContainerType>('na');
+  readonly cargoDescription = model('');
   readonly approximateWeightTons = model('');
   readonly dieselLiters = model('');
   readonly dieselAmount = model('');
@@ -155,8 +158,6 @@ export class ManiobraNewDrawerComponent {
   readonly requiresInvoice = model(false);
   readonly paymentMethod = model<string>('cash');
   readonly assignedOperatorId = model('');
-  /** Catálogo para enriquecer UI (licencia) al elegir operador. */
-  readonly operatorsCatalog = signal<Operator[]>([]);
   readonly unitId = model('');
   /** Valores internos de `ASSIGNABLE_EQUIPMENT_OPTIONS`; en Full se usan dos filas. */
   readonly equipmentPrimary = model('');
@@ -174,9 +175,6 @@ export class ManiobraNewDrawerComponent {
   readonly includeClientBilling = model(false);
 
   readonly equipmentPlaceholder = 'Buscar remolque enganchado…';
-
-  /** Catálogo de equipos para resolver etiquetas al guardar. */
-  private readonly equipmentCatalog = signal<Equipment[]>([]);
 
   /** Full → dos equipos obligatorios; sencillo/plana → uno. */
   readonly isFullOperation = computed(() => this.operationType() === 'full');
@@ -207,7 +205,7 @@ export class ManiobraNewDrawerComponent {
 
   readonly unitPlaceholder = 'Buscar unidad disponible…';
 
-  readonly drawerLoading = signal(true);
+  readonly drawerLoading = computed(() => !this.catalog.ready());
 
   /** CP + localidad válidos en origen y destino (listo para OSRM / mensajes de error de par). */
   readonly routePairReady = computed(() => {
@@ -297,7 +295,7 @@ export class ManiobraNewDrawerComponent {
     if (!id) {
       return null;
     }
-    return this.operatorsCatalog().find((o) => o.id === id) ?? null;
+    return this.catalog.operators().find((o) => o.id === id) ?? null;
   });
 
   readonly operatorLicenseReadonly = computed(
@@ -313,35 +311,10 @@ export class ManiobraNewDrawerComponent {
   });
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
-    this.doc.body.style.overflow = 'hidden';
-
-    this.operatorsRepo
-      .list()
-      .pipe(
-        catchError(() => of([] as Operator[])),
-        takeUntilDestroyed(),
-      )
-      .subscribe({
-        next: (operators) => {
-          this.operatorsCatalog.set(operators);
-          this.drawerLoading.set(false);
-        },
-        error: () => {
-          this.operatorsCatalog.set([]);
-          this.drawerLoading.set(false);
-        },
-      });
-
-    this.equipmentRepo
-      .list()
-      .pipe(
-        catchError(() => of([] as Equipment[])),
-        takeUntilDestroyed(),
-      )
-      .subscribe((rows) => this.equipmentCatalog.set(rows));
+    this.catalog
+      .ensureLoaded()
+      .pipe(takeUntilDestroyed())
+      .subscribe();
 
     effect(() => {
       if (this.operationType() !== 'full') {
@@ -674,7 +647,7 @@ export class ManiobraNewDrawerComponent {
     if (!v) {
       return '';
     }
-    const row = this.equipmentCatalog().find((e) => e.id === v);
+    const row = this.catalog.equipment().find((e) => e.id === v);
     return row ? formatManeuverEquipmentLabel(row) : v;
   }
 
@@ -973,12 +946,18 @@ export class ManiobraNewDrawerComponent {
     const licNum = opSnap?.licenseNumber?.trim() ?? '';
     const licExp = this.operatorLicenseExpiresReadonly().trim();
 
+    const equipmentIds =
+      config === 'full'
+        ? [eq1, eq2].map((id) => id.trim()).filter(Boolean)
+        : [eq1.trim()].filter(Boolean);
+
     const payload: CreateTripPayload = {
       origin,
       destination,
       operationType: op === 'full' || op === 'plana' ? op : 'sencillo',
       loadType: this.loadType(),
       containerType: this.containerType(),
+      cargoDescription: this.cargoDescription().trim(),
       approximateWeightTons: this.approximateWeightTons().trim(),
       dieselLiters: String(liters),
       dieselAmount: String(dieselAmt),
@@ -997,6 +976,7 @@ export class ManiobraNewDrawerComponent {
         ? this.clientId().trim() || undefined
         : undefined,
       equipment: equipmentLabels,
+      equipmentIds,
       departureAt: depIso,
       arrivedAt: arrIso,
       attachedDocumentFileNames: this.attachedFiles().map((f) => f.name),

@@ -1,5 +1,4 @@
 @use '../../../../shared/styles/toolbar-filter-tabs.scss';
-@use '../../../fleet/components/fleet-drawer.shared.scss' as *;
 
 :host {
   display: block;
@@ -133,9 +132,9 @@
 }
 
 .reports-toolbar__field--clients .reports-toolbar__control {
-  flex: 0 0 16.5rem;
-  width: 16.5rem;
-  max-width: 16.5rem;
+  flex: 0 0 15.25rem;
+  width: 15.25rem;
+  max-width: 15.25rem;
 }
 
 .reports-toolbar__clients-group {
@@ -147,30 +146,34 @@
 }
 
 :host ::ng-deep .reports-toolbar__field--clients .to-clients-multi__wrap {
-  flex: 0 0 16.5rem;
-  width: 16.5rem;
-  max-width: 16.5rem;
+  flex: 0 0 15.25rem;
+  width: 15.25rem;
+  max-width: 15.25rem;
 }
 
-.reports-toolbar__field--payment {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.reports-toolbar__field--payment-methods {
   flex: 0 0 auto;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
+  min-width: 0;
 }
 
-.reports-toolbar__label--icon-only {
-  padding: 0;
-  margin: 0;
+.reports-toolbar__field--payment-methods .reports-toolbar__control {
+  flex: 0 0 10rem;
+  width: 10rem;
+  max-width: 10rem;
 }
 
-.reports-toolbar__control--payment.to-field__control {
-  flex: 0 0 auto;
-  min-width: 6.75rem;
-  max-width: 9rem;
+:host ::ng-deep .reports-toolbar__field--payment-methods .to-payment-methods-multi__wrap {
+  flex: 0 0 10rem;
+  width: 10rem;
+  max-width: 10rem;
+}
+
+:host ::ng-deep .reports-toolbar__field--payment-methods .to-payment-methods-multi__wrap--open {
+  z-index: 401;
+}
+
+:host ::ng-deep .reports-toolbar__field--payment-methods .to-payment-methods-multi__list {
+  z-index: 402;
 }
 .reports-toolbar__field--clients {
   position: relative;

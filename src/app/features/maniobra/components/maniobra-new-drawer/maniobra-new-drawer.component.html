@@ -1,49 +1,22 @@
-<div
-  class="maniobra-drawer"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="maniobra-drawer-title"
+<to-side-drawer
+  titleId="maniobra-drawer-title"
+  wide
+  formMode
+  [loading]="drawerLoading()"
+  skeletonVariant="form"
+  bodyClass="maniobra-drawer__body"
+  (dismiss)="dismiss.emit()"
+  (formSubmit)="submit()"
 >
-  <button
-    type="button"
-    class="maniobra-drawer__backdrop"
-    aria-label="Cerrar panel"
-    (click)="dismiss.emit()"
-  ></button>
+  <h2 toSideDrawerHeader id="maniobra-drawer-title" class="to-side-drawer__title">
+    <svg class="to-side-drawer__title-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z" />
+    </svg>
+    Nueva maniobra
+  </h2>
 
-  <aside class="maniobra-drawer__panel maniobra-drawer__panel--wide">
-    <header class="maniobra-drawer__header">
-      <h2 id="maniobra-drawer-title" class="maniobra-drawer__title">
-        <svg
-          class="maniobra-drawer__title-icon"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            fill="currentColor"
-            d="M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z"
-          />
-        </svg>
-        Nueva maniobra
-      </h2>
-      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
-        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-          />
-        </svg>
-      </to-icon-button>
-    </header>
 
-    <form class="maniobra-drawer__form" (ngSubmit)="submit()">
-      <div class="maniobra-drawer__body">
-        @if (drawerLoading()) {
-          <to-drawer-skeleton variant="form" />
-        } @else {
-        <!-- Detalle de ruta -->
+    <!-- Detalle de ruta -->
         <section
           class="maniobra-drawer__section maniobra-drawer__section--boxed"
           aria-labelledby="maniobra-sec-route"
@@ -187,22 +160,27 @@
               [(value)]="operationType"
             />
             <to-select
-              label="Tipo de carga"
-              [options]="loadTypeOptions"
-              [(value)]="loadType"
-            />
-          </div>
-          <div class="maniobra-drawer__grid2">
-            <to-select
               label="Tipo de contenedor"
               [options]="containerTypeOptions"
               [(value)]="containerType"
+            />
+          </div>
+          <div class="maniobra-drawer__grid3">
+            <to-select
+              label="Tipo de carga"
+              [options]="loadTypeOptions"
+              [(value)]="loadType"
             />
             <to-input
               label="Peso aproximado"
               placeholder="Ej. 18,5"
               prefix="Ton"
               [(value)]="approximateWeightTons"
+            />
+            <to-input
+              label="Descripción"
+              placeholder="Ej. Bebidas embotelladas, autopartes, contenedor vacío para devolución…"
+              [(value)]="cargoDescription"
             />
           </div>
         </section>
@@ -230,6 +208,9 @@
           <to-operator-input
             label="Nombre del operador *"
             placeholder="Buscar operador disponible…"
+            [prefetchMode]="true"
+            [operatorsData]="catalog.operators()"
+            [tripsData]="activeTrips()"
             [(operatorId)]="assignedOperatorId"
             (blurNotify)="onAssignedOperatorBlur()"
           />
@@ -251,6 +232,10 @@
             <to-unit-input
               label="Unidad *"
               [placeholder]="unitPlaceholder"
+              [prefetchMode]="true"
+              [unitsData]="catalog.units()"
+              [equipmentData]="catalog.equipment()"
+              [tripsData]="activeTrips()"
               [(unitId)]="unitId"
               (unitPicked)="onUnitPicked($event)"
               (blurNotify)="onUnitBlur()"
@@ -258,6 +243,8 @@
             <to-equipment-input
               label="Equipo 1 *"
               [placeholder]="equipmentPlaceholder"
+              [prefetchMode]="true"
+              [equipmentData]="catalog.equipment()"
               [unitId]="unitId()"
               [(equipmentId)]="equipmentPrimary"
               (blurNotify)="onEquipmentPrimaryBlur()"
@@ -267,6 +254,8 @@
               [placeholder]="
                 isFullOperation() ? equipmentPlaceholder : 'Solo en configuración Full'
               "
+              [prefetchMode]="true"
+              [equipmentData]="catalog.equipment()"
               [unitId]="unitId()"
               [(equipmentId)]="equipmentSecondary"
               [disabled]="!isFullOperation()"
@@ -401,6 +390,8 @@
             <to-client-input
               label="Cliente *"
               placeholder="Buscar o elegir cliente…"
+              [prefetchMode]="true"
+              [clientsData]="catalog.clients()"
               [disabled]="!includeClientBilling()"
               [(value)]="clientName"
               [(clientId)]="clientId"
@@ -506,23 +497,8 @@
             <p class="maniobra-drawer__docs-empty">Ningún archivo seleccionado.</p>
           }
         </section>
-        }
-      </div>
-
-      @if (!drawerLoading()) {
-      <footer class="maniobra-drawer__footer">
-        <button
-          type="button"
-          class="maniobra-drawer__cancel"
-          (click)="dismiss.emit()"
-        >
-          Cancelar
-        </button>
-        <to-button type="submit" variant="primary"
-          >Programar maniobra</to-button
-        >
-      </footer>
-      }
-    </form>
-  </aside>
-</div>
+  <div toSideDrawerFooter class="maniobra-drawer__footer">
+      <button type="button" class="maniobra-drawer__cancel" (click)="dismiss.emit()">Cancelar</button>
+      <to-button type="submit" variant="primary">Programar maniobra</to-button>
+    </div>
+</to-side-drawer>

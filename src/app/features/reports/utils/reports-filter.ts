@@ -1,11 +1,7 @@
 import type { ReportsFilter, ReportsPeriodPreset } from '../models/reports-view.models';
+import { localYmd } from '@shared/utils/local-ymd';
 
-export function localYmd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+export { localYmd };
 
 export function parseYmd(s: string): Date | null {
   const t = s.trim();
@@ -22,7 +18,7 @@ export function defaultReportsFilter(now = new Date()): ReportsFilter {
     preset: 'month',
     from: range.from,
     to: range.to,
-    clientPaymentMethod: 'both',
+    clientPaymentMethods: [],
     clientIds: [],
     unitId: '',
   };

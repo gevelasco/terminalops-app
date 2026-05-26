@@ -1,10 +1,14 @@
 import { expenseKindLabel } from '@features/expenses/utils/expense-row-labels';
 import type { ExpenseKind } from '@shared/models/logistics.models';
-import type { ReportsFilter, ReportsGeneralTabView } from '../models/reports-view.models';
+import type {
+  ReportsFilter,
+  ReportsGeneralTabView,
+  ReportsKpiCard,
+  ReportsPeriodBalanceBar,
+} from '../models/reports-view.models';
 import type { ReportsFilteredBundle } from './reports-bundle-filter';
 import { amountBarSlices } from './reports-chart-mappers';
 import { buildTopClientsMarginDonut } from './reports-client-margin-donut';
-import { buildDailyMarginSeries } from './reports-daily-margin-series';
 import { buildGeneralKpis } from './reports-kpi-builders';
 import {
   tripCollectedRevenue,
@@ -12,13 +16,37 @@ import {
   tripKm,
 } from './reports-trip-helpers';
 
+const PERIOD_BALANCE_KPI_ORDER = [
+  'gastos',
+  'ingresos',
+  'credito',
+  'deuda',
+  'margen',
+] as const;
+
+function periodBalanceFromKpis(kpis: readonly ReportsKpiCard[]): ReportsPeriodBalanceBar[] {
+  const byId = new Map(
+    kpis
+      .filter((k): k is ReportsKpiCard & { amount: number } => k.amount != null)
+      .map((k) => [k.id, k] as const),
+  );
+  return PERIOD_BALANCE_KPI_ORDER.flatMap((id) => {
+    const k = byId.get(id);
+    if (!k || k.amount == null) {
+      return [];
+    }
+    return [{ key: k.id, label: k.title, value: Math.round(k.amount) }];
+  });
+}
+
 export function buildGeneralTabView(
   bundle: ReportsFilteredBundle,
-  filter: ReportsFilter,
+  _filter: ReportsFilter,
 ): ReportsGeneralTabView {
   const trips = bundle.trips;
   const expenses = bundle.expenses;
   const kpis = buildGeneralKpis(bundle);
+  const periodBalance = periodBalanceFromKpis(kpis);
 
   const byClient = new Map<string, { maneuvers: number; km: number; revenue: number }>();
   for (const t of trips) {
@@ -64,12 +92,11 @@ export function buildGeneralTabView(
     'reports-chart-bar__fill--expense',
   );
 
-  const weeklyBalance = buildDailyMarginSeries(trips, expenses, filter.from, filter.to);
   const topClientsMarginDonut = buildTopClientsMarginDonut(trips);
 
   return {
     kpis,
-    weeklyBalance,
+    periodBalance,
     expenseByKind,
     topClients,
     topClientsMarginDonut,

@@ -1,28 +1,61 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpContext, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { environment } from '../../../environments/environment';
-import { SessionStore } from '../services/session.store';
+import { Router } from '@angular/router';
+import { catchError, switchMap, throwError } from 'rxjs';
+import { AUTH_ALREADY_REFRESHED } from '@core/context/auth-context';
+import { AuthService } from '@core/services/api/auth';
+import { LogoutService } from '@core/services/logout.service';
+import { SessionService } from '@core/services/state/session';
 
-/** Attaches Authorization when a bearer token exists; leaves relative URLs unchanged */
+function isPublicAuthUrl(url: string): boolean {
+  return url.includes('/auth/login') || url.includes('/auth/refresh');
+}
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const session = inject(SessionStore);
+  const session = inject(SessionService);
+  const authService = inject(AuthService);
+  const logoutService = inject(LogoutService);
+  const router = inject(Router);
   const token = session.token();
 
-  if (!token || req.headers.has('Authorization')) {
-    return next(req);
-  }
+  const authReq = token
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;
 
-  const apiUrl = environment.apiUrl;
-  const isApiRequest = req.url.startsWith(apiUrl) || req.url.startsWith('/api');
-
-  if (!isApiRequest) {
-    return next(req);
-  }
-
-  const authReq = req.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return next(authReq);
+  return next(authReq).pipe(
+    catchError((error: unknown) => {
+      if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
+        return throwError(() => error);
+      }
+      if (isPublicAuthUrl(req.url)) {
+        return throwError(() => error);
+      }
+      if (req.context.get(AUTH_ALREADY_REFRESHED)) {
+        logoutService.clearClientState();
+        void router.navigateByUrl('/login');
+        return throwError(() => error);
+      }
+      const refresh = session.refreshToken();
+      if (!refresh) {
+        logoutService.clearClientState();
+        void router.navigateByUrl('/login');
+        return throwError(() => error);
+      }
+      return authService.refreshAccessToken().pipe(
+        switchMap(() => {
+          const newToken = session.token();
+          const retried = req.clone({
+            setHeaders: { Authorization: `Bearer ${newToken ?? ''}` },
+            context: new HttpContext().set(AUTH_ALREADY_REFRESHED, true),
+          });
+          return next(retried);
+        }),
+        catchError((refreshErr) => {
+          logoutService.clearClientState();
+          void router.navigateByUrl('/login');
+          return throwError(() => refreshErr);
+        }),
+      );
+    }),
+  );
 };

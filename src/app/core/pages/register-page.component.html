@@ -1,0 +1,142 @@
+<div class="login-page">
+  <div class="login-page__ambient" aria-hidden="true"></div>
+  <div class="login-page__pattern" aria-hidden="true"></div>
+
+  <div class="login-page__frame">
+    <header class="login-page__brand">
+      <div class="login-page__logo">
+        <img
+          class="login-page__logo-img"
+          src="/favicon.png"
+          width="44"
+          height="44"
+          alt="TerminalOps"
+        />
+      </div>
+      <div class="login-page__brand-text">
+        <span class="login-page__product">TerminalOps</span>
+        <span class="login-page__tagline">Alta de empresa · Administrador</span>
+      </div>
+    </header>
+
+    <section class="login-page__card" aria-labelledby="register-heading">
+      <h1 id="register-heading" class="login-page__title">Crear cuenta</h1>
+      <p class="login-page__subtitle">
+        Registra tu empresa y tu usuario administrador. Necesitas un código de invitación
+        válido para continuar.
+      </p>
+
+      <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
+        <to-input
+          label="Nombre de la empresa"
+          placeholder="Ej. Grupo VSC"
+          inputName="companyName"
+          [autocomplete]="'organization'"
+          [disabled]="submitting()"
+        />
+
+        <div class="login-page__row">
+          <to-input
+            label="Nombre"
+            placeholder="Germán"
+            inputName="firstName"
+            prefixIcon="user"
+            [autocomplete]="'given-name'"
+            [disabled]="submitting()"
+          />
+          <to-input
+            label="Apellido"
+            placeholder="Velasco"
+            inputName="lastName"
+            [autocomplete]="'family-name'"
+            [disabled]="submitting()"
+          />
+        </div>
+
+        <to-input
+          label="Usuario"
+          placeholder="Ej. gvelasco"
+          inputName="username"
+          prefixIcon="user"
+          [autocomplete]="'username'"
+          [disabled]="submitting()"
+        />
+
+        <to-input
+          label="Correo electrónico"
+          type="email"
+          placeholder="tu@empresa.com"
+          inputName="email"
+          [autocomplete]="'email'"
+          [disabled]="submitting()"
+        />
+
+        <to-input
+          label="Teléfono"
+          type="text"
+          placeholder="Ej. 8181234567"
+          inputName="phone"
+          [autocomplete]="'tel'"
+          [disabled]="submitting()"
+        />
+
+        <to-input
+          label="Contraseña"
+          type="password"
+          placeholder="Mínimo 6 caracteres"
+          inputName="password"
+          prefixIcon="lock"
+          [passwordToggle]="true"
+          [autocomplete]="'new-password'"
+          [disabled]="submitting()"
+          [(value)]="password"
+        />
+
+        <to-input
+          label="Confirmar contraseña"
+          type="password"
+          placeholder="Repite tu contraseña"
+          inputName="confirmPassword"
+          prefixIcon="lock"
+          [passwordToggle]="true"
+          [autocomplete]="'new-password'"
+          [disabled]="submitting()"
+          [error]="passwordMismatch() ? 'Las contraseñas no coinciden' : undefined"
+          [(value)]="confirmPassword"
+        />
+
+        <to-input
+          label="Código de invitación"
+          placeholder="Ej. VSC-GRUPO-2026-A"
+          inputName="invitationCode"
+          prefixIcon="lock"
+          [autocomplete]="'off'"
+          [disabled]="submitting()"
+          [(value)]="invitationCode"
+        />
+
+        @if (error()) {
+          <p class="login-page__error" role="alert">{{ error() }}</p>
+        }
+
+        <div class="login-page__actions">
+          <to-button
+            type="submit"
+            variant="primary"
+            [disabled]="!canSubmit() || passwordMismatch()"
+            [loading]="submitting()"
+          >
+            Registrar empresa
+          </to-button>
+        </div>
+      </form>
+
+      <p class="login-page__foot">
+        ¿Ya tienes cuenta?
+        <a routerLink="/login" class="login-page__link">Inicia sesión</a>
+      </p>
+    </section>
+
+    <p class="login-page__legal">© {{ currentYear }} AXOLOTL TECHNOLOGY</p>
+  </div>
+</div>

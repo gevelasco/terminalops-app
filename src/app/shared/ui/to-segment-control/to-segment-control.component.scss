@@ -1,0 +1,116 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+:host(.to-segment-control-host--drawer) {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+:host(.to-segment-control-host--toolbar) {
+  flex-shrink: 0;
+}
+
+:host(.to-segment-control-host--fill) {
+  flex: 1;
+  min-width: 0;
+}
+
+.to-segment-control {
+  display: flex;
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.2rem;
+  box-sizing: border-box;
+  border-radius: var(--to-radius-lg);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 78%, transparent);
+  gap: 0.15rem;
+}
+
+.to-segment-control--drawer {
+  max-width: none;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 0 0.5rem;
+  background: var(--to-color-surface);
+}
+
+.to-segment-control--toolbar {
+  max-width: none;
+  width: auto;
+  min-height: var(
+    --toolbar-segment-min-height,
+    calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px)
+  );
+}
+
+.to-segment-control--fill {
+  max-width: none;
+  width: 100%;
+}
+
+.to-segment-control__btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--to-radius-lg) - 3px);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--to-color-text-muted);
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    color: var(--to-color-text);
+    background: color-mix(in srgb, var(--to-color-surface) 55%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.to-segment-control--drawer .to-segment-control__btn {
+  padding: 0.5rem 0.45rem;
+}
+
+.to-segment-control__btn--active {
+  border-color: color-mix(in srgb, var(--to-color-border) 88%, transparent);
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--to-color-text) 8%, transparent);
+}
+
+.to-segment-control__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.72;
+  color: currentColor;
+}
+
+.to-segment-control__btn--active .to-segment-control__icon {
+  opacity: 1;
+  color: var(--to-color-primary);
+}

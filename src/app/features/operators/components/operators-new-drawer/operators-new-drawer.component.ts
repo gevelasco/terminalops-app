@@ -1,4 +1,3 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -14,10 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
-import {
-  CreateOperatorPayload,
-  OperatorRepository,
-} from '@features/operators/data/operator.repository';
+import { OperatorsService } from '@services/api/operators';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { filesToOperatorDocuments } from '@features/operators/utils/operator-attached-documents';
 import {
@@ -39,25 +35,23 @@ import type {
 import { OperatorCoverageFieldsComponent } from '../operator-coverage-fields/operator-coverage-fields.component';
 import { OperatorEmergencyContactFieldsComponent } from '../operator-emergency-contact-fields/operator-emergency-contact-fields.component';
 import { OperatorIdentificationFieldsComponent } from '../operator-identification-fields/operator-identification-fields.component';
-import { OperatorOperationFieldsComponent } from '../operator-operation-fields/operator-operation-fields.component';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
-import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
-
+import { OperatorOperationFieldsComponent } from '../operator-operation-fields/operator-operation-fields.component';import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 @Component({
   selector: 'app-operators-new-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ToSideDrawerComponent,
     FormsModule,
-    NgTemplateOutlet,
+    
     OperatorCoverageFieldsComponent,
     OperatorEmergencyContactFieldsComponent,
     OperatorIdentificationFieldsComponent,
     OperatorOperationFieldsComponent,
     ToButtonComponent,
-    ToIconButtonComponent,
-    ToDrawerSkeletonComponent,
+    ToIconComponent,
   ],
   templateUrl: './operators-new-drawer.component.html',
   styleUrls: [
@@ -66,9 +60,8 @@ import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.
   ],
 })
 export class OperatorsNewDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly repo = inject(OperatorRepository);
+  private readonly operatorsApi = inject(OperatorsService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -86,6 +79,7 @@ export class OperatorsNewDrawerComponent {
   readonly phone = model('');
   readonly phoneSecondary = model('');
   readonly address = model('');
+  readonly photoDataUrl = model('');
   readonly companyHireDate = model('');
   readonly employmentContractType = model('');
   readonly status = model<OperatorOperationalStatus>('available');
@@ -133,10 +127,6 @@ export class OperatorsNewDrawerComponent {
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 
@@ -210,7 +200,7 @@ export class OperatorsNewDrawerComponent {
       return;
     }
 
-    const payload: CreateOperatorPayload = mergeOperatorNested({
+    const payload: Omit<Operator, 'id'> = mergeOperatorNested({
       name,
       birthDate,
       curp,
@@ -222,6 +212,7 @@ export class OperatorsNewDrawerComponent {
       phone,
       phoneSecondary: this.phoneSecondary().trim(),
       address: this.address().trim(),
+      photoDataUrl: this.photoDataUrl().trim(),
       companyHireDate,
       employmentContractType: this.employmentContractType().trim(),
       status: this.status(),
@@ -253,11 +244,11 @@ export class OperatorsNewDrawerComponent {
         planSummary: this.privPlan().trim(),
       },
       documents: [...this.documents()],
-    }) as CreateOperatorPayload;
+    }) as Omit<Operator, 'id'>;
 
     this.saving.set(true);
-    this.repo
-      .create(payload)
+    this.operatorsApi
+      .postOperator(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (op) => {

@@ -39,9 +39,9 @@
 
       <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
         <to-input
-          label="Usuario"
-          placeholder="Ej. gvelasco"
-          inputName="username"
+          label="Usuario o correo"
+          placeholder="Ej. gvelasco o tu@empresa.com"
+          inputName="login"
           prefixIcon="user"
           [autocomplete]="'username'"
           [disabled]="submitting()"
@@ -74,7 +74,8 @@
       </form>
 
       <p class="login-page__foot">
-        ¿Problemas para acceder? Contacta al administrador de sistemas.
+        ¿No tienes cuenta?
+        <a routerLink="/register" class="login-page__link">Regístrate con invitación</a>
       </p>
     </section>
 

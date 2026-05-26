@@ -7,6 +7,7 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
   { value: 'per_diem', label: 'Viáticos' },
   { value: 'lodging', label: 'Hospedaje' },
   { value: 'repair', label: 'Reparación' },
+  { value: 'tires', label: 'Llantas (desgaste o cambio)' },
   { value: 'maintenance', label: 'Mantenimiento (unidad o equipo)' },
   { value: 'insurance', label: 'Seguro o póliza' },
   { value: 'gps', label: 'GPS o telemetría' },
@@ -42,7 +43,8 @@ export const EXPENSE_VERIFICATION_SCOPE_OPTIONS: ToSelectOption[] = [
 export const EXPENSE_PAYMENT_METHOD_OPTIONS: ToSelectOption[] = [
   { value: '', label: '— Sin especificar —' },
   { value: 'transfer', label: 'Transferencia' },
-  { value: 'card', label: 'Tarjeta' },
+  { value: 'debit_card', label: 'Tarjeta de débito' },
+  { value: 'credit_card', label: 'Tarjeta de crédito' },
   { value: 'cash', label: 'Efectivo' },
   { value: 'check', label: 'Cheque' },
   { value: 'credit', label: 'Crédito / proveedor' },

@@ -1,5 +1,5 @@
-import { formatEquipmentOperationalId } from '@app/sim-db/utils/fleet-id-builders';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
+import { labelForUnitId } from '@shared/utils/fleet/unit-label';
 import { FLEET_MAINTENANCE_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import type {
   Equipment,

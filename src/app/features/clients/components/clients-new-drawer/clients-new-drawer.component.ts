@@ -1,4 +1,3 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -20,7 +19,7 @@ import {
   parseOptionalInt,
   yesNoToBool,
 } from '@features/clients/utils/client-payload';
-import { ClientRepository } from '@shared/data/client.repository';
+import { ClientsService } from '@services/api/clients';
 import {
   CLIENT_COMMERCIAL_HEALTH_OPTIONS,
   CLIENT_YES_NO_OPTIONS,
@@ -34,8 +33,9 @@ import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fie
 import { ClientFiscalFieldsComponent } from '../client-fiscal-fields/client-fiscal-fields.component';
 import { ClientIdentificationFieldsComponent } from '../client-identification-fields/client-identification-fields.component';
 import { ClientPayFieldsComponent } from '../client-pay-fields/client-pay-fields.component';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
@@ -52,15 +52,15 @@ function todayYmd(): string {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ToSideDrawerComponent,
     ClientContactInlineFieldsComponent,
     ClientFiscalFieldsComponent,
     ClientIdentificationFieldsComponent,
     ClientPayFieldsComponent,
     FormsModule,
-    NgTemplateOutlet,
     ToButtonComponent,
+    ToIconComponent,
     ToIconButtonComponent,
-    ToDrawerSkeletonComponent,
   ],
   templateUrl: './clients-new-drawer.component.html',
   styleUrls: [
@@ -70,9 +70,8 @@ function todayYmd(): string {
   ],
 })
 export class ClientsNewDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly repo = inject(ClientRepository);
+  private readonly clientsApi = inject(ClientsService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -108,10 +107,6 @@ export class ClientsNewDrawerComponent {
   readonly payHealth = model('not_evaluated');
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 
@@ -204,8 +199,8 @@ export class ClientsNewDrawerComponent {
       },
     };
 
-    this.repo
-      .create(payload)
+    this.clientsApi
+      .postClient(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row) => {

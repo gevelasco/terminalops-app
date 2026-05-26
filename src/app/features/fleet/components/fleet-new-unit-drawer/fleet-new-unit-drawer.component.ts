@@ -1,4 +1,3 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -13,19 +12,19 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { TRAILER_BRAND_OPTIONS } from '@app/mock-data/trailer-brands';
+import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import { ToastService } from '@core/notifications/toast.service';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { UnitsService } from '@services/api/units';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   MaintenanceEntry,
   TrailerTenureMode,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
@@ -109,14 +108,14 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
   selector: 'app-fleet-new-unit-drawer',
   standalone: true,
   imports: [
+    ToSideDrawerComponent,
     FormsModule,
-    NgTemplateOutlet,
+    
     ToButtonComponent,
-    ToIconButtonComponent,
+    ToIconComponent,
     ToInputComponent,
     ToSelectComponent,
     ToTextareaComponent,
-    ToDrawerSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-new-unit-drawer.component.html',
@@ -125,9 +124,8 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
 export class FleetNewUnitDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly unitsRepo = inject(UnitRepository);
+  private readonly unitsApi = inject(UnitsService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -270,10 +268,6 @@ export class FleetNewUnitDrawerComponent {
   });
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 
@@ -540,8 +534,8 @@ export class FleetNewUnitDrawerComponent {
     };
 
     this.saving.set(true);
-    this.unitsRepo
-      .create({
+    this.unitsApi
+      .postUnit({
         plate,
         type,
         capacityKg,

@@ -10,6 +10,12 @@ export const routes: Routes = [
       import('./core/pages/login-page.component').then((m) => m.LoginPageComponent),
   },
   {
+    path: 'register',
+    canActivate: [loginPageGuard],
+    loadComponent: () =>
+      import('./core/pages/register-page.component').then((m) => m.RegisterPageComponent),
+  },
+  {
     path: '',
     loadComponent: () => import('./core/layout/shell.component').then((m) => m.ShellComponent),
     canActivateChild: [authGuard],

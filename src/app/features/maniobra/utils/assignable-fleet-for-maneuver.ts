@@ -1,6 +1,6 @@
 import { equipmentAssignedToUnit, unitConvoyFromEquipment } from '@app/features/fleet/utils/unit-hitched-equipment';
-import { formatEquipmentOperationalId } from '@app/sim-db/utils/fleet-id-builders';
-import { formatUnitTrailerOperationalId } from '@app/sim-db/utils/unit-label';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
+import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import {
   Equipment,
   Trip,
@@ -8,7 +8,8 @@ import {
   TripStatus,
   Unit,
 } from '@shared/models/logistics.models';
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@app/mock-data/equipment-operation-type-options';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
 const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
 
@@ -94,11 +95,11 @@ export function equipmentPickableForUnit(
   equipment: readonly Equipment[],
   unitId: string,
 ): Equipment[] {
-  const id = unitId.trim();
+  const id = resourceIdKey(unitId);
   if (!id) {
     return [];
   }
   return equipment
-    .filter((e) => (e.unitId ?? '').trim() === id)
+    .filter((e) => resourceIdsEqual(e.unitId, id))
     .sort((a, b) => formatManeuverEquipmentLabel(a).localeCompare(formatManeuverEquipmentLabel(b)));
 }

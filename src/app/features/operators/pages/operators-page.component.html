@@ -17,18 +17,22 @@
 </to-page-header>
 
 @if (newOperatorOpen()) {
-  <app-operators-new-drawer
-    (dismiss)="newOperatorOpen.set(false)"
-    (saved)="onOperatorCreated($event)"
-  />
+  @defer {
+    <app-operators-new-drawer
+      (dismiss)="newOperatorOpen.set(false)"
+      (saved)="onOperatorCreated($event)"
+    />
+  }
 }
 
 @if (detailOperator(); as op) {
-  <app-operators-detail-drawer
-    [operator]="op"
-    (dismiss)="onDetailDismiss()"
-    (operatorChange)="onDetailOperatorChange($event)"
-  />
+  @defer {
+    <app-operators-detail-drawer
+      [operator]="op"
+      (dismiss)="onDetailDismiss()"
+      (operatorChange)="onDetailOperatorChange($event)"
+    />
+  }
 }
 
 @if (loading()) {

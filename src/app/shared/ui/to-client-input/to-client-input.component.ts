@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   input,
   model,
@@ -12,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ClientRepository } from '@shared/data/client.repository';
+import { ClientsService } from '@services/api/clients';
 import { Client } from '@shared/models/client.models';
 
 let clientInputSeq = 0;
@@ -24,7 +25,7 @@ let clientInputSeq = 0;
   styleUrl: './to-client-input.component.scss',
 })
 export class ToClientInputComponent {
-  private readonly clientsRepo = inject(ClientRepository);
+  private readonly clientsApi = inject(ClientsService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
@@ -32,6 +33,10 @@ export class ToClientInputComponent {
   readonly label = input<string>('');
   readonly placeholder = input<string>('');
   readonly disabled = input(false);
+
+  /** Si es true, usa `clientsData` y no llama a la API. */
+  readonly prefetchMode = input(false);
+  readonly clientsData = input<Client[]>([]);
 
   readonly value = model('');
 
@@ -60,17 +65,30 @@ export class ToClientInputComponent {
     return all.filter((c) => c.name.toLowerCase().includes(q));
   });
 
+  private fetchedFromApi = false;
+
   constructor() {
-    this.clientsRepo
-      .list()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          this.allClients.set(rows);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    effect(() => {
+      if (this.prefetchMode()) {
+        this.allClients.set(this.clientsData());
+        this.loading.set(false);
+        return;
+      }
+      if (this.fetchedFromApi) {
+        return;
+      }
+      this.fetchedFromApi = true;
+      this.clientsApi
+        .getClientsList()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (rows) => {
+            this.allClients.set(rows);
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
+    });
   }
 
   onInput(ev: Event): void {

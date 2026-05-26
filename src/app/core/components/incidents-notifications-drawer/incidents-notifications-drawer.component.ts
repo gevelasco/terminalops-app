@@ -1,32 +1,22 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   HostListener,
   inject,
   model,
   output,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-icon-paths';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
 import type { CriticalAlertKind, IncidentSeverity } from '@shared/models/logistics.models';
-import {
-  buildTripIncidentFeed,
-  type TripIncidentFeedItem,
-} from '@shared/utils/trip-incident-feed';
+import type { TripIncidentFeedItem } from '@shared/utils/trip-incident-feed';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import {
   ToBadgeComponent,
   ToBadgeVariant,
 } from '@shared/ui/to-badge/to-badge.component';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 
 export type IncidentSeverityFilter = 'all' | IncidentSeverity;
 
@@ -45,7 +35,7 @@ const SEVERITY_FILTER_ICON_PATHS: Record<IncidentSeverityFilter, string> = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [DateShortPipe],
-  imports: [ToDrawerSkeletonComponent, ToIconButtonComponent, ToBadgeComponent],
+  imports: [ToSideDrawerComponent, ToBadgeComponent],
   templateUrl: './incidents-notifications-drawer.component.html',
   styleUrls: [
     '../../../features/fleet/components/fleet-drawer.shared.scss',
@@ -53,16 +43,12 @@ const SEVERITY_FILTER_ICON_PATHS: Record<IncidentSeverityFilter, string> = {
   ],
 })
 export class IncidentsNotificationsDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
-  private readonly operatorsRepo = inject(OperatorRepository);
   private readonly dateShort = inject(DateShortPipe);
 
   readonly dismiss = output<void>();
 
   readonly severityFilter = model<IncidentSeverityFilter>('all');
-  readonly loading = signal(true);
+  readonly loading = signal(false);
   private readonly feed = signal<TripIncidentFeedItem[]>([]);
 
   readonly criticalIconPaths = CRITICAL_ALERT_ICON_PATHS;
@@ -83,29 +69,6 @@ export class IncidentsNotificationsDrawerComponent {
     }
     return list.filter((item) => item.severity === f);
   });
-
-  constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
-
-    forkJoin({
-      trips: this.maniobrasRepo.list(),
-      operators: this.operatorsRepo.list(),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ trips, operators }) => {
-          this.feed.set(buildTripIncidentFeed(trips, operators));
-          this.loading.set(false);
-        },
-        error: () => {
-          this.feed.set([]);
-          this.loading.set(false);
-        },
-      });
-  }
 
   setFilter(value: IncidentSeverityFilter): void {
     this.severityFilter.set(value);

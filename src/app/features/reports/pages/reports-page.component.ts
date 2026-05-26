@@ -7,12 +7,12 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
-import { ReportsFilterBarComponent } from '@features/reports/components/reports-filter-bar/reports-filter-bar.component';
-import { ReportsAnalyticsService } from '@features/reports/data/reports-analytics.service';
+import { ReportsFilterBarComponent, type ReportsToolbarTab } from '@features/reports/components/reports-filter-bar/reports-filter-bar.component';
+import { ReportsAnalyticsService } from '@services/domain/reports-analytics';
 import type { ReportsTabId } from '@features/reports/models/reports-view.models';
 import type { ReportsRawBundle } from '@features/reports/utils/reports-bundle-filter';
 import { defaultReportsFilter } from '@features/reports/utils/reports-filter';
+import { UserPreferencesStore } from '@services/state/user-preferences';
 import {
   donutConicGradient,
   donutMarginTotal,
@@ -22,6 +22,7 @@ import type {
   ReportsDestinationPerformanceRow,
   ReportsDonutSlice,
   ReportsFleetOperatorPayRow,
+  ReportsPeriodBalanceBar,
 } from '@features/reports/models/reports-view.models';
 import { barFillWidthPct as resolveBarFillWidthPct } from '@features/reports/utils/reports-chart-mappers';
 import { collectionPaymentDonutTotal } from '@features/reports/utils/reports-collection-payment-donut';
@@ -30,10 +31,10 @@ import {
   semiDonutConicGradient,
 } from '@features/reports/utils/reports-expense-category-slices';
 import { donutSliceTotal } from '@features/reports/utils/reports-operation-donut';
+import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToCardComponent } from '@shared/ui/to-card/to-card.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
-import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { ToBadgeComponent } from '@shared/ui/to-badge/to-badge.component';
 import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.component';
 
@@ -47,6 +48,7 @@ import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.co
     ToSkeletonComponent,
     ToBadgeComponent,
     ToCardComponent,
+    ToKpiCardComponent,
     ToTableComponent,
     ReportsFilterBarComponent,
   ],
@@ -55,11 +57,14 @@ import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.co
 })
 export class ReportsPageComponent {
   private readonly analytics = inject(ReportsAnalyticsService);
+  private readonly preferences = inject(UserPreferencesStore);
 
   readonly loading = signal(true);
   readonly tab = signal<ReportsTabId>('general');
   readonly filter = signal(defaultReportsFilter());
   readonly raw = signal<ReportsRawBundle | null>(null);
+
+  readonly operationalAnalysisEnabled = this.preferences.operationalAnalysisEnabled;
 
   readonly view = computed(() => {
     const bundle = this.raw();
@@ -67,14 +72,6 @@ export class ReportsPageComponent {
       return null;
     }
     return this.analytics.buildView(bundle, this.filter());
-  });
-
-  readonly unitSelectOptions = computed((): ToSelectOption[] => {
-    const units = this.raw()?.units ?? [];
-    return units.map((u) => ({
-      value: u.id,
-      label: labelForUnitId(u.id, units),
-    }));
   });
 
   readonly clientRows = computed(() =>
@@ -110,11 +107,11 @@ export class ReportsPageComponent {
     return slices.map((s) => `${s.label} ${s.pct}%`).join(', ');
   }
 
-  readonly tabs: { id: ReportsTabId; label: string }[] = [
-    { id: 'general', label: 'General' },
-    { id: 'balance', label: 'Balance' },
-    { id: 'maniobras', label: 'Maniobras' },
-    { id: 'fleet', label: 'Flota' },
+  readonly tabs: ReportsToolbarTab[] = [
+    { id: 'general', label: 'General', icon: 'chartBar' },
+    { id: 'balance', label: 'Balance', icon: 'revenue' },
+    { id: 'maniobras', label: 'Maniobras', icon: 'route' },
+    { id: 'fleet', label: 'Flota', icon: 'truck' },
   ];
 
   readonly routeClientProfitRows = computed(() =>
@@ -144,6 +141,7 @@ export class ReportsPageComponent {
   ];
 
   constructor() {
+    this.preferences.ensureLoaded();
     this.analytics
       .loadRawBundle()
       .pipe(takeUntilDestroyed())
@@ -154,6 +152,14 @@ export class ReportsPageComponent {
         },
         error: () => this.loading.set(false),
       });
+  }
+
+  periodBalanceBarHeightPct(
+    value: number,
+    bars: readonly ReportsPeriodBalanceBar[],
+  ): number {
+    const max = Math.max(1, ...bars.map((b) => Math.abs(b.value)));
+    return Math.max(4, Math.round((Math.abs(value) / max) * 100));
   }
 
   weeklyBarHeightPct(value: number, series: readonly { value: number }[]): number {

@@ -1,9 +1,16 @@
 import { bootstrapApplication } from '@angular/platform-browser';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
-import { applyStoredThemePreset } from './app/core/services/theme.service';
+import { applyStoredThemePreset } from './app/core/services/state/theme';
+import { authInterceptor } from './app/core/interceptors/auth.interceptor';
+import { errorInterceptor } from './app/core/interceptors/error.interceptor';
 
 applyStoredThemePreset();
 
-bootstrapApplication(AppComponent, appConfig)
-  .catch((err) => console.error(err));
+bootstrapApplication(AppComponent, {
+  providers: [
+    ...appConfig.providers,
+    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+  ],
+}).catch((err) => console.error(err));

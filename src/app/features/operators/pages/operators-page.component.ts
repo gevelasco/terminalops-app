@@ -4,13 +4,13 @@ import {
   computed,
   inject,
   model,
+  resource,
   signal,
 } from '@angular/core';
-import { catchError, firstValueFrom, forkJoin, of } from 'rxjs';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { OperatorsDetailDrawerComponent } from '@features/operators/components/operators-detail-drawer/operators-detail-drawer.component';
 import { OperatorsNewDrawerComponent } from '@features/operators/components/operators-new-drawer/operators-new-drawer.component';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { OperatorsService } from '@services/api/operators';
 import {
   operatorInsuranceKindLabel,
   operatorOperationalStatusLabel,
@@ -18,7 +18,6 @@ import {
 import type {
   Operator,
   OperatorOperationalStatus,
-  Trip,
 } from '@shared/models/logistics.models';
 import { completedManeuverCountsByOperatorId } from '@features/operators/utils/completed-maneuver-counts-by-operator-id';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -59,16 +58,32 @@ function formatIsoDateEs(iso: string): string {
   styleUrl: './operators-page.component.scss',
 })
 export class OperatorsPageComponent {
-  private readonly repo = inject(OperatorRepository);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly operatorsApi = inject(OperatorsService);
 
-  readonly loading = signal(true);
-  readonly rows = signal<Record<string, unknown>[]>([]);
+  private readonly listResource = resource({
+    loader: async (): Promise<Operator[]> =>
+      firstValueFrom(
+        this.operatorsApi.getOperatorsList().pipe(catchError(() => of([] as Operator[]))),
+      ),
+  });
+
+  readonly loading = computed(
+    () => !this.listResource.hasValue() && this.listResource.isLoading(),
+  );
+  readonly rows = computed(() => {
+    const ops = this.listResource.value();
+    if (!ops) {
+      return [] as Record<string, unknown>[];
+    }
+    const counts = completedManeuverCountsByOperatorId([]);
+    return ops.map((o) => this.mapRow(o, counts));
+  });
   readonly searchQuery = model('');
   readonly newOperatorOpen = signal(false);
   readonly detailOperator = signal<Operator | null>(null);
-  /** Conteo de maniobras `completed` por id de operador (última carga de lista). */
-  readonly completedManeuverCounts = signal<Map<string, number>>(new Map());
+  readonly completedManeuverCounts = computed(() =>
+    completedManeuverCountsByOperatorId([]),
+  );
 
   readonly columns: ToTableColumn[] = [
     { key: 'name', label: 'Nombre' },
@@ -93,26 +108,8 @@ export class OperatorsPageComponent {
     return all.filter((row) => OperatorsPageComponent.rowMatchesQuery(row, q));
   });
 
-  constructor() {
-    this.loadOperators();
-  }
-
   loadOperators(): void {
-    this.loading.set(true);
-    forkJoin({
-      ops: this.repo.list().pipe(catchError(() => of([] as Operator[]))),
-      trips: this.maniobrasRepo
-        .list()
-        .pipe(catchError(() => of([] as Trip[]))),
-    }).subscribe({
-      next: ({ ops, trips }) => {
-        const counts = completedManeuverCountsByOperatorId(trips);
-        this.completedManeuverCounts.set(counts);
-        this.rows.set(ops.map((o) => this.mapRow(o, counts)));
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    void this.listResource.reload();
   }
 
   onRowClick(row: Record<string, unknown>): void {
@@ -120,11 +117,10 @@ export class OperatorsPageComponent {
     if (!id) {
       return;
     }
-    void firstValueFrom(this.repo.get(id)).then((op) => {
-      if (op) {
-        this.detailOperator.set(op);
-      }
-    });
+    const op = this.listResource.value()?.find((o) => o.id === id);
+    if (op) {
+      this.detailOperator.set(op);
+    }
   }
 
   onDetailDismiss(): void {

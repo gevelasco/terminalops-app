@@ -8,6 +8,8 @@ import { buildExpenseCategoryDonut } from './reports-expense-category-slices';
 import { buildFleetPayablesBarSlices } from './reports-fleet-payables';
 import { amountBarSlices } from './reports-chart-mappers';
 import { buildBalanceKpis } from './reports-kpi-builders';
+import { buildExpensePayablesView } from './reports-expense-payables-metrics';
+import { buildOperationalProvisionView, emptyOperationalProvisionView } from './reports-operational-provision-metrics';
 import { buildRouteClientProfitability } from './reports-route-client-profit';
 import {
   tripCasetas,
@@ -30,6 +32,7 @@ function tripCostParts(trips: ReportsFilteredBundle['trips']) {
 export function buildBalanceTabView(
   bundle: ReportsFilteredBundle,
   filter: ReportsFilter,
+  operationalAnalysisEnabled = true,
 ): ReportsBalanceTabView {
   const trips = bundle.trips;
   const expenses = bundle.expenses;
@@ -60,6 +63,10 @@ export function buildBalanceTabView(
 
   return {
     kpis,
+    operationalProvision: operationalAnalysisEnabled
+      ? buildOperationalProvisionView(bundle, bundle.allExpenses, filter.unitId)
+      : emptyOperationalProvisionView(),
+    expensePayables: buildExpensePayablesView(bundle, filter.unitId),
     collectionPaymentDonut: buildCollectionPaymentDonut(trips),
     costBreakdown,
     expenseByCategoryDonut: buildExpenseCategoryDonut(trips, expenses),

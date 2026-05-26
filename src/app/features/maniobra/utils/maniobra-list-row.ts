@@ -1,6 +1,6 @@
 import { Trip, Unit } from '@shared/models/logistics.models';
 import { formatStackedMx } from '@shared/utils/format-datetime-mx';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import { labelForUnitId } from '@shared/utils/fleet/unit-label';
 import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
 
 const STATUS_SEARCH_HINTS: Record<string, string> = {

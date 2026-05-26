@@ -1,4 +1,3 @@
-@use "../../fleet/components/fleet-drawer.shared.scss" as *;
 @use "../../../shared/styles/toolbar-filter-tabs.scss";
 @use "../../../shared/styles/trip-operation-type-badge.scss";
 @use "../../../shared/styles/trip-maneuver-status-pill.scss";
@@ -23,20 +22,12 @@
   align-items: center;
   gap: 0.75rem 1rem;
   margin-bottom: 0.75rem;
-  /* Altura de `.fleet-segment` / `to-input` con prefijo en la barra. */
+  /* Altura de `to-segment-control` / `to-input` con prefijo en la barra. */
   --maniobra-toolbar-control-height: calc(
     0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px
   );
   --toolbar-filter-tabs-height: var(--maniobra-toolbar-control-height);
-}
-
-.maniobra-toolbar__view-segment {
-  flex-shrink: 0;
-
-  .fleet-segment {
-    min-height: var(--maniobra-toolbar-control-height);
-    box-sizing: border-box;
-  }
+  --toolbar-segment-min-height: var(--maniobra-toolbar-control-height);
 }
 
 .maniobra-toolbar__search {
@@ -96,6 +87,9 @@
 .maniobra-schema {
   /* Misma altura en todos los iconos; el ancho sigue la proporción de cada PNG. */
   --maniobra-schema-icon-h: 3.25rem;
+  /* Plataformas: llantas más grandes en el PNG → escala menor para igualar al tracto. */
+  --maniobra-schema-plana-scale: 0.78;
+  --maniobra-schema-plana-second-scale: 0.76;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   gap: 0.75rem;
@@ -106,6 +100,7 @@
 
 .maniobra-schema__card {
   container-type: inline-size;
+  container-name: maniobra-schema-card;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -147,14 +142,14 @@
   min-width: 0;
 }
 
-/* Sencillo/plana: fechas a la derecha si la card es ancha. Full queda en columna. */
-@container (min-width: 23.5rem) {
+/* Sencillo/plana: fechas a la derecha solo si hay espacio real (convoy + panel). */
+@container maniobra-schema-card (min-width: 27rem) {
   .maniobra-schema__card:not(.maniobra-schema__card--full)
     .maniobra-schema__card-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(9.25rem, 11.25rem);
+    grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 9.75rem);
     align-items: start;
-    gap: 0.65rem 0.75rem;
+    gap: 0.65rem 0.65rem;
   }
 
   .maniobra-schema__card:not(.maniobra-schema__card--full)
@@ -162,6 +157,42 @@
     grid-column: 2;
     grid-row: 1;
     align-self: stretch;
+    padding: 0.5rem 0.55rem;
+  }
+
+  .maniobra-schema__card:not(.maniobra-schema__card--full)
+    .maniobra-schema__schedule-row {
+    gap: 0.25rem 0.45rem;
+
+    dt {
+      font-size: 0.625rem;
+    }
+
+    dd {
+      font-size: clamp(0.6875rem, 2.6cqi, 0.8125rem);
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .maniobra-schema__card:not(.maniobra-schema__card--full)
+    .maniobra-schema__segment {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+  }
+
+  .maniobra-schema__card:not(.maniobra-schema__card--full)
+    .maniobra-schema__convoy-part {
+    width: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+/* Convoy más compacto en sencillo cuando la card es estrecha pero en 2 columnas. */
+@container maniobra-schema-card (min-width: 27rem) and (max-width: 33.99rem) {
+  .maniobra-schema__card:not(.maniobra-schema__card--full) {
+    --maniobra-schema-icon-h: clamp(2.35rem, 11cqi, 3.25rem);
   }
 }
 
@@ -387,6 +418,7 @@
   align-self: stretch;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   padding: 0.35rem 0.45rem;
   box-sizing: border-box;
   border-radius: var(--to-radius-md);
@@ -399,6 +431,11 @@
   overflow: visible;
 }
 
+/* Full portacontenedor: un poco más de aire lateral (3 iconos apretados). */
+.maniobra-schema__graphic--full-standard {
+  padding-inline: 0.72rem;
+}
+
 .maniobra-schema__convoy-strip {
   display: flex;
   flex-direction: row;
@@ -407,6 +444,8 @@
   justify-content: center;
   gap: 0;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
   font-size: 0;
   line-height: 0;
@@ -441,6 +480,31 @@
   user-select: none;
   /* PNG en negro: tono más suave sobre fondo claro */
   opacity: 0.68;
+}
+
+.maniobra-schema__convoy-strip--plana .maniobra-schema__convoy-part--plana {
+  height: calc(
+    var(--maniobra-schema-icon-h) * var(--maniobra-schema-plana-scale)
+  );
+  max-height: calc(
+    var(--maniobra-schema-icon-h) * var(--maniobra-schema-plana-scale)
+  );
+}
+
+.maniobra-schema__convoy-strip--plana
+  .maniobra-schema__convoy-part--plana.maniobra-schema__convoy-part--plana-second {
+  height: calc(
+    var(--maniobra-schema-icon-h) * var(--maniobra-schema-plana-second-scale)
+  );
+  max-height: calc(
+    var(--maniobra-schema-icon-h) * var(--maniobra-schema-plana-second-scale)
+  );
+}
+
+.maniobra-schema__convoy-strip--plana .maniobra-schema__coupling {
+  margin-bottom: calc(
+    var(--maniobra-schema-icon-h) * var(--maniobra-schema-plana-scale) * 0.22
+  );
 }
 
 /* Full: separación mínima entre 1.er y 2.º remolque + punto de enganche. */
@@ -547,7 +611,8 @@
   flex-direction: column;
   gap: 0.35rem;
   padding-top: 0.15rem;
-  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--to-color-border) 70%, transparent);
 }
 
 .maniobra-schema__progress-head {
@@ -568,14 +633,22 @@
 .maniobra-schema__progress-value {
   font-size: 0.8125rem;
   font-weight: 700;
-  color: color-mix(in srgb, var(--to-color-primary) 58%, var(--to-color-text-muted));
+  color: color-mix(
+    in srgb,
+    var(--to-color-primary) 58%,
+    var(--to-color-text-muted)
+  );
 }
 
 .maniobra-schema__progress {
   height: 0.45rem;
   border-radius: 999px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--to-color-border) 55%, var(--to-color-surface));
+  background: color-mix(
+    in srgb,
+    var(--to-color-border) 55%,
+    var(--to-color-surface)
+  );
 }
 
 .maniobra-schema__progress-fill {
@@ -590,7 +663,7 @@
   transition: width 0.25s ease;
 }
 
-:host-context([data-app-scheme='dark']) {
+:host-context([data-app-scheme="dark"]) {
   .maniobra-schema__progress-value {
     color: var(--to-color-primary);
   }
@@ -630,7 +703,7 @@
   background: color-mix(in srgb, #f97316 18%, var(--to-color-surface));
 }
 
-:host-context([data-app-scheme='dark']) {
+:host-context([data-app-scheme="dark"]) {
   .maniobra-schema__status-pill--accidente {
     color: #fdba74;
     background: color-mix(in srgb, #f97316 22%, var(--to-color-surface));
@@ -698,6 +771,18 @@
   gap: 0.5rem 0.75rem;
   padding: 0.28rem 0;
   white-space: nowrap;
+
+  &--wrap {
+    flex-wrap: wrap;
+    white-space: normal;
+
+    dd {
+      white-space: normal;
+      text-align: right;
+      word-break: break-word;
+      max-width: 14rem;
+    }
+  }
 
   dt {
     margin: 0;

@@ -1,45 +1,54 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   HostListener,
   inject,
   model,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { UserProfile } from '@core/models/user-profile.models';
 import {
-  defaultUserProfile,
   initialsFromDisplayName,
   UserProfileStore,
-} from '@core/services/user-profile.store';
-import { SessionStore } from '@core/services/session.store';
-import { ThemeService, type ThemePreset } from '@core/services/theme.service';
+} from '@core/services/state/user-profile';
+import { SessionService } from '@core/services/state/session';
+import { ThemeService, type ThemePreset } from '@core/services/state/theme';
 import { ToastService } from '@core/notifications/toast.service';
+import { isNumericPublicId } from '@core/utils/api-date';
 import {
   formatMemberSinceLong,
   formatTenureLabel,
 } from '@core/utils/user-profile-tenure';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
+import { ProfileDrawerConfigTabComponent } from './profile-drawer-config-tab.component';
 
-type ProfileEditSection = 'collaborator' | 'personal' | 'password';
+type ProfileEditSection = 'personal' | 'password';
+type ProfileDrawerTab = 'perfil' | 'config';
 
 @Component({
   selector: 'app-profile-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgTemplateOutlet,
+    ToSideDrawerComponent,
+    ToSegmentControlComponent,
+    ToIconComponent,
     ToButtonComponent,
-    ToIconButtonComponent,
     ToInputComponent,
-    ToDrawerSkeletonComponent,
+    ProfileDrawerConfigTabComponent,
   ],
   templateUrl: './profile-drawer.component.html',
   styleUrls: [
@@ -50,12 +59,17 @@ type ProfileEditSection = 'collaborator' | 'personal' | 'password';
   ],
 })
 export class ProfileDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly profileStore = inject(UserProfileStore);
-  private readonly session = inject(SessionStore);
+  private readonly session = inject(SessionService);
   readonly theme = inject(ThemeService);
+
+  readonly themeSegmentTabs: readonly ToSegmentTab<ThemePreset>[] = [
+    { id: 'light', label: 'Claro', icon: 'themeLight' },
+    { id: 'dark', label: 'Oscuro', icon: 'themeDark' },
+  ];
+  readonly activeThemePreset = computed(() => this.theme.activePreset());
 
   readonly dismiss = output<void>();
   readonly saved = output<UserProfile>();
@@ -65,6 +79,7 @@ export class ProfileDrawerComponent {
   readonly editingSection = signal<ProfileEditSection | null>(null);
   readonly saving = signal(false);
   readonly photoSaving = signal(false);
+  readonly profileTab = signal<ProfileDrawerTab>('perfil');
 
   readonly displayName = model('');
   readonly username = model('');
@@ -73,19 +88,46 @@ export class ProfileDrawerComponent {
   readonly phone = model('');
   readonly newPassword = model('');
   readonly confirmPassword = model('');
+  readonly currentPassword = model('');
   readonly photoDataUrl = signal('');
-  readonly memberSince = signal('');
-  readonly department = model('');
-  readonly employeeId = model('');
-  readonly workLocation = model('');
+
+  readonly canViewConfigTab = computed(() => {
+    const role = this.session.role();
+    return role === 'admin' || role === 'superadmin';
+  });
+
+  readonly profileDrawerTabs = computed((): readonly ToSegmentTab<ProfileDrawerTab>[] => {
+    const tabs: ToSegmentTab<ProfileDrawerTab>[] = [
+      { id: 'perfil', label: 'Perfil', icon: 'person', htmlId: 'profile-tab-perfil' },
+    ];
+    if (this.canViewConfigTab()) {
+      tabs.push({
+        id: 'config',
+        label: 'Configuración',
+        icon: 'maintenance',
+        htmlId: 'profile-tab-config',
+      });
+    }
+    return tabs;
+  });
+
+  readonly configTabRef = viewChild(ProfileDrawerConfigTabComponent);
+  readonly configSaving = computed(() => this.configTabRef()?.saving() ?? false);
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     this.reloadFromStore();
     afterNextRender(() => this.drawerLoading.set(false));
+  }
+
+  selectProfileTab(tab: ProfileDrawerTab): void {
+    this.profileTab.set(tab);
+    if (this.editingSection()) {
+      this.cancelSectionEdit();
+    }
+  }
+
+  saveCompanyConfiguration(): void {
+    this.configTabRef()?.saveCompanyConfiguration();
   }
 
   isEditing(section: ProfileEditSection): boolean {
@@ -101,25 +143,53 @@ export class ProfileDrawerComponent {
   }
 
   memberSinceLine(): string {
-    const iso = this.memberSince().trim();
+    const iso = this.session.memberSince()?.trim() ?? '';
     return iso ? formatMemberSinceLong(iso) : '—';
   }
 
   tenureLine(): string {
-    const iso = this.memberSince().trim();
+    const iso = this.session.memberSince()?.trim() ?? '';
     return iso ? formatTenureLabel(iso) : '—';
+  }
+
+  departmentLine(): string {
+    return this.session.department()?.trim() || 'Gerencia';
+  }
+
+  workLocationLine(): string {
+    return (
+      this.session.workLocation()?.trim() ||
+      this.session.companyName()?.trim() ||
+      '—'
+    );
+  }
+
+  employeeIdLine(): string {
+    const id =
+      this.session.employeeId()?.trim() ?? this.session.userId()?.trim() ?? '';
+    return isNumericPublicId(id) ? id : '—';
   }
 
   passwordStatusLabel(): string {
     return 'Configurada';
   }
 
-  isThemeActive(preset: ThemePreset): boolean {
-    return this.theme.activePreset() === preset;
-  }
-
   setTheme(preset: ThemePreset): void {
-    this.theme.setPreset(preset);
+    if (preset === this.theme.activePreset()) {
+      return;
+    }
+    this.profileStore
+      .patchProfile({ theme: preset })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.theme.setPreset(preset);
+          this.toast.show('Tema actualizado.', 'success');
+        },
+        error: () => {
+          this.toast.show('No se pudo guardar el tema.', 'warning');
+        },
+      });
   }
 
   logout(): void {
@@ -128,6 +198,7 @@ export class ProfileDrawerComponent {
 
   startEditSection(section: ProfileEditSection): void {
     if (section === 'password') {
+      this.currentPassword.set('');
       this.newPassword.set('');
       this.confirmPassword.set('');
     }
@@ -136,6 +207,7 @@ export class ProfileDrawerComponent {
 
   cancelSectionEdit(): void {
     this.reloadFromStore();
+    this.currentPassword.set('');
     this.newPassword.set('');
     this.confirmPassword.set('');
     this.editingSection.set(null);
@@ -161,7 +233,7 @@ export class ProfileDrawerComponent {
     reader.onload = () => {
       const url = typeof reader.result === 'string' ? reader.result : '';
       this.photoDataUrl.set(url);
-      this.savePhotoOnly('Foto de perfil actualizada.');
+      this.savePhotoOnly(url);
     };
     reader.onerror = () => {
       this.photoSaving.set(false);
@@ -172,18 +244,7 @@ export class ProfileDrawerComponent {
 
   removePhotoAndSave(): void {
     this.photoDataUrl.set('');
-    this.savePhotoOnly('Foto de perfil eliminada.');
-  }
-
-  saveCollaboratorSection(): void {
-    this.persistProfile(
-      {
-        department: this.department().trim(),
-        employeeId: this.employeeId().trim(),
-        workLocation: this.workLocation().trim(),
-      },
-      'Datos de colaborador actualizados.',
-    );
+    this.savePhotoOnly('');
   }
 
   savePersonalSection(): void {
@@ -206,33 +267,72 @@ export class ProfileDrawerComponent {
       return;
     }
 
-    this.persistProfile(
-      { displayName, username, jobTitle, email, phone },
-      'Datos personales actualizados.',
-      username,
-    );
+    this.saving.set(true);
+    this.profileStore
+      .patchProfile({ displayName, username, jobTitle, email, phone })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (profile) => {
+          this.patchForm(profile);
+          this.editingSection.set(null);
+          this.saving.set(false);
+          this.toast.show('Datos personales actualizados.', 'success');
+          this.saved.emit(profile);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          const msg =
+            typeof err?.error?.message === 'string'
+              ? err.error.message
+              : 'No se pudieron guardar los datos personales.';
+          this.toast.show(msg, 'warning');
+        },
+      });
   }
 
   savePasswordSection(): void {
-    const np = this.newPassword().trim();
-    const cp = this.confirmPassword().trim();
-    if (!np && !cp) {
-      this.toast.show('Indica la nueva contraseña.', 'warning');
+    const current = this.currentPassword().trim();
+    const next = this.newPassword().trim();
+    const confirm = this.confirmPassword().trim();
+
+    if (!current) {
+      this.toast.show('Indica tu contraseña actual.', 'warning');
       return;
     }
-    if (np.length < 6) {
+    if (next.length < 6) {
       this.toast.show('La contraseña debe tener al menos 6 caracteres.', 'warning');
       return;
     }
-    if (np !== cp) {
+    if (next !== confirm) {
       this.toast.show('Las contraseñas no coinciden.', 'warning');
       return;
     }
 
-    const prev = this.currentProfile();
-    this.persistProfile({ password: np }, 'Contraseña actualizada.');
-    this.newPassword.set('');
-    this.confirmPassword.set('');
+    this.saving.set(true);
+    this.profileStore
+      .patchPassword(current, next)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.currentPassword.set('');
+          this.newPassword.set('');
+          this.confirmPassword.set('');
+          this.editingSection.set(null);
+          this.saving.set(false);
+          this.toast.show('Contraseña actualizada.', 'success');
+        },
+        error: (err) => {
+          this.saving.set(false);
+          const status = err?.status as number | undefined;
+          const msg =
+            typeof err?.error?.message === 'string'
+              ? err.error.message
+              : status === 401
+                ? 'La contraseña actual no es correcta.'
+                : 'No se pudo actualizar la contraseña.';
+          this.toast.show(msg, 'warning');
+        },
+      });
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -247,50 +347,31 @@ export class ProfileDrawerComponent {
   }
 
   private reloadFromStore(): void {
-    const u = this.session.username();
-    const p = u ? this.profileStore.load(u) : defaultUserProfile('gvelasco');
-    this.patchForm(p);
-  }
-
-  private currentProfile(): UserProfile {
-    const u = this.username().trim().toLowerCase() || this.session.username() || 'gvelasco';
-    return this.profileStore.profile() ?? defaultUserProfile(u);
-  }
-
-  private savePhotoOnly(successMessage: string): void {
-    const prev = this.currentProfile();
-    const next: UserProfile = {
-      ...prev,
-      photoDataUrl: this.photoDataUrl().trim(),
-    };
-    this.profileStore.save(next);
-    this.patchForm(next);
-    this.photoSaving.set(false);
-    this.toast.show(successMessage, 'success');
-    this.saved.emit(next);
-  }
-
-  private persistProfile(
-    patch: Partial<UserProfile>,
-    successMessage: string,
-    sessionUsername?: string,
-  ): void {
-    this.saving.set(true);
-    const prev = this.currentProfile();
-    const next: UserProfile = { ...prev, ...patch };
-    this.profileStore.save(next);
-    this.patchForm(next);
-
-    const userForSession = sessionUsername ?? next.username;
-    const sessionUser = this.session.username();
-    if (sessionUser && sessionUser !== userForSession) {
-      this.session.setLocalSession(userForSession);
+    const profile = this.profileStore.hydrateFromSession();
+    if (profile) {
+      this.patchForm(profile);
     }
+  }
 
-    this.editingSection.set(null);
-    this.saving.set(false);
-    this.toast.show(successMessage, 'success');
-    this.saved.emit(next);
+  private savePhotoOnly(photoDataUrl: string): void {
+    this.profileStore
+      .patchProfile({ photoDataUrl })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (profile) => {
+          this.patchForm(profile);
+          this.photoSaving.set(false);
+          this.toast.show(
+            photoDataUrl ? 'Foto de perfil actualizada.' : 'Foto de perfil eliminada.',
+            'success',
+          );
+          this.saved.emit(profile);
+        },
+        error: () => {
+          this.photoSaving.set(false);
+          this.toast.show('No se pudo guardar la foto de perfil.', 'warning');
+        },
+      });
   }
 
   private patchForm(p: UserProfile): void {
@@ -298,11 +379,7 @@ export class ProfileDrawerComponent {
     this.username.set(p.username);
     this.jobTitle.set(p.jobTitle);
     this.email.set(p.email);
-    this.phone.set(p.phone);
+    this.phone.set(p.phone || this.session.phone()?.trim() || '');
     this.photoDataUrl.set(p.photoDataUrl ?? '');
-    this.memberSince.set(p.memberSince ?? '');
-    this.department.set(p.department ?? '');
-    this.employeeId.set(p.employeeId ?? '');
-    this.workLocation.set(p.workLocation ?? '');
   }
 }

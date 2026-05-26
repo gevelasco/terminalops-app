@@ -4,7 +4,7 @@ import { tripKm, tripOperatorQuota } from '@features/reports/utils/reports-trip-
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import type { Expense, Trip, TripStatus, Unit } from '@shared/models/logistics.models';
 import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import { labelForUnitId } from '@shared/utils/fleet/unit-label';
 
 const OPERATOR_PAY_DAYS_AFTER_CLOSE = 7;
 

@@ -1,19 +1,15 @@
 import {
   Component,
-  DestroyRef,
   ElementRef,
   HostListener,
   computed,
   effect,
-  inject,
   input,
   model,
   output,
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
 import type { Trip } from '@shared/models/logistics.models';
 import { formatTripListLabel } from '@shared/utils/trip-list-label';
 import {
@@ -32,14 +28,15 @@ const MAX_SUGGESTIONS = 50;
   styleUrl: './to-trip-input.component.scss',
 })
 export class ToTripInputComponent {
-  private readonly maniobrasRepo = inject(ManiobraRepository);
-  private readonly destroyRef = inject(DestroyRef);
-
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
   readonly placeholder = input<string>('Buscar por código, ruta o cliente…');
   readonly disabled = input(false);
+
+  /** Si es true, usa `tripsData` y no llama a la API. */
+  readonly prefetchMode = input(false);
+  readonly tripsData = input<Trip[]>([]);
 
   /** Id interno de la maniobra (`Trip.id`). */
   readonly tripId = model('');
@@ -49,7 +46,7 @@ export class ToTripInputComponent {
   readonly inputId = `to-trip-input-${++tripInputSeq}`;
   readonly listId = `${this.inputId}-list`;
 
-  readonly trips = signal<Trip[]>([]);
+  readonly tripRows = signal<Trip[]>([]);
   readonly loading = signal(true);
   readonly open = signal(false);
   /** Texto libre en el campo (búsqueda o etiqueta de la maniobra elegida). */
@@ -60,12 +57,12 @@ export class ToTripInputComponent {
     if (!id) {
       return null;
     }
-    return this.trips().find((t) => t.id === id) ?? null;
+    return this.tripRows().find((t) => t.id === id) ?? null;
   });
 
   readonly suggestions = computed(() => {
     const q = this.searchText().trim().toLowerCase();
-    const all = this.trips();
+    const all = this.tripRows();
     if (!all.length) {
       return [];
     }
@@ -89,23 +86,21 @@ export class ToTripInputComponent {
   });
 
   constructor() {
-    this.maniobrasRepo
-      .list()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          this.trips.set(rows);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    effect(() => {
+      if (this.prefetchMode()) {
+        this.tripRows.set(this.tripsData());
+      } else {
+        this.tripRows.set([]);
+      }
+      this.loading.set(false);
+    });
 
     effect(() => {
       const id = this.tripId().trim();
       if (!id) {
         return;
       }
-      const t = this.trips().find((x) => x.id === id);
+      const t = this.tripRows().find((x) => x.id === id);
       if (t) {
         const label = formatTripListLabel(t);
         if (this.searchText() !== label) {
@@ -149,7 +144,7 @@ export class ToTripInputComponent {
     if (this.disabled()) {
       return;
     }
-    if (!this.loading() && this.trips().length > 0) {
+    if (!this.loading() && this.tripRows().length > 0) {
       this.open.set(true);
     }
   }

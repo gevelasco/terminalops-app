@@ -1,0 +1,49 @@
+<div
+  class="to-side-drawer"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="titleId() || null"
+>
+  <button
+    type="button"
+    class="to-side-drawer__backdrop"
+    aria-label="Cerrar panel"
+    (click)="onDismiss()"
+  ></button>
+
+  <aside
+    class="to-side-drawer__panel"
+    [class.to-side-drawer__panel--wide]="wide()"
+    [ngClass]="panelClass()"
+  >
+    <ng-content select="[toSideDrawerPanelStart]" />
+
+    <header class="to-side-drawer__header" [ngClass]="headerClass()">
+      <div class="to-side-drawer__header-main">
+        <ng-content select="[toSideDrawerHeader]" />
+      </div>
+      <to-icon-button label="Cerrar" type="button" (click)="onDismiss()">
+        <to-icon name="close" [size]="20" />
+      </to-icon-button>
+    </header>
+
+    <form
+      class="to-side-drawer__form"
+      [attr.novalidate]="formMode() ? '' : null"
+      (submit)="onFormSubmit($event)"
+    >
+      <div class="to-side-drawer__body" [ngClass]="bodyClass()">
+        <ng-content />
+        @if (loading()) {
+          <to-drawer-skeleton
+            class="to-side-drawer__loading"
+            [variant]="skeletonVariant()"
+          />
+        }
+      </div>
+      <div class="to-side-drawer__footer">
+        <ng-content select="[toSideDrawerFooter]" />
+      </div>
+    </form>
+  </aside>
+</div>

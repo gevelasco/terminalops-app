@@ -1,0 +1,158 @@
+.to-status-pill {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0;
+  flex-shrink: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.to-status-pill__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.to-status-pill__label {
+  line-height: 1.2;
+}
+
+.to-status-pill__sub {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  opacity: 0.88;
+}
+
+@mixin status-tone($color, $bg, $border) {
+  color: $color;
+  background: $bg;
+  border-color: $border;
+}
+
+.fleet-unit-detail__status--route,
+.to-status-pill--route {
+  @include status-tone(
+    #1d4ed8,
+    color-mix(in srgb, #3b82f6 16%, var(--to-color-surface)),
+    color-mix(in srgb, #3b82f6 35%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--available,
+.to-status-pill--available {
+  @include status-tone(
+    #166534,
+    color-mix(in srgb, #22c55e 16%, var(--to-color-surface)),
+    color-mix(in srgb, #22c55e 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--maintenance,
+.to-status-pill--maintenance {
+  @include status-tone(
+    #334155,
+    color-mix(in srgb, #64748b 14%, var(--to-color-surface)),
+    color-mix(in srgb, #64748b 28%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--inuse,
+.to-status-pill--inuse {
+  @include status-tone(
+    #9a3412,
+    color-mix(in srgb, #fb923c 14%, var(--to-color-surface)),
+    color-mix(in srgb, #fb923c 30%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--scheduled,
+.to-status-pill--scheduled {
+  @include status-tone(
+    #a16207,
+    color-mix(in srgb, #eab308 18%, var(--to-color-surface)),
+    color-mix(in srgb, #eab308 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--unknown,
+.to-status-pill--unknown {
+  @include status-tone(
+    var(--to-color-text-muted),
+    var(--to-color-surface-muted),
+    var(--to-color-border)
+  );
+}
+
+.fleet-unit-detail__status--client-good,
+.to-status-pill--client-good {
+  @include status-tone(
+    #166534,
+    color-mix(in srgb, #22c55e 16%, var(--to-color-surface)),
+    color-mix(in srgb, #22c55e 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--client-watch,
+.to-status-pill--client-watch {
+  @include status-tone(
+    #a16207,
+    color-mix(in srgb, #eab308 18%, var(--to-color-surface)),
+    color-mix(in srgb, #eab308 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--client-restricted,
+.to-status-pill--client-restricted {
+  @include status-tone(
+    #b91c1c,
+    color-mix(in srgb, #ef4444 14%, var(--to-color-surface)),
+    color-mix(in srgb, #ef4444 30%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--client-na,
+.to-status-pill--client-na {
+  @include status-tone(
+    var(--to-color-text-muted),
+    var(--to-color-surface-muted),
+    var(--to-color-border)
+  );
+}
+
+.fleet-unit-detail__status--operator-incapacitated,
+.to-status-pill--operator-incapacitated {
+  @include status-tone(
+    #9d174d,
+    color-mix(in srgb, #f472b6 14%, var(--to-color-surface)),
+    color-mix(in srgb, #f472b6 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--operator-leave,
+.to-status-pill--operator-leave {
+  @include status-tone(
+    #0e7490,
+    color-mix(in srgb, #06b6d4 14%, var(--to-color-surface)),
+    color-mix(in srgb, #06b6d4 30%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--operator-inactive,
+.to-status-pill--operator-inactive {
+  @include status-tone(
+    #52525b,
+    color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface)),
+    color-mix(in srgb, #71717a 28%, transparent)
+  );
+}

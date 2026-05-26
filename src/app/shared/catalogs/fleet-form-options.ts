@@ -79,8 +79,7 @@ export const FLEET_TRANSMISSION_SPEED_OPTIONS: ToSelectOption[] = [
   { value: '18', label: '18 velocidades' },
 ];
 
-/**
- * Años modelo para selects (descendente).
+/** Años modelo para selects (descendente).
  * Por defecto desde año actual + 1 hasta 1990 (mismo criterio que drawers de Flota).
  */
 export function buildFleetModelYearSelectOptions(
@@ -94,3 +93,47 @@ export function buildFleetModelYearSelectOptions(
   }
   return out;
 }
+
+/** Marcas de tractor / OEM habituales en Norteamérica (valor = abrev. operativa). */
+export const TRAILER_BRAND_OPTIONS: ToSelectOption[] = [
+  { value: 'FRHT', label: 'Freightliner' },
+  { value: 'KW', label: 'Kenworth' },
+  { value: 'PET', label: 'Peterbilt' },
+  { value: 'VOL', label: 'Volvo Trucks' },
+  { value: 'INT', label: 'International' },
+  { value: 'MACK', label: 'Mack' },
+  { value: 'WS', label: 'Western Star' },
+  { value: 'STR', label: 'Sterling' },
+  { value: 'CAT', label: 'Cat On-Highway' },
+  { value: 'HYU', label: 'Hyundai Translead' },
+  { value: 'WAB', label: 'Wabash National' },
+  { value: 'UT', label: 'Utility Trailer' },
+  { value: 'GRT', label: 'Great Dane' },
+  { value: 'OTR', label: 'Otra marca' },
+];
+
+/** Tipo de unidad / caja (operación México): portacontenedor, plataforma, etc. */
+export const EQUIPMENT_OPERATION_TYPE_OPTIONS: ToSelectOption[] = [
+  { value: 'portacontenedor', label: 'Portacontenedor / chasis' },
+  { value: 'plataforma', label: 'Plataforma (flatbed)' },
+  { value: 'caja_seca', label: 'Caja seca (dry van)' },
+  { value: 'refrigerado', label: 'Refrigerado (reefer)' },
+  { value: 'gondola', label: 'Góndola / baranda baja' },
+  { value: 'cama_baja', label: 'Cama baja (lowboy)' },
+  { value: 'cuello_ganso', label: 'Cuello de ganso' },
+  { value: 'colectora', label: 'Colectora / plataforma extensible' },
+  { value: 'tolva', label: 'Tolva' },
+  { value: 'pipa', label: 'Pipa (tanque)' },
+  { value: 'cortina', label: 'Lona / cortina lateral' },
+  { value: 'modular', label: 'Modular / plataforma step-deck' },
+  { value: 'otro', label: 'Otro' },
+];
+
+/** Configuración de vanos / contenedor (ISO o fijo). */
+export const EQUIPMENT_CONTAINER_SLOT_OPTIONS: ToSelectOption[] = [
+  { value: 'na', label: 'No aplica' },
+  { value: 'fixed', label: 'Chasis fijo / cerrado' },
+  { value: 'iso_40', label: "40′ (un contenedor)" },
+  { value: 'iso_20', label: "20′ (un contenedor)" },
+  { value: 'iso_20_20', label: "20′ + 20′ (dos contenedores)" },
+];

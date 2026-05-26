@@ -1,9 +1,7 @@
-import { DOCUMENT } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   HostListener,
   inject,
   input,
@@ -20,14 +18,13 @@ import { EXPENSE_VERIFICATION_SCOPE_OPTIONS } from '@shared/catalogs/expense-for
 import type { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
-import { ToDrawerSkeletonComponent } from '@shared/ui/to-drawer-skeleton/to-drawer-skeleton.component';
-import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.component';
+import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 
 @Component({
   selector: 'app-expenses-detail-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToDrawerSkeletonComponent, ToIconButtonComponent],
+  imports: [ToSideDrawerComponent],
   templateUrl: './expenses-detail-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
@@ -37,8 +34,6 @@ import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.
   ],
 })
 export class ExpensesDetailDrawerComponent {
-  private readonly doc = inject(DOCUMENT);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly dateShort = inject(DateShortPipe);
 
@@ -50,10 +45,6 @@ export class ExpensesDetailDrawerComponent {
   readonly drawerLoading = signal(true);
 
   constructor() {
-    this.doc.body.style.overflow = 'hidden';
-    this.destroyRef.onDestroy(() => {
-      this.doc.body.style.overflow = '';
-    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 

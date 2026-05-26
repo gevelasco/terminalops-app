@@ -9,12 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
 import { ChecklistDrawerComponent } from '@core/components/checklist-drawer/checklist-drawer.component';
 import { IncidentsNotificationsDrawerComponent } from '@core/components/incidents-notifications-drawer/incidents-notifications-drawer.component';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { buildTripIncidentFeed } from '@shared/utils/trip-incident-feed';
 import {
   NavigationEnd,
   Router,
@@ -25,12 +21,12 @@ import {
 import { filter } from 'rxjs';
 import { ProfileDrawerComponent } from '@core/components/profile-drawer/profile-drawer.component';
 import { AuthFacade } from '@core/services/auth.facade';
-import { SessionStore } from '@core/services/session.store';
+import { SessionService } from '@core/services/state/session';
 import {
   initialsFromDisplayName,
   UserProfileStore,
-} from '@core/services/user-profile.store';
-import { environment } from '../../../environments/environment';
+} from '@core/services/state/user-profile';
+import { UserPreferencesStore } from '@core/services/state/user-preferences';
 
 @Component({
   selector: 'app-shell',
@@ -49,17 +45,15 @@ import { environment } from '../../../environments/environment';
 })
 export class ShellComponent implements OnDestroy {
   private readonly auth = inject(AuthFacade);
-  private readonly session = inject(SessionStore);
+  private readonly session = inject(SessionService);
   private readonly profiles = inject(UserProfileStore);
+  private readonly preferences = inject(UserPreferencesStore);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
-  private readonly operatorsRepo = inject(OperatorRepository);
 
   readonly profileDrawerOpen = signal(false);
   readonly notificationsDrawerOpen = signal(false);
   readonly checklistDrawerOpen = signal(false);
-  private readonly incidentFeedCount = signal(0);
   /** Drawer lateral en viewport estrecho (móvil / tablet) */
   readonly navOpen = signal(false);
 
@@ -68,8 +62,9 @@ export class ShellComponent implements OnDestroy {
     if (p?.displayName?.trim()) {
       return p.displayName.trim();
     }
-    if (environment.authDevBypass) {
-      return 'Admin Cargo';
+    const name = this.session.name()?.trim();
+    if (name) {
+      return name;
     }
     const u = this.session.username();
     if (!u) {
@@ -83,7 +78,17 @@ export class ShellComponent implements OnDestroy {
     if (p?.jobTitle?.trim()) {
       return p.jobTitle.trim();
     }
-    return environment.authDevBypass ? 'Supervisor' : 'Operador';
+    const role = this.session.role();
+    if (role === 'admin') {
+      return 'Administrador';
+    }
+    if (role === 'coordinator') {
+      return 'Coordinador';
+    }
+    if (role === 'viewer') {
+      return 'Consulta';
+    }
+    return 'Operador';
   });
 
   readonly email = computed(() => {
@@ -91,14 +96,20 @@ export class ShellComponent implements OnDestroy {
     if (p?.email?.trim()) {
       return p.email.trim();
     }
-    if (environment.authDevBypass) {
-      return 'admin@cargo.mx';
+    const fromSession = this.session.email()?.trim();
+    if (fromSession) {
+      return fromSession;
     }
     const u = this.session.username();
-    return u ? `${u}@terminalops.local` : 'usuario@terminalops.local';
+    return u ? `${u}@terminalops.local` : '';
   });
 
-  readonly avatarPhotoUrl = computed(() => this.profiles.profile()?.photoDataUrl?.trim() ?? '');
+  readonly avatarPhotoUrl = computed(
+    () =>
+      this.profiles.profile()?.photoDataUrl?.trim() ??
+      this.session.photoDataUrl()?.trim() ??
+      '',
+  );
 
   readonly avatarInitials = computed(() => {
     const name = this.displayName();
@@ -118,32 +129,24 @@ export class ShellComponent implements OnDestroy {
     { path: '/reports', label: 'Reportes' },
   ] as const;
 
-  readonly notificationCount = computed(() => this.incidentFeedCount());
+  /** Sin prefetch global de maniobras: el badge queda en 0 hasta integrar caché del módulo. */
+  readonly notificationCount = computed(() => 0);
+
+  readonly companyTitle = computed(
+    () => this.session.companyName()?.trim() || 'Mi empresa',
+  );
 
   constructor() {
-    const u = this.session.username();
-    if (u) {
-      this.profiles.load(u);
+    if (this.session.username()) {
+      this.profiles.hydrateFromSession();
+      this.preferences.ensureLoaded();
     }
     this.router.events
-      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(() => this.closeNav());
-
-    this.refreshIncidentFeedCount();
-  }
-
-  private refreshIncidentFeedCount(): void {
-    forkJoin({
-      trips: this.maniobrasRepo.list(),
-      operators: this.operatorsRepo.list(),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ trips, operators }) => {
-          this.incidentFeedCount.set(buildTripIncidentFeed(trips, operators).length);
-        },
-        error: () => this.incidentFeedCount.set(0),
-      });
   }
 
   toggleNav(): void {
@@ -180,14 +183,10 @@ export class ShellComponent implements OnDestroy {
     this.profileDrawerOpen.set(false);
     this.checklistDrawerOpen.set(false);
     this.notificationsDrawerOpen.update((open) => !open);
-    if (this.notificationsDrawerOpen()) {
-      this.refreshIncidentFeedCount();
-    }
   }
 
   closeNotificationsDrawer(): void {
     this.notificationsDrawerOpen.set(false);
-    this.refreshIncidentFeedCount();
   }
 
   openProfileDrawer(): void {
@@ -195,10 +194,7 @@ export class ShellComponent implements OnDestroy {
       this.closeProfileDrawer();
       return;
     }
-    const u = this.session.username();
-    if (u) {
-      this.profiles.load(u);
-    }
+    this.profiles.hydrateFromSession();
     this.notificationsDrawerOpen.set(false);
     this.checklistDrawerOpen.set(false);
     this.profileDrawerOpen.set(true);
@@ -209,10 +205,7 @@ export class ShellComponent implements OnDestroy {
   }
 
   onProfileSaved(): void {
-    const u = this.session.username();
-    if (u) {
-      this.profiles.load(u);
-    }
+    this.profiles.hydrateFromSession();
   }
 
   onProfileSessionEnd(): void {

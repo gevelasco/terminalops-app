@@ -11,15 +11,14 @@ import { catchError, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ManiobraDetailDrawerComponent } from '@features/maniobra/components/maniobra-detail-drawer/maniobra-detail-drawer.component';
 import { ManiobraNewDrawerComponent } from '@features/maniobra/components/maniobra-new-drawer/maniobra-new-drawer.component';
-import {
-  CreateTripPayload,
-  ManiobraRepository,
-} from '@features/maniobra/data/maniobra.repository';
+import { TripsService } from '@services/api/trips';
+import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import {
   maniobraListRowFromTrip,
   maniobraListRowMatchesSearch,
 } from '@features/maniobra/utils/maniobra-list-row';
 import { tripContainerTypeLabelMx } from '@features/maniobra/utils/trip-container-type-label';
+import { tripCargoDescriptionDisplay } from '@features/maniobra/utils/trip-cargo-description';
 import {
   approximateManeuverDaysLabel,
   approximateManeuverKmLabel,
@@ -37,25 +36,27 @@ import {
   tripIncidentsSorted,
 } from '@features/maniobra/utils/trip-incidents';
 import { snapshotTextOrDash } from '@features/maniobra/utils/maniobra-route-display';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
-import { labelForUnitId } from '@app/sim-db/utils/unit-label';
+import {
+  schemaPrimaryTrailerAsset,
+  schemaSecondaryTrailerAsset,
+  SCHEMA_TRACTO_ASSET,
+  tripSchemaUsesPlataformaConvoy,
+} from '@features/maniobra/utils/maniobra-schema-convoy-assets';
 import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
 import {
   tripOperationTypeBadgeClass,
   tripOperationTypeBadgeLabel,
 } from '@shared/utils/trip-operation-type-badge';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
-import { operatorNamesById } from '@shared/utils/operator-name-map';
-import {
-  Operator,
-  Trip,
-  TripIncident,
-  TripStatus,
-  Unit,
-} from '@shared/models/logistics.models';
+import { Trip, TripIncident, TripStatus } from '@shared/models/logistics.models';
 import { formatStackedMx } from '@shared/utils/format-datetime-mx';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
+import type { ToFilterTab } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
@@ -66,14 +67,7 @@ import {
 
 export type ManiobraStatusFilter = TripStatus | 'all';
 
-export type ManiobraViewMode = 'table' | 'schema';
-
-type ManiobraListBundle = {
-  trips: Trip[];
-  operators: Operator[];
-  operatorNames: Map<string, string>;
-  units: Unit[];
-};
+export type ManiobraViewMode = 'table' | 'route';
 
 @Component({
   selector: 'app-maniobra-page',
@@ -85,6 +79,8 @@ type ManiobraListBundle = {
     ToSkeletonComponent,
     ToButtonComponent,
     ToInputComponent,
+    ToFilterTabsComponent,
+    ToSegmentControlComponent,
     ManiobraNewDrawerComponent,
     ManiobraDetailDrawerComponent,
   ],
@@ -92,38 +88,16 @@ type ManiobraListBundle = {
   styleUrl: './maniobra-page.component.scss',
 })
 export class ManiobraPageComponent {
-  /** Partes del convoy en esquema (PNG en `public/`). */
-  readonly schemaTractoAsset = 'maniobra-schema-tracto.png';
-  readonly schemaRemolqueAsset = 'maniobra-schema-remolque.png';
-  readonly schemaEngancheAsset = 'maniobra-schema-enganche.png';
+  readonly schemaTractoAsset = SCHEMA_TRACTO_ASSET;
 
-  private readonly maniobrasRepo = inject(ManiobraRepository);
-  private readonly operatorsRepo = inject(OperatorRepository);
-  private readonly unitsRepo = inject(UnitRepository);
+  private readonly tripsApi = inject(TripsService);
   private readonly toast = inject(ToastService);
 
   private readonly listResource = resource({
-    loader: async (): Promise<ManiobraListBundle> => {
-      const [maniobras, operators, units] = await Promise.all([
-        firstValueFrom(
-          this.maniobrasRepo.list().pipe(catchError(() => of([] as Trip[]))),
-        ),
-        firstValueFrom(
-          this.operatorsRepo
-            .list()
-            .pipe(catchError(() => of([] as Operator[]))),
-        ),
-        firstValueFrom(
-          this.unitsRepo.list().pipe(catchError(() => of([] as Unit[]))),
-        ),
-      ]);
-      return {
-        trips: maniobras,
-        operators,
-        operatorNames: operatorNamesById(operators),
-        units,
-      };
-    },
+    loader: async (): Promise<Trip[]> =>
+      firstValueFrom(
+        this.tripsApi.getTripsList().pipe(catchError(() => of([] as Trip[]))),
+      ),
   });
 
   /** Solo skeleton en carga inicial; `reload()` tras guardar no parpadea. */
@@ -133,22 +107,24 @@ export class ManiobraPageComponent {
 
   readonly newManiobraOpen = signal(false);
 
-  /** Vista tabla vs. esquema (solo en tránsito + búsqueda en esquema). */
+  /** Vista tabla vs. ruta (solo en tránsito + búsqueda en ruta). */
   readonly viewMode = signal<ManiobraViewMode>('table');
+  readonly viewSegmentTabs: readonly ToSegmentTab<ManiobraViewMode>[] = [
+    { id: 'table', label: 'Tabla', icon: 'grid', htmlId: 'maniobra-tab-table' },
+    { id: 'route', label: 'Ruta', icon: 'route', htmlId: 'maniobra-tab-route' },
+  ];
 
   readonly rows = computed(() => {
-    const v = this.listResource.value();
-    if (!v) {
+    const trips = this.listResource.value();
+    if (!trips) {
       return [];
     }
-    return v.trips.map((t) =>
-      maniobraListRowFromTrip(t, v.operatorNames, v.units),
-    );
+    return trips.map((t) => maniobraListRowFromTrip(t, new Map(), []));
   });
 
-  readonly operatorNameById = computed(
-    () => this.listResource.value()?.operatorNames ?? new Map<string, string>(),
-  );
+  readonly tripsList = computed(() => this.listResource.value() ?? ([] as Trip[]));
+
+  readonly operatorNameById = computed(() => new Map<string, string>());
 
   readonly detailTrip = signal<Trip | null>(null);
   readonly detailOperatorName = signal('');
@@ -157,15 +133,12 @@ export class ManiobraPageComponent {
 
   readonly searchQuery = model('');
 
-  readonly filterTabs: ReadonlyArray<{
-    value: ManiobraStatusFilter;
-    label: string;
-  }> = [
-    { value: 'all', label: 'Todos' },
-    { value: 'in_transit', label: tripStatusUiLabel('in_transit') },
-    { value: 'scheduled', label: tripStatusUiLabel('scheduled') },
-    { value: 'completed', label: tripStatusUiLabel('completed') },
-    { value: 'cancelled', label: tripStatusUiLabel('cancelled') },
+  readonly filterTabs: ReadonlyArray<ToFilterTab<ManiobraStatusFilter>> = [
+    { id: 'all', label: 'Todos', icon: 'grid' },
+    { id: 'in_transit', label: tripStatusUiLabel('in_transit'), icon: 'truck' },
+    { id: 'scheduled', label: tripStatusUiLabel('scheduled'), icon: 'calendar' },
+    { id: 'completed', label: tripStatusUiLabel('completed'), icon: 'checkCircle' },
+    { id: 'cancelled', label: tripStatusUiLabel('cancelled'), icon: 'cancelCircle' },
   ];
 
   readonly filteredRows = computed(() => {
@@ -180,28 +153,28 @@ export class ManiobraPageComponent {
     return byStatus.filter((row) => maniobraListRowMatchesSearch(row, q));
   });
 
-  readonly unitsList = computed(
-    () => this.listResource.value()?.units ?? ([] as readonly Unit[]),
-  );
+  readonly unitsList = computed(() => [] as const);
+
+  readonly equipmentById = computed(() => new Map<string, never>());
 
   /**
-   * Maniobras en tránsito para el esquema (tablero operativo), con el mismo
+   * Maniobras en tránsito para la vista Ruta (tablero operativo), con el mismo
    * criterio de búsqueda de texto que la tabla.
    */
   readonly schemaTrips = computed(() => {
-    const v = this.listResource.value();
-    if (!v) {
+    const trips = this.listResource.value();
+    if (!trips) {
       return [] as Trip[];
     }
     const q = this.searchQuery().trim().toLowerCase();
-    return v.trips.filter((t) => {
+    return trips.filter((t) => {
       if (t.status !== 'in_transit') {
         return false;
       }
       if (!q) {
         return true;
       }
-      const row = maniobraListRowFromTrip(t, v.operatorNames, v.units);
+      const row = maniobraListRowFromTrip(t, new Map(), []);
       return maniobraListRowMatchesSearch(row, q);
     });
   });
@@ -227,8 +200,12 @@ export class ManiobraPageComponent {
     return tripContainerTypeLabelMx(trip.containerType);
   }
 
+  tripCargoDescriptionForTrip(trip: Trip): string {
+    return tripCargoDescriptionDisplay(trip.cargoDescription);
+  }
+
   unitLabelForTrip(trip: Trip): string {
-    return labelForUnitId(trip.unitId, this.unitsList());
+    return trip.unitId?.trim() || 'Sin asignar';
   }
 
   departureLineForTrip(trip: Trip): string {
@@ -263,6 +240,18 @@ export class ManiobraPageComponent {
     return maneuverTimeProgress(trip);
   }
 
+  schemaUsesPlataformaConvoy(trip: Trip): boolean {
+    return tripSchemaUsesPlataformaConvoy(trip, this.equipmentById());
+  }
+
+  schemaPrimaryTrailerAssetForTrip(trip: Trip): string {
+    return schemaPrimaryTrailerAsset(trip, this.equipmentById());
+  }
+
+  schemaSecondaryTrailerAssetForTrip(trip: Trip): string {
+    return schemaSecondaryTrailerAsset(trip, this.equipmentById());
+  }
+
   /** Códigos de equipo a mostrar (1 sencillo/plana, 2 full). */
   equipmentSlotsForTrip(trip: Trip): (string | null)[] {
     const max = trip.operationType === 'full' ? 2 : 1;
@@ -290,8 +279,7 @@ export class ManiobraPageComponent {
   readonly formatStackedMx = formatStackedMx;
 
   incidentAuthorLabel(inc: TripIncident): string {
-    const operators = this.listResource.value()?.operators ?? [];
-    return tripIncidentPostedBy(inc, operators);
+    return tripIncidentPostedBy(inc, []);
   }
 
   tripIncidentAriaLabel(trip: Trip): string {
@@ -334,7 +322,7 @@ export class ManiobraPageComponent {
     if (!id) {
       return;
     }
-    void firstValueFrom(this.maniobrasRepo.get(id))
+    void firstValueFrom(this.tripsApi.getTripById(id))
       .then((trip) => {
         if (!trip) {
           return;
@@ -357,7 +345,7 @@ export class ManiobraPageComponent {
   }
 
   onManiobraSaved(payload: CreateTripPayload): void {
-    void firstValueFrom(this.maniobrasRepo.create(payload))
+    void firstValueFrom(this.tripsApi.postTrip(payload))
       .then(() => {
         this.toast.show('Maniobra programada.', 'success');
         this.newManiobraOpen.set(false);

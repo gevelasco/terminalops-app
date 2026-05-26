@@ -1,0 +1,9 @@
+<span class="to-status-pill" [class]="modClass()">
+  @if (showDot()) {
+    <span class="to-status-pill__dot" aria-hidden="true"></span>
+  }
+  <span class="to-status-pill__label">{{ label() }}</span>
+  @if (sub()) {
+    <span class="to-status-pill__sub">{{ sub() }}</span>
+  }
+</span>

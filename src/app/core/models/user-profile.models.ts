@@ -1,4 +1,4 @@
-/** Perfil editable del usuario (demo en `localStorage`). */
+/** Campos editables de perfil (persistidos en la API). */
 export interface UserProfile {
   username: string;
   displayName: string;
@@ -7,9 +7,6 @@ export interface UserProfile {
   phone: string;
   /** Data URL (`data:image/...`) o vacío para iniciales. */
   photoDataUrl: string;
-  /** Solo entorno demo; en producción no persistir en cliente. */
-  password: string;
-  /** Alta en la organización (ISO `YYYY-MM-DD`). */
   memberSince: string;
   department: string;
   employeeId: string;

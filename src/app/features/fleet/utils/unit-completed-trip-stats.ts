@@ -1,4 +1,5 @@
 import type { Trip } from '@shared/models/logistics.models';
+import { resourceIdKey } from '@shared/utils/resource-id';
 
 export type UnitCompletedTripStats = {
   completedCountByUnitId: Map<string, number>;
@@ -13,7 +14,7 @@ export function buildUnitCompletedTripStats(trips: Trip[]): UnitCompletedTripSta
     if (t.status !== 'completed') {
       continue;
     }
-    const id = t.unitId?.trim();
+    const id = resourceIdKey(t.unitId);
     if (!id) {
       continue;
     }

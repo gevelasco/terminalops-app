@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   input,
   model,
@@ -14,14 +15,13 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
-import { UnitRepository } from '@features/fleet/data/unit.repository';
+import { EquipmentService } from '@services/api/equipment';
+import { UnitsService } from '@services/api/units';
 import {
   buildManeuverAssignableUnitRows,
   type ManeuverAssignableUnitRow,
 } from '@features/maniobra/utils/assignable-fleet-for-maneuver';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
-import { TripOperationType } from '@shared/models/logistics.models';
+import { Equipment, Trip, TripOperationType, Unit } from '@shared/models/logistics.models';
 
 let seq = 0;
 
@@ -38,15 +38,19 @@ export type UnitPickedEvent = {
   styleUrl: './to-unit-input.component.scss',
 })
 export class ToUnitInputComponent {
-  private readonly unitsRepo = inject(UnitRepository);
-  private readonly equipmentRepo = inject(EquipmentRepository);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly unitsApi = inject(UnitsService);
+  private readonly equipmentApi = inject(EquipmentService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
   readonly placeholder = input<string>('');
+
+  readonly prefetchMode = input(false);
+  readonly unitsData = input<Unit[]>([]);
+  readonly equipmentData = input<Equipment[]>([]);
+  readonly tripsData = input<Trip[]>([]);
 
   readonly unitId = model('');
 
@@ -70,21 +74,40 @@ export class ToUnitInputComponent {
     return list.filter((r) => r.displayLabel.toLowerCase().includes(q));
   });
 
+  private fetchedFromApi = false;
+
   constructor() {
-    forkJoin({
-      units: this.unitsRepo.list().pipe(catchError(() => of([]))),
-      equipment: this.equipmentRepo.list().pipe(catchError(() => of([]))),
-      trips: this.maniobrasRepo.list().pipe(catchError(() => of([]))),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ units, equipment, trips }) => {
-          this.rows.set(buildManeuverAssignableUnitRows(units, equipment, trips));
-          this.syncInputFromUnitId();
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    effect(() => {
+      if (this.prefetchMode()) {
+        this.rows.set(
+          buildManeuverAssignableUnitRows(
+            this.unitsData(),
+            this.equipmentData(),
+            this.tripsData(),
+          ),
+        );
+        this.syncInputFromUnitId();
+        this.loading.set(false);
+        return;
+      }
+      if (this.fetchedFromApi) {
+        return;
+      }
+      this.fetchedFromApi = true;
+      forkJoin({
+        units: this.unitsApi.getUnitsList().pipe(catchError(() => of([]))),
+        equipment: this.equipmentApi.getEquipmentList().pipe(catchError(() => of([]))),
+      })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: ({ units, equipment }) => {
+            this.rows.set(buildManeuverAssignableUnitRows(units, equipment, []));
+            this.syncInputFromUnitId();
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
+    });
   }
 
   private syncInputFromUnitId(): void {

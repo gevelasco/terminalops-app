@@ -1,69 +1,27 @@
-<div
-  class="fleet-drawer"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="clients-new-drawer-title"
+<to-side-drawer
+  titleId="clients-new-drawer-title"
+  wide
+  formMode
+  [loading]="drawerLoading()"
+  skeletonVariant="form"
+  bodyClass="fleet-unit-body"
+  (dismiss)="dismiss.emit()"
+  (formSubmit)="submit()"
 >
-  <ng-template #toSaveIconSm>
+  <h2 toSideDrawerHeader id="clients-new-drawer-title" class="to-side-drawer__title">
     <svg
-      width="14"
-      height="14"
+      class="to-side-drawer__title-icon"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path
-        d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-      />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
+      <path fill="currentColor" d="M12 2c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-2.31C18.16 18.67 21 15.17 21 11c0-4.97-4.03-9-9-9zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
     </svg>
-  </ng-template>
+    Nuevo cliente
+  </h2>
 
-  <button
-    type="button"
-    class="fleet-drawer__backdrop"
-    aria-label="Cerrar panel"
-    (click)="dismiss.emit()"
-  ></button>
-
-  <aside class="fleet-drawer__panel fleet-drawer__panel--wide">
-    <header class="fleet-drawer__header">
-      <h2 id="clients-new-drawer-title" class="fleet-drawer__title">
-        <svg
-          class="fleet-drawer__title-icon"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            fill="currentColor"
-            d="M12 2c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-2.31C18.16 18.67 21 15.17 21 11c0-4.97-4.03-9-9-9zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
-          />
-        </svg>
-        Nuevo cliente
-      </h2>
-      <to-icon-button label="Cerrar" type="button" (click)="dismiss.emit()">
-        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-          />
-        </svg>
-      </to-icon-button>
-    </header>
-
-    <form class="fleet-drawer__form" (ngSubmit)="submit()">
-      <div class="fleet-drawer__body fleet-unit-body">
-        @if (drawerLoading()) {
-          <to-drawer-skeleton variant="form" />
-        } @else {
-        <section
+<section
           class="fleet-unit-sec fleet-unit-sec--boxed"
           aria-labelledby="cli-new-ident"
         >
@@ -155,7 +113,7 @@
                     size="sm"
                     (click)="commitContact()"
                   >
-                    <ng-container *ngTemplateOutlet="toSaveIconSm" />
+                    <to-icon name="save" [size]="14" />
                     Guardar
                   </to-button>
                 </div>
@@ -240,20 +198,13 @@
             [(payHealth)]="payHealth"
           />
         </section>
-        }
-      </div>
-
-      @if (!drawerLoading()) {
-      <div class="fleet-drawer__footer">
-        <to-button type="button" variant="outline" (click)="dismiss.emit()">
-          Cancelar
-        </to-button>
-        <to-button type="submit" variant="primary">
-          <ng-container *ngTemplateOutlet="toSaveIconSm" />
-          Guardar
-        </to-button>
-      </div>
-      }
-    </form>
-  </aside>
-</div>
+<div toSideDrawerFooter>
+      <to-button type="button" variant="outline" (click)="dismiss.emit()">
+        Cancelar
+      </to-button>
+      <to-button type="submit" variant="primary">
+        <to-icon name="save" [size]="14" />
+        Guardar
+      </to-button>
+    </div>
+</to-side-drawer>

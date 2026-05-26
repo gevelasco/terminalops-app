@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   input,
   model,
@@ -12,10 +13,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
-import { ManiobraRepository } from '@features/maniobra/data/maniobra.repository';
-import { OperatorRepository } from '@features/operators/data/operator.repository';
+import { OperatorsService } from '@services/api/operators';
 import {
+  Trip,
   TripStatus,
   Operator,
   OperatorOperationalStatus,
@@ -32,6 +32,20 @@ let seq = 0;
 
 const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
 
+function pickAvailableOperators(operators: Operator[], trips: Trip[]): Operator[] {
+  const busy = new Set<string>();
+  for (const t of trips) {
+    if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
+      busy.add(t.operatorId);
+    }
+  }
+  const avail = operators.filter(
+    (o) => PICKABLE_OPERATOR_STATUSES.includes(o.status) && !busy.has(o.id),
+  );
+  avail.sort((a, b) => a.name.localeCompare(b.name));
+  return avail;
+}
+
 @Component({
   selector: 'to-operator-input',
   standalone: true,
@@ -39,14 +53,17 @@ const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
   styleUrl: './to-operator-input.component.scss',
 })
 export class ToOperatorInputComponent {
-  private readonly operatorsRepo = inject(OperatorRepository);
-  private readonly maniobrasRepo = inject(ManiobraRepository);
+  private readonly operatorsApi = inject(OperatorsService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
   readonly placeholder = input<string>('');
+
+  readonly prefetchMode = input(false);
+  readonly operatorsData = input<Operator[]>([]);
+  readonly tripsData = input<Trip[]>([]);
 
   /** Identificador del operador seleccionado (vacío si no hay elección válida). */
   readonly operatorId = model('');
@@ -74,30 +91,32 @@ export class ToOperatorInputComponent {
     return ops.filter((o) => o.name.toLowerCase().includes(q));
   });
 
+  private fetchedFromApi = false;
+
   constructor() {
-    forkJoin({
-      operators: this.operatorsRepo.list(),
-      trips: this.maniobrasRepo.list(),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ operators, trips }) => {
-          const busy = new Set<string>();
-          for (const t of trips) {
-            if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
-              busy.add(t.operatorId);
-            }
-          }
-          const avail = operators.filter(
-            (o) =>
-              PICKABLE_OPERATOR_STATUSES.includes(o.status) && !busy.has(o.id),
-          );
-          avail.sort((a, b) => a.name.localeCompare(b.name));
-          this.availableOperators.set(avail);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    effect(() => {
+      if (this.prefetchMode()) {
+        this.availableOperators.set(
+          pickAvailableOperators(this.operatorsData(), this.tripsData()),
+        );
+        this.loading.set(false);
+        return;
+      }
+      if (this.fetchedFromApi) {
+        return;
+      }
+      this.fetchedFromApi = true;
+      this.operatorsApi
+        .getOperatorsList()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (operators) => {
+            this.availableOperators.set(pickAvailableOperators(operators, []));
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
+    });
   }
 
   onInput(ev: Event): void {

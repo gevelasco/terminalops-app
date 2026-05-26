@@ -363,6 +363,16 @@
   opacity: 0.85;
 }
 
+.login-page__link {
+  color: var(--to-color-primary);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .login-page__ambient {
     animation: login-ambient-drift 18s ease-in-out infinite alternate;

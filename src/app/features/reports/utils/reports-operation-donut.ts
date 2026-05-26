@@ -1,4 +1,4 @@
-import { buildOperationTypeSlicesFromTrips } from '@app/sim-db/utils/dashboard-charts-from-trips';
+import { buildOperationTypeSlicesFromTrips } from '@features/reports/utils/dashboard-charts-from-trips';
 import type { Trip } from '@shared/models/logistics.models';
 import type { ReportsDonutSlice } from '../models/reports-view.models';
 

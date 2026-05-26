@@ -6,9 +6,11 @@ import type {
   Trip,
   Unit,
 } from '@shared/models/logistics.models';
+import { withoutOperationalProvisionExpenses } from '@shared/utils/operational-provision';
+import { isTripClientPaymentMethod } from '@shared/catalogs/trip-client-payment-options';
 import type {
-  ReportsClientPaymentMethodFilter,
   ReportsFilter,
+  ReportsTripPaymentMethod,
 } from '../models/reports-view.models';
 import { expenseDay, isoDayInRange, tripProgrammedDay } from './reports-filter';
 
@@ -30,23 +32,22 @@ export type ReportsFilteredBundle = ReportsRawBundle & {
   creditScopeTrips: Trip[];
   /** Catálogo completo de viajes (estado operativo actual de flota). */
   allTrips: Trip[];
+  /** Todos los gastos (sin filtro de fechas; para saldos acumulados). */
+  allExpenses: Expense[];
 };
 
-export function tripMatchesClientPaymentMethod(
+export function tripMatchesClientPaymentMethods(
   t: Trip,
-  mode: ReportsClientPaymentMethodFilter,
+  methods: readonly ReportsTripPaymentMethod[],
 ): boolean {
-  if (mode === 'both') {
+  if (methods.length === 0) {
     return true;
   }
-  const pm = t.paymentMethod;
-  if (mode === 'cash') {
-    return pm === 'cash';
+  const pm = t.paymentMethod?.trim().toLowerCase() ?? '';
+  if (!pm || !isTripClientPaymentMethod(pm)) {
+    return false;
   }
-  if (mode === 'transfer') {
-    return pm === 'transfer';
-  }
-  return true;
+  return methods.includes(pm);
 }
 
 export function filterTrips(
@@ -66,7 +67,7 @@ export function filterTrips(
     if (filter.unitId && t.unitId !== filter.unitId) {
       return false;
     }
-    if (!tripMatchesClientPaymentMethod(t, filter.clientPaymentMethod)) {
+    if (!tripMatchesClientPaymentMethods(t, filter.clientPaymentMethods)) {
       return false;
     }
     return isoDayInRange(tripProgrammedDay(t), from, to);
@@ -105,7 +106,7 @@ export function filterTripsCreditScope(
     if (filter.unitId && t.unitId !== filter.unitId) {
       return false;
     }
-    if (!tripMatchesClientPaymentMethod(t, filter.clientPaymentMethod)) {
+    if (!tripMatchesClientPaymentMethods(t, filter.clientPaymentMethods)) {
       return false;
     }
     return true;
@@ -125,5 +126,18 @@ export function buildFilteredBundle(
     previousExpenses: filterExpenses(raw.expenses, filter, previousRange),
     creditScopeTrips: filterTripsCreditScope(raw.trips, filter),
     allTrips: [...raw.trips],
+    allExpenses: [...raw.expenses],
+  };
+}
+
+/** Omite reservas automáticas cuando el usuario desactivó el análisis operativo. */
+export function bundleWithoutOperationalProvision(
+  bundle: ReportsFilteredBundle,
+): ReportsFilteredBundle {
+  return {
+    ...bundle,
+    expenses: withoutOperationalProvisionExpenses(bundle.expenses),
+    previousExpenses: withoutOperationalProvisionExpenses(bundle.previousExpenses),
+    allExpenses: withoutOperationalProvisionExpenses(bundle.allExpenses),
   };
 }

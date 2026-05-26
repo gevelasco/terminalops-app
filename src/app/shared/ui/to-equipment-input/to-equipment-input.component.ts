@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
-import { EquipmentRepository } from '@features/fleet/data/equipment.repository';
+import { EquipmentService } from '@services/api/equipment';
 import {
   equipmentPickableForUnit,
   formatManeuverEquipmentLabel,
@@ -30,7 +30,7 @@ let seq = 0;
   styleUrl: './to-equipment-input.component.scss',
 })
 export class ToEquipmentInputComponent {
-  private readonly equipmentRepo = inject(EquipmentRepository);
+  private readonly equipmentApi = inject(EquipmentService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
@@ -38,6 +38,9 @@ export class ToEquipmentInputComponent {
   readonly label = input<string>('');
   readonly placeholder = input<string>('');
   readonly disabled = input(false);
+
+  readonly prefetchMode = input(false);
+  readonly equipmentData = input<Equipment[]>([]);
 
   /** Unidad tractora seleccionada; filtra remolques enganchados. */
   readonly unitId = input('');
@@ -71,21 +74,35 @@ export class ToEquipmentInputComponent {
 
   readonly controlDisabled = computed(() => this.disabled() || !this.unitId().trim());
 
+  private fetchedFromApi = false;
+
   constructor() {
-    this.equipmentRepo
-      .list()
-      .pipe(
-        catchError(() => of([] as Equipment[])),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: (rows) => {
-          this.catalog.set(rows);
-          this.syncInputFromEquipmentId();
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    effect(() => {
+      if (this.prefetchMode()) {
+        this.catalog.set(this.equipmentData());
+        this.syncInputFromEquipmentId();
+        this.loading.set(false);
+        return;
+      }
+      if (this.fetchedFromApi) {
+        return;
+      }
+      this.fetchedFromApi = true;
+      this.equipmentApi
+        .getEquipmentList()
+        .pipe(
+          catchError(() => of([] as Equipment[])),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe({
+          next: (rows) => {
+            this.catalog.set(rows);
+            this.syncInputFromEquipmentId();
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
+    });
 
     effect(() => {
       const uid = this.unitId();

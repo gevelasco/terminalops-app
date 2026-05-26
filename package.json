@@ -4,11 +4,10 @@
   "scripts": {
     "ng": "ng",
     "dev": "ng serve",
-    "start": "node scripts/serve-production.mjs",
+    "start": "npm run build && node scripts/serve-production.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "sim-db:validate": "node scripts/sim-db/validate-demo-bundle.mjs"
+    "test": "ng test"
   },
   "private": true,
   "dependencies": {
@@ -19,6 +18,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "jwt-decode": "^4.0.0",
     "rxjs": "~7.8.0",
     "serve": "^14.2.6",
     "tslib": "^2.3.0",

@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthFacade } from '@core/services/auth.facade';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -7,7 +7,7 @@ import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ToButtonComponent, ToInputComponent],
+  imports: [ToButtonComponent, ToInputComponent, RouterLink],
   templateUrl: './login-page.component.html',
   styleUrl: './login-page.component.scss',
 })
@@ -32,16 +32,18 @@ export class LoginPageComponent {
   tryLogin(form: HTMLFormElement): void {
     this.error.set(null);
     const fd = new FormData(form);
-    const u = String(fd.get('username') ?? '');
+    const u = String(fd.get('login') ?? '');
     const p = String(fd.get('password') ?? '');
     this.submitting.set(true);
-    const ok = this.auth.login(u, p);
-    this.submitting.set(false);
-    if (!ok) {
-      this.error.set('Usuario o contraseña incorrectos.');
-      return;
-    }
-    /** Entrada directa al inicio; no usar otros destinos post-login en este flujo. */
-    void this.router.navigateByUrl('/dashboard');
+    this.auth.login(u, p).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        void this.router.navigateByUrl('/dashboard');
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.error.set('Usuario o contraseña incorrectos.');
+      },
+    });
   }
 }
