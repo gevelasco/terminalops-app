@@ -202,6 +202,16 @@
   background: var(--to-color-surface-muted);
 }
 
+.to-table-pill--rate-available {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--rate-inactive {
+  color: #52525b;
+  background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface, #fff));
+}
+
 .to-table-td--center {
   text-align: center;
   vertical-align: middle;
@@ -474,6 +484,16 @@
   .to-table-pill--client-na {
     color: var(--to-color-text-muted);
     background: color-mix(in srgb, var(--to-color-text-muted) 12%, var(--to-color-surface));
+  }
+
+  .to-table-pill--rate-available {
+    color: #86efac;
+    background: color-mix(in srgb, #22c55e 20%, var(--to-color-surface));
+  }
+
+  .to-table-pill--rate-inactive {
+    color: #d4d4d8;
+    background: color-mix(in srgb, #71717a 20%, var(--to-color-surface));
   }
 
   .to-table-fleet-icon {

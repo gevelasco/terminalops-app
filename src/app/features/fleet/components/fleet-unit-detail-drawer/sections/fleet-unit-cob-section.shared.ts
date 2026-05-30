@@ -1,0 +1,7 @@
+import {
+  FLEET_UNIT_DETAIL_TAB_IMPORTS,
+  FLEET_UNIT_DETAIL_TAB_STYLE_URLS,
+} from '../fleet-unit-detail-tab.shared';
+
+export const FLEET_UNIT_COB_SECTION_IMPORTS = [...FLEET_UNIT_DETAIL_TAB_IMPORTS] as const;
+export const FLEET_UNIT_COB_SECTION_STYLE_URLS = [...FLEET_UNIT_DETAIL_TAB_STYLE_URLS] as const;

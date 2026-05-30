@@ -110,6 +110,7 @@
   <div class="profile-drawer__scroll fleet-unit-body">
   @switch (profileTab()) {
     @case ('perfil') {
+      <div class="profile-drawer__sections">
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
         aria-labelledby="profile-personal-heading"
@@ -304,6 +305,7 @@
           </div>
         }
       </section>
+      </div>
     }
     @case ('config') {
       <app-profile-drawer-config-tab />

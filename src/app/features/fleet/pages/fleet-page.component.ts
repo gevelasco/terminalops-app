@@ -2,12 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   model,
-  resource,
+  OnInit,
   signal,
 } from '@angular/core';
-import { catchError, firstValueFrom, of } from 'rxjs';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import {
   formatUnitTrailerOperationalId,
@@ -17,8 +17,9 @@ import { FleetEquipmentDetailDrawerComponent } from '@features/fleet/components/
 import { FleetNewEquipmentDrawerComponent } from '@features/fleet/components/fleet-new-equipment-drawer/fleet-new-equipment-drawer.component';
 import { FleetNewUnitDrawerComponent } from '@features/fleet/components/fleet-new-unit-drawer/fleet-new-unit-drawer.component';
 import { FleetUnitDetailDrawerComponent } from '@features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer.component';
-import { EquipmentService } from '@services/api/equipment';
-import { UnitsService } from '@services/api/units';
+import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
+import { FleetFeatureService } from '@features/fleet/services/fleet.service';
+import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import {
   buildFleetEquipmentTableRow,
   buildFleetUnitTableRow,
@@ -29,7 +30,6 @@ import {
 } from '@features/fleet/utils/fleet-unit-table-row';
 import {
   SCHEMA_TRACTO_ASSET,
-  unitConvoyIsFull,
   unitConvoyPrimaryAsset,
   unitConvoySecondaryAsset,
   unitConvoyUsesPlataforma,
@@ -38,19 +38,19 @@ import { buildUnitCompletedTripStats } from '@features/fleet/utils/unit-complete
 import {
   equipmentAssignedToUnit,
   equipmentTypeDisplayLabel,
-  hitchPositionLabel,
+  convoyOverviewHitchPositionLabel,
   unitConvoyFromEquipment,
 } from '@features/fleet/utils/unit-hitched-equipment';
 import {
   schemaPrimaryTrailerAsset,
   schemaSecondaryTrailerAsset,
   tripSchemaUsesPlataformaConvoy,
-} from '@features/maniobra/utils/maniobra-schema-convoy-assets';
+} from '@features/trips/utils/maniobra-schema-convoy-assets';
 import {
   tripHasIncidents,
   tripIncidentPostedBy,
   tripIncidentsSorted,
-} from '@features/maniobra/utils/trip-incidents';
+} from '@features/trips/utils/trip-incidents';
 import {
   activeTripForUnit,
   fleetOverviewArrivalLine,
@@ -73,19 +73,13 @@ import {
   unitMatchesOverviewStatusFilter,
   type FleetOverviewPanelMode,
 } from '@features/fleet/utils/fleet-overview-card';
-import { OperatorsService } from '@services/api/operators';
-import {
-  normalizeEquipmentFromApi,
-  normalizeOperatorFromApi,
-  normalizeUnitFromApi,
-} from '@shared/utils/fleet/normalize-fleet-entities';
-import { operatorNamesById } from '@shared/utils/operator-name-map';
 import { resourceIdKey } from '@shared/utils/resource-id';
 import { formatStackedMx } from '@shared/utils/format-datetime-mx';
-import { tripOperationTypeBadgeLabel } from '@shared/utils/trip-operation-type-badge';
+import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
+import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import {
   Equipment,
-  Operator,
   Trip,
   TripIncident,
   Unit,
@@ -112,16 +106,15 @@ export type FleetOverviewStatusFilter = Exclude<
   'in_use' | 'unknown'
 > | 'all';
 
-type FleetListBundle = {
-  units: Unit[];
-  equipment: Equipment[];
-  operators: Operator[];
-  operatorNames: Map<string, string>;
-};
-
 @Component({
   selector: 'app-fleet-page',
   standalone: true,
+  providers: [
+    UnitsFeatureService,
+    EquipmentFeatureService,
+    FleetFeatureService,
+    ...OPERATION_CONFIGURATION_PROVIDERS,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
@@ -139,39 +132,18 @@ type FleetListBundle = {
   templateUrl: './fleet-page.component.html',
   styleUrl: './fleet-page.component.scss',
 })
-export class FleetPageComponent {
-  private readonly unitsApi = inject(UnitsService);
-  private readonly equipmentApi = inject(EquipmentService);
-  private readonly operatorsApi = inject(OperatorsService);
+export class FleetPageComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly fleet = inject(FleetFeatureService);
+  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
+  private readonly opResolver = inject(OperationConfigurationResolverService);
 
-  private readonly fleetResource = resource({
-    loader: async (): Promise<FleetListBundle> => {
-      const [units, equipment, operators] = await Promise.all([
-        firstValueFrom(
-          this.unitsApi.getUnitsList().pipe(catchError(() => of([] as Unit[]))),
-        ),
-        firstValueFrom(
-          this.equipmentApi
-            .getEquipmentList()
-            .pipe(catchError(() => of([] as Equipment[]))),
-        ),
-        firstValueFrom(
-          this.operatorsApi
-            .getOperatorsList()
-            .pipe(catchError(() => of([] as Operator[]))),
-        ),
-      ]);
-      const normalizedUnits = units.map(normalizeUnitFromApi);
-      const normalizedEquipment = equipment.map(normalizeEquipmentFromApi);
-      const normalizedOperators = operators.map(normalizeOperatorFromApi);
-      return {
-        units: normalizedUnits,
-        equipment: normalizedEquipment,
-        operators: normalizedOperators,
-        operatorNames: operatorNamesById(normalizedOperators),
-      };
-    },
-  });
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.fleet.dispose();
+      this.operationConfigsFeature.dispose();
+    });
+  }
 
   readonly tab = signal<FleetPageTab>('overview');
   readonly viewSegmentTabs: readonly ToSegmentTab<FleetPageTab>[] = [
@@ -200,18 +172,14 @@ export class FleetPageComponent {
     { id: 'maintenance', label: fleetOperationalKeyLabel('maintenance'), icon: 'maintenance' },
   ];
 
-  readonly loadingOverview = computed(
-    () => !this.fleetResource.hasValue() && this.fleetResource.isLoading(),
-  );
-  readonly loadingUnits = this.loadingOverview;
-  readonly loadingEquipment = this.loadingOverview;
+  readonly loadingOverview = this.fleet.loading;
+  readonly loadingUnits = this.fleet.loading;
+  readonly loadingEquipment = this.fleet.loading;
 
-  readonly unitList = computed(
-    () => this.fleetResource.value()?.units ?? [],
-  );
-  readonly equipmentList = computed(
-    () => this.fleetResource.value()?.equipment ?? [],
-  );
+  readonly unitList = this.fleet.units;
+  readonly equipmentList = this.fleet.equipment;
+  readonly unitListMutable = computed(() => [...this.unitList()]);
+  readonly equipmentListMutable = computed(() => [...this.equipmentList()]);
   readonly tripsList = computed((): Trip[] => []);
 
   readonly equipmentById = computed(() => {
@@ -222,9 +190,10 @@ export class FleetPageComponent {
     return map;
   });
 
-  readonly operatorNames = computed(
-    () => this.fleetResource.value()?.operatorNames ?? new Map<string, string>(),
-  );
+  ngOnInit(): void {
+    this.fleet.loadFleetModule();
+    this.operationConfigsFeature.loadOperationConfigurations();
+  }
 
   readonly unitTripStats = computed(() =>
     buildUnitCompletedTripStats(this.tripsList()),
@@ -233,22 +202,11 @@ export class FleetPageComponent {
   readonly newUnitOpen = signal(false);
   readonly newEquipmentOpen = signal(false);
 
-  readonly detailUnit = signal<Unit | null>(null);
   readonly detailUnitOnRoute = signal(false);
-  readonly detailEquipment = signal<Equipment | null>(null);
   readonly detailEquipmentOnRoute = signal(false);
 
-  /** `Equipment` del drawer con campos UI (`uiTractorCompletedTripDistanceKm`). */
-  readonly detailUnitHitchedEquipment = computed(() => {
-    const u = this.detailUnit();
-    if (!u) {
-      return [];
-    }
-    return equipmentAssignedToUnit(this.equipmentList(), u.id);
-  });
-
   readonly detailEquipmentForDrawer = computed((): Equipment | null => {
-    const e = this.detailEquipment();
+    const e = this.fleet.selectedEquipment();
     if (!e) {
       return null;
     }
@@ -282,6 +240,7 @@ export class FleetPageComponent {
         onRoute: onSet.has(u.id),
         completedTripKm: kmById.get(u.id) ?? null,
         hitchedEquipment: hitched,
+        resolver: this.opResolver,
       };
     };
     const filtered = q
@@ -292,10 +251,9 @@ export class FleetPageComponent {
             row['fleetBrand'],
             row['fleetModel'],
             row['fleetPlate'],
-            tripOperationTypeBadgeLabel(row['fleetConfig']),
-            unitConvoyFromEquipment(hitched).label,
+            this.opResolver.resolveLabel({ code: String(row['fleetConfig'] ?? '') }),
+            unitConvoyFromEquipment(hitched, this.opResolver).label,
             u.id,
-            u.type,
             u.status,
             u.serialNumber,
             u.name,
@@ -347,6 +305,7 @@ export class FleetPageComponent {
           e.trailerYear,
           m?.trailerBrandName,
           m?.trailerVersion,
+          m?.insuranceCarrierName,
           m?.insurancePolicyNumber,
           m?.verificationPhysMechDate,
         ]
@@ -372,7 +331,7 @@ export class FleetPageComponent {
         const hitched = equipmentAssignedToUnit(equipment, unit.id);
         const onRoute = onSet.has(unit.id);
         const operational = operationalKey(unit, onRoute);
-        const convoy = unitConvoyFromEquipment(hitched);
+        const convoy = unitConvoyFromEquipment(hitched, this.opResolver);
         const activeTrip = activeTripForUnit(unit.id, trips);
         const panelMode = fleetOverviewPanelMode(operational, activeTrip);
         const statusPill = fleetOverviewStatusPill(activeTrip, operational);
@@ -381,6 +340,7 @@ export class FleetPageComponent {
           onRoute,
           completedTripKm,
           hitchedEquipment: hitched,
+          resolver: this.opResolver,
         });
         return {
           unit,
@@ -413,7 +373,9 @@ export class FleetPageComponent {
           entry.tableRow['fleetBrand'],
           entry.tableRow['fleetPlate'],
           entry.tableRow['fleetModel'],
-          tripOperationTypeBadgeLabel(entry.tableRow['fleetConfig']),
+          this.opResolver.resolveLabel({
+            code: String(entry.tableRow['fleetConfig'] ?? ''),
+          }),
           entry.convoy.label,
           entry.unit.id,
           entry.statusPill.label,
@@ -441,13 +403,6 @@ export class FleetPageComponent {
         );
       });
   });
-
-  readonly unitSelectOptions = computed(() =>
-    this.unitList().map((u) => ({
-      value: u.id,
-      label: formatUnitTrailerOperationalId(u),
-    })),
-  );
 
   readonly unitColumns: ToTableColumn[] = [
     { key: 'fleetBrand', label: 'Marca' },
@@ -499,14 +454,6 @@ export class FleetPageComponent {
     { key: 'fleetIns', label: 'Seguro', cell: 'fleet-insurance-icon' },
   ];
 
-  loadUnits(): void {
-    void this.fleetResource.reload();
-  }
-
-  loadEquipment(): void {
-    void this.fleetResource.reload();
-  }
-
   onViewTabSelect(tab: FleetPageTab): void {
     this.tab.set(tab);
     this.searchQuery.set('');
@@ -537,6 +484,7 @@ export class FleetPageComponent {
       return tripSchemaUsesPlataformaConvoy(
         entry.activeTrip,
         this.equipmentById(),
+        this.opResolver,
       );
     }
     return unitConvoyUsesPlataforma(entry.hitched);
@@ -548,9 +496,11 @@ export class FleetPageComponent {
     hitched: Equipment[];
   }): boolean {
     if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return entry.activeTrip.operationType === 'full';
+      return this.opResolver.usesMultipleEquipment(
+        this.opResolver.contextFromTrip(entry.activeTrip),
+      );
     }
-    return unitConvoyIsFull(entry.hitched);
+    return this.opResolver.resolveConvoyMode([...entry.hitched]) === 'multi';
   }
 
   overviewPrimaryAssetForEntry(entry: {
@@ -559,7 +509,11 @@ export class FleetPageComponent {
     hitched: Equipment[];
   }): string {
     if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return schemaPrimaryTrailerAsset(entry.activeTrip, this.equipmentById());
+      return schemaPrimaryTrailerAsset(
+        entry.activeTrip,
+        this.equipmentById(),
+        this.opResolver,
+      );
     }
     return unitConvoyPrimaryAsset(entry.hitched);
   }
@@ -570,7 +524,11 @@ export class FleetPageComponent {
     hitched: Equipment[];
   }): string {
     if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return schemaSecondaryTrailerAsset(entry.activeTrip, this.equipmentById());
+      return schemaSecondaryTrailerAsset(
+        entry.activeTrip,
+        this.equipmentById(),
+        this.opResolver,
+      );
     }
     return unitConvoySecondaryAsset(entry.hitched);
   }
@@ -584,7 +542,7 @@ export class FleetPageComponent {
   }
 
   overviewHitchLabel(index: number, total: number): string {
-    return hitchPositionLabel(index, total);
+    return convoyOverviewHitchPositionLabel(index, total);
   }
 
   readonly tripHasIncidents = tripHasIncidents;
@@ -592,8 +550,7 @@ export class FleetPageComponent {
   readonly formatStackedMx = formatStackedMx;
 
   overviewTripIncidentAuthor(inc: TripIncident): string {
-    const operators = this.fleetResource.value()?.operators ?? [];
-    return tripIncidentPostedBy(inc, operators);
+    return tripIncidentPostedBy(inc, []);
   }
 
   overviewTripIncidentAria(trip: Trip): string {
@@ -627,18 +584,17 @@ export class FleetPageComponent {
 
   onOverviewUnitClick(unit: Unit): void {
     this.detailUnitOnRoute.set(this.unitsInTransitIds().has(unit.id));
-    this.detailUnit.set(unit);
+    this.fleet.selectUnit(unit.id);
   }
 
   onOverviewEquipmentClick(event: Event, equipment: Equipment): void {
     event.stopPropagation();
-    this.detailUnit.set(null);
     this.detailUnitOnRoute.set(false);
     const unitRef = resourceIdKey(equipment.unitId);
     this.detailEquipmentOnRoute.set(
       Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
     );
-    this.detailEquipment.set(equipment);
+    this.fleet.selectEquipment(equipment.id);
   }
 
   openNewEquipment(): void {
@@ -653,33 +609,24 @@ export class FleetPageComponent {
     if (!id) {
       return;
     }
-    const u = this.unitList().find((x) => x.id === id);
-    if (!u) {
-      return;
-    }
     this.detailUnitOnRoute.set(this.unitsInTransitIds().has(id));
-    this.detailUnit.set(u);
+    this.fleet.selectUnit(id);
   }
 
   onUnitDetailDismiss(): void {
-    this.detailUnit.set(null);
+    this.fleet.clearUnitSelection();
     this.detailUnitOnRoute.set(false);
   }
 
-  onDetailUnitChange(unit: Unit): void {
-    this.detailUnit.set(unit);
-    this.loadUnits();
-  }
-
   onUnitDetailViewEquipment(e: Equipment): void {
-    this.detailUnit.set(null);
+    this.fleet.clearUnitSelection();
     this.detailUnitOnRoute.set(false);
     this.tab.set('equipment');
     const unitRef = resourceIdKey(e.unitId);
     this.detailEquipmentOnRoute.set(
       Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
     );
-    this.detailEquipment.set(e);
+    this.fleet.selectEquipment(e.id);
   }
 
   onEquipmentRowClick(row: Record<string, unknown>): void {
@@ -695,11 +642,11 @@ export class FleetPageComponent {
     this.detailEquipmentOnRoute.set(
       Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
     );
-    this.detailEquipment.set(e);
+    this.fleet.selectEquipment(id);
   }
 
   onEquipmentDetailDismiss(): void {
-    this.detailEquipment.set(null);
+    this.fleet.clearEquipmentSelection();
     this.detailEquipmentOnRoute.set(false);
   }
 }

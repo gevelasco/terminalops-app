@@ -1,3 +1,4 @@
+<div class="profile-drawer__config-sections">
 <section
   class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__operations"
   aria-labelledby="profile-operations-heading"
@@ -6,9 +7,36 @@
     Configuración operativa
   </h3>
   <p class="fleet-unit-sec__docs-hint profile-drawer__operations-intro">
-    Ajustes de empresa para mantenimiento de flota y estimación inteligente. Aplica para
-    todos los usuarios de la compañía.
+    Ajustes de empresa para diesel, mantenimiento de flota y control operativo asistido. Aplica
+    para todos los usuarios de la compañía.
   </p>
+
+  <article class="profile-drawer__setting-row" aria-labelledby="profile-setting-diesel">
+    <div class="profile-drawer__setting-head">
+      <div>
+        <h4 id="profile-setting-diesel" class="profile-drawer__setting-title">
+          Control automático de diesel
+        </h4>
+        <p class="profile-drawer__setting-meta">{{ dieselControlStatusLabel() }}</p>
+      </div>
+      <button
+        type="button"
+        class="fleet-unit-toggle"
+        [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
+        role="switch"
+        [attr.aria-checked]="draftDieselControlEnabled()"
+        [disabled]="saving()"
+        aria-labelledby="profile-setting-diesel"
+        (click)="toggleDraftDieselControl()"
+      >
+        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+      </button>
+    </div>
+    <p class="profile-drawer__setting-desc">
+      El sistema estima automáticamente consumo y costos de diesel usando distancia operativa,
+      configuración de unidad, tipo de carga y rendimiento estimado.
+    </p>
+  </article>
 
   <article class="profile-drawer__setting-row" aria-labelledby="profile-setting-km">
     <div class="profile-drawer__setting-head">
@@ -31,6 +59,10 @@
         <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
       </button>
     </div>
+    <p class="profile-drawer__setting-desc">
+      Ayuda a mantener el recorrido de la flota y calcular mantenimiento de manera controlada e
+      inteligente según los kilómetros recorridos entre servicios.
+    </p>
     @if (draftKmEnabled()) {
       <to-input
         label="Kilómetros estándar entre servicios"
@@ -82,7 +114,7 @@
     <div class="profile-drawer__setting-head">
       <div>
         <h4 id="profile-setting-intelligent" class="profile-drawer__setting-title">
-          Administración inteligente
+          Control operativo asistido
         </h4>
         <p class="profile-drawer__setting-meta">{{ intelligentStatusLabel() }}</p>
       </div>
@@ -172,6 +204,7 @@
     cambias el CP o la localidad.
   </p>
 </section>
+</div>
 
 <dialog
   #disableConfirmDialog
@@ -194,7 +227,10 @@
             ¿Desactivar control por fechas?
           }
           @case ('intelligent') {
-            ¿Desactivar administración inteligente?
+            ¿Desactivar control operativo asistido?
+          }
+          @case ('diesel') {
+            ¿Desactivar control automático de diesel?
           }
         }
       </h2>
@@ -211,6 +247,16 @@
       </ul>
       <p class="profile-drawer__confirm-note">
         Debes guardar la configuración para que el cambio quede registrado.
+      </p>
+    } @else if (pendingDisableKind() === 'diesel') {
+      <p class="profile-drawer__confirm-text">
+        Al desactivar el control automático de diesel, el sistema dejará de calcular de forma
+        automática el consumo estimado, litros y costos operativos en las maniobras. Los valores
+        deberán capturarse manualmente.
+      </p>
+      <p class="profile-drawer__confirm-note">
+        Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar la configuración
+        para que quede registrado.
       </p>
     } @else {
       <p class="profile-drawer__confirm-text">

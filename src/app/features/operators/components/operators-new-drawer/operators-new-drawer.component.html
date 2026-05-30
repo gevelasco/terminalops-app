@@ -5,6 +5,7 @@
   [loading]="drawerLoading()"
   skeletonVariant="form"
   bodyClass="fleet-unit-body"
+  panelClass="operators-new-drawer__panel"
   (dismiss)="dismiss.emit()"
   (formSubmit)="submit()"
 >
@@ -13,6 +14,14 @@
       <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
     </svg>
     Nuevo operador
+    <span
+      class="operators-new-drawer__privacy-hint"
+      tabindex="0"
+      aria-label="Información sobre privacidad"
+      data-tooltip="Puedes registrar un operador con lo mínimo (nombre y licencia). Para agilizar tu operación a futuro, agrega los datos que puedas."
+    >
+      <to-icon name="info" [size]="18" />
+    </span>
   </h2>
 
 

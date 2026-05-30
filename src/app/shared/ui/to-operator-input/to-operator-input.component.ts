@@ -20,6 +20,7 @@ import {
   Operator,
   OperatorOperationalStatus,
 } from '@shared/models/logistics.models';
+import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 /** Puede asignarse a maniobra si no está ya en una activa. */
 const PICKABLE_OPERATOR_STATUSES: OperatorOperationalStatus[] = [
@@ -32,7 +33,10 @@ let seq = 0;
 
 const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
 
-function pickAvailableOperators(operators: Operator[], trips: Trip[]): Operator[] {
+function pickAvailableOperators(
+  operators: readonly Operator[],
+  trips: readonly Trip[],
+): Operator[] {
   const busy = new Set<string>();
   for (const t of trips) {
     if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
@@ -55,6 +59,7 @@ function pickAvailableOperators(operators: Operator[], trips: Trip[]): Operator[
 export class ToOperatorInputComponent {
   private readonly operatorsApi = inject(OperatorsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hostEl = inject(ElementRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
@@ -62,8 +67,8 @@ export class ToOperatorInputComponent {
   readonly placeholder = input<string>('');
 
   readonly prefetchMode = input(false);
-  readonly operatorsData = input<Operator[]>([]);
-  readonly tripsData = input<Trip[]>([]);
+  readonly operatorsData = input<readonly Operator[]>([]);
+  readonly tripsData = input<readonly Trip[]>([]);
 
   /** Identificador del operador seleccionado (vacío si no hay elección válida). */
   readonly operatorId = model('');
@@ -94,6 +99,13 @@ export class ToOperatorInputComponent {
   private fetchedFromApi = false;
 
   constructor() {
+    installAutocompleteOutsideDismiss(
+      this.hostEl,
+      () => this.open(),
+      () => this.open.set(false),
+      this.destroyRef,
+    );
+
     effect(() => {
       if (this.prefetchMode()) {
         this.availableOperators.set(
@@ -139,7 +151,10 @@ export class ToOperatorInputComponent {
   }
 
   onControlBlur(): void {
-    queueMicrotask(() => this.blurNotify.emit());
+    queueMicrotask(() => {
+      this.open.set(false);
+      this.blurNotify.emit();
+    });
   }
 
   onPickPointerDown(op: Operator, ev: Event): void {

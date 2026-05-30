@@ -1,0 +1,171 @@
+<to-side-drawer
+  titleId="destination-rates-detail-title"
+  wide
+  headerClass="fleet-unit-detail__header"
+  bodyClass="fleet-unit-body fleet-unit-detail"
+  [loading]="vm.drawerLoading()"
+  skeletonVariant="detail"
+  (dismiss)="vm.requestDismiss()"
+>
+  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+    <h2
+      id="destination-rates-detail-title"
+      class="to-side-drawer__title fleet-unit-detail__title"
+    >
+      <to-icon class="to-side-drawer__title-icon" name="sell" [size]="22" />
+      {{ vm.headerLabel() }}
+    </h2>
+    <to-status-pill
+      [label]="vm.rate().active ? 'Disponible' : 'Inactiva'"
+      [modClass]="
+        vm.rate().active
+          ? 'to-status-pill--available'
+          : 'to-status-pill--operator-inactive'
+      "
+    />
+  </div>
+
+  @if (vm.editing()) {
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="dest-rate-edit-location"
+    >
+      <h3 id="dest-rate-edit-location" class="fleet-unit-sec__title">
+        Destino
+      </h3>
+      <app-destination-rate-location-fields
+        [referencePostalCode]="vm.referencePostalCode()"
+        [(postalCode)]="vm.postalCode"
+        [(cityMunicipality)]="vm.cityMunicipality"
+        [(locality)]="vm.locality"
+      />
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="dest-rate-edit-prices"
+    >
+      <h3 id="dest-rate-edit-prices" class="fleet-unit-sec__title">
+        Tarifas por tipo de maniobra
+      </h3>
+      <app-destination-rate-prices-editor
+        [priceDrafts]="vm.priceDrafts()"
+        (priceDraftsChange)="vm.updatePriceDrafts($event)"
+      />
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="dest-rate-edit-meta"
+    >
+      <h3 id="dest-rate-edit-meta" class="fleet-unit-sec__title">Referencia</h3>
+      <div class="destination-rates-detail-drawer__stack">
+        <to-select
+          label="Disponible"
+          [options]="vm.availabilityOptions"
+          [(value)]="vm.active"
+        />
+        <to-input label="Notas" [(value)]="vm.notes" />
+      </div>
+    </section>
+  }
+
+  @if (vm.editing()) {
+    <div toSideDrawerFooter>
+      <to-button
+        type="button"
+        variant="outline"
+        [disabled]="vm.saving()"
+        (click)="vm.cancelEdit()"
+      >
+        Cancelar
+      </to-button>
+      <to-button
+        type="button"
+        variant="primary"
+        [disabled]="vm.saving()"
+        (click)="vm.persist()"
+      >
+        <to-icon name="save" [size]="14" />
+        {{ vm.saving() ? "Guardando…" : "Guardar" }}
+      </to-button>
+    </div>
+  } @else {
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed destination-rates-detail-drawer__rate-shell"
+      aria-labelledby="dest-rate-view-shell"
+    >
+      <div class="fleet-unit-sec__header">
+        <div class="destination-rates-detail-drawer__rate-head">
+          <h3 id="dest-rate-view-shell" class="fleet-unit-sec__title">
+            Tarifa operativa
+          </h3>
+          <p class="destination-rates-detail-drawer__updated">
+            Última actualización: {{ vm.lastUpdatedLabel() }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-sec__edit-btn"
+          aria-label="Editar tarifa operativa"
+          (click)="vm.startEdit()"
+        >
+          <to-icon name="edit" [size]="14" />
+        </button>
+      </div>
+
+      <div class="destination-rates-detail-drawer__view-body">
+        <h4 class="destination-rates-detail-drawer__subheading">Destino</h4>
+        <dl class="destination-rates-detail-drawer__dl">
+          <div>
+            <dt>CP destino</dt>
+            <dd>{{ vm.rate().postalCode }}</dd>
+          </div>
+          <div>
+            <dt>Ciudad / municipio</dt>
+            <dd>{{ vm.rate().cityMunicipality || "—" }}</dd>
+          </div>
+          <div>
+            <dt>Localidad</dt>
+            <dd>{{ vm.rate().locality || "—" }}</dd>
+          </div>
+        </dl>
+
+        <h4 class="destination-rates-detail-drawer__subheading">
+          Tarifas por tipo de maniobra
+        </h4>
+        <div class="destination-rates-detail-drawer__table-wrap">
+          <table class="destination-rates-detail-drawer__table">
+            <thead>
+              <tr>
+                <th scope="col">Tipo de maniobra</th>
+                <th scope="col">Cobro cliente</th>
+                <th scope="col">Pago operador</th>
+                <th scope="col">Casetas monto</th>
+                <th scope="col">Última actualización</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of vm.priceRowsDisplay(); track row.label) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.charge }}</td>
+                  <td>{{ row.operator }}</td>
+                  <td>{{ row.toll }}</td>
+                  <td>{{ row.updatedAt }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (vm.rate().notes) {
+          <h4 class="destination-rates-detail-drawer__subheading">Notas</h4>
+          <p class="destination-rates-detail-drawer__notes">
+            {{ vm.rate().notes }}
+          </p>
+        }
+      </div>
+    </section>
+  }
+</to-side-drawer>

@@ -1,0 +1,51 @@
+<div class="client-delivery-fields__stack">
+  <to-input
+    label="Código postal origen"
+    placeholder="Ej. 64000"
+    [maxLength]="5"
+    inputName="clientDeliveryPostalCode"
+    autocomplete="postal-code"
+    [(value)]="postalCode"
+    [disabled]="disabled()"
+    (blurNotify)="onCpBlur()"
+  />
+  @if (cpLoading()) {
+    <p class="client-delivery-fields__hint" aria-live="polite">
+      Consultando catálogo postal…
+    </p>
+  }
+  <to-input
+    label="Ciudad / municipio"
+    placeholder="—"
+    [disabled]="true"
+    [displayValue]="cityLine()"
+  />
+  @if (cpEditing() && localityOptions().length > 0) {
+    <to-select
+      label="Localidad"
+      placeholder="Elige localidad en la lista"
+      [options]="localityOptions()"
+      [value]="settlementConsId()"
+      [disabled]="disabled()"
+      (valueChange)="onLocalityChange($event)"
+    />
+  } @else if (localityLabel()) {
+    <to-input
+      label="Localidad"
+      [disabled]="true"
+      [displayValue]="localityLabel()"
+    />
+  } @else {
+    <to-input label="Localidad" [disabled]="true" displayValue="—" />
+  }
+  @if (showCoords()) {
+    <div class="client-delivery-fields__coords-grid">
+      <to-input label="Latitud" [disabled]="true" [displayValue]="latDisplay()" />
+      <to-input
+        label="Longitud"
+        [disabled]="true"
+        [displayValue]="lonDisplay()"
+      />
+    </div>
+  }
+</div>

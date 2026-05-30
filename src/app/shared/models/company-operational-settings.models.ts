@@ -20,6 +20,8 @@ export interface CompanyOperationalCenter {
 export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
+  dieselControlEnabled: boolean;
+  dieselControlChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceKmControlChangedAt?: string;

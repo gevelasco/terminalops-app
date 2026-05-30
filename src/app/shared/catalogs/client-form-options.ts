@@ -5,6 +5,12 @@ export const CLIENT_YES_NO_OPTIONS: ToSelectOption[] = [
   { value: 'yes', label: 'Sí' },
 ];
 
+/** Disponibilidad de tarifa operativa por destino. */
+export const DESTINATION_RATE_AVAILABILITY_OPTIONS: ToSelectOption[] = [
+  { value: 'yes', label: 'Disponible' },
+  { value: 'no', label: 'Inactiva' },
+];
+
 /**
  * Estado comercial visible hoy; el valor `not_evaluated` deja lugar al cálculo
  * automático por historial de pagos.

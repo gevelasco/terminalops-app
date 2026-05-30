@@ -8,8 +8,8 @@ export type TripClientPaymentMethod =
   | 'debit_card'
   | 'credit_card';
 
-/** Full suele llevar hasta 2 equipos; sencillo/plana típicamente uno. */
-export type TripOperationType = 'sencillo' | 'full' | 'plana';
+/** Código de configuración operacional de la empresa (p. ej. sencillo, full, cama-baja). */
+export type TripOperationType = string;
 
 /** Carga del servicio (equipo vacío vs cargado). */
 export type TripLoadType = 'vacio' | 'lleno';
@@ -26,18 +26,17 @@ export interface TripIncident {
   description: string;
   /** Fecha y hora en que ocurrió (ISO). */
   occurredAt: string;
-  /**
-   * Usuario que registró el incidente: `portalUsername` del operador en ruta
-   * o usuario de coordinación / monitoreo (ej. `gvelasco`, `jlopez`).
-   */
+  /** Usuario que registró el incidente (`portalUsername` o `username` de torre). */
   postedBy: string;
+  /** Nombre y rol para UI; lo resuelve la API desde `app_user` u operadores. */
+  postedByLabel?: string;
   /** Si no se indica, se infiere del estatus de la maniobra al generar alertas. */
   severity?: IncidentSeverity;
 }
 
 export interface Trip {
   id: string;
-  /** Código operativo: iniciales del cliente + correlativo global (ej. FL-24103). */
+  /** Código operativo: prefijo del cliente + correlativo (ej. ADM-0001). */
   maneuverCode: string;
   origin: string;
   destination: string;
@@ -47,12 +46,27 @@ export interface Trip {
   clientId: string;
   unitId: string;
   operatorId: string;
+  /** Nombre congelado al programar (histórico). */
+  operatorNameSnapshot?: string;
+  /** Código operativo congelado al programar (histórico). */
+  unitOperationalCodeSnapshot?: string;
+  /** Nombre resuelto en listado (snapshot o join). */
+  operatorName?: string;
+  /** Código operativo resuelto en listado (snapshot o join). */
+  unitOperationalCode?: string;
   status: TripStatus;
   /** Momento en que la maniobra quedó registrada en el sistema (alta / programación del envío). */
   programmedAt: string;
   /** Ventana operativa prevista del servicio en ruta (distinta del momento de alta). */
   scheduledAt: string;
   operationType: TripOperationType;
+  /** Nombre congelado al crear la maniobra (histórico). */
+  operationConfigurationNameSnapshot?: string;
+  operationConfigurationId?: string;
+  /** Versión del catálogo al congelar — solo informativa en UI. */
+  operationConfigurationVersionSnapshot?: number;
+  /** Máximo de equipos congelado al crear/actualizar tipo operativo. */
+  operationConfigurationMaxEquipmentCountSnapshot?: number;
   loadType: TripLoadType;
   containerType: TripContainerType;
   /** Qué transporta el contenedor (mercancía, producto, referencia del cliente). */
@@ -78,8 +92,12 @@ export interface Trip {
   /** Lista de incidentes (orden recomendado: más reciente primero). */
   incidents?: TripIncident[];
 
-  /** Distancia OSRM en km si se calculó al programar (demo). */
+  /** Distancia OSRM en km (solo ida). */
   routeDistanceKm?: number | null;
+  /** Distancia operativa (ida + vuelta por defecto; backend). */
+  operationalDistanceKm?: number | null;
+  /** Si la maniobra cuenta ida y vuelta para km operativos (default true). */
+  isRoundTrip?: boolean;
   /** «Local» / «Foránea» si se derivó del formulario de programación. */
   maneuverKind?: string;
   /** CP de origen (5 dígitos) y desglose SEPOMex al programar. */
@@ -98,7 +116,11 @@ export interface Trip {
   /** Costos operativos y cobro (opcionales; mock / API pueden ir llenándolos). */
   dieselLiters?: string;
   dieselAmount?: string;
+  /** Precio diesel MXN/L al crear la maniobra (reportes históricos). */
+  dieselPricePerLiterAtCreation?: number | null;
   casetasAmount?: string;
+  /** Origen del monto de casetas al crear (tarifa operativa vs manual). */
+  tollCalculationMode?: 'auto' | 'manual' | null;
   operatorQuota?: string;
   clientCharge?: string;
   paymentMethod?: TripClientPaymentMethod;
@@ -335,6 +357,8 @@ export interface UnitFleetMeta {
   verificationDoubleArticulatedDate?: string;
   verificationDoubleArticulatedCost?: number;
   insurancePolicyNumber?: string;
+  /** Aseguradora o nombre comercial del seguro (texto libre). */
+  insuranceCarrierName?: string;
   insurancePaymentCadence?: string;
   insuranceContractDate?: string;
   /** Costo, precio pagado o cantidad asociada al ciclo de seguro (seguimiento). */
@@ -426,6 +450,8 @@ export interface EquipmentFleetMeta {
   /** Inicio del período de exención de 2 años (físico-mecánica), ISO `YYYY-MM-DD`. */
   physMechTwoYearExemptStartDate?: string;
   insurancePolicyNumber?: string;
+  /** Aseguradora o nombre comercial del seguro (texto libre). */
+  insuranceCarrierName?: string;
   insurancePaymentCadence?: string;
   insuranceContractDate?: string;
   insuranceCost?: number;
@@ -439,7 +465,6 @@ export interface EquipmentFleetMeta {
 export interface Unit {
   id: string;
   plate: string;
-  type: string;
   capacityKg: number;
   status: string;
   /** Número de serie del chasis / VIN u otro identificador de fábrica. */
@@ -453,9 +478,14 @@ export interface Unit {
   fleetMeta?: UnitFleetMeta;
 }
 
+/** Posición del remolque en el convoy enganchado a la tractora. */
+export type EquipmentHitchPosition = 'lead' | 'rear';
+
 export interface Equipment {
   id: string;
   unitId: string;
+  /** Delantero (tracto) o trasero en configuración full; solo si hay `unitId`. */
+  hitchPosition?: EquipmentHitchPosition | null;
   /** Etiqueta corta opcional (ej. dolly #1). */
   name: string;
   /** Número de serie o inventario del activo. */

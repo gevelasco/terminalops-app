@@ -1,0 +1,205 @@
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="fleet-udv-ins"
+        >
+          <div class="fleet-unit-sec__header">
+            <h3 id="fleet-udv-ins" class="fleet-unit-sec__title">Seguro</h3>
+            @if (!vm.isEditing("insurance")) {
+              <button
+                type="button"
+                class="fleet-unit-sec__edit-btn"
+                aria-label="Editar Seguro"
+                (click)="vm.startEditInsurance()"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                  />
+                </svg>
+              </button>
+            }
+          </div>
+          @if (!vm.isEditing("insurance")) {
+            <dl class="fleet-unit-detail__dl">
+              <div class="fleet-unit-detail__row">
+                <dt>Nombre del seguro</dt>
+                <dd>{{ vm.meta()?.insuranceCarrierName?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Número de póliza</dt>
+                <dd>{{ vm.meta()?.insurancePolicyNumber?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Forma de pago / renovación</dt>
+                <dd>{{ vm.meta()?.insurancePaymentCadence?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Fecha de contratación</dt>
+                <dd>{{ vm.formatYmd(vm.meta()?.insuranceContractDate) }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Costo por ciclo</dt>
+                <dd>{{ vm.formatTrackingAmount(vm.meta()?.insuranceCost) }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <div class="fleet-unit-sec__edit-form">
+              <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--full">
+                <to-input
+                  label="Nombre del seguro"
+                  placeholder="Ej. GNP, AXA, Qualitas…"
+                  [(value)]="vm.editInsCarrierName"
+                />
+              </div>
+              <div class="fleet-unit-sec__edit-grid">
+                <to-input
+                  label="Número de póliza"
+                  placeholder="Póliza"
+                  [(value)]="vm.editInsPolicyNumber"
+                />
+                <to-input
+                  label="Fecha de contratación"
+                  type="date"
+                  [(value)]="vm.editInsContractDate"
+                />
+              </div>
+              <div class="fleet-unit-sec__edit-grid">
+                <to-select
+                  label="Forma de pago / renovación"
+                  [options]="vm.cadenceOptions"
+                  [(value)]="vm.editInsCadence"
+                />
+                <to-input
+                  label="Costo por ciclo (opcional)"
+                  type="text"
+                  [groupThousands]="true"
+                  placeholder="Ej. 12,500"
+                  [(value)]="vm.editInsCost"
+                />
+              </div>
+              <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+              @if (vm.editPolicyNames().length > 0) {
+                <ul class="fleet-unit-files">
+                  @for (n of vm.editPolicyNames(); track vm.trackStringEntry($index, n)) {
+                    <li class="fleet-unit-files__row">
+                      <span class="fleet-unit-files__name">{{ n }}</span>
+                      <button
+                        type="button"
+                        class="fleet-unit-files__rm"
+                        (click)="vm.removeEditPolicyDoc($index)"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="fleet-unit-detail__empty-files">
+                  Sin documentos en la lista (puedes agregar abajo).
+                </p>
+              }
+              <div class="fleet-unit-upload">
+                <input
+                  #filePolicyIns
+                  type="file"
+                  class="fleet-unit-upload__input"
+                  tabindex="-1"
+                  multiple
+                  accept="image/*,.pdf,application/pdf"
+                  (change)="vm.onEditInsurancePolicyFiles($event)"
+                />
+                <button
+                  type="button"
+                  class="fleet-unit-upload__btn"
+                  (click)="filePolicyIns.click()"
+                >
+                  Elegir archivos
+                </button>
+              </div>
+              @if (vm.editPolicyNewFiles().length > 0) {
+                <ul class="fleet-unit-files">
+                  @for (f of vm.editPolicyNewFiles(); track vm.trackFileEntry($index, f)) {
+                    <li class="fleet-unit-files__row">
+                      <span class="fleet-unit-files__name">{{ f.name }}</span>
+                      <button
+                        type="button"
+                        class="fleet-unit-files__rm"
+                        (click)="vm.removeEditInsurancePolicyNewFile($index)"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+              <div class="fleet-unit-sec__edit-actions">
+                <to-button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  (click)="vm.cancelEdit()"
+                >
+                  Cancelar
+                </to-button>
+                <to-button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  (click)="vm.saveEditInsurance()"
+                >
+                  <to-icon name="save" [size]="14" />
+                  Guardar
+                </to-button>
+              </div>
+            </div>
+          }
+          <div class="fleet-unit-detail__badge-block">
+            <p class="fleet-unit-detail__badge-label">
+              Contrato y próximo pago
+            </p>
+            <div class="fleet-unit-detail__badge-row">
+              <span
+                class="fleet-unit-detail__badge fleet-unit-detail__badge--neutral"
+              >
+                <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+                Contrato: {{ vm.formatYmd(vm.meta()?.insuranceContractDate) }}
+              </span>
+              <span [class]="vm.badgeRenewalClass(vm.insRenewalBucket())">
+                <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+                Próx. pago: {{ vm.insNext() }}
+              </span>
+            </div>
+          </div>
+          @if (!vm.isEditing("insurance")) {
+            <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+            <p class="fleet-unit-sec__docs-hint">PDF o recibos registrados.</p>
+            @if (vm.docNames("policy").length > 0) {
+              <ul
+                class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+              >
+                @for (n of vm.docNames("policy"); track n) {
+                  <li class="fleet-unit-detail__file-line">
+                    <span class="fleet-unit-detail__file-name">{{ n }}</span>
+                    <button
+                      type="button"
+                      class="fleet-unit-detail__file-dl"
+                      (click)="vm.downloadStoredDocument(n)"
+                    >
+                      Descargar
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="fleet-unit-detail__empty-files">
+                Sin archivos en el registro.
+              </p>
+            }
+          }
+        </section>

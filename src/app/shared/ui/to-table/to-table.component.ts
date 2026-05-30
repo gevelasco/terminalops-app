@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logistics.models';
 import type { ClientCommercialHealth } from '@shared/models/client.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
@@ -8,10 +18,6 @@ import {
   maneuverStatusPillClass,
   maneuverStatusPillLabel,
 } from '@shared/utils/maneuver-status-pill';
-import {
-  tripOperationTypeBadgeClass,
-  tripOperationTypeBadgeLabel,
-} from '@shared/utils/trip-operation-type-badge';
 import {
   fleetOperationalKeyLabel,
   type FleetOperationalKey,
@@ -29,7 +35,8 @@ export type ToTableCellKind =
   | 'fleet-verification-icon'
   | 'fleet-insurance-icon'
   | 'operator-op-pill'
-  | 'client-health-pill';
+  | 'client-health-pill'
+  | 'rate-availability-pill';
 
 /** Valor en la fila para `cell: 'datetime-stacked'` (fecha + hora en dos líneas). */
 export interface ToTableStackedDatetime {
@@ -47,11 +54,14 @@ export interface ToTableColumn {
 @Component({
   selector: 'to-table',
   standalone: true,
+  providers: [OperationConfigurationResolverService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './to-table.component.html',
   styleUrl: './to-table.component.scss',
 })
 export class ToTableComponent {
+  private readonly opResolver = inject(OperationConfigurationResolverService);
+
   readonly columns = input<ToTableColumn[]>([]);
   readonly rows = input<ReadonlyArray<Record<string, unknown>>>([]);
   readonly trackByKey = input<string>('id');
@@ -174,12 +184,12 @@ export class ToTableComponent {
     return row[key] === true;
   }
 
-  operationTypeBadgeClass(op: unknown): string {
-    return tripOperationTypeBadgeClass(op);
+  operationTypeBadgeClass(op: unknown, row?: Record<string, unknown>): string {
+    return this.opResolver.resolveCellDisplay(op, row).badgeClass;
   }
 
-  operationTypeCellLabel(op: unknown): string {
-    return tripOperationTypeBadgeLabel(op);
+  operationTypeCellLabel(op: unknown, row?: Record<string, unknown>): string {
+    return this.opResolver.resolveCellDisplay(op, row).label;
   }
 
   fleetOpPillClass(v: unknown): string {
@@ -229,6 +239,17 @@ export class ToTableComponent {
 
   clientHealthPillLabel(v: unknown): string {
     return clientCommercialHealthLabel(v as string | undefined);
+  }
+
+  rateAvailabilityPillClass(v: unknown): string {
+    const base = 'to-table-pill';
+    return v === 'available'
+      ? `${base} to-table-pill--rate-available`
+      : `${base} to-table-pill--rate-inactive`;
+  }
+
+  rateAvailabilityPillLabel(v: unknown): string {
+    return v === 'available' ? 'Disponible' : 'Inactiva';
   }
 
   /** Iconos de salud flota: al corriente / sin dato = apagado; próximo; vencido. */

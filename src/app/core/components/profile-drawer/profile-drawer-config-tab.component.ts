@@ -14,14 +14,14 @@ import { finalize } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { CompaniesService, type CompanyProfile } from '@core/services/api/companies';
 import { SessionService } from '@core/services/state/session';
-import { formatPreferenceChangedAt } from '@core/services/state/user-preferences';
+import { formatOperationalSettingChangedAt } from '@core/services/state/user-preferences';
 import {
   cityMunicipalityLineFromSettlement,
   formatSettlementOptionLabel,
   geocodeQueryFromSettlement,
   localityKey,
   normalizeMxPostalCodeDigits,
-} from '@features/maniobra/utils/mx-postal-settlement';
+} from '@features/trips/utils/mx-postal-settlement';
 import {
   MAINTENANCE_DATE_PERIOD_OPTIONS,
   type MaintenanceDatePeriod,
@@ -36,7 +36,7 @@ import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 
-type DisableConfirmKind = 'km' | 'date' | 'intelligent';
+type DisableConfirmKind = 'km' | 'date' | 'intelligent' | 'diesel';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
@@ -67,6 +67,7 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftDateEnabled = model(false);
   readonly draftDatePeriod = model<MaintenanceDatePeriod>('semiannual');
   readonly draftIntelligentEnabled = model(false);
+  readonly draftDieselControlEnabled = model(true);
 
   readonly centerCp = model('');
   readonly centerLocalityKey = model('');
@@ -148,6 +149,13 @@ export class ProfileDrawerConfigTabComponent {
     );
   }
 
+  dieselControlStatusLabel(): string {
+    return this.controlStatusLabel(
+      this.session.dieselControlEnabled(),
+      this.session.dieselControlChangedAt(),
+    );
+  }
+
   toggleDraftKm(): void {
     const next = !this.draftKmEnabled();
     if (!next && this.draftKmEnabled()) {
@@ -178,6 +186,16 @@ export class ProfileDrawerConfigTabComponent {
     this.draftIntelligentEnabled.set(next);
   }
 
+  toggleDraftDieselControl(): void {
+    const next = !this.draftDieselControlEnabled();
+    if (!next && this.draftDieselControlEnabled()) {
+      this.pendingDisableKind.set('diesel');
+      queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
+      return;
+    }
+    this.draftDieselControlEnabled.set(next);
+  }
+
   closeDisableConfirm(): void {
     this.pendingDisableKind.set(null);
     this.disableConfirmDialog()?.nativeElement.close();
@@ -192,6 +210,8 @@ export class ProfileDrawerConfigTabComponent {
       this.draftDateEnabled.set(false);
     } else if (kind === 'intelligent') {
       this.draftIntelligentEnabled.set(false);
+    } else if (kind === 'diesel') {
+      this.draftDieselControlEnabled.set(false);
     }
     this.closeDisableConfirm();
   }
@@ -285,6 +305,7 @@ export class ProfileDrawerConfigTabComponent {
     this.companies
       .updateOperationalSettings(companyId, {
         operationalAnalysisEnabled: this.draftIntelligentEnabled(),
+        dieselControlEnabled: this.draftDieselControlEnabled(),
         maintenanceKmControlEnabled: this.draftKmEnabled(),
         maintenanceKmIntervalDefault: this.draftKmEnabled() ? kmN : undefined,
         maintenanceDateControlEnabled: this.draftDateEnabled(),
@@ -322,6 +343,8 @@ export class ProfileDrawerConfigTabComponent {
     this.session.syncCompanyOperationalSettings({
       operationalAnalysisEnabled: result.operationalAnalysisEnabled,
       operationalAnalysisChangedAt: result.operationalAnalysisChangedAt,
+      dieselControlEnabled: result.dieselControlEnabled,
+      dieselControlChangedAt: result.dieselControlChangedAt,
       maintenanceKmControlEnabled: result.maintenanceKmControlEnabled,
       maintenanceKmIntervalDefault: result.maintenanceKmIntervalDefault,
       maintenanceKmControlChangedAt: result.maintenanceKmControlChangedAt,
@@ -351,6 +374,7 @@ export class ProfileDrawerConfigTabComponent {
       this.session.maintenanceDatePeriodDefault() ?? 'semiannual',
     );
     this.draftIntelligentEnabled.set(this.session.operationalAnalysisEnabled());
+    this.draftDieselControlEnabled.set(this.session.dieselControlEnabled());
 
     const cp = this.session.operationalCenterPostalCode()?.trim() ?? '';
     this.centerCp.set(cp);
@@ -447,7 +471,7 @@ export class ProfileDrawerConfigTabComponent {
   }
 
   private controlStatusLabel(enabled: boolean, changedAt: string | null | undefined): string {
-    const at = formatPreferenceChangedAt(changedAt ?? '');
+    const at = formatOperationalSettingChangedAt(changedAt ?? '');
     if (at === '—') {
       return enabled ? 'Activado' : 'Desactivado';
     }

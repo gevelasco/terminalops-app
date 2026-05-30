@@ -1,5 +1,4 @@
 import {
-  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   effect,
@@ -8,21 +7,19 @@ import {
   input,
   output,
 } from '@angular/core';
-import { Equipment, Unit } from '@shared/models/logistics.models';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
-import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { FleetEquipmentDetailCobTabComponent } from './tabs/fleet-equipment-detail-cob-tab.component';
 import { FleetEquipmentDetailFichaTabComponent } from './tabs/fleet-equipment-detail-ficha-tab.component';
 import { FleetEquipmentDetailMantTabComponent } from './tabs/fleet-equipment-detail-mant-tab.component';
-import { FleetEquipmentDetailDrawerStore } from './fleet-equipment-detail-drawer.store';
+import { FleetEquipmentDetailDrawerFacade } from './fleet-equipment-detail-drawer.facade';
 
 @Component({
   selector: 'app-fleet-equipment-detail-drawer',
   standalone: true,
-  providers: [FleetEquipmentDetailDrawerStore],
+  providers: [FleetEquipmentDetailDrawerFacade],
   imports: [
     ToSideDrawerComponent,
     ToIconComponent,
@@ -42,37 +39,24 @@ import { FleetEquipmentDetailDrawerStore } from './fleet-equipment-detail-drawer
   ],
 })
 export class FleetEquipmentDetailDrawerComponent {
-  protected readonly vm = inject(FleetEquipmentDetailDrawerStore);
+  protected readonly vm = inject(FleetEquipmentDetailDrawerFacade);
 
-  readonly equipment = input.required<Equipment>();
-  /** Opciones de unidad tractora (mismo catálogo que alta de equipo). */
-  readonly unitOptions = input<ToSelectOption[]>([]);
-  /** Catálogo de tractoras para resolver enganche en ficha técnica. */
-  readonly unitCatalog = input<Unit[]>([]);
-  /** Maniobra en curso del enganche (`unitId`), misma regla que la tabla Flota. */
   readonly onRoute = input(false);
-  /** Maniobras completadas de la unidad tractora (para contexto de km). */
   readonly completedManeuverCount = input(0);
 
   readonly dismiss = output<void>();
 
   constructor() {
-    effect(() => {
-      this.vm.bindHost(
-        {
-          equipment: this.equipment(),
-          unitOptions: this.unitOptions(),
-          unitCatalog: this.unitCatalog(),
-          onRoute: this.onRoute(),
-          completedManeuverCount: this.completedManeuverCount(),
-        },
-        {
-          dismiss: () => this.dismiss.emit(),
-        },
-      );
+    this.vm.bindHostCallbacks({
+      dismiss: () => this.dismiss.emit(),
     });
 
-    afterNextRender(() => this.vm.markReady());
+    effect(() => {
+      this.vm.syncHostLayout({
+        onRoute: this.onRoute(),
+        completedManeuverCount: this.completedManeuverCount(),
+      });
+    });
   }
 
   @HostListener('document:keydown', ['$event'])

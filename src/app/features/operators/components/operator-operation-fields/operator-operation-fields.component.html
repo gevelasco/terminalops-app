@@ -16,6 +16,7 @@
   <to-input
     label="Fecha de ingreso a la empresa"
     type="date"
+    [placeholder]="isNew ? 'Hoy (por default)' : ''"
     [(value)]="companyHireDate"
   />
 </div>

@@ -14,13 +14,14 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { EQUIPMENT_CONTAINER_SLOT_OPTIONS, EQUIPMENT_OPERATION_TYPE_OPTIONS, TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
-import {
-  equipmentAssignedToUnit,
-  newEquipmentHitchHint,
-} from '@app/features/fleet/utils/unit-hitched-equipment';
-import { Equipment } from '@shared/models/logistics.models';
+import { FleetHitchValidationBlockComponent } from '@features/fleet/components/fleet-hitch-validation-block/fleet-hitch-validation-block.component';
+import { registerFleetHitchSecondTrailerSync } from '@app/features/fleet/utils/fleet-drawer-form.utils';
+import { validateEquipmentHitchAssignment } from '@shared/utils/fleet/equipment-hitch-assignment';
+import { hitchPositionForEquipmentWrite } from '@shared/utils/fleet/equipment-hitch-position';
+import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
+import { Equipment, Unit } from '@shared/models/logistics.models';
 import { ToastService } from '@core/notifications/toast.service';
-import { EquipmentService } from '@services/api/equipment';
+import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   EquipmentFleetMeta,
@@ -31,10 +32,8 @@ import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
-import {
-  ToSelectComponent,
-  type ToSelectOption,
-} from '@shared/ui/to-select/to-select.component';
+import { ToFleetUnitInputComponent } from '@shared/ui/to-fleet-unit-input/to-fleet-unit-input.component';
+import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
   buildFleetModelYearSelectOptions,
@@ -120,39 +119,62 @@ function parseOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
     ToButtonComponent,
     ToIconComponent,
     ToInputComponent,
+    FleetHitchValidationBlockComponent,
+    ToFleetUnitInputComponent,
     ToSelectComponent,
     ToTextareaComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-new-equipment-drawer.component.html',
-  styleUrls: ['../fleet-drawer.shared.scss', '../styles/fleet-drawer-unit-sec.shared.scss'],
+  styleUrls: [
+    '../fleet-drawer.shared.scss',
+    '../styles/fleet-drawer-unit-sec.shared.scss',
+    './fleet-new-equipment-drawer.component.scss',
+  ],
 })
 export class FleetNewEquipmentDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
   private readonly destroyRef = inject(DestroyRef);
-  private readonly equipmentApi = inject(EquipmentService);
+  private readonly equipmentFeature = inject(EquipmentFeatureService);
   private readonly toast = inject(ToastService);
 
-  readonly unitOptions = input.required<ToSelectOption[]>();
+  readonly units = input<Unit[]>([]);
   readonly equipmentCatalog = input<Equipment[]>([]);
 
   readonly dismiss = output<void>();
 
-  readonly hitchHint = computed(() => {
+  readonly hitchValidation = computed(() => {
     const uid = this.unitId().trim();
     if (!uid) {
-      return null;
+      return validateEquipmentHitchAssignment({
+        unitId: '',
+        catalog: this.equipmentCatalog(),
+        isSecondTrailer: false,
+      });
     }
-    const unitLabel =
-      this.unitOptions().find((o) => o.value === uid)?.label ?? uid;
-    const count = equipmentAssignedToUnit(this.equipmentCatalog(), uid).length;
-    return newEquipmentHitchHint(count, unitLabel);
+    const unit = this.units().find((u) => u.id === uid);
+    const unitLabel = unit ? formatUnitTrailerLabel(unit) : uid;
+    return validateEquipmentHitchAssignment({
+      unitId: uid,
+      catalog: this.equipmentCatalog(),
+      isSecondTrailer: this.isSecondTrailer(),
+      unitLabel,
+    });
   });
   readonly drawerLoading = signal(true);
   readonly saved = output<void>();
 
   readonly unitId = model('');
+  readonly isSecondTrailer = signal(false);
+
+  toggleIsSecondTrailer(): void {
+    if (!this.hitchValidation().canToggleSecondTrailer) {
+      return;
+    }
+    this.isSecondTrailer.update((v) => !v);
+  }
+
   readonly brandCode = model('');
   readonly modelYear = model('');
   readonly trailerVersion = model('');
@@ -175,6 +197,7 @@ export class FleetNewEquipmentDrawerComponent {
   readonly equipmentTireCount = model('');
   readonly equipmentContainerSlot = model('na');
 
+  readonly insuranceCarrierName = model('');
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
   readonly insuranceContractDate = model('');
@@ -246,6 +269,11 @@ export class FleetNewEquipmentDrawerComponent {
 
   constructor() {
     afterNextRender(() => this.drawerLoading.set(false));
+    registerFleetHitchSecondTrailerSync({
+      isActive: () => Boolean(this.unitId().trim()),
+      validation: () => this.hitchValidation(),
+      isSecondTrailer: this.isSecondTrailer,
+    });
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -347,6 +375,17 @@ export class FleetNewEquipmentDrawerComponent {
       return;
     }
 
+    if (uid) {
+      const hitch = this.hitchValidation();
+      if (!hitch.canSave) {
+        this.toast.show(
+          hitch.blockMessage ?? hitch.infoMessage ?? 'Revise el enganche a la tractora.',
+          'warning',
+        );
+        return;
+      }
+    }
+
     const maintCost = parseOptionalAmount(this.lastMaintenanceCost());
     const insCost = parseOptionalAmount(this.insuranceCost());
     const physCost = parseOptionalAmount(this.verificationPhysMechCost());
@@ -436,6 +475,7 @@ export class FleetNewEquipmentDrawerComponent {
         maintCost === undefined ? undefined : maintCost,
       ),
       tireCondition: tireLabel,
+      insuranceCarrierName: this.insuranceCarrierName().trim() || undefined,
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
@@ -454,9 +494,10 @@ export class FleetNewEquipmentDrawerComponent {
     const lastSvc = this.lastMaintenanceDate().trim() || new Date().toISOString().slice(0, 10);
 
     this.saving.set(true);
-    this.equipmentApi
-      .postEquipment({
+    this.equipmentFeature
+      .createEquipment({
         unitId: uid || undefined,
+        hitchPosition: hitchPositionForEquipmentWrite(uid, this.isSecondTrailer()),
         name: this.name().trim() || serial,
         serialNumber: serial,
         lastServiceDate: lastSvc,

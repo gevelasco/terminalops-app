@@ -1,0 +1,51 @@
+<div class="to-fleet-unit-input">
+  @if (label()) {
+    <label class="to-fleet-unit-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-fleet-unit-input__wrap"
+    [class.to-fleet-unit-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-fleet-unit-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="inputText()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (unitId()) {
+      <button
+        type="button"
+        class="to-fleet-unit-input__clear"
+        aria-label="Quitar tractora"
+        (pointerdown)="clearUnit($event)"
+      >
+        ×
+      </button>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-fleet-unit-input__list" role="listbox">
+        @for (row of suggestions(); track row.unit.id) {
+          <li
+            class="to-fleet-unit-input__item"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(row, $event)"
+          >
+            {{ row.label }}
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

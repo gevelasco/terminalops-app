@@ -18,8 +18,9 @@ import { EquipmentService } from '@services/api/equipment';
 import {
   equipmentPickableForUnit,
   formatManeuverEquipmentLabel,
-} from '@features/maniobra/utils/assignable-fleet-for-maneuver';
+} from '@features/trips/utils/assignable-fleet-for-maneuver';
 import { Equipment } from '@shared/models/logistics.models';
+import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 let seq = 0;
 
@@ -32,6 +33,7 @@ let seq = 0;
 export class ToEquipmentInputComponent {
   private readonly equipmentApi = inject(EquipmentService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hostEl = inject(ElementRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
@@ -40,7 +42,7 @@ export class ToEquipmentInputComponent {
   readonly disabled = input(false);
 
   readonly prefetchMode = input(false);
-  readonly equipmentData = input<Equipment[]>([]);
+  readonly equipmentData = input<readonly Equipment[]>([]);
 
   /** Unidad tractora seleccionada; filtra remolques enganchados. */
   readonly unitId = input('');
@@ -77,9 +79,16 @@ export class ToEquipmentInputComponent {
   private fetchedFromApi = false;
 
   constructor() {
+    installAutocompleteOutsideDismiss(
+      this.hostEl,
+      () => this.open(),
+      () => this.open.set(false),
+      this.destroyRef,
+    );
+
     effect(() => {
       if (this.prefetchMode()) {
-        this.catalog.set(this.equipmentData());
+        this.catalog.set([...this.equipmentData()]);
         this.syncInputFromEquipmentId();
         this.loading.set(false);
         return;
@@ -164,7 +173,10 @@ export class ToEquipmentInputComponent {
   }
 
   onControlBlur(): void {
-    queueMicrotask(() => this.blurNotify.emit());
+    queueMicrotask(() => {
+      this.open.set(false);
+      this.blurNotify.emit();
+    });
   }
 
   onPickPointerDown(eq: Equipment, ev: Event): void {

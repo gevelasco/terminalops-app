@@ -1,5 +1,6 @@
-import { Component, input, model } from '@angular/core';
+import { Component, computed, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { yesNoToBool } from '@features/clients/utils/client-payload';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import {
   ToSelectComponent,
@@ -17,9 +18,13 @@ export class ClientPayFieldsComponent {
   readonly layout = input<'new' | 'edit'>('new');
   readonly yesNoOptions = input.required<ToSelectOption[]>();
   readonly healthOptions = input.required<ToSelectOption[]>();
+  readonly paymentMethodOptions = input.required<ToSelectOption[]>();
 
   readonly payHasCredit = model('');
   readonly payCreditDays = model('');
   readonly payCreditAmount = model('');
   readonly payHealth = model('');
+  readonly payDefaultPaymentMethod = model('');
+
+  readonly creditGranted = computed(() => yesNoToBool(this.payHasCredit()));
 }

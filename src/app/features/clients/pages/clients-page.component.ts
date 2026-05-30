@@ -5,23 +5,36 @@ import {
   DestroyRef,
   inject,
   model,
-  resource,
+  OnInit,
   signal,
 } from '@angular/core';
-import { catchError, firstValueFrom, of } from 'rxjs';
 import { ClientsDetailDrawerComponent } from '@features/clients/components/clients-detail-drawer/clients-detail-drawer.component';
 import { ClientsNewDrawerComponent } from '@features/clients/components/clients-new-drawer/clients-new-drawer.component';
-import { ClientsService } from '@services/api/clients';
+import { DestinationRatesDetailDrawerComponent } from '@features/clients/components/destination-rates-detail-drawer/destination-rates-detail-drawer.component';
+import { DestinationRatesNewDrawerComponent } from '@features/clients/components/destination-rates-new-drawer/destination-rates-new-drawer.component';
+import { ClientsFeatureService } from '@features/clients/services/clients.service';
+import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
+import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import { formatDestinationRateUpdatedAt } from '@features/clients/utils/format-destination-rate-updated-at';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import type { Client } from '@shared/models/client.models';
+import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
 } from '@shared/ui/to-table/to-table.component';
+
+export type ClientsPageTab = 'clients' | 'destination-rates';
 
 function formatRelationshipDateEs(ymd: string | undefined): string {
   const t = (ymd ?? '').trim();
@@ -41,6 +54,11 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
 @Component({
   selector: 'app-clients-page',
   standalone: true,
+  providers: [
+    ClientsFeatureService,
+    DestinationRatesFeatureService,
+    ...OPERATION_CONFIGURATION_PROVIDERS,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
@@ -48,38 +66,66 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
+    ToSegmentControlComponent,
     ClientsNewDrawerComponent,
     ClientsDetailDrawerComponent,
+    DestinationRatesNewDrawerComponent,
+    DestinationRatesDetailDrawerComponent,
   ],
   templateUrl: './clients-page.component.html',
   styleUrl: './clients-page.component.scss',
 })
-export class ClientsPageComponent {
-  private readonly clientsApi = inject(ClientsService);
+export class ClientsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly clientsFeature = inject(ClientsFeatureService);
+  protected readonly ratesFeature = inject(DestinationRatesFeatureService);
+  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
+  private readonly opResolver = inject(OperationConfigurationResolverService);
 
-  private readonly listResource = resource({
-    loader: async (): Promise<Client[]> =>
-      firstValueFrom(
-        this.clientsApi.getClientsList().pipe(catchError(() => of([] as Client[]))),
-      ),
-  });
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.clientsFeature.dispose();
+      this.ratesFeature.dispose();
+      this.operationConfigsFeature.dispose();
+    });
+  }
 
-  readonly loading = computed(
-    () => !this.listResource.hasValue() && this.listResource.isLoading(),
+  readonly pageTab = signal<ClientsPageTab>('clients');
+  readonly viewSegmentTabs: readonly ToSegmentTab<ClientsPageTab>[] = [
+    {
+      id: 'clients',
+      label: 'Clientes',
+      icon: 'client',
+      htmlId: 'clients-tab-clients',
+    },
+    {
+      id: 'destination-rates',
+      label: 'Tarifas',
+      icon: 'sell',
+      htmlId: 'clients-tab-destination-rates',
+    },
+  ];
+
+  readonly loading = computed(() =>
+    this.pageTab() === 'clients'
+      ? this.clientsFeature.loading()
+      : this.ratesFeature.loading() || this.operationConfigsFeature.loading(),
   );
-  readonly rows = computed(() => {
-    const clients = this.listResource.value();
-    if (!clients) {
-      return [] as Record<string, unknown>[];
-    }
-    return clients.map((c) => this.mapRow(c));
-  });
+
+  readonly clientRows = computed(() =>
+    this.clientsFeature
+      .clients()
+      .map((c) => ClientsPageComponent.mapClientRow(c)),
+  );
+  readonly rateRows = computed(() =>
+    this.ratesFeature.rates().map((r) => this.mapRateRow(r)),
+  );
+
   readonly searchQuery = model('');
   readonly newClientOpen = signal(false);
-  readonly detailClient = signal<Client | null>(null);
+  readonly newRateOpen = signal(false);
 
-  readonly columns: ToTableColumn[] = [
+  readonly clientColumns: ToTableColumn[] = [
     { key: 'name', label: 'Cliente' },
     { key: 'rfc', label: 'RFC', cell: 'muted-badge' },
     {
@@ -94,56 +140,94 @@ export class ClientsPageComponent {
     { key: 'maneuverCount', label: 'Maniobras' },
   ];
 
+  readonly rateColumns: ToTableColumn[] = [
+    { key: 'postalCode', label: 'CP destino', cell: 'muted-badge' },
+    { key: 'locality', label: 'Localidad' },
+    { key: 'cityMunicipality', label: 'Ciudad / municipio' },
+    { key: 'priceTypesLabel', label: 'Tipos de maniobra' },
+    { key: 'rateAvailability', label: 'Estatus', cell: 'rate-availability-pill' },
+    {
+      key: 'updatedAtLabel',
+      label: 'Fecha de última actualización',
+    },
+  ];
+
   readonly displayedClientRows = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
-    const all = this.rows();
+    const all = this.clientRows();
     if (!q) {
       return all;
     }
-    return all.filter((row) => ClientsPageComponent.rowMatchesQuery(row, q));
+    return all.filter((row) =>
+      ClientsPageComponent.clientRowMatchesQuery(row, q),
+    );
   });
 
-  constructor() {
-    this.destroyRef.onDestroy(() => {
-      this.detailOpenRequestId += 1;
-    });
+  readonly displayedRateRows = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const all = this.rateRows();
+    if (!q) {
+      return all;
+    }
+    return all.filter((row) =>
+      ClientsPageComponent.rateRowMatchesQuery(row, q),
+    );
+  });
+
+  ngOnInit(): void {
+    this.clientsFeature.loadClients();
   }
 
-  private detailOpenRequestId = 0;
-
-  reload(): void {
-    void this.listResource.reload();
+  /** Lazy: tarifas + catálogo operativo solo al entrar por primera vez a la tab Tarifas. */
+  private ensureDestinationRatesTabLoaded(): void {
+    this.ratesFeature.loadDestinationRates();
+    this.operationConfigsFeature.loadOperationConfigurations();
   }
 
-  onRowClick(row: Record<string, unknown>): void {
+  onPageTabSelect(tab: ClientsPageTab): void {
+    this.pageTab.set(tab);
+    this.searchQuery.set('');
+    if (tab === 'clients') {
+      this.ratesFeature.clearSelection();
+    } else {
+      this.clientsFeature.clearSelection();
+      this.ensureDestinationRatesTabLoaded();
+    }
+  }
+
+  onClientRowClick(row: Record<string, unknown>): void {
     const id = String(row['id'] ?? '');
     if (!id) {
       return;
     }
-    const requestId = ++this.detailOpenRequestId;
-    void firstValueFrom(this.clientsApi.getClientById(id)).then((c) => {
-      if (requestId !== this.detailOpenRequestId || !c) {
-        return;
-      }
-      this.detailClient.set(c);
-    });
+    this.clientsFeature.selectClient(id);
   }
 
-  onDetailDismiss(): void {
-    this.detailClient.set(null);
+  onRateRowClick(row: Record<string, unknown>): void {
+    const id = String(row['id'] ?? '');
+    if (!id) {
+      return;
+    }
+    this.ratesFeature.selectRate(id);
   }
 
-  onDetailClientChange(c: Client): void {
-    this.detailClient.set(c);
-    this.reload();
+  onClientDetailDismiss(): void {
+    this.clientsFeature.clearSelection();
+  }
+
+  onRateDetailDismiss(): void {
+    this.ratesFeature.clearSelection();
   }
 
   onClientCreated(_c: Client): void {
     this.newClientOpen.set(false);
-    this.reload();
   }
 
-  private static rowMatchesQuery(
+  onRateCreated(_r: DestinationRate): void {
+    this.newRateOpen.set(false);
+  }
+
+  private static clientRowMatchesQuery(
     row: Record<string, unknown>,
     q: string,
   ): boolean {
@@ -166,7 +250,25 @@ export class ClientsPageComponent {
     return haystack.includes(q);
   }
 
-  private mapRow(c: Client): Record<string, unknown> {
+  private static rateRowMatchesQuery(
+    row: Record<string, unknown>,
+    q: string,
+  ): boolean {
+    const haystack = [
+      row['id'],
+      row['postalCode'],
+      row['locality'],
+      row['cityMunicipality'],
+      row['priceTypesLabel'],
+      row['rateAvailability'],
+      row['updatedAtLabel'],
+    ]
+      .map((v) => String(v ?? '').toLowerCase())
+      .join(' ');
+    return haystack.includes(q);
+  }
+
+  private static mapClientRow(c: Client): Record<string, unknown> {
     return {
       id: c.id,
       name: c.name,
@@ -175,6 +277,23 @@ export class ClientsPageComponent {
       commercialHealth:
         (c.payment?.commercialHealth as string | undefined) ?? 'not_evaluated',
       maneuverCount: String(c.maneuverCount ?? 0),
+    };
+  }
+
+  private mapRateRow(r: DestinationRate): Record<string, unknown> {
+    const types = r.prices
+      .map((p) =>
+        this.opResolver.resolveLabel(this.opResolver.contextFromRatePrice(p)),
+      )
+      .filter((label) => label !== 'Configuración desconocida');
+    return {
+      id: r.id,
+      postalCode: r.postalCode,
+      locality: r.locality || '—',
+      cityMunicipality: r.cityMunicipality || '—',
+      priceTypesLabel: types.length > 0 ? types.join(', ') : '—',
+      rateAvailability: r.active ? 'available' : 'inactive',
+      updatedAtLabel: formatDestinationRateUpdatedAt(r.updatedAt ?? r.createdAt),
     };
   }
 }

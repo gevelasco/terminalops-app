@@ -15,6 +15,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ClientsService } from '@services/api/clients';
 import { Client } from '@shared/models/client.models';
+import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 let clientInputSeq = 0;
 
@@ -27,6 +28,7 @@ let clientInputSeq = 0;
 export class ToClientInputComponent {
   private readonly clientsApi = inject(ClientsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hostEl = inject(ElementRef);
 
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
@@ -36,7 +38,7 @@ export class ToClientInputComponent {
 
   /** Si es true, usa `clientsData` y no llama a la API. */
   readonly prefetchMode = input(false);
-  readonly clientsData = input<Client[]>([]);
+  readonly clientsData = input<readonly Client[]>([]);
 
   readonly value = model('');
 
@@ -68,9 +70,16 @@ export class ToClientInputComponent {
   private fetchedFromApi = false;
 
   constructor() {
+    installAutocompleteOutsideDismiss(
+      this.hostEl,
+      () => this.open(),
+      () => this.open.set(false),
+      this.destroyRef,
+    );
+
     effect(() => {
       if (this.prefetchMode()) {
-        this.allClients.set(this.clientsData());
+        this.allClients.set([...this.clientsData()]);
         this.loading.set(false);
         return;
       }
@@ -111,7 +120,10 @@ export class ToClientInputComponent {
   }
 
   onControlBlur(): void {
-    this.blurNotify.emit();
+    queueMicrotask(() => {
+      this.open.set(false);
+      this.blurNotify.emit();
+    });
   }
 
   onPickPointerDown(c: Client, ev: Event): void {

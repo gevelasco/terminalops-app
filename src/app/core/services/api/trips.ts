@@ -2,6 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type {
+  FuelEstimateRequest,
+  FuelEstimateResponse,
+} from '@shared/models/api/api-trips-fuel.model';
 import type { Trip } from '@shared/models/logistics.models';
 import { mapApiTrip } from '@shared/data/api-mappers';
 import { SessionService } from '../state/session';
@@ -63,5 +67,22 @@ export class TripsService {
         collected,
       })
       .pipe(map((r) => mapApiTrip(r)));
+  }
+
+  /** Estimación operativa de diesel (heurística en backend). */
+  estimateFuelConsumption(payload: FuelEstimateRequest): Observable<FuelEstimateResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    console.log('[Trips][FuelEstimate][Request]', payload);
+    return this.http
+      .post<FuelEstimateResponse>(
+        companyResourceUrl(companyId, 'trips/fuel-estimate'),
+        payload,
+      )
+      .pipe(
+        map((res) => {
+          console.log('[Trips][FuelEstimate][Response]', res);
+          return res;
+        }),
+      );
   }
 }

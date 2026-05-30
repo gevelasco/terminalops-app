@@ -5,478 +5,495 @@
   [loading]="drawerLoading()"
   skeletonVariant="form"
   bodyClass="fleet-unit-body"
+  panelClass="fleet-new-equipment-drawer__panel"
   (dismiss)="dismiss.emit()"
   (formSubmit)="submit()"
 >
-  <h2 toSideDrawerHeader id="fleet-equipment-drawer-title" class="to-side-drawer__title">
-    <svg class="to-side-drawer__title-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zm-1.5 1.5 1.96 2.5H17V9.5h1.5zM6 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2.22-3c-.55-.61-1.33-1-2.22-1H4V6h12v9H8.22c-.89 0-1.67.39-2.22 1zM18 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
+  <h2
+    toSideDrawerHeader
+    id="fleet-equipment-drawer-title"
+    class="to-side-drawer__title"
+  >
+    <svg
+      class="to-side-drawer__title-icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zm-1.5 1.5 1.96 2.5H17V9.5h1.5zM6 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2.22-3c-.55-.61-1.33-1-2.22-1H4V6h12v9H8.22c-.89 0-1.67.39-2.22 1zM18 18c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"
+      />
     </svg>
     Nuevo equipo
+    <span
+      class="fleet-new-equipment-drawer__privacy-hint"
+      tabindex="0"
+      aria-label="Información sobre privacidad"
+      data-tooltip="Puedes registrar un equipo con lo mínimo. Agregar más datos te ayuda a operar, dar seguimiento y mantener alertas."
+    >
+      <to-icon name="info" [size]="18" />
+    </span>
   </h2>
 
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-hitch"
+  >
+    <h3 id="fleet-eq-new-hitch" class="fleet-unit-sec__title">
+      Enganche a unidad tractora
+    </h3>
+    <p class="fleet-unit-sec__hint">
+      Asigne el remolque a la tractora que lo arrastra. Con un remolque la
+      convoy opera con <strong>un remolque</strong>; con dos, en
+      <strong>configuración múltiple</strong>.
+    </p>
+    <to-fleet-unit-input
+      label="Unidad tractora (opcional)"
+      placeholder="Buscar tractora o dejar vacío…"
+      [units]="units()"
+      [(unitId)]="unitId"
+    />
+    @if (unitId().trim()) {
+      <app-fleet-hitch-validation-block
+        [validation]="hitchValidation()"
+        [isSecondTrailer]="isSecondTrailer()"
+        toggleLabelId="fleet-eq-new-hitch-second-label"
+        (toggleSecondTrailer)="toggleIsSecondTrailer()"
+      />
+    }
+  </section>
 
-    <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-hitch"
-        >
-          <h3 id="fleet-eq-new-hitch" class="fleet-unit-sec__title">
-            Enganche a unidad tractora
-          </h3>
-          <p class="fleet-unit-sec__hint">
-            Asigne el remolque a la tractora que lo arrastra. Con un remolque la
-            convoy opera como <strong>sencillo</strong>; con dos, como
-            <strong>full</strong>.
-          </p>
-          <to-select
-            label="Unidad tractora"
-            placeholder="Seleccionar tractora…"
-            [options]="unitOptions()"
-            [(value)]="unitId"
-          />
-          @if (hitchHint(); as hint) {
-            <p class="fleet-unit-sec__hint">{{ hint }}</p>
-          }
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-id"
-        >
-          <h3 id="fleet-eq-new-id" class="fleet-unit-sec__title">
-            Datos del remolque
-          </h3>
-          <div class="fleet-unit-sec__grid2">
-            <to-select
-              label="Marca *"
-              placeholder="Selecciona marca"
-              [options]="brandOptions"
-              [(value)]="brandCode"
-            />
-            <to-select
-              label="Modelo (año) *"
-              placeholder="Selecciona año"
-              [options]="modelYearOptions"
-              [(value)]="modelYear"
-            />
-          </div>
-          <div class="fleet-unit-sec__grid2">
-            <to-input
-              label="Versión / acabado"
-              placeholder="Ej. Porta 40′ extendible"
-              [(value)]="trailerVersion"
-            />
-            <to-select
-              label="Tipo de remolque / caja *"
-              placeholder="Ej. Caja seca, plataforma…"
-              [options]="operationTypeOptions"
-              [(value)]="operationTypeCode"
-            />
-          </div>
-          <div class="fleet-unit-sec__grid2">
-            <to-input
-              label="Número de serie / inventario *"
-              placeholder="Ej. CHS-882-A"
-              [(value)]="serialNumber"
-            />
-            <to-input
-              label="Placa *"
-              placeholder="Ej. 12-AB-3C"
-              [(value)]="plate"
-            />
-          </div>
-          <div class="fleet-unit-sec__grid2">
-            <to-select
-              label="Estado operativo *"
-              [options]="statusOptions"
-              [(value)]="status"
-            />
-            <to-input
-              label="Color"
-              placeholder="Ej. Blanco perlado"
-              [(value)]="trailerColor"
-            />
-          </div>
-          <to-input
-            label="Nombre o alias (opcional)"
-            placeholder="Ej. Chasis principal"
-            [(value)]="name"
-          />
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-tenure"
-        >
-          <h3 id="fleet-eq-new-tenure" class="fleet-unit-sec__title">
-            Propiedad y tenencia
-          </h3>
-          <to-select
-            label="Situación del activo *"
-            [options]="tenureOptions"
-            [(value)]="trailerTenureMode"
-          />
-          @if (trailerTenureMode() === "owned") {
-            <to-input
-              label="Valor comercial estimado"
-              type="text"
-              [groupThousands]="true"
-              placeholder="Ej. 580,000"
-              [(value)]="trailerCommercialValue"
-            />
-          }
-          @if (
-            trailerTenureMode() === "financed" ||
-            trailerTenureMode() === "leased"
-          ) {
-            <div class="fleet-unit-sec__row-flex">
-              <to-input
-                [label]="tenureRecurringAmountLabel()"
-                type="text"
-                [groupThousands]="true"
-                placeholder="Ej. 18,500"
-                [(value)]="trailerRecurringPaymentAmount"
-              />
-              <to-input
-                label="Fecha de pago"
-                type="date"
-                [(value)]="trailerRecurringPaymentDate"
-              />
-            </div>
-            <to-input
-              [label]="tenureInstallmentOrTermLabel()"
-              type="number"
-              placeholder="Ej. 36"
-              [(value)]="trailerRecurringInstallmentCount"
-            />
-          }
-          @if (trailerTenureMode() === "managed") {
-            <to-input
-              label="Pago al dueño / ganancia administrada"
-              type="text"
-              [groupThousands]="true"
-              placeholder="Ej. 8,500"
-              [(value)]="trailerManagementOwnerPayout"
-            />
-          }
-
-          <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-          <p class="fleet-unit-sec__docs-hint">
-            Factura de compra, título de propiedad, NOM-051 (dimensiones y peso),
-            endosos u otros comprobantes del activo.
-          </p>
-          <div class="fleet-unit-upload">
-            <input
-              #fileOwn
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onFiles($event, 'ownership')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="fileOwn.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
-          @if (filesOwnership().length > 0) {
-            <ul class="fleet-unit-files">
-              @for (f of filesOwnership(); track trackFileEntry($index, f)) {
-                <li class="fleet-unit-files__row">
-                  <span class="fleet-unit-files__name">{{ f.name }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-files__rm"
-                    (click)="removeFile('ownership', $index)"
-                  >
-                    Quitar
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-tech"
-        >
-          <h3 id="fleet-eq-new-tech" class="fleet-unit-sec__title">
-            Ficha técnica
-          </h3>
-          <to-input
-            label="Capacidad (toneladas)"
-            type="text"
-            placeholder="Ej. 32.5"
-            [(value)]="equipmentCapacityTons"
-          />
-          <div class="fleet-unit-sec__row-flex">
-            <to-input
-              label="Número de ejes"
-              type="number"
-              placeholder="Ej. 3"
-              [(value)]="equipmentAxleCount"
-            />
-            <to-input
-              label="Número de llantas"
-              type="number"
-              placeholder="Ej. 12"
-              [(value)]="equipmentTireCount"
-            />
-          </div>
-          <to-select
-            label="Configuración contenedor / plazas"
-            [options]="containerSlotOptions"
-            [(value)]="equipmentContainerSlot"
-          />
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-maint"
-        >
-          <h3 id="fleet-eq-new-maint" class="fleet-unit-sec__title">
-            Mantenimiento y llantas
-          </h3>
-          <div class="fleet-unit-sec__row-flex">
-            <to-input
-              label="Último mantenimiento"
-              type="date"
-              [(value)]="lastMaintenanceDate"
-            />
-            <to-input
-              label="Costo"
-              type="text"
-              [groupThousands]="true"
-              placeholder="Ej. 3,500"
-              [(value)]="lastMaintenanceCost"
-            />
-          </div>
-          <to-select
-            label="Tipo de mantenimiento *"
-            [options]="maintenanceTypeOptions"
-            [(value)]="lastMaintenanceType"
-          />
-          <to-select
-            label="Estado de llantas *"
-            [options]="tireOptions"
-            [(value)]="tireCondition"
-          />
-          <to-textarea
-            label="Observaciones (opcional)"
-            placeholder="Refacciones cambiadas, taller, diagnóstico, fallas detectadas…"
-            [rows]="3"
-            [(value)]="lastMaintenanceNotes"
-          />
-          <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
-          <p class="fleet-unit-sec__docs-hint">
-            PDF o imagen del taller o factura.
-          </p>
-          <div class="fleet-unit-upload">
-            <input
-              #fileMaint
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onFiles($event, 'maint')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="fileMaint.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
-          @if (filesMaintenance().length > 0) {
-            <ul class="fleet-unit-files">
-              @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
-                <li class="fleet-unit-files__row">
-                  <span class="fleet-unit-files__name">{{ f.name }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-files__rm"
-                    (click)="removeFile('maint', $index)"
-                  >
-                    Quitar
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-ver"
-        >
-          <h3 id="fleet-eq-new-ver" class="fleet-unit-sec__title">
-            Verificaciones
-          </h3>
-          <p class="fleet-unit-sec__docs-hint">
-            En equipo solo aplica verificación físico-mecánica (no hay verificación de emisiones
-            como en tractores).
-          </p>
-          <div class="fleet-unit-sec__row-flex">
-            <to-input
-              label="Verificación físico-mecánica"
-              type="date"
-              [(value)]="verificationPhysMechDate"
-            />
-            <to-input
-              label="Costo"
-              type="text"
-              [groupThousands]="true"
-              placeholder="Ej. $ 850"
-              [(value)]="verificationPhysMechCost"
-            />
-          </div>
-          @if (physRenewal() === "soon") {
-            <p class="fleet-unit-callout fleet-unit-callout--warn">
-              La próxima revalidación estimada (6 meses) está a menos de 45
-              días.
-            </p>
-          }
-          @if (physRenewal() === "due") {
-            <p class="fleet-unit-callout fleet-unit-callout--bad">
-              La revalidación físico-mecánica puede estar vencida; agenda cita.
-            </p>
-          }
-
-          <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
-          <p class="fleet-unit-sec__docs-hint">
-            Tarjetas o constancias escaneadas.
-          </p>
-          <div class="fleet-unit-upload">
-            <input
-              #fileVerif
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onFiles($event, 'verif')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="fileVerif.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
-          @if (filesVerification().length > 0) {
-            <ul class="fleet-unit-files">
-              @for (f of filesVerification(); track trackFileEntry($index, f)) {
-                <li class="fleet-unit-files__row">
-                  <span class="fleet-unit-files__name">{{ f.name }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-files__rm"
-                    (click)="removeFile('verif', $index)"
-                  >
-                    Quitar
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="fleet-eq-new-ins"
-        >
-          <h3 id="fleet-eq-new-ins" class="fleet-unit-sec__title">Seguro</h3>
-          <div class="fleet-unit-sec__row-flex">
-            <to-input
-              label="Número de póliza"
-              placeholder="Póliza"
-              [(value)]="insurancePolicyNumber"
-            />
-            <to-input
-              label="Fecha de contratación"
-              type="date"
-              [(value)]="insuranceContractDate"
-            />
-          </div>
-          <div class="fleet-unit-sec__row-flex">
-            <to-select
-              label="Forma de pago / renovación"
-              [options]="cadenceOptions"
-              [(value)]="insurancePaymentCadence"
-            />
-            <to-input
-              label="Costo"
-              type="text"
-              [groupThousands]="true"
-              placeholder="Ej. 12,500"
-              [(value)]="insuranceCost"
-            />
-          </div>
-          @if (insuranceRenewHint() === "soon") {
-            <p class="fleet-unit-callout fleet-unit-callout--warn">
-              Próximo pago o renovación de póliza en los próximos 30 días.
-            </p>
-          }
-          @if (insuranceRenewHint() === "due") {
-            <p class="fleet-unit-callout fleet-unit-callout--bad">
-              Puede haber vencido el ciclo de pago; revisa la póliza.
-            </p>
-          }
-
-          <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
-          <p class="fleet-unit-sec__docs-hint">
-            PDF de la póliza o recibos de pago.
-          </p>
-          <div class="fleet-unit-upload">
-            <input
-              #filePol
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onFiles($event, 'policy')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="filePol.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
-          @if (filesPolicy().length > 0) {
-            <ul class="fleet-unit-files">
-              @for (f of filesPolicy(); track trackFileEntry($index, f)) {
-                <li class="fleet-unit-files__row">
-                  <span class="fleet-unit-files__name">{{ f.name }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-files__rm"
-                    (click)="removeFile('policy', $index)"
-                  >
-                    Quitar
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-  <div toSideDrawerFooter>
-      <to-button type="button" variant="outline" (click)="dismiss.emit()">
-        Cancelar
-      </to-button>
-      <to-button type="submit" variant="primary" [disabled]="saving()">
-        <to-icon name="save" [size]="16" />
-        {{ saving() ? "Guardando…" : "Guardar" }}
-      </to-button>
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-id"
+  >
+    <h3 id="fleet-eq-new-id" class="fleet-unit-sec__title">
+      Datos del remolque
+    </h3>
+    <div class="fleet-unit-sec__grid2">
+      <to-select
+        label="Marca *"
+        placeholder="Selecciona marca"
+        [options]="brandOptions"
+        [(value)]="brandCode"
+      />
+      <to-select
+        label="Modelo (año) *"
+        placeholder="Selecciona año"
+        [options]="modelYearOptions"
+        [(value)]="modelYear"
+      />
     </div>
+    <div class="fleet-unit-sec__grid2">
+      <to-input
+        label="Versión"
+        placeholder="Ej. Porta 40′ extendible"
+        [(value)]="trailerVersion"
+      />
+      <to-select
+        label="Tipo de remolque / caja *"
+        placeholder="Ej. Caja seca, plataforma…"
+        [options]="operationTypeOptions"
+        [(value)]="operationTypeCode"
+      />
+    </div>
+    <div class="fleet-unit-sec__grid2">
+      <to-input
+        label="Número de serie / inventario *"
+        placeholder="Ej. CHS-882-A"
+        [(value)]="serialNumber"
+      />
+      <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [(value)]="plate" />
+    </div>
+    <div class="fleet-unit-sec__grid2">
+      <to-select
+        label="Estado operativo *"
+        [options]="statusOptions"
+        [(value)]="status"
+      />
+      <to-input
+        label="Color"
+        placeholder="Ej. Blanco perlado"
+        [(value)]="trailerColor"
+      />
+    </div>
+    <to-input
+      label="Nombre o alias (opcional)"
+      placeholder="Ej. Chasis principal"
+      [(value)]="name"
+    />
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-tenure"
+  >
+    <h3 id="fleet-eq-new-tenure" class="fleet-unit-sec__title">
+      Propiedad y tenencia
+    </h3>
+    <to-select
+      label="Situación del activo *"
+      [options]="tenureOptions"
+      [(value)]="trailerTenureMode"
+    />
+    @if (trailerTenureMode() === "owned") {
+      <to-input
+        label="Valor comercial estimado"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. 580,000"
+        [(value)]="trailerCommercialValue"
+      />
+    }
+    @if (
+      trailerTenureMode() === "financed" || trailerTenureMode() === "leased"
+    ) {
+      <div class="fleet-unit-sec__row-flex">
+        <to-input
+          [label]="tenureRecurringAmountLabel()"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. 18,500"
+          [(value)]="trailerRecurringPaymentAmount"
+        />
+        <to-input
+          label="Fecha de pago"
+          type="date"
+          [(value)]="trailerRecurringPaymentDate"
+        />
+      </div>
+      <to-input
+        [label]="tenureInstallmentOrTermLabel()"
+        type="number"
+        placeholder="Ej. 36"
+        [(value)]="trailerRecurringInstallmentCount"
+      />
+    }
+    @if (trailerTenureMode() === "managed") {
+      <to-input
+        label="Pago al dueño / ganancia administrada"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. 8,500"
+        [(value)]="trailerManagementOwnerPayout"
+      />
+    }
+
+    <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+    <p class="fleet-unit-sec__docs-hint">
+      Factura de compra, título de propiedad, NOM-051 (dimensiones y peso),
+      endosos u otros comprobantes del activo.
+    </p>
+    <div class="fleet-unit-upload">
+      <input
+        #fileOwn
+        type="file"
+        class="fleet-unit-upload__input"
+        tabindex="-1"
+        multiple
+        accept="image/*,.pdf,application/pdf"
+        (change)="onFiles($event, 'ownership')"
+      />
+      <button
+        type="button"
+        class="fleet-unit-upload__btn"
+        (click)="fileOwn.click()"
+      >
+        Elegir archivos
+      </button>
+    </div>
+    @if (filesOwnership().length > 0) {
+      <ul class="fleet-unit-files">
+        @for (f of filesOwnership(); track trackFileEntry($index, f)) {
+          <li class="fleet-unit-files__row">
+            <span class="fleet-unit-files__name">{{ f.name }}</span>
+            <button
+              type="button"
+              class="fleet-unit-files__rm"
+              (click)="removeFile('ownership', $index)"
+            >
+              Quitar
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-tech"
+  >
+    <h3 id="fleet-eq-new-tech" class="fleet-unit-sec__title">Ficha técnica</h3>
+    <to-input
+      label="Capacidad (toneladas)"
+      type="text"
+      placeholder="Ej. 32.5"
+      [(value)]="equipmentCapacityTons"
+    />
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Número de ejes"
+        type="number"
+        placeholder="Ej. 3"
+        [(value)]="equipmentAxleCount"
+      />
+      <to-input
+        label="Número de llantas"
+        type="number"
+        placeholder="Ej. 12"
+        [(value)]="equipmentTireCount"
+      />
+    </div>
+    <to-select
+      label="Configuración contenedor / plazas"
+      [options]="containerSlotOptions"
+      [(value)]="equipmentContainerSlot"
+    />
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-maint"
+  >
+    <h3 id="fleet-eq-new-maint" class="fleet-unit-sec__title">
+      Mantenimiento y llantas
+    </h3>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Último mantenimiento"
+        type="date"
+        [(value)]="lastMaintenanceDate"
+      />
+      <to-input
+        label="Costo"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. 3,500"
+        [(value)]="lastMaintenanceCost"
+      />
+    </div>
+    <to-select
+      label="Tipo de mantenimiento *"
+      [options]="maintenanceTypeOptions"
+      [(value)]="lastMaintenanceType"
+    />
+    <to-select
+      label="Estado de llantas *"
+      [options]="tireOptions"
+      [(value)]="tireCondition"
+    />
+    <to-textarea
+      label="Observaciones (opcional)"
+      placeholder="Refacciones cambiadas, taller, diagnóstico, fallas detectadas…"
+      [rows]="3"
+      [(value)]="lastMaintenanceNotes"
+    />
+    <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
+    <p class="fleet-unit-sec__docs-hint">PDF o imagen del taller o factura.</p>
+    <div class="fleet-unit-upload">
+      <input
+        #fileMaint
+        type="file"
+        class="fleet-unit-upload__input"
+        tabindex="-1"
+        multiple
+        accept="image/*,.pdf,application/pdf"
+        (change)="onFiles($event, 'maint')"
+      />
+      <button
+        type="button"
+        class="fleet-unit-upload__btn"
+        (click)="fileMaint.click()"
+      >
+        Elegir archivos
+      </button>
+    </div>
+    @if (filesMaintenance().length > 0) {
+      <ul class="fleet-unit-files">
+        @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
+          <li class="fleet-unit-files__row">
+            <span class="fleet-unit-files__name">{{ f.name }}</span>
+            <button
+              type="button"
+              class="fleet-unit-files__rm"
+              (click)="removeFile('maint', $index)"
+            >
+              Quitar
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-ver"
+  >
+    <h3 id="fleet-eq-new-ver" class="fleet-unit-sec__title">Verificaciones</h3>
+    <p class="fleet-unit-sec__docs-hint">
+      En equipo solo aplica verificación físico-mecánica (no hay verificación de
+      emisiones como en tractores).
+    </p>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Verificación físico-mecánica"
+        type="date"
+        [(value)]="verificationPhysMechDate"
+      />
+      <to-input
+        label="Costo"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. $ 850"
+        [(value)]="verificationPhysMechCost"
+      />
+    </div>
+    @if (physRenewal() === "soon") {
+      <p class="fleet-unit-callout fleet-unit-callout--warn">
+        La próxima revalidación estimada (6 meses) está a menos de 45 días.
+      </p>
+    }
+    @if (physRenewal() === "due") {
+      <p class="fleet-unit-callout fleet-unit-callout--bad">
+        La revalidación físico-mecánica puede estar vencida; agenda cita.
+      </p>
+    }
+
+    <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
+    <p class="fleet-unit-sec__docs-hint">Tarjetas o constancias escaneadas.</p>
+    <div class="fleet-unit-upload">
+      <input
+        #fileVerif
+        type="file"
+        class="fleet-unit-upload__input"
+        tabindex="-1"
+        multiple
+        accept="image/*,.pdf,application/pdf"
+        (change)="onFiles($event, 'verif')"
+      />
+      <button
+        type="button"
+        class="fleet-unit-upload__btn"
+        (click)="fileVerif.click()"
+      >
+        Elegir archivos
+      </button>
+    </div>
+    @if (filesVerification().length > 0) {
+      <ul class="fleet-unit-files">
+        @for (f of filesVerification(); track trackFileEntry($index, f)) {
+          <li class="fleet-unit-files__row">
+            <span class="fleet-unit-files__name">{{ f.name }}</span>
+            <button
+              type="button"
+              class="fleet-unit-files__rm"
+              (click)="removeFile('verif', $index)"
+            >
+              Quitar
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="fleet-eq-new-ins"
+  >
+    <h3 id="fleet-eq-new-ins" class="fleet-unit-sec__title">Seguro</h3>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Nombre del seguro"
+        placeholder="Ej. GNP, AXA, Qualitas…"
+        [(value)]="insuranceCarrierName"
+      />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Número de póliza"
+        placeholder="Póliza"
+        [(value)]="insurancePolicyNumber"
+      />
+      <to-input
+        label="Fecha de contratación"
+        type="date"
+        [(value)]="insuranceContractDate"
+      />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-select
+        label="Forma de pago / renovación"
+        [options]="cadenceOptions"
+        [(value)]="insurancePaymentCadence"
+      />
+      <to-input
+        label="Costo"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. 12,500"
+        [(value)]="insuranceCost"
+      />
+    </div>
+    @if (insuranceRenewHint() === "soon") {
+      <p class="fleet-unit-callout fleet-unit-callout--warn">
+        Próximo pago o renovación de póliza en los próximos 30 días.
+      </p>
+    }
+    @if (insuranceRenewHint() === "due") {
+      <p class="fleet-unit-callout fleet-unit-callout--bad">
+        Puede haber vencido el ciclo de pago; revisa la póliza.
+      </p>
+    }
+
+    <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+    <p class="fleet-unit-sec__docs-hint">PDF de la póliza o recibos de pago.</p>
+    <div class="fleet-unit-upload">
+      <input
+        #filePol
+        type="file"
+        class="fleet-unit-upload__input"
+        tabindex="-1"
+        multiple
+        accept="image/*,.pdf,application/pdf"
+        (change)="onFiles($event, 'policy')"
+      />
+      <button
+        type="button"
+        class="fleet-unit-upload__btn"
+        (click)="filePol.click()"
+      >
+        Elegir archivos
+      </button>
+    </div>
+    @if (filesPolicy().length > 0) {
+      <ul class="fleet-unit-files">
+        @for (f of filesPolicy(); track trackFileEntry($index, f)) {
+          <li class="fleet-unit-files__row">
+            <span class="fleet-unit-files__name">{{ f.name }}</span>
+            <button
+              type="button"
+              class="fleet-unit-files__rm"
+              (click)="removeFile('policy', $index)"
+            >
+              Quitar
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+  <div toSideDrawerFooter>
+    <to-button type="button" variant="outline" (click)="dismiss.emit()">
+      Cancelar
+    </to-button>
+    <to-button type="submit" variant="primary" [disabled]="saving()">
+      <to-icon name="save" [size]="16" />
+      {{ saving() ? "Guardando…" : "Guardar" }}
+    </to-button>
+  </div>
 </to-side-drawer>

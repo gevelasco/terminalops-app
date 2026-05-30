@@ -1,0 +1,23 @@
+.client-delivery-fields__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.client-delivery-fields__hint {
+  margin: -0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.client-delivery-fields__coords-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .client-delivery-fields__coords-grid {
+    grid-template-columns: 1fr;
+  }
+}

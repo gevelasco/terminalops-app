@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   signal,
 } from '@angular/core';
@@ -31,6 +32,9 @@ import {
   semiDonutConicGradient,
 } from '@features/reports/utils/reports-expense-category-slices';
 import { donutSliceTotal } from '@features/reports/utils/reports-operation-donut';
+import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
+import { TRIP_EVALUATION_PROVIDERS } from '@shared/services/trip-evaluation.providers';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToCardComponent } from '@shared/ui/to-card/to-card.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
@@ -42,6 +46,7 @@ import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.co
   selector: 'app-reports-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [...TRIP_EVALUATION_PROVIDERS],
   imports: [
     DecimalPipe,
     ToPageHeaderComponent,
@@ -58,6 +63,9 @@ import { ToTableColumn, ToTableComponent } from '@shared/ui/to-table/to-table.co
 export class ReportsPageComponent {
   private readonly analytics = inject(ReportsAnalyticsService);
   private readonly preferences = inject(UserPreferencesStore);
+  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
+  private readonly tripEvaluation = inject(TripEvaluationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal(true);
   readonly tab = signal<ReportsTabId>('general');
@@ -71,7 +79,7 @@ export class ReportsPageComponent {
     if (!bundle) {
       return null;
     }
-    return this.analytics.buildView(bundle, this.filter());
+    return this.analytics.buildView(bundle, this.filter(), this.tripEvaluation);
   });
 
   readonly clientRows = computed(() =>
@@ -141,7 +149,11 @@ export class ReportsPageComponent {
   ];
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.operationConfigsFeature.dispose();
+    });
     this.preferences.ensureLoaded();
+    this.operationConfigsFeature.loadOperationConfigurations();
     this.analytics
       .loadRawBundle()
       .pipe(takeUntilDestroyed())

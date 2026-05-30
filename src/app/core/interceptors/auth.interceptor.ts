@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AUTH_ALREADY_REFRESHED } from '@core/context/auth-context';
+import { isPublicExternalHttpUrl } from '@core/interceptors/public-external-http';
 import { AuthService } from '@core/services/api/auth';
 import { LogoutService } from '@core/services/logout.service';
 import { SessionService } from '@core/services/state/session';
@@ -16,6 +17,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const logoutService = inject(LogoutService);
   const router = inject(Router);
+  if (isPublicExternalHttpUrl(req.url)) {
+    return next(req);
+  }
+
   const token = session.token();
 
   const authReq = token

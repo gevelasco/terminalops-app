@@ -13,12 +13,12 @@ import {
   approximateManeuverDaysLabel,
   approximateManeuverKmLabel,
   maneuverTimeProgress,
-} from '@features/maniobra/utils/maniobra-schema-eta';
+} from '@features/trips/utils/maniobra-schema-eta';
 import {
   schemaOperationalStatusClass,
   schemaOperationalStatusLabel,
-} from '@features/maniobra/utils/maniobra-schema-operational-status';
-import { formatTripIsoOneLine } from '@features/maniobra/utils/maniobra-trip-schema-timeline';
+} from '@features/trips/utils/maniobra-schema-operational-status';
+import { formatTripIsoOneLine } from '@features/trips/utils/maniobra-trip-schema-timeline';
 import type { Trip, Unit } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 import { formatStackedMx } from '@shared/utils/format-datetime-mx';

@@ -1,0 +1,72 @@
+<div class="destination-rate-prices-editor">
+  <div
+    class="destination-rate-prices-editor__grid destination-rate-prices-editor__grid--head"
+    role="row"
+  >
+    <span class="destination-rate-prices-editor__head-cell">Tipo de maniobra</span>
+    <span class="destination-rate-prices-editor__head-cell">Cobro cliente</span>
+    <span class="destination-rate-prices-editor__head-cell">Pago operador</span>
+    <span class="destination-rate-prices-editor__head-cell">Casetas aprox.</span>
+    <span class="destination-rate-prices-editor__head-cell destination-rate-prices-editor__head-cell--action" aria-hidden="true"></span>
+  </div>
+
+  @for (row of priceDrafts(); track row.rowKey) {
+    <div class="destination-rate-prices-editor__grid destination-rate-prices-editor__grid--row" role="row">
+      <app-destination-rate-maneuver-combobox
+        [operationConfigurationId]="row.operationConfigurationId"
+        [operationConfigurationName]="row.operationConfigurationName"
+        [options]="availableOptionsForRow(row)"
+        [allConfigurationNames]="allConfigurationNames()"
+        [disabled]="disabled()"
+        (valueChange)="onManeuverChange(row.rowKey, $event)"
+      />
+      <to-input
+        placeholder="0"
+        prefix="$"
+        inputMode="decimal"
+        [groupThousands]="true"
+        [value]="row.clientCharge"
+        [disabled]="disabled()"
+        (valueChange)="updateField(row.rowKey, 'clientCharge', $event)"
+      />
+      <to-input
+        placeholder="0"
+        prefix="$"
+        inputMode="decimal"
+        [groupThousands]="true"
+        [value]="row.operatorPaymentEstimate"
+        [disabled]="disabled()"
+        (valueChange)="updateField(row.rowKey, 'operatorPaymentEstimate', $event)"
+      />
+      <to-input
+        placeholder="0"
+        prefix="$"
+        inputMode="decimal"
+        [groupThousands]="true"
+        [value]="row.estimatedTollAmount"
+        [disabled]="disabled()"
+        (valueChange)="updateField(row.rowKey, 'estimatedTollAmount', $event)"
+      />
+      <button
+        type="button"
+        class="destination-rate-prices-editor__remove"
+        [disabled]="disabled() || priceDrafts().length <= 1"
+        aria-label="Quitar tipo de maniobra"
+        (click)="removeRow(row.rowKey)"
+      >
+        <to-icon name="close" [size]="16" />
+      </button>
+    </div>
+  }
+
+  <to-button
+    type="button"
+    variant="outline"
+    size="sm"
+    [disabled]="disabled()"
+    (click)="addRow()"
+  >
+    <to-icon name="sell" [size]="16" />
+    Tipo de maniobra
+  </to-button>
+</div>

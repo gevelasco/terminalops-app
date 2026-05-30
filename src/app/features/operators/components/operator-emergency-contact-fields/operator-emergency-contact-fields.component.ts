@@ -11,7 +11,10 @@ import {
   standalone: true,
   imports: [FormsModule, ToInputComponent, ToSelectComponent],
   templateUrl: './operator-emergency-contact-fields.component.html',
-  styleUrl: './operator-emergency-contact-fields.component.scss',
+  styleUrls: [
+    '../../../fleet/components/fleet-drawer.shared.scss',
+    './operator-emergency-contact-fields.component.scss',
+  ],
 })
 export class OperatorEmergencyContactFieldsComponent {
   readonly layout = input<'new' | 'edit'>('new');

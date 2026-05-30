@@ -20,6 +20,23 @@
   }
 }
 
+/* Allow callers to opt-out of panel clipping (e.g. header tooltips). */
+.to-side-drawer__panel.clients-new-drawer__panel {
+  overflow: visible;
+}
+
+.to-side-drawer__panel.operators-new-drawer__panel {
+  overflow: visible;
+}
+
+.to-side-drawer__panel.fleet-new-unit-drawer__panel {
+  overflow: visible;
+}
+
+.to-side-drawer__panel.fleet-new-equipment-drawer__panel {
+  overflow: visible;
+}
+
 .to-side-drawer__header {
   @include shell.header;
 }

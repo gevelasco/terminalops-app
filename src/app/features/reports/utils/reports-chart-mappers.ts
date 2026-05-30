@@ -1,5 +1,5 @@
-import type { TripStatus } from '@shared/models/logistics.models';
 import type { OperationTypeSlice } from '@features/reports/utils/dashboard-charts-from-trips';
+import type { TripStatus } from '@shared/models/logistics.models';
 import type { TripStatusSliceRow } from '@shared/utils/trip-status-slices';
 import type { ReportsBarSlice } from '../models/reports-view.models';
 
@@ -13,13 +13,16 @@ export function statusSliceToBar(row: TripStatusSliceRow): ReportsBarSlice {
   };
 }
 
-export function operationSliceToBar(row: OperationTypeSlice): ReportsBarSlice {
+export function operationSliceToBar(
+  row: OperationTypeSlice,
+  fillClassForTone: (tone: number) => string,
+): ReportsBarSlice {
   return {
     key: row.label,
     label: row.label,
     count: row.count,
     pct: row.pct,
-    fillClass: operationFillClass(row.tone),
+    fillClass: fillClassForTone(row.tone),
   };
 }
 
@@ -36,15 +39,11 @@ export function statusFillClass(status: TripStatus): string {
   }
 }
 
-export function operationFillClass(tone: OperationTypeSlice['tone']): string {
-  switch (tone) {
-    case 'a':
-      return 'reports-chart-bar__fill--op-a';
-    case 'b':
-      return 'reports-chart-bar__fill--op-b';
-    case 'c':
-      return 'reports-chart-bar__fill--op-c';
-  }
+export function operationFillClass(
+  tone: OperationTypeSlice['tone'],
+  fillClassForTone: (tone: number) => string,
+): string {
+  return fillClassForTone(tone);
 }
 
 export function amountBarSlices(

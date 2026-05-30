@@ -1,6 +1,8 @@
 import { DecimalPipe } from '@angular/common';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { FleetHitchValidationBlockComponent } from '@features/fleet/components/fleet-hitch-validation-block/fleet-hitch-validation-block.component';
+import { ToFleetEquipmentInputComponent } from '@shared/ui/to-fleet-equipment-input/to-fleet-equipment-input.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
@@ -9,6 +11,8 @@ import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.componen
 export const FLEET_UNIT_DETAIL_TAB_IMPORTS = [
   DecimalPipe,
   ToButtonComponent,
+  FleetHitchValidationBlockComponent,
+  ToFleetEquipmentInputComponent,
   ToIconComponent,
   ToInputComponent,
   ToSelectComponent,

@@ -10,6 +10,7 @@ import {
   effectiveFleetMetaForMaintenance,
   resolveMaintenanceContext,
 } from '@shared/utils/fleet/company-maintenance-policy';
+import type { OperationConfigurationResolver } from '@shared/services/operation-configuration-resolver.types';
 import { unitConvoyOperationTypeForTable } from '@app/features/fleet/utils/unit-hitched-equipment';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 
@@ -18,7 +19,10 @@ export type FleetRenewalBucket = 'ok' | 'soon' | 'due' | 'na';
 /** Metadatos mínimos para ciclo de seguro (unidad o equipo). */
 export type FleetInsuranceRenewalMeta = Pick<
   UnitFleetMeta,
-  'insurancePolicyNumber' | 'insuranceContractDate' | 'insurancePaymentCadence'
+  | 'insurancePolicyNumber'
+  | 'insuranceCarrierName'
+  | 'insuranceContractDate'
+  | 'insurancePaymentCadence'
 >;
 
 /** Metadatos mínimos para próximo mantenimiento sugerido (unidad o equipo). */
@@ -168,18 +172,20 @@ function verificationTooltip(meta: UnitFleetMeta | undefined): string {
 }
 
 function insuranceTooltip(meta: FleetInsuranceRenewalMeta | undefined): string {
+  const carrier = meta?.insuranceCarrierName?.trim();
+  const carrierPrefix = carrier ? `${carrier}. ` : '';
   const policy = meta?.insurancePolicyNumber?.trim();
   const iso = meta?.insuranceContractDate?.trim();
   const cad = meta?.insurancePaymentCadence ?? 'annual';
   if (!policy && !iso) {
-    return 'Sin póliza ni fecha de contrato. Icono en gris = sin dato.';
+    return `${carrierPrefix}Sin póliza ni fecha de contrato. Icono en gris = sin dato.`.trim();
   }
   if (!iso) {
-    return `Póliza ${policy ?? '—'}. Sin fecha de contrato; se considera vigente con la información disponible.`;
+    return `${carrierPrefix}Póliza ${policy ?? '—'}. Sin fecha de contrato; se considera vigente con la información disponible.`.trim();
   }
   const start = parseYmd(iso);
   if (!start) {
-    return `Póliza ${policy ?? '—'}. Fecha de contrato no válida (${iso}).`;
+    return `${carrierPrefix}Póliza ${policy ?? '—'}. Fecha de contrato no válida (${iso}).`.trim();
   }
   const months = cadenceToMonths(cad);
   const next =
@@ -197,12 +203,12 @@ function insuranceTooltip(meta: FleetInsuranceRenewalMeta | undefined): string {
           ? 'trimestral'
           : 'anual';
   if (d < 0) {
-    return `Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. Vencido hace ${-d} días (café = atención). Contrato: ${iso}.`;
+    return `${carrierPrefix}Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. Vencido hace ${-d} días (café = atención). Contrato: ${iso}.`.trim();
   }
   if (d <= 30) {
-    return `Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. En ${d} días (amarillo = próximo). Contrato: ${iso}.`;
+    return `${carrierPrefix}Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. En ${d} días (amarillo = próximo). Contrato: ${iso}.`.trim();
   }
-  return `Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. En ${d} días (al corriente). Contrato: ${iso}.`;
+  return `${carrierPrefix}Próximo pago: ${nextFmt} (${cadLabel}). Póliza ${policy ?? '—'}. En ${d} días (al corriente). Contrato: ${iso}.`.trim();
 }
 
 /** Próxima fecha = última + `cycleMonths`; pronto ≤45 d, vencido &lt;0. */
@@ -726,6 +732,7 @@ export function buildFleetUnitTableRow(
     onRoute: boolean;
     completedTripKm?: number | null;
     hitchedEquipment?: Equipment[];
+    resolver: OperationConfigurationResolver;
   },
 ): Record<string, unknown> {
   const meta = u.fleetMeta;
@@ -735,7 +742,7 @@ export function buildFleetUnitTableRow(
     fleetBrand: trailerBrandLabel(u),
     fleetModel: modelLabel(u),
     fleetPlate: u.plate.trim() || '—',
-    fleetConfig: unitConvoyOperationTypeForTable(hitched),
+    fleetConfig: unitConvoyOperationTypeForTable(hitched, options.resolver),
     fleetOperational: operationalKey(u, options.onRoute),
     fleetMaint: maintenanceBucket(meta, options.completedTripKm),
     fleetVerif: verificationBucket(meta),
@@ -832,6 +839,7 @@ export function buildFleetEquipmentTableRow(
   const insMeta: FleetInsuranceRenewalMeta | undefined = meta
     ? {
         insurancePolicyNumber: meta.insurancePolicyNumber,
+        insuranceCarrierName: meta.insuranceCarrierName,
         insuranceContractDate: meta.insuranceContractDate,
         insurancePaymentCadence: meta.insurancePaymentCadence,
       }

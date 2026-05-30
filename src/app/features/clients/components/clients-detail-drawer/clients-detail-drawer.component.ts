@@ -2,32 +2,27 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
-  effect,
   HostListener,
   inject,
-  input,
   output,
 } from '@angular/core';
-import type { Client } from '@shared/models/client.models';
-import { ToDrawerTabPlaceholderComponent } from '@shared/ui/to-drawer-tab-placeholder/to-drawer-tab-placeholder.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
 import { ClientsDetailBalanceTabComponent } from './tabs/clients-detail-balance-tab.component';
 import { ClientsDetailDetailsTabComponent } from './tabs/clients-detail-details-tab.component';
-import { ClientsDetailDrawerStore } from './clients-detail-drawer.store';
+import { ClientsDetailDrawerFacade } from './clients-detail-drawer.facade';
 
 @Component({
   selector: 'app-clients-detail-drawer',
   standalone: true,
-  providers: [ClientsDetailDrawerStore],
+  providers: [ClientsDetailDrawerFacade],
   imports: [
     ToSideDrawerComponent,
     ToIconComponent,
     ToSegmentControlComponent,
     ToStatusPillComponent,
-    ToDrawerTabPlaceholderComponent,
     ClientsDetailDetailsTabComponent,
     ClientsDetailBalanceTabComponent,
   ],
@@ -42,24 +37,12 @@ import { ClientsDetailDrawerStore } from './clients-detail-drawer.store';
   ],
 })
 export class ClientsDetailDrawerComponent {
-  protected readonly vm = inject(ClientsDetailDrawerStore);
-
-  readonly client = input.required<Client>();
+  protected readonly vm = inject(ClientsDetailDrawerFacade);
 
   readonly dismiss = output<void>();
-  readonly clientChange = output<Client>();
 
   constructor() {
-    effect(() => {
-      this.vm.bindHost(
-        { client: this.client() },
-        {
-          dismiss: () => this.dismiss.emit(),
-          clientChange: (c) => this.clientChange.emit(c),
-        },
-      );
-    });
-
+    this.vm.bindDismiss(() => this.dismiss.emit());
     afterNextRender(() => this.vm.markReady());
   }
 

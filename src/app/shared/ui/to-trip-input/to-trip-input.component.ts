@@ -36,7 +36,7 @@ export class ToTripInputComponent {
 
   /** Si es true, usa `tripsData` y no llama a la API. */
   readonly prefetchMode = input(false);
-  readonly tripsData = input<Trip[]>([]);
+  readonly tripsData = input<readonly Trip[]>([]);
 
   /** Id interno de la maniobra (`Trip.id`). */
   readonly tripId = model('');
@@ -88,7 +88,7 @@ export class ToTripInputComponent {
   constructor() {
     effect(() => {
       if (this.prefetchMode()) {
-        this.tripRows.set(this.tripsData());
+        this.tripRows.set([...this.tripsData()]);
       } else {
         this.tripRows.set([]);
       }

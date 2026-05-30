@@ -1,0 +1,77 @@
+import type { FuelEstimateRequest } from '@shared/models/api/api-trips-fuel.model';
+import type { TripContainerType, TripLoadType } from '@shared/models/logistics.models';
+import type { LatLon } from '@shared/services/osrm-driving-route.service';
+import { parseNonNegativeNumber } from '@features/trips/utils/parse-non-negative';
+
+/** Mapeo exclusivo para API de combustible (backend diesel). */
+export function fuelConfigurationFromMaxEquipment(maxEquipmentCount: number): 'sencillo' | 'full' {
+  return maxEquipmentCount >= 2 ? 'full' : 'sencillo';
+}
+
+export function optionalPublicNumericId(raw: string): number | null {
+  const t = raw.trim();
+  if (!t) {
+    return null;
+  }
+  const n = Number.parseInt(t, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function formatFuelEstimateLiters(value: number): string {
+  return value.toLocaleString('es-MX', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+export function formatFuelEstimateMoney(value: number): string {
+  return value.toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function buildFuelEstimateRequest(params: {
+  distanceKm: number | null;
+  operationType: string;
+  maxEquipmentCount?: number;
+  loadType: TripLoadType;
+  containerType: TripContainerType;
+  approximateWeightTons: string;
+  unitId: string;
+  equipmentPrimary: string;
+  equipmentSecondary: string;
+  originCoords: LatLon | null;
+  destinationCoords: LatLon | null;
+}): FuelEstimateRequest | null {
+  const km = params.distanceKm;
+  if (km == null || !Number.isFinite(km) || km <= 0) {
+    return null;
+  }
+
+  const weight =
+    parseNonNegativeNumber(params.approximateWeightTons) ?? 0;
+
+  return {
+    distanceKm: km,
+    isRoundTrip: true,
+    configuration: fuelConfigurationFromMaxEquipment(params.maxEquipmentCount ?? 1),
+    approximateWeightTons: weight,
+    cargoType: params.loadType,
+    containerType: params.containerType,
+    unitId: optionalPublicNumericId(params.unitId),
+    equipment1Id: optionalPublicNumericId(params.equipmentPrimary),
+    equipment2Id: optionalPublicNumericId(params.equipmentSecondary),
+    originLatitude: params.originCoords?.lat ?? null,
+    originLongitude: params.originCoords?.lon ?? null,
+    destinationLatitude: params.destinationCoords?.lat ?? null,
+    destinationLongitude: params.destinationCoords?.lon ?? null,
+  };
+}
+
+/** Huella estable de inputs que disparan estimación (evita requests duplicados). */
+export function fuelEstimateInputsFingerprint(
+  req: FuelEstimateRequest,
+): string {
+  return JSON.stringify(req);
+}

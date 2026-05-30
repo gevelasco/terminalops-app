@@ -30,7 +30,7 @@
   @defer {
     <app-fleet-new-unit-drawer
       (dismiss)="newUnitOpen.set(false)"
-      (saved)="loadUnits()"
+      (saved)="newUnitOpen.set(false)"
     />
   }
 }
@@ -38,46 +38,36 @@
 @if (newEquipmentOpen()) {
   @defer {
     <app-fleet-new-equipment-drawer
-      [unitOptions]="unitSelectOptions()"
-      [equipmentCatalog]="equipmentList()"
+      [units]="unitListMutable()"
+      [equipmentCatalog]="equipmentListMutable()"
       (dismiss)="newEquipmentOpen.set(false)"
-      (saved)="loadEquipment()"
+      (saved)="newEquipmentOpen.set(false)"
     />
   }
 }
 
-@if (detailUnit(); as du) {
-  @defer {
-    <app-fleet-unit-detail-drawer
-      [unit]="du"
-      [onRoute]="detailUnitOnRoute()"
-      [hitchedEquipment]="detailUnitHitchedEquipment()"
-      [completedManeuverCount]="
-        unitTripStats().completedCountByUnitId.get(du.id) ?? 0
-      "
-      [completedTripDistanceKm]="
-        unitTripStats().completedDistanceKmSumByUnitId.get(du.id) ?? null
-      "
-      (dismiss)="onUnitDetailDismiss()"
-      (viewHitchedEquipment)="onUnitDetailViewEquipment($event)"
-      (unitChange)="onDetailUnitChange($event)"
-    />
-  }
+@if (fleet.selectedUnit(); as du) {
+  <app-fleet-unit-detail-drawer
+    [onRoute]="detailUnitOnRoute()"
+    [completedManeuverCount]="
+      unitTripStats().completedCountByUnitId.get(du.id) ?? 0
+    "
+    [completedTripDistanceKm]="
+      unitTripStats().completedDistanceKmSumByUnitId.get(du.id) ?? null
+    "
+    (dismiss)="onUnitDetailDismiss()"
+    (viewHitchedEquipment)="onUnitDetailViewEquipment($event)"
+  />
 }
 
 @if (detailEquipmentForDrawer(); as deq) {
-  @defer {
-    <app-fleet-equipment-detail-drawer
-      [equipment]="deq"
-      [onRoute]="detailEquipmentOnRoute()"
-      [unitCatalog]="unitList()"
-      [unitOptions]="unitSelectOptions()"
-      [completedManeuverCount]="
-        unitTripStats().completedCountByUnitId.get(deq.unitId) ?? 0
-      "
-      (dismiss)="onEquipmentDetailDismiss()"
-    />
-  }
+  <app-fleet-equipment-detail-drawer
+    [onRoute]="detailEquipmentOnRoute()"
+    [completedManeuverCount]="
+      unitTripStats().completedCountByUnitId.get(deq.unitId) ?? 0
+    "
+    (dismiss)="onEquipmentDetailDismiss()"
+  />
 }
 
 <div class="fleet-toolbar">
@@ -399,6 +389,7 @@
       <to-table
         [columns]="unitColumns"
         [rows]="displayedUnitRows()"
+        trackByKey="id"
         [interactiveRows]="true"
         (rowClick)="onUnitRowClick($event)"
       />
@@ -421,6 +412,7 @@
       <to-table
         [columns]="equipmentColumns"
         [rows]="displayedEquipmentRows()"
+        trackByKey="id"
         [interactiveRows]="true"
         (rowClick)="onEquipmentRowClick($event)"
       />

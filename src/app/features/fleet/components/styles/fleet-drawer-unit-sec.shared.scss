@@ -81,6 +81,29 @@
   }
 }
 
+.fleet-unit-sec__grid3 {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fleet-unit-sec__grid3 > * {
+  min-width: 0;
+}
+
+@media (min-width: 480px) {
+  .fleet-unit-sec__grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (min-width: 820px) {
+  .fleet-unit-sec__grid3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .fleet-unit-callout {
   margin: 0;
   padding: 0.5rem 0.65rem;

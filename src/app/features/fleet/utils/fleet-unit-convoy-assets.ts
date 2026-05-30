@@ -4,7 +4,7 @@ import {
   SCHEMA_PLANA_SEGUNDA_ASSET,
   SCHEMA_REMOLQUE_ASSET,
   SCHEMA_TRACTO_ASSET,
-} from '@features/maniobra/utils/maniobra-schema-convoy-assets';
+} from '@features/trips/utils/maniobra-schema-convoy-assets';
 import { isPlanaEquipment } from '@features/fleet/utils/unit-hitched-equipment';
 import type { Equipment } from '@shared/models/logistics.models';
 

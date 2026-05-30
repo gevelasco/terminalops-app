@@ -36,9 +36,21 @@ export interface ClientPaymentTerms {
   hasCredit: boolean;
   /** Días de crédito pactados (solo si `hasCredit`). */
   creditDays?: number;
-  /** Límite o volumen de crédito aproximado (texto libre, ej. "2.5 MMXN"). */
+  /** Límite o volumen de crédito para alertas (texto libre, ej. "2.5 MMXN"). */
   approximateCreditAmount?: string;
   commercialHealth: ClientCommercialHealth;
+  /** Método de pago preferido para maniobras (`cash`, `transfer`, `check`). */
+  defaultPaymentMethod?: string;
+}
+
+/** Ubicación de entrega del cliente (una por expediente). */
+export interface ClientDelivery {
+  postalCode?: string;
+  cityMunicipality?: string;
+  locality?: string;
+  settlementConsId?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Client {
@@ -55,6 +67,7 @@ export interface Client {
   relationshipStartedOn?: string;
   notes?: string;
   billing?: ClientBilling;
+  delivery?: ClientDelivery;
   contacts?: ClientContactPerson[];
   payment?: ClientPaymentTerms;
   /** Total de maniobras vinculadas por `clientId` (solo en listado). */

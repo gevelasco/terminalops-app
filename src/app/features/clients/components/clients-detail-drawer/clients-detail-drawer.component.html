@@ -29,15 +29,12 @@
     (tabSelect)="vm.selectDrawerTab($event)"
   />
 
-  @defer (when vm.drawerTab() === 'details'; prefetch on idle) {
-    <app-clients-detail-details-tab />
-  } @loading (minimum 0ms) {
-    <to-drawer-tab-placeholder />
-  }
-
-  @defer (when vm.drawerTab() === 'balance'; prefetch on idle) {
-    <app-clients-detail-balance-tab />
-  } @loading (minimum 0ms) {
-    <to-drawer-tab-placeholder />
+  @switch (vm.drawerTab()) {
+    @case ('details') {
+      <app-clients-detail-details-tab />
+    }
+    @case ('balance') {
+      <app-clients-detail-balance-tab />
+    }
   }
 </to-side-drawer>

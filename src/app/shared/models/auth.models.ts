@@ -22,6 +22,8 @@ export interface AuthUser {
   employeeId?: string;
   operationalAnalysisEnabled?: boolean;
   operationalAnalysisChangedAt?: string;
+  dieselControlEnabled?: boolean;
+  dieselControlChangedAt?: string;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;
@@ -88,6 +90,8 @@ export interface SessionData {
   employeeId?: string;
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
+  dieselControlEnabled: boolean;
+  dieselControlChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled: boolean;

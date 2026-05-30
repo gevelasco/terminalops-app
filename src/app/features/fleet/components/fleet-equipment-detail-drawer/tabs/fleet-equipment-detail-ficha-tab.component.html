@@ -1,558 +1,581 @@
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="fleet-udv-id"
+<div class="fleet-unit-detail__section-stack">
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed"
+  aria-labelledby="fleet-udv-id"
+>
+  <div class="fleet-unit-sec__header">
+    <h3 id="fleet-udv-id" class="fleet-unit-sec__title">Identificación</h3>
+    @if (!vm.isEditing("id")) {
+      <button
+        type="button"
+        class="fleet-unit-sec__edit-btn"
+        aria-label="Editar Identificación"
+        (click)="vm.startEditId()"
       >
-        <div class="fleet-unit-sec__header">
-          <h3 id="fleet-udv-id" class="fleet-unit-sec__title">
-            Identificación
-          </h3>
-          @if (!vm.isEditing("id")) {
-            <button
-              type="button"
-              class="fleet-unit-sec__edit-btn"
-              aria-label="Editar Identificación"
-              (click)="vm.startEditId()"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                />
-              </svg>
-            </button>
-          }
-        </div>
-        @if (!vm.isEditing("id")) {
-          <dl class="fleet-unit-detail__dl">
-            <div class="fleet-unit-detail__row">
-              <dt>Unidad tractora</dt>
-              <dd>{{ vm.unitLabel() }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Marca</dt>
-              <dd>{{ vm.brandDisplay() }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Modelo (año)</dt>
-              <dd>{{ vm.effEquipment().trailerYear?.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Versión / acabado</dt>
-              <dd>{{ vm.meta()?.trailerVersion?.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Tipo de unidad / caja</dt>
-              <dd>{{ vm.operationTypeDisplay() }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Número de serie</dt>
-              <dd class="fleet-unit-detail__mono">
-                {{ vm.effEquipment().serialNumber.trim() || "—" }}
-              </dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Placa</dt>
-              <dd>{{ vm.effEquipment().plate?.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Estado operativo</dt>
-              <dd>{{ vm.catalogStatusLabel() }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Color</dt>
-              <dd>{{ vm.meta()?.trailerColor?.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Nombre o alias</dt>
-              <dd>{{ vm.effEquipment().name.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>ID interno</dt>
-              <dd class="fleet-unit-detail__mono">{{ vm.effEquipment().id }}</dd>
-            </div>
-          </dl>
-        } @else {
-          <div class="fleet-unit-sec__edit-form">
-            <to-select
-              label="Unidad tractora (opcional)"
-              placeholder="Sin asignar"
-              [options]="vm.unitOptions()"
-              [(value)]="vm.editUnitId"
-            />
-            <div class="fleet-unit-sec__edit-grid">
-              <to-select
-                label="Marca *"
-                placeholder="Selecciona marca"
-                [options]="vm.brandOptions"
-                [(value)]="vm.editBrand"
-              />
-              <to-select
-                label="Modelo (año) *"
-                placeholder="Selecciona año"
-                [options]="vm.modelYearOptions"
-                [(value)]="vm.editYear"
-              />
-            </div>
-            <div class="fleet-unit-sec__edit-grid">
-              <to-input
-                label="Versión / acabado"
-                placeholder="Ej. Cascadia Evolution"
-                [(value)]="vm.editVersion"
-              />
-              <to-select
-                label="Tipo de unidad / caja *"
-                placeholder="Selecciona tipo"
-                [options]="vm.operationTypeOptions"
-                [(value)]="vm.editType"
-              />
-            </div>
-            <div class="fleet-unit-sec__edit-grid">
-              <to-input
-                label="Número de serie *"
-                placeholder="Serie o inventario"
-                [(value)]="vm.editSerialNumber"
-              />
-              <to-input
-                label="Placa"
-                placeholder="Ej. 12-AB-3C (opcional)"
-                [(value)]="vm.editPlate"
-              />
-            </div>
-            <div class="fleet-unit-sec__edit-grid">
-              <to-select
-                label="Estado operativo *"
-                [options]="vm.statusOptions"
-                [(value)]="vm.editStatus"
-              />
-              <to-input
-                label="Color"
-                placeholder="Ej. Blanco perlado"
-                [(value)]="vm.editColor"
-              />
-            </div>
-            <to-input
-              label="Nombre o alias"
-              placeholder="Opcional"
-              [(value)]="vm.editName"
-            />
-            <div class="fleet-unit-sec__edit-actions">
-              <to-button
-                type="button"
-                variant="outline"
-                size="sm"
-                (click)="vm.cancelEdit()"
-              >
-                Cancelar
-              </to-button>
-              <to-button
-                type="button"
-                variant="primary"
-                size="sm"
-                (click)="vm.saveEditId()"
-              >
-                <to-icon name="save" [size]="14" />
-                Guardar
-              </to-button>
-            </div>
-          </div>
-        }
-      </section>
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+  @if (!vm.isEditing("id")) {
+    <dl class="fleet-unit-detail__dl">
+      <div class="fleet-unit-detail__row">
+        <dt>Marca</dt>
+        <dd>{{ vm.brandDisplay() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Modelo (año)</dt>
+        <dd>{{ vm.effEquipment().trailerYear?.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Versión</dt>
+        <dd>{{ vm.meta()?.trailerVersion?.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Tipo de unidad / caja</dt>
+        <dd>{{ vm.operationTypeDisplay() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Número de serie</dt>
+        <dd class="fleet-unit-detail__mono">
+          {{ vm.effEquipment().serialNumber.trim() || "—" }}
+        </dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Placa</dt>
+        <dd>{{ vm.effEquipment().plate?.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Estado operativo</dt>
+        <dd>{{ vm.catalogStatusLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Color</dt>
+        <dd>{{ vm.meta()?.trailerColor?.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Nombre o alias</dt>
+        <dd>{{ vm.effEquipment().name.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>ID interno</dt>
+        <dd class="fleet-unit-detail__mono">{{ vm.effEquipment().id }}</dd>
+      </div>
+    </dl>
+  } @else {
+    <div class="fleet-unit-sec__edit-form">
+      <div class="fleet-unit-sec__edit-grid">
+        <to-select
+          label="Marca *"
+          placeholder="Selecciona marca"
+          [options]="vm.brandOptions"
+          [(value)]="vm.editBrand"
+        />
+        <to-select
+          label="Modelo (año) *"
+          placeholder="Selecciona año"
+          [options]="vm.modelYearOptions"
+          [(value)]="vm.editYear"
+        />
+      </div>
+      <div class="fleet-unit-sec__edit-grid">
+        <to-input
+          label="Versión"
+          placeholder="Ej. Cascadia Evolution"
+          [(value)]="vm.editVersion"
+        />
+        <to-select
+          label="Tipo de unidad / caja *"
+          placeholder="Selecciona tipo"
+          [options]="vm.operationTypeOptions"
+          [(value)]="vm.editType"
+        />
+      </div>
+      <div class="fleet-unit-sec__edit-grid">
+        <to-input
+          label="Número de serie *"
+          placeholder="Serie o inventario"
+          [(value)]="vm.editSerialNumber"
+        />
+        <to-input
+          label="Placa"
+          placeholder="Ej. 12-AB-3C (opcional)"
+          [(value)]="vm.editPlate"
+        />
+      </div>
+      <div class="fleet-unit-sec__edit-grid">
+        <to-select
+          label="Estado operativo *"
+          [options]="vm.statusOptions"
+          [(value)]="vm.editStatus"
+        />
+        <to-input
+          label="Color"
+          placeholder="Ej. Blanco perlado"
+          [(value)]="vm.editColor"
+        />
+      </div>
+      <to-input
+        label="Nombre o alias"
+        placeholder="Opcional"
+        [(value)]="vm.editName"
+      />
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="vm.cancelEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button
+          type="button"
+          variant="primary"
+          size="sm"
+          (click)="vm.saveEditId()"
+        >
+          <to-icon name="save" [size]="14" />
+          Guardar
+        </to-button>
+      </div>
+    </div>
+  }
+</section>
 
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="fleet-udv-tenure"
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed"
+  aria-labelledby="fleet-udv-tenure"
+>
+  <div class="fleet-unit-sec__header">
+    <h3 id="fleet-udv-tenure" class="fleet-unit-sec__title">
+      Propiedad y tenencia
+    </h3>
+    @if (!vm.isEditing("tenure")) {
+      <button
+        type="button"
+        class="fleet-unit-sec__edit-btn"
+        aria-label="Editar Propiedad y tenencia"
+        (click)="vm.startEditTenure()"
       >
-        <div class="fleet-unit-sec__header">
-          <h3 id="fleet-udv-tenure" class="fleet-unit-sec__title">
-            Propiedad y tenencia
-          </h3>
-          @if (!vm.isEditing("tenure")) {
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+  @if (!vm.isEditing("tenure")) {
+    <dl class="fleet-unit-detail__dl">
+      <div class="fleet-unit-detail__row">
+        <dt>Situación del activo</dt>
+        <dd>{{ vm.tenureModeLabel() }}</dd>
+      </div>
+      @if (vm.tenureMode() === "owned") {
+        <div class="fleet-unit-detail__row">
+          <dt>Valor comercial</dt>
+          <dd>
+            {{ vm.formatTrackingAmount(vm.meta()?.trailerCommercialValue) }}
+          </dd>
+        </div>
+      }
+      @if (
+        vm.tenureMode() === "financed" || vm.tenureMode() === "leased"
+      ) {
+        <div class="fleet-unit-detail__row">
+          <dt>
+            {{
+              vm.tenureMode() === "leased" ? "Monto de renta" : "Monto por cuota"
+            }}
+          </dt>
+          <dd>
+            {{
+              vm.formatTrackingAmount(vm.meta()?.trailerRecurringPaymentAmount)
+            }}
+          </dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Fecha de pago (referencia)</dt>
+          <dd>{{ vm.formatYmd(vm.meta()?.trailerRecurringPaymentDate) }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>
+            {{
+              vm.tenureMode() === "leased"
+                ? "Plazos o meses de contrato"
+                : "Total de cuotas"
+            }}
+          </dt>
+          <dd>
+            @if (vm.meta()?.trailerRecurringInstallmentCount != null) {
+              {{ vm.meta()?.trailerRecurringInstallmentCount }}
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+      }
+      @if (vm.tenureMode() === "managed") {
+        <div class="fleet-unit-detail__row">
+          <dt>Pago al dueño / administración</dt>
+          <dd>
+            {{
+              vm.formatTrackingAmount(vm.meta()?.trailerManagementOwnerPayout)
+            }}
+          </dd>
+        </div>
+      }
+    </dl>
+    <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+    @if (vm.docNames("ownership").length > 0) {
+      <ul
+        class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+      >
+        @for (n of vm.docNames("ownership"); track n) {
+          <li class="fleet-unit-detail__file-line">
+            <span class="fleet-unit-detail__file-name">{{ n }}</span>
             <button
               type="button"
-              class="fleet-unit-sec__edit-btn"
-              aria-label="Editar Propiedad y tenencia"
-              (click)="vm.startEditTenure()"
+              class="fleet-unit-detail__file-dl"
+              (click)="vm.downloadStoredDocument(n)"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                />
-              </svg>
+              Descargar
             </button>
-          }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="fleet-unit-detail__empty-files">Sin archivos en el registro.</p>
+    }
+  } @else {
+    <div class="fleet-unit-sec__edit-form">
+      <to-select
+        label="Situación del activo *"
+        [options]="vm.tenureOptions"
+        [value]="vm.editTenureMode()"
+        (valueChange)="vm.setEditTenureMode($event)"
+      />
+      @if (vm.editTenureMode() === "owned") {
+        <to-input
+          label="Valor comercial estimado (opcional)"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. 350,000"
+          [(value)]="vm.editCommercialValue"
+        />
+      }
+      @if (
+        vm.editTenureMode() === "financed" || vm.editTenureMode() === "leased"
+      ) {
+        <div class="fleet-unit-sec__edit-grid">
+          <to-input
+            [label]="vm.tenureRecurringAmountLabel() + ' (opcional)'"
+            type="text"
+            [groupThousands]="true"
+            placeholder="Ej. 18,500"
+            [(value)]="vm.editRecurringAmount"
+          />
+          <to-input
+            label="Fecha de pago de referencia"
+            type="date"
+            [(value)]="vm.editRecurringDate"
+          />
         </div>
-        @if (!vm.isEditing("tenure")) {
-          <dl class="fleet-unit-detail__dl">
-            <div class="fleet-unit-detail__row">
-              <dt>Situación del activo</dt>
-              <dd>{{ vm.tenureModeLabel(vm.meta()?.trailerTenureMode) }}</dd>
-            </div>
-            @if (vm.meta()?.trailerTenureMode === "owned") {
-              <div class="fleet-unit-detail__row">
-                <dt>Valor comercial</dt>
-                <dd>
-                  {{ vm.formatTrackingAmount(vm.meta()?.trailerCommercialValue) }}
-                </dd>
-              </div>
-            }
-            @if (
-              vm.meta()?.trailerTenureMode === "financed" ||
-              vm.meta()?.trailerTenureMode === "leased"
-            ) {
-              <div class="fleet-unit-detail__row">
-                <dt>
-                  {{
-                    vm.meta()?.trailerTenureMode === "leased"
-                      ? "Monto de renta"
-                      : "Monto por cuota"
-                  }}
-                </dt>
-                <dd>
-                  {{
-                    vm.formatTrackingAmount(vm.meta()?.trailerRecurringPaymentAmount)
-                  }}
-                </dd>
-              </div>
-              <div class="fleet-unit-detail__row">
-                <dt>Fecha de pago (referencia)</dt>
-                <dd>{{ vm.formatYmd(vm.meta()?.trailerRecurringPaymentDate) }}</dd>
-              </div>
-              <div class="fleet-unit-detail__row">
-                <dt>
-                  {{
-                    vm.meta()?.trailerTenureMode === "leased"
-                      ? "Plazos o meses de contrato"
-                      : "Total de cuotas"
-                  }}
-                </dt>
-                <dd>
-                  @if (vm.meta()?.trailerRecurringInstallmentCount != null) {
-                    {{ vm.meta()?.trailerRecurringInstallmentCount }}
-                  } @else {
-                    —
-                  }
-                </dd>
-              </div>
-            }
-            @if (vm.meta()?.trailerTenureMode === "managed") {
-              <div class="fleet-unit-detail__row">
-                <dt>Pago al dueño / administración</dt>
-                <dd>
-                  {{
-                    vm.formatTrackingAmount(vm.meta()?.trailerManagementOwnerPayout)
-                  }}
-                </dd>
-              </div>
-            }
-          </dl>
-          <h4 class="fleet-unit-sec__subtitle">
-            Documentos de propiedad y legal
-          </h4>
-          @if (vm.docNames("ownership").length > 0) {
-            <ul
-              class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
-            >
-              @for (n of vm.docNames("ownership"); track n) {
-                <li class="fleet-unit-detail__file-line">
-                  <span class="fleet-unit-detail__file-name">{{ n }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-detail__file-dl"
-                    (click)="vm.downloadStoredDocument(n)"
-                  >
-                    Descargar
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="fleet-unit-detail__empty-files">
-              Sin archivos en el registro.
-            </p>
-          }
-        } @else {
-          <div class="fleet-unit-sec__edit-form">
-            <to-select
-              label="Situación del activo *"
-              [options]="vm.tenureOptions"
-              [(value)]="vm.editTenureMode"
-            />
-            @if (vm.editTenureMode() === "owned") {
-              <to-input
-                label="Valor comercial estimado (opcional)"
-                type="text"
-                [groupThousands]="true"
-                placeholder="Ej. 350,000"
-                [(value)]="vm.editCommercialValue"
-              />
-            }
-            @if (
-              vm.editTenureMode() === "financed" || vm.editTenureMode() === "leased"
-            ) {
-              <div class="fleet-unit-sec__edit-grid">
-                <to-input
-                  [label]="vm.tenureRecurringAmountLabel() + ' (opcional)'"
-                  type="text"
-                  [groupThousands]="true"
-                  placeholder="Ej. 18,500"
-                  [(value)]="vm.editRecurringAmount"
-                />
-                <to-input
-                  label="Fecha de pago de referencia"
-                  type="date"
-                  [(value)]="vm.editRecurringDate"
-                />
-              </div>
-              <to-input
-                [label]="vm.tenureInstallmentOrTermLabel() + ' (opcional)'"
-                type="text"
-                placeholder="Ej. 36"
-                [(value)]="vm.editRecurringInstallments"
-              />
-            }
-            @if (vm.editTenureMode() === "managed") {
-              <to-input
-                label="Pago al dueño / administración (opcional)"
-                type="text"
-                [groupThousands]="true"
-                placeholder="Ej. 8,000"
-                [(value)]="vm.editOwnerPayout"
-              />
-            }
-            <h4 class="fleet-unit-sec__subtitle">
-              Documentos de propiedad y legal
-            </h4>
-            @if (vm.editOwnershipNames().length > 0) {
-              <ul class="fleet-unit-files">
-                @for (n of vm.editOwnershipNames(); track vm.trackStringEntry($index, n)) {
-                  <li class="fleet-unit-files__row">
-                    <span class="fleet-unit-files__name">{{ n }}</span>
-                    <button
-                      type="button"
-                      class="fleet-unit-files__rm"
-                      (click)="vm.removeEditOwnershipDoc($index)"
-                    >
-                      Quitar
-                    </button>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="fleet-unit-detail__empty-files">
-                Sin documentos en la lista (puedes agregar abajo).
-              </p>
-            }
-            <div class="fleet-unit-upload">
-              <input
-                #fileOwnTenure
-                type="file"
-                class="fleet-unit-upload__input"
-                tabindex="-1"
-                multiple
-                accept="image/*,.pdf,application/pdf"
-                (change)="vm.onEditTenureOwnershipFiles($event)"
-              />
+        <to-input
+          [label]="vm.tenureInstallmentOrTermLabel() + ' (opcional)'"
+          type="text"
+          placeholder="Ej. 36"
+          [(value)]="vm.editRecurringInstallments"
+        />
+      }
+      @if (vm.editTenureMode() === "managed") {
+        <to-input
+          label="Pago al dueño / administración (opcional)"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. 8,000"
+          [(value)]="vm.editOwnerPayout"
+        />
+      }
+      <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+      @if (vm.editOwnershipNames().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (
+            n of vm.editOwnershipNames();
+            track vm.trackStringEntry($index, n)
+          ) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ n }}</span>
               <button
                 type="button"
-                class="fleet-unit-upload__btn"
-                (click)="fileOwnTenure.click()"
+                class="fleet-unit-files__rm"
+                (click)="vm.removeEditOwnershipDoc($index)"
               >
-                Elegir archivos
+                Quitar
               </button>
-            </div>
-            @if (vm.editOwnershipNewFiles().length > 0) {
-              <ul class="fleet-unit-files">
-                @for (f of vm.editOwnershipNewFiles(); track vm.trackFileEntry($index, f)) {
-                  <li class="fleet-unit-files__row">
-                    <span class="fleet-unit-files__name">{{ f.name }}</span>
-                    <button
-                      type="button"
-                      class="fleet-unit-files__rm"
-                      (click)="vm.removeEditTenureNewFile($index)"
-                    >
-                      Quitar
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-            <div class="fleet-unit-sec__edit-actions">
-              <to-button
-                type="button"
-                variant="outline"
-                size="sm"
-                (click)="vm.cancelEdit()"
-              >
-                Cancelar
-              </to-button>
-              <to-button
-                type="button"
-                variant="primary"
-                size="sm"
-                (click)="vm.saveEditTenure()"
-              >
-                <to-icon name="save" [size]="14" />
-                Guardar
-              </to-button>
-            </div>
-          </div>
-        }
-      </section>
-
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="fleet-eq-tech"
-      >
-        <div class="fleet-unit-sec__header">
-          <h3 id="fleet-eq-tech" class="fleet-unit-sec__title">
-            Ficha técnica
-          </h3>
-          @if (!vm.isEditing("tech")) {
-            <button
-              type="button"
-              class="fleet-unit-sec__edit-btn"
-              aria-label="Editar ficha técnica"
-              (click)="vm.startEditTech()"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  fill="currentColor"
-                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                />
-              </svg>
-            </button>
+            </li>
           }
+        </ul>
+      } @else {
+        <p class="fleet-unit-detail__empty-files">
+          Sin documentos en la lista (puedes agregar abajo).
+        </p>
+      }
+      <div class="fleet-unit-upload">
+        <input
+          #fileOwnTenure
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="vm.onEditTenureOwnershipFiles($event)"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="fileOwnTenure.click()"
+        >
+          Elegir archivos
+        </button>
+      </div>
+      @if (vm.editOwnershipNewFiles().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (
+            f of vm.editOwnershipNewFiles();
+            track vm.trackFileEntry($index, f)
+          ) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ f.name }}</span>
+              <button
+                type="button"
+                class="fleet-unit-files__rm"
+                (click)="vm.removeEditTenureNewFile($index)"
+              >
+                Quitar
+              </button>
+            </li>
+          }
+        </ul>
+      }
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="vm.cancelEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button
+          type="button"
+          variant="primary"
+          size="sm"
+          (click)="vm.saveEditTenure()"
+        >
+          <to-icon name="save" [size]="14" />
+          Guardar
+        </to-button>
+      </div>
+    </div>
+  }
+</section>
+
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed"
+  aria-labelledby="fleet-eq-tech"
+>
+  <div class="fleet-unit-sec__header">
+    <h3 id="fleet-eq-tech" class="fleet-unit-sec__title">Ficha técnica</h3>
+    @if (!vm.isEditing("tech")) {
+      <button
+        type="button"
+        class="fleet-unit-sec__edit-btn"
+        aria-label="Editar ficha técnica"
+        (click)="vm.startEditTech()"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+  @if (!vm.isEditing("tech")) {
+    <dl class="fleet-unit-detail__dl">
+      <div class="fleet-unit-detail__row">
+        <dt>Capacidad (toneladas)</dt>
+        <dd>{{ vm.meta()?.equipmentCapacityTons?.trim() || "—" }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Número de ejes</dt>
+        <dd>
+          @if (vm.meta()?.equipmentAxleCount != null) {
+            {{ vm.meta()?.equipmentAxleCount }}
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Número de llantas</dt>
+        <dd>
+          @if (vm.meta()?.equipmentTireCount != null) {
+            {{ vm.meta()?.equipmentTireCount }}
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+      <div class="fleet-unit-detail__row">
+        <dt>Configuración contenedor / plazas</dt>
+        <dd>{{ vm.slotConfigDisplay() }}</dd>
+      </div>
+    </dl>
+  } @else {
+    <div class="fleet-unit-sec__edit-form">
+      <to-input
+        label="Capacidad (toneladas)"
+        type="text"
+        placeholder="Ej. 32.5"
+        [(value)]="vm.editTechCapacityTons"
+      />
+      <div class="fleet-unit-sec__edit-grid">
+        <to-input
+          label="Número de ejes"
+          type="number"
+          placeholder="Ej. 3"
+          [(value)]="vm.editTechAxles"
+        />
+        <to-input
+          label="Número de llantas"
+          type="number"
+          placeholder="Ej. 12"
+          [(value)]="vm.editTechTires"
+        />
+      </div>
+      <to-select
+        label="Configuración contenedor / plazas"
+        [options]="vm.containerSlotOptions"
+        [(value)]="vm.editTechSlot"
+      />
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="vm.cancelEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button
+          type="button"
+          variant="primary"
+          size="sm"
+          (click)="vm.saveEditTech()"
+        >
+          <to-icon name="save" [size]="14" />
+          Guardar
+        </to-button>
+      </div>
+    </div>
+  }
+</section>
+
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed"
+  aria-labelledby="fleet-eq-hitch"
+>
+  <div class="fleet-unit-sec__header">
+    <h3 id="fleet-eq-hitch" class="fleet-unit-sec__title">
+      Enganche a unidad tractora
+    </h3>
+    @if (!vm.isEditing("hitch")) {
+      <button
+        type="button"
+        class="fleet-unit-sec__edit-btn"
+        aria-label="Editar enganche"
+        (click)="vm.startEditHitch()"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+  @if (!vm.isEditing("hitch")) {
+    @if (vm.hitchAssignmentAvailable()) {
+      <p class="fleet-unit-sec__hint" style="margin: 0">
+        <strong>Disponible</strong> — sin unidad tractora asignada.
+      </p>
+    } @else {
+      <dl class="fleet-unit-detail__dl">
+        <div class="fleet-unit-detail__row">
+          <dt>Estado</dt>
+          <dd>Enganchado</dd>
         </div>
-        @if (!vm.isEditing("tech")) {
-          <dl class="fleet-unit-detail__dl">
-            <div class="fleet-unit-detail__row">
-              <dt>Capacidad (toneladas)</dt>
-              <dd>{{ vm.meta()?.equipmentCapacityTons?.trim() || "—" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Número de ejes</dt>
-              <dd>
-                @if (vm.meta()?.equipmentAxleCount != null) {
-                  {{ vm.meta()?.equipmentAxleCount }}
-                } @else {
-                  —
-                }
-              </dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Número de llantas</dt>
-              <dd>
-                @if (vm.meta()?.equipmentTireCount != null) {
-                  {{ vm.meta()?.equipmentTireCount }}
-                } @else {
-                  —
-                }
-              </dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Configuración contenedor / plazas</dt>
-              <dd>{{ vm.slotConfigDisplay() }}</dd>
-            </div>
-          </dl>
-        } @else {
-          <div class="fleet-unit-sec__edit-form">
-            <to-input
-              label="Capacidad (toneladas)"
-              type="text"
-              placeholder="Ej. 32.5"
-              [(value)]="vm.editTechCapacityTons"
-            />
-            <div class="fleet-unit-sec__edit-grid">
-              <to-input
-                label="Número de ejes"
-                type="number"
-                placeholder="Ej. 3"
-                [(value)]="vm.editTechAxles"
-              />
-              <to-input
-                label="Número de llantas"
-                type="number"
-                placeholder="Ej. 12"
-                [(value)]="vm.editTechTires"
-              />
-            </div>
-            <to-select
-              label="Configuración contenedor / plazas"
-              [options]="vm.containerSlotOptions"
-              [(value)]="vm.editTechSlot"
-            />
-            <div class="fleet-unit-sec__edit-actions">
-              <to-button
-                type="button"
-                variant="outline"
-                size="sm"
-                (click)="vm.cancelEdit()"
-              >
-                Cancelar
-              </to-button>
-              <to-button
-                type="button"
-                variant="primary"
-                size="sm"
-                (click)="vm.saveEditTech()"
-              >
-                <to-icon name="save" [size]="14" />
-                Guardar
-              </to-button>
-            </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Unidad tractora</dt>
+          <dd class="fleet-unit-detail__mono">
+            {{ vm.hitchTractorOperationalId() }}
+          </dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Placa tractora</dt>
+          <dd>{{ vm.hitchTractorPlate() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Posición en convoy</dt>
+          <dd>{{ vm.hitchPositionLabel() }}</dd>
+        </div>
+        @if (vm.assignedTractor()?.name?.trim()) {
+          <div class="fleet-unit-detail__row">
+            <dt>Alias tractora</dt>
+            <dd>{{ vm.assignedTractor()!.name!.trim() }}</dd>
           </div>
         }
-      </section>
-
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="fleet-eq-hitch"
-      >
-        <h3 id="fleet-eq-hitch" class="fleet-unit-sec__title">
-          Enganche a unidad tractora
-        </h3>
-        @if (vm.hitchAssignmentAvailable()) {
-          <p class="fleet-unit-sec__hint" style="margin: 0">
-            <strong>Disponible</strong> — sin unidad tractora asignada.
-          </p>
-        } @else {
-          <dl class="fleet-unit-detail__dl">
-            <div class="fleet-unit-detail__row">
-              <dt>Estado</dt>
-              <dd>Enganchado</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Unidad tractora</dt>
-              <dd class="fleet-unit-detail__mono">
-                {{ vm.hitchTractorOperationalId() }}
-              </dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Placa tractora</dt>
-              <dd>{{ vm.hitchTractorPlate() }}</dd>
-            </div>
-            @if (vm.assignedTractor()?.name?.trim()) {
-              <div class="fleet-unit-detail__row">
-                <dt>Alias tractora</dt>
-                <dd>{{ vm.assignedTractor()!.name!.trim() }}</dd>
-              </div>
-            }
-          </dl>
-        }
-      </section>
+      </dl>
+    }
+  } @else {
+    <div class="fleet-unit-sec__edit-form">
+      <to-fleet-unit-input
+        label="Unidad tractora (opcional)"
+        placeholder="Buscar tractora o dejar vacío…"
+        [units]="vm.unitCatalog()"
+        [(unitId)]="vm.editUnitId"
+      />
+      @if (vm.editUnitId().trim()) {
+        <app-fleet-hitch-validation-block
+          [validation]="vm.editHitchValidation()"
+          [isSecondTrailer]="vm.editIsSecondTrailer()"
+          toggleLabelId="fleet-eq-hitch-second-label"
+          (toggleSecondTrailer)="vm.toggleEditIsSecondTrailer()"
+        />
+      }
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="vm.cancelEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button type="button" size="sm" (click)="vm.saveEditHitch()">
+          Guardar
+        </to-button>
+      </div>
+    </div>
+  }
+</section>

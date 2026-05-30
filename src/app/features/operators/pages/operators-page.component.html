@@ -1,4 +1,5 @@
 <to-page-header title="Operadores" subtitle="Personal certificado">
+  @if (!loading()) {
   <to-button
     type="button"
     variant="primary"
@@ -14,6 +15,7 @@
     </span>
     Nuevo operador
   </to-button>
+  }
 </to-page-header>
 
 @if (newOperatorOpen()) {
@@ -25,13 +27,9 @@
   }
 }
 
-@if (detailOperator(); as op) {
+@if (operatorsFeature.selectedOperator()) {
   @defer {
-    <app-operators-detail-drawer
-      [operator]="op"
-      (dismiss)="onDetailDismiss()"
-      (operatorChange)="onDetailOperatorChange($event)"
-    />
+    <app-operators-detail-drawer (dismiss)="onDetailDismiss()" />
   }
 }
 

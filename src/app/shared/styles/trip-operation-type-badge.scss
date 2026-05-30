@@ -1,4 +1,4 @@
-/* Configuración de maniobra: badges discretos por tipo (tabla, ruta, etc.). */
+/* Configuración operacional: badges dinámicos por tono estable (hash). */
 
 .to-table-badge {
   display: inline-flex;
@@ -16,57 +16,67 @@
 
 .to-table-badge--op {
   font-weight: 600;
-  font-size: 0.75rem;
   letter-spacing: 0.02em;
-  border: 1px solid transparent;
 }
 
-.to-table-badge--op-sencillo {
-  color: #334155;
-  background: color-mix(in srgb, #64748b 13%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #64748b 26%, transparent);
-}
-
-.to-table-badge--op-full {
-  color: #3730a3;
-  background: color-mix(in srgb, #6366f1 11%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #6366f1 22%, transparent);
-}
-
-.to-table-badge--op-plana {
-  color: #57534e;
-  background: color-mix(in srgb, #78716c 11%, var(--to-color-surface));
-  border-color: color-mix(in srgb, #78716c 22%, transparent);
-}
-
-.to-table-badge--op-unknown {
-  color: var(--to-color-text-muted);
-  background: var(--to-color-surface-muted);
-  border-color: color-mix(in srgb, var(--to-color-border) 55%, transparent);
-}
-
-:host-context([data-app-scheme='dark']) {
-  .to-table-badge--op-sencillo {
-    color: #cbd5e1;
-    background: color-mix(in srgb, #64748b 28%, var(--to-color-surface));
-    border-color: color-mix(in srgb, #94a3b8 35%, transparent);
+@each $tone in (0, 1, 2, 3, 4, 5) {
+  .to-table-badge--op-tone-#{$tone} {
+    color: var(--to-op-tone-#{$tone}-fg, #334155);
+    background: var(--to-op-tone-#{$tone}-bg, #e2e8f0);
+    border: 1px solid var(--to-op-tone-#{$tone}-border, #cbd5e1);
   }
+}
 
-  .to-table-badge--op-full {
-    color: #c7d2fe;
-    background: color-mix(in srgb, #6366f1 24%, var(--to-color-surface));
-    border-color: color-mix(in srgb, #818cf8 32%, transparent);
-  }
+:root {
+  --to-op-tone-0-fg: #4338ca;
+  --to-op-tone-0-bg: color-mix(in srgb, #6366f1 14%, #fff);
+  --to-op-tone-0-border: color-mix(in srgb, #6366f1 28%, #fff);
 
-  .to-table-badge--op-plana {
-    color: #d6d3d1;
-    background: color-mix(in srgb, #78716c 22%, var(--to-color-surface));
-    border-color: color-mix(in srgb, #a8a29e 30%, transparent);
-  }
+  --to-op-tone-1-fg: #0369a1;
+  --to-op-tone-1-bg: color-mix(in srgb, #0ea5e9 14%, #fff);
+  --to-op-tone-1-border: color-mix(in srgb, #0ea5e9 28%, #fff);
 
-  .to-table-badge--op-unknown {
-    color: var(--to-color-text-muted);
-    background: color-mix(in srgb, var(--to-color-text-muted) 14%, var(--to-color-surface));
-    border-color: color-mix(in srgb, var(--to-color-border) 45%, transparent);
+  --to-op-tone-2-fg: #7e22ce;
+  --to-op-tone-2-bg: color-mix(in srgb, #a855f7 14%, #fff);
+  --to-op-tone-2-border: color-mix(in srgb, #a855f7 28%, #fff);
+
+  --to-op-tone-3-fg: #0f766e;
+  --to-op-tone-3-bg: color-mix(in srgb, #14b8a6 14%, #fff);
+  --to-op-tone-3-border: color-mix(in srgb, #14b8a6 28%, #fff);
+
+  --to-op-tone-4-fg: #b45309;
+  --to-op-tone-4-bg: color-mix(in srgb, #f59e0b 16%, #fff);
+  --to-op-tone-4-border: color-mix(in srgb, #f59e0b 30%, #fff);
+
+  --to-op-tone-5-fg: #b91c1c;
+  --to-op-tone-5-bg: color-mix(in srgb, #ef4444 12%, #fff);
+  --to-op-tone-5-border: color-mix(in srgb, #ef4444 26%, #fff);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --to-op-tone-0-fg: #c7d2fe;
+    --to-op-tone-0-bg: color-mix(in srgb, #6366f1 22%, #0f172a);
+    --to-op-tone-0-border: color-mix(in srgb, #6366f1 40%, #0f172a);
+
+    --to-op-tone-1-fg: #bae6fd;
+    --to-op-tone-1-bg: color-mix(in srgb, #0ea5e9 22%, #0f172a);
+    --to-op-tone-1-border: color-mix(in srgb, #0ea5e9 40%, #0f172a);
+
+    --to-op-tone-2-fg: #e9d5ff;
+    --to-op-tone-2-bg: color-mix(in srgb, #a855f7 22%, #0f172a);
+    --to-op-tone-2-border: color-mix(in srgb, #a855f7 40%, #0f172a);
+
+    --to-op-tone-3-fg: #99f6e4;
+    --to-op-tone-3-bg: color-mix(in srgb, #14b8a6 22%, #0f172a);
+    --to-op-tone-3-border: color-mix(in srgb, #14b8a6 40%, #0f172a);
+
+    --to-op-tone-4-fg: #fde68a;
+    --to-op-tone-4-bg: color-mix(in srgb, #f59e0b 22%, #0f172a);
+    --to-op-tone-4-border: color-mix(in srgb, #f59e0b 40%, #0f172a);
+
+    --to-op-tone-5-fg: #fecaca;
+    --to-op-tone-5-bg: color-mix(in srgb, #ef4444 20%, #0f172a);
+    --to-op-tone-5-border: color-mix(in srgb, #ef4444 38%, #0f172a);
   }
 }

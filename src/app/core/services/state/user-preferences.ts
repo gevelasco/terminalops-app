@@ -16,6 +16,21 @@ export function formatPreferenceChangedAt(iso: string): string {
   }).format(d);
 }
 
+/** Etiqueta de toggles operativos: «29 de mayo de 2026 a las 9:43 a.m.» */
+export function formatOperationalSettingChangedAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
+  const date = new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(d);
+  const time = new Intl.DateTimeFormat('es-MX', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `${date} a las ${time}`;
+}
+
 /** Preferencias de empresa en sesión (configuración operativa compartida). */
 @Injectable({ providedIn: 'root' })
 export class UserPreferencesStore {

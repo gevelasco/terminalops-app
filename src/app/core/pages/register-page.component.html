@@ -22,14 +22,14 @@
     <section class="login-page__card" aria-labelledby="register-heading">
       <h1 id="register-heading" class="login-page__title">Crear cuenta</h1>
       <p class="login-page__subtitle">
-        Registra tu empresa y tu usuario administrador. Necesitas un código de invitación
-        válido para continuar.
+        Registra tu empresa y tu usuario administrador. Necesitas un código de
+        invitación válido para continuar.
       </p>
 
       <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
         <to-input
           label="Nombre de la empresa"
-          placeholder="Ej. Grupo VSC"
+          placeholder="Ej. Grupo Empresarial"
           inputName="companyName"
           [autocomplete]="'organization'"
           [disabled]="submitting()"
@@ -38,7 +38,7 @@
         <div class="login-page__row">
           <to-input
             label="Nombre"
-            placeholder="Germán"
+            placeholder="nombre"
             inputName="firstName"
             prefixIcon="user"
             [autocomplete]="'given-name'"
@@ -46,7 +46,7 @@
           />
           <to-input
             label="Apellido"
-            placeholder="Velasco"
+            placeholder="apellido"
             inputName="lastName"
             [autocomplete]="'family-name'"
             [disabled]="submitting()"
@@ -55,7 +55,7 @@
 
         <to-input
           label="Usuario"
-          placeholder="Ej. gvelasco"
+          placeholder="usuario"
           inputName="username"
           prefixIcon="user"
           [autocomplete]="'username'"
@@ -74,7 +74,7 @@
         <to-input
           label="Teléfono"
           type="text"
-          placeholder="Ej. 8181234567"
+          placeholder="52 +"
           inputName="phone"
           [autocomplete]="'tel'"
           [disabled]="submitting()"
@@ -101,13 +101,15 @@
           [passwordToggle]="true"
           [autocomplete]="'new-password'"
           [disabled]="submitting()"
-          [error]="passwordMismatch() ? 'Las contraseñas no coinciden' : undefined"
+          [error]="
+            passwordMismatch() ? 'Las contraseñas no coinciden' : undefined
+          "
           [(value)]="confirmPassword"
         />
 
         <to-input
           label="Código de invitación"
-          placeholder="Ej. VSC-GRUPO-2026-A"
+          placeholder="clave de acceso"
           inputName="invitationCode"
           prefixIcon="lock"
           [autocomplete]="'off'"

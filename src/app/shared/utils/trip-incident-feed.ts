@@ -6,12 +6,6 @@ import type {
   TripIncident,
 } from '@shared/models/logistics.models';
 
-/** Personal de torre / coordinación (no operador en ruta). */
-const STAFF_AUTHOR_LABELS: Readonly<Record<string, string>> = {
-  gvelasco: 'Germán Velasco · Coordinador de operaciones',
-  jlopez: 'Jessica López · Supervisor de monitoreo',
-};
-
 export interface TripIncidentFeedItem {
   incidentId: string;
   tripId: string;
@@ -80,22 +74,22 @@ export function incidentSeverity(
 }
 
 export function tripIncidentAuthorLabel(
-  postedBy: string,
+  inc: Pick<TripIncident, 'postedBy' | 'postedByLabel'>,
   operators: readonly Operator[] = [],
 ): string {
-  const u = postedBy.trim().toLowerCase();
+  const fromApi = inc.postedByLabel?.trim();
+  if (fromApi) {
+    return fromApi;
+  }
+  const u = inc.postedBy.trim().toLowerCase();
   if (!u) {
     return '—';
-  }
-  const staff = STAFF_AUTHOR_LABELS[u];
-  if (staff) {
-    return staff;
   }
   const op = operators.find((o) => o.portalUsername?.trim().toLowerCase() === u);
   if (op) {
     return `${op.name} · Operador`;
   }
-  return u;
+  return inc.postedBy.trim();
 }
 
 export function buildTripIncidentFeed(
@@ -118,7 +112,7 @@ export function buildTripIncidentFeed(
         description: inc.description.trim(),
         occurredAt: inc.occurredAt,
         postedBy: inc.postedBy,
-        authorLabel: tripIncidentAuthorLabel(inc.postedBy, operators),
+        authorLabel: tripIncidentAuthorLabel(inc, operators),
         severity: incidentSeverity(trip, inc),
         kind: inferIncidentKind(inc.description),
       });

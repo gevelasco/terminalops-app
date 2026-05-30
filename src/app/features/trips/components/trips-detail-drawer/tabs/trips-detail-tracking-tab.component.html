@@ -1,0 +1,125 @@
+<div class="maniobra-detail-tab">
+      <!-- Actualizaciones del ciclo -->
+      <section
+        class="maniobra-drawer__section maniobra-drawer__section--boxed"
+        aria-labelledby="maniobra-detail-updates"
+      >
+        <h3
+          id="maniobra-detail-updates"
+          class="maniobra-drawer__section-title"
+        >
+          <svg
+            class="maniobra-drawer__section-icon"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M3 17h18v2H3v-2zm0-5h18v2H3v-2zm0-5h18v2H3V7zm0-4h18v2H3V3z"
+            />
+          </svg>
+          Actualizaciones
+        </h3>
+        <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
+          <dt>Programada</dt>
+          <dd>{{ vm.fmt(vm.trip().programmedAt) }}</dd>
+          <dt>En curso</dt>
+          <dd>{{ vm.enCursoDisplay() }}</dd>
+          <dt>Completado</dt>
+          <dd>{{ vm.completadaDisplay() }}</dd>
+          @if (vm.trip().falseManeuver === true) {
+            <dt>Cobro</dt>
+            <dd class="maniobra-detail__dd-highlight">
+              Vigente según pacto / maniobra en falso
+            </dd>
+          }
+          @if (vm.cancellationNoteDisplay().length > 0) {
+            <dt>Motivo registrado</dt>
+            <dd class="maniobra-detail__cancellation-note">{{
+              vm.cancellationNoteDisplay()
+            }}</dd>
+          }
+        </dl>
+      </section>
+
+      <!-- Incidentes -->
+      <section
+        class="maniobra-drawer__section maniobra-drawer__section--boxed"
+        aria-labelledby="maniobra-detail-inc"
+      >
+        <h3 id="maniobra-detail-inc" class="maniobra-drawer__section-title">
+          <svg
+            class="maniobra-drawer__section-icon"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+            />
+          </svg>
+          Incidentes
+        </h3>
+        @if ((vm.trip().incidents?.length ?? 0) === 0 && vm.trip().hasIncident) {
+          <p class="maniobra-detail__muted-block">
+            Hay registro histórico de incidente sin detalle en lista (datos
+            migrados).
+          </p>
+        }
+        @if (vm.incidentsSorted().length > 0) {
+          <ul
+            class="maniobra-detail__incident-list"
+            aria-label="Incidentes registrados"
+          >
+            @for (inc of vm.incidentsSorted(); track inc.id) {
+              <li class="maniobra-detail__incident-item">
+                <div class="maniobra-detail__incident-head">
+                  <span class="maniobra-detail__incident-author">{{
+                    vm.incidentAuthorLabel(inc)
+                  }}</span>
+                  <time
+                    class="maniobra-detail__incident-date"
+                    [attr.datetime]="inc.occurredAt"
+                    >{{ vm.fmt(inc.occurredAt) }}</time
+                  >
+                </div>
+                <p class="maniobra-detail__incident-desc">
+                  {{ inc.description }}
+                </p>
+              </li>
+            }
+          </ul>
+        } @else if (!vm.trip().hasIncident) {
+          <p class="maniobra-detail__muted-block">
+            Aún no hay incidentes registrados.
+          </p>
+        }
+        <div class="maniobra-detail__incident-add">
+          <label
+            class="maniobra-detail__incident-label"
+            for="maniobra-incident-draft"
+            >Registrar incidente</label
+          >
+          <textarea
+            id="maniobra-incident-draft"
+            class="maniobra-detail__incident-textarea"
+            rows="2"
+            [value]="vm.incidentDraft()"
+            (input)="vm.onIncidentDraftInput($event)"
+            placeholder="Describe lo sucedido…"
+            [disabled]="vm.incidentSaving()"
+          ></textarea>
+          <to-button
+            type="button"
+            variant="primary"
+            [disabled]="vm.incidentSaving()"
+            (click)="vm.registerIncident()"
+            >Registrar</to-button
+          >
+        </div>
+      </section>
+</div>

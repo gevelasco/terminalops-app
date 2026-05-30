@@ -100,6 +100,12 @@ export class SessionService {
   readonly operationalAnalysisChangedAt = computed(
     () => this.data()?.operationalAnalysisChangedAt ?? null,
   );
+  readonly dieselControlEnabled = computed(
+    () => this.data()?.dieselControlEnabled ?? true,
+  );
+  readonly dieselControlChangedAt = computed(
+    () => this.data()?.dieselControlChangedAt ?? null,
+  );
   readonly maintenanceKmControlEnabled = computed(
     () => this.data()?.maintenanceKmControlEnabled ?? false,
   );
@@ -183,6 +189,7 @@ export class SessionService {
       Pick<
         CompanyOperationalSettings,
         | 'operationalAnalysisEnabled'
+        | 'dieselControlEnabled'
         | 'maintenanceKmControlEnabled'
         | 'maintenanceKmIntervalDefault'
         | 'maintenanceDateControlEnabled'
@@ -199,6 +206,7 @@ export class SessionService {
     > & {
       companyName?: string;
       operationalAnalysisChangedAt?: string | null;
+      dieselControlChangedAt?: string | null;
       maintenanceKmIntervalDefault?: number | null;
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
       maintenanceKmControlChangedAt?: string | null;
@@ -221,6 +229,15 @@ export class SessionService {
     }
     if (patch.operationalAnalysisEnabled !== undefined) {
       next.operationalAnalysisEnabled = patch.operationalAnalysisEnabled;
+    }
+    if (patch.dieselControlEnabled !== undefined) {
+      next.dieselControlEnabled = patch.dieselControlEnabled;
+    }
+    const dieselChangedAt = normalizeApiIsoDate(patch.dieselControlChangedAt);
+    if (dieselChangedAt) {
+      next.dieselControlChangedAt = dieselChangedAt;
+    } else if (patch.dieselControlChangedAt === null) {
+      next.dieselControlChangedAt = undefined;
     }
     const changedAt = normalizeApiIsoDate(patch.operationalAnalysisChangedAt);
     if (changedAt) {
@@ -401,6 +418,12 @@ export class SessionService {
       operationalAnalysisChangedAt:
         normalizeApiIsoDate(user.operationalAnalysisChangedAt) ??
         normalizeApiIsoDate(payload?.operationalAnalysisChangedAt) ??
+        undefined,
+      dieselControlEnabled:
+        user.dieselControlEnabled ?? payload?.dieselControlEnabled ?? true,
+      dieselControlChangedAt:
+        normalizeApiIsoDate(user.dieselControlChangedAt) ??
+        normalizeApiIsoDate(payload?.dieselControlChangedAt) ??
         undefined,
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ??

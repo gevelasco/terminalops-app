@@ -16,11 +16,25 @@ export class UnitsService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
 
-  getUnitsList(): Observable<Unit[]> {
+  getUnitsList(options?: {
+    includeFleetTenure?: boolean;
+    available?: boolean;
+  }): Observable<Unit[]> {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http
-      .get<Record<string, unknown>[]>(companyResourceUrl(companyId, 'units'))
+      .get<Record<string, unknown>[]>(
+        companyResourceUrl(companyId, 'units', {
+          includeFleetTenure: options?.includeFleetTenure,
+          available: options?.available,
+        }),
+      )
       .pipe(map((rows) => (Array.isArray(rows) ? rows : []).map((r) => mapApiUnit(r))));
+  }
+
+  getUnitById(unitId: string): Observable<Unit> {
+    return this.http
+      .get<Record<string, unknown>>(resourceByIdUrl('units', unitId))
+      .pipe(map((r) => mapApiUnit(r)));
   }
 
   postUnit(payload: CreateUnitPayload): Observable<Unit> {

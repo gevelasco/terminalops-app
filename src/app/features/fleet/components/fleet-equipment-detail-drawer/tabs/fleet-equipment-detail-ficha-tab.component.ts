@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FleetEquipmentDetailDrawerStore } from '../fleet-equipment-detail-drawer.store';
+import { FleetEquipmentDetailDrawerFacade } from '../fleet-equipment-detail-drawer.facade';
 import {
   FLEET_EQUIPMENT_DETAIL_TAB_IMPORTS,
   FLEET_EQUIPMENT_DETAIL_TAB_STYLE_URLS,
@@ -13,5 +13,5 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FleetEquipmentDetailFichaTabComponent {
-  protected readonly vm = inject(FleetEquipmentDetailDrawerStore);
+  protected readonly vm = inject(FleetEquipmentDetailDrawerFacade);
 }

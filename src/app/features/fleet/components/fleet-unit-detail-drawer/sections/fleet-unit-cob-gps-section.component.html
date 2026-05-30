@@ -1,0 +1,208 @@
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="fleet-udv-gps"
+        >
+          <div class="fleet-unit-sec__header">
+            <h3 id="fleet-udv-gps" class="fleet-unit-sec__title">
+              GPS y rastreo
+            </h3>
+            @if (!vm.isEditing("gps")) {
+              <button
+                type="button"
+                class="fleet-unit-sec__edit-btn"
+                aria-label="Editar GPS y rastreo"
+                (click)="vm.startEditGps()"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                  />
+                </svg>
+              </button>
+            }
+          </div>
+          @if (!vm.isEditing("gps")) {
+            @if (vm.meta()?.hasGps !== true) {
+              <p class="fleet-unit-detail__empty-files">
+                Sin GPS contratado registrado para esta unidad.
+              </p>
+            } @else {
+              <dl class="fleet-unit-detail__dl">
+                <div class="fleet-unit-detail__row">
+                  <dt>Marca o proveedor</dt>
+                  <dd>{{ vm.meta()?.gpsProviderBrand?.trim() || "—" }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Forma de pago / renovación</dt>
+                  <dd>{{ vm.meta()?.gpsPaymentCadence?.trim() || "—" }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Fecha de contratación</dt>
+                  <dd>{{ vm.formatYmd(vm.meta()?.gpsContractDate) }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Precio o cuota</dt>
+                  <dd>{{ vm.formatTrackingAmount(vm.meta()?.gpsPrice) }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Portal (tiempo real)</dt>
+                  <dd>
+                    @if (vm.meta()?.gpsTrackingPortalUrl?.trim()) {
+                      <a
+                        class="fleet-unit-detail__portal-link"
+                        [href]="
+                          vm.trackingPortalHref(vm.meta()?.gpsTrackingPortalUrl)
+                        "
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ vm.meta()?.gpsTrackingPortalUrl?.trim() }}
+                      </a>
+                    } @else {
+                      —
+                    }
+                  </dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>En póliza como endoso o anexo</dt>
+                  <dd>
+                    {{
+                      vm.meta()?.gpsCoveredByInsuranceEndorsement === true
+                        ? "Sí"
+                        : "No"
+                    }}
+                  </dd>
+                </div>
+              </dl>
+              <div class="fleet-unit-detail__badge-block">
+                <p class="fleet-unit-detail__badge-label">
+                  Contrato y próximo ciclo de pago
+                </p>
+                <div class="fleet-unit-detail__badge-row">
+                  <span
+                    class="fleet-unit-detail__badge fleet-unit-detail__badge--neutral"
+                  >
+                    <span
+                      class="fleet-unit-detail__dot"
+                      aria-hidden="true"
+                    ></span>
+                    Contrato: {{ vm.formatYmd(vm.meta()?.gpsContractDate) }}
+                  </span>
+                  <span [class]="vm.badgeRenewalClass(vm.gpsRenewalBucket())">
+                    <span
+                      class="fleet-unit-detail__dot"
+                      aria-hidden="true"
+                    ></span>
+                    Próx. pago: {{ vm.gpsNext() }}
+                  </span>
+                </div>
+              </div>
+            }
+          } @else {
+            <div class="fleet-unit-sec__edit-form">
+              <div class="fleet-unit-toggle-row">
+                <span
+                  class="fleet-unit-toggle-row__label"
+                  id="fleet-udv-gps-on-label"
+                >
+                  Tiene GPS contratado
+                </span>
+                <button
+                  type="button"
+                  class="fleet-unit-toggle"
+                  [class.fleet-unit-toggle--on]="vm.editGpsHas()"
+                  role="switch"
+                  [attr.aria-checked]="vm.editGpsHas()"
+                  aria-labelledby="fleet-udv-gps-on-label"
+                  (click)="vm.toggleEditGpsHas()"
+                >
+                  <span
+                    class="fleet-unit-toggle__thumb"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+              </div>
+              @if (vm.editGpsHas()) {
+                <to-input
+                  label="Marca o proveedor"
+                  placeholder="Ej. SkyBitz, Motive…"
+                  [(value)]="vm.editGpsBrand"
+                />
+                <div class="fleet-unit-sec__edit-grid">
+                  <to-input
+                    label="Fecha de contratación"
+                    type="date"
+                    [(value)]="vm.editGpsContractDate"
+                  />
+                  <to-select
+                    label="Forma de pago / renovación"
+                    [options]="vm.cadenceOptions"
+                    [(value)]="vm.editGpsCadence"
+                  />
+                </div>
+                <div class="fleet-unit-sec__edit-grid">
+                  <to-input
+                    label="Precio o cuota (opcional)"
+                    type="text"
+                    [groupThousands]="true"
+                    placeholder="Ej. 450"
+                    [(value)]="vm.editGpsPrice"
+                  />
+                  <to-input
+                    label="Portal (ubicación en vivo)"
+                    type="url"
+                    placeholder="https://…"
+                    [(value)]="vm.editGpsPortal"
+                  />
+                </div>
+                <div class="fleet-unit-toggle-row">
+                  <span
+                    class="fleet-unit-toggle-row__label"
+                    id="fleet-udv-gps-end-label"
+                  >
+                    Consta en la póliza como endoso o anexo
+                  </span>
+                  <button
+                    type="button"
+                    class="fleet-unit-toggle"
+                    [class.fleet-unit-toggle--on]="vm.editGpsEndorse()"
+                    role="switch"
+                    [attr.aria-checked]="vm.editGpsEndorse()"
+                    aria-labelledby="fleet-udv-gps-end-label"
+                    (click)="vm.toggleEditGpsEndorse()"
+                  >
+                    <span
+                      class="fleet-unit-toggle__thumb"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+                </div>
+              }
+              <div class="fleet-unit-sec__edit-actions">
+                <to-button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  (click)="vm.cancelEdit()"
+                >
+                  Cancelar
+                </to-button>
+                <to-button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  (click)="vm.saveEditGps()"
+                >
+                  <to-icon name="save" [size]="14" />
+                  Guardar
+                </to-button>
+              </div>
+            </div>
+          }
+        </section>

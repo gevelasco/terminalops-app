@@ -1,4 +1,6 @@
+import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import type { Equipment, Unit } from '@shared/models/logistics.models';
+import { resourceIdKey } from '@shared/utils/resource-id';
 
 /** Placa normalizada para formar el código (espacios → guiones). */
 export function normalizePlateForFleetId(plate: string): string {
@@ -76,22 +78,37 @@ export function buildEquipmentFleetOperationalId(
   return ensureUniqueFleetId(withSerial, occupied);
 }
 
+/** Abreviatura de marca para armar el código (columna o `fleetMeta.trailerBrandName`). */
+function resolveEquipmentBrandAbbr(e: Equipment): string {
+  const abbr = e.trailerBrandAbbr?.trim();
+  if (abbr) {
+    return abbr.toUpperCase();
+  }
+  const name = e.fleetMeta?.trailerBrandName?.trim();
+  if (!name) {
+    return '';
+  }
+  const byLabel = TRAILER_BRAND_OPTIONS.find(
+    (o) => o.label.trim().toLowerCase() === name.toLowerCase(),
+  );
+  if (byLabel?.value) {
+    return byLabel.value.toUpperCase();
+  }
+  return name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+}
+
 /**
- * Código operativo del equipo (mismo patrón que `id` en mocks: `MARCA-AÑO-PLACA-SUFIJO`).
+ * Código operativo visible del equipo (`MARCA-AÑO-PLACA`, mismo criterio que unidad).
+ * No usa el `id` numérico de base de datos (ese va en «ID interno»).
  */
 export function formatEquipmentOperationalId(e: Equipment): string {
-  const id = e.id?.trim() ?? '';
-  if (id) {
-    return id;
-  }
   const built = buildUnitFleetOperationalId({
-    trailerBrandAbbr: e.trailerBrandAbbr,
+    trailerBrandAbbr: resolveEquipmentBrandAbbr(e) || e.trailerBrandAbbr,
     trailerYear: e.trailerYear,
     plate: e.plate ?? '',
   });
   if (built.startsWith('GEN-')) {
-    return slugFromSerial(e.serialNumber || 'EQ', 14);
+    return resourceIdKey(e.id);
   }
-  const suf = slugFromSerial(e.serialNumber ?? '', 10);
-  return suf ? `${built}-${suf}` : built;
+  return built;
 }

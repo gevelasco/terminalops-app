@@ -11,10 +11,12 @@ export class OperatorsService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
 
-  getOperatorsList(): Observable<Operator[]> {
+  getOperatorsList(options?: { available?: boolean }): Observable<Operator[]> {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http
-      .get<Record<string, unknown>[]>(companyResourceUrl(companyId, 'operators'))
+      .get<Record<string, unknown>[]>(
+        companyResourceUrl(companyId, 'operators', { available: options?.available }),
+      )
       .pipe(map((rows) => rows.map((r) => mapApiOperator(r))));
   }
 

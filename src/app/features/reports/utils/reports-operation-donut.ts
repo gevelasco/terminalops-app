@@ -1,15 +1,13 @@
 import { buildOperationTypeSlicesFromTrips } from '@features/reports/utils/dashboard-charts-from-trips';
 import type { Trip } from '@shared/models/logistics.models';
+import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import type { ReportsDonutSlice } from '../models/reports-view.models';
 
-const OP_COLORS: Record<string, string> = {
-  Sencillo: '#6366f1',
-  Full: '#0ea5e9',
-  Plana: '#a855f7',
-};
-
-export function buildOperationDonut(trips: readonly Trip[]): ReportsDonutSlice[] {
-  const slices = buildOperationTypeSlicesFromTrips(trips).filter((s) => s.count > 0);
+export function buildOperationDonut(
+  trips: readonly Trip[],
+  evaluator: TripEvaluator,
+): ReportsDonutSlice[] {
+  const slices = buildOperationTypeSlicesFromTrips(trips, evaluator).filter((s) => s.count > 0);
   const total = slices.reduce((a, s) => a + s.count, 0) || 1;
 
   let assigned = 0;
@@ -22,7 +20,7 @@ export function buildOperationDonut(trips: readonly Trip[]): ReportsDonutSlice[]
       label: s.label,
       value: s.count,
       pct,
-      color: OP_COLORS[s.label] ?? '#94a3b8',
+      color: s.chartColor,
     };
   });
 }

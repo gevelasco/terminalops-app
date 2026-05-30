@@ -6,12 +6,37 @@ import {
   EMPTY_PRIVATE,
   EMPTY_PUBLIC,
 } from '@features/operators/utils/operator-payload-defaults';
-import type { Trip, Unit, UnitFleetMeta } from '@shared/models/logistics.models';
+import type {
+  Trip,
+  TripIncident,
+  Unit,
+  UnitFleetMeta,
+  Equipment,
+  EquipmentFleetMeta,
+} from '@shared/models/logistics.models';
 import { resourceIdKey } from '@shared/utils/resource-id';
+import { normalizeEquipmentHitchPosition } from '@shared/utils/fleet/equipment-hitch-position';
+import { normalizeTrailerTenureMode } from '@shared/utils/fleet/trailer-tenure-mode';
+
+function mapFleetMetaTenureMode<T extends { trailerTenureMode?: string }>(
+  meta: T | undefined,
+): T | undefined {
+  if (!meta) {
+    return undefined;
+  }
+  if (meta.trailerTenureMode == null) {
+    return meta;
+  }
+  return {
+    ...meta,
+    trailerTenureMode: normalizeTrailerTenureMode(meta.trailerTenureMode),
+  };
+}
 
 /** Respuesta API → modelo `Client` del frontend. */
 export function mapApiClient(row: Record<string, unknown>): Client {
   const billing = row['billing'] as Record<string, unknown> | undefined;
+  const delivery = row['delivery'] as Record<string, unknown> | undefined;
   const paymentTerms = row['paymentTerms'] as Record<string, unknown> | undefined;
   const contacts = (row['contacts'] as Record<string, unknown>[] | undefined) ?? [];
 
@@ -31,6 +56,23 @@ export function mapApiClient(row: Record<string, unknown>): Client {
           billingPhone: billing['billingPhone'] as string | undefined,
         }
       : undefined,
+    delivery: delivery
+      ? {
+          postalCode: delivery['postalCode'] as string | undefined,
+          cityMunicipality: delivery['cityMunicipality'] as string | undefined,
+          locality: delivery['locality'] as string | undefined,
+          settlementConsId: delivery['settlementConsId'] as string | undefined,
+          latitude:
+            typeof delivery['latitude'] === 'number' && Number.isFinite(delivery['latitude'])
+              ? delivery['latitude']
+              : undefined,
+          longitude:
+            typeof delivery['longitude'] === 'number' &&
+            Number.isFinite(delivery['longitude'])
+              ? delivery['longitude']
+              : undefined,
+        }
+      : undefined,
     payment: paymentTerms
       ? {
           hasCredit: Boolean(paymentTerms['hasCredit']),
@@ -42,6 +84,7 @@ export function mapApiClient(row: Record<string, unknown>): Client {
             (paymentTerms['commercialHealth'] as Client['payment'] extends { commercialHealth?: infer H }
               ? H
               : 'not_evaluated') ?? 'not_evaluated',
+          defaultPaymentMethod: paymentTerms['defaultPaymentMethod'] as string | undefined,
         }
       : defaultClientPayment(),
     contacts: contacts.map((c) => ({
@@ -128,33 +171,91 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
 }
 
 export function mapApiUnit(row: Record<string, unknown>): Unit {
-  const fleetMeta = (row['fleetMeta'] ?? row['fleetProfile']) as UnitFleetMeta | undefined;
+  const fleetMetaRaw = (row['fleetMeta'] ?? row['fleetProfile']) as UnitFleetMeta | undefined;
+  const fleetMeta = mapFleetMetaTenureMode(fleetMetaRaw ? { ...fleetMetaRaw } : undefined);
   const capacity = row['capacityKg'];
   return {
     id: resourceIdKey(row['id']),
     plate: String(row['plate'] ?? ''),
-    type: String(row['type'] ?? ''),
     capacityKg: typeof capacity === 'number' ? capacity : Number(capacity) || 0,
     status: String(row['status'] ?? ''),
     serialNumber: row['serialNumber'] as string | undefined,
     name: row['name'] as string | undefined,
     trailerBrandAbbr: row['trailerBrandAbbr'] as string | undefined,
     trailerYear: row['trailerYear'] as string | undefined,
-    fleetMeta: fleetMeta ? { ...fleetMeta } : undefined,
+    fleetMeta,
+  };
+}
+
+export function mapApiEquipment(row: Record<string, unknown>): Equipment {
+  const metaRaw = (row['fleetMeta'] ?? row['fleetProfile']) as EquipmentFleetMeta | undefined;
+  const fleetMeta = mapFleetMetaTenureMode(metaRaw ? { ...metaRaw } : undefined);
+  return {
+    id: resourceIdKey(row['id']),
+    unitId: resourceIdKey(row['unitId']),
+    hitchPosition: normalizeEquipmentHitchPosition(
+      row['hitchPosition'] as string | undefined,
+    ),
+    name: String(row['name'] ?? ''),
+    serialNumber: String(row['serialNumber'] ?? ''),
+    lastServiceDate: String(row['lastServiceDate'] ?? ''),
+    plate: row['plate'] as string | undefined,
+    type: row['type'] as string | undefined,
+    status: row['status'] as string | undefined,
+    trailerBrandAbbr: row['trailerBrandAbbr'] as string | undefined,
+    trailerYear: row['trailerYear'] as string | undefined,
+    fleetMeta,
+  };
+}
+
+function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
+  return {
+    id: resourceIdKey(row['id']),
+    description: String(row['description'] ?? ''),
+    occurredAt: String(row['occurredAt'] ?? ''),
+    postedBy: String(row['postedBy'] ?? ''),
+    postedByLabel: row['postedByLabel'] as string | undefined,
+    severity: row['severity'] as TripIncident['severity'],
   };
 }
 
 export function mapApiTrip(row: Record<string, unknown>): Trip {
   const trip = row as unknown as Trip;
   const rawEquipmentIds = row['equipmentIds'];
+  const rawIncidents = row['incidents'];
   return {
     ...trip,
     id: resourceIdKey(trip.id),
     clientId: resourceIdKey(trip.clientId),
     unitId: resourceIdKey(trip.unitId),
     operatorId: resourceIdKey(trip.operatorId),
+    operationConfigurationId: row['operationConfigurationId']
+      ? resourceIdKey(row['operationConfigurationId'])
+      : trip.operationConfigurationId,
+    operationConfigurationNameSnapshot:
+      String(row['operationConfigurationNameSnapshot'] ?? '').trim() ||
+      trip.operationConfigurationNameSnapshot,
+    operationConfigurationVersionSnapshot:
+      Number(row['operationConfigurationVersionSnapshot'] ?? trip.operationConfigurationVersionSnapshot ?? 1) ||
+      1,
+    operationConfigurationMaxEquipmentCountSnapshot: Math.max(
+      1,
+      Number(
+        row['operationConfigurationMaxEquipmentCountSnapshot'] ??
+          trip.operationConfigurationMaxEquipmentCountSnapshot ??
+          1,
+      ) || 1,
+    ),
+    operatorNameSnapshot: String(row['operatorNameSnapshot'] ?? '').trim() || undefined,
+    unitOperationalCodeSnapshot:
+      String(row['unitOperationalCodeSnapshot'] ?? '').trim() || undefined,
+    operatorName: String(row['operatorName'] ?? '').trim() || undefined,
+    unitOperationalCode: String(row['unitOperationalCode'] ?? '').trim() || undefined,
     equipmentIds: Array.isArray(rawEquipmentIds)
       ? rawEquipmentIds.map((id) => resourceIdKey(id as string | number))
       : trip.equipmentIds,
+    incidents: Array.isArray(rawIncidents)
+      ? rawIncidents.map((inc) => mapApiTripIncident(inc as Record<string, unknown>))
+      : trip.incidents,
   };
 }

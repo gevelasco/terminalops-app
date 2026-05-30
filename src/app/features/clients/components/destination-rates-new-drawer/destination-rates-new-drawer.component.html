@@ -1,0 +1,63 @@
+<to-side-drawer
+  titleId="destination-rates-new-drawer-title"
+  wide
+  formMode
+  [loading]="drawerLoading()"
+  skeletonVariant="form"
+  bodyClass="fleet-unit-body"
+  panelClass="destination-rates-new-drawer__panel"
+  (dismiss)="dismiss.emit()"
+  (formSubmit)="submit()"
+>
+  <h2
+    toSideDrawerHeader
+    id="destination-rates-new-drawer-title"
+    class="to-side-drawer__title"
+  >
+    <to-icon class="to-side-drawer__title-icon" name="sell" [size]="22" />
+    Nueva tarifa por destino
+  </h2>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="dest-rate-new-location"
+  >
+    <h3 id="dest-rate-new-location" class="fleet-unit-sec__title">Destino</h3>
+    <app-destination-rate-location-fields
+      [(postalCode)]="postalCode"
+      [(cityMunicipality)]="cityMunicipality"
+      [(locality)]="locality"
+    />
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="dest-rate-new-prices"
+  >
+    <h3 id="dest-rate-new-prices" class="fleet-unit-sec__title">
+      Tarifas por tipo de maniobra
+    </h3>
+    <app-destination-rate-prices-editor [(priceDrafts)]="priceDrafts" />
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="dest-rate-new-meta"
+  >
+    <h3 id="dest-rate-new-meta" class="fleet-unit-sec__title">Referencia</h3>
+    <div class="destination-rates-new-drawer__stack">
+      <to-select label="Disponible" [options]="yesNoOptions" [(value)]="active" />
+      <to-input label="Notas" placeholder="Opcional" [(value)]="notes" />
+    </div>
+  </section>
+
+  <div toSideDrawerFooter>
+    <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">
+      Cancelar
+    </to-button>
+    <to-button type="submit" variant="primary" [disabled]="saving()">
+      <to-icon name="save" [size]="14" />
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </to-button>
+  </div>
+</to-side-drawer>

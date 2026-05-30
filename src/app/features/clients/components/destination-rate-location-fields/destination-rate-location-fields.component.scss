@@ -1,0 +1,11 @@
+.destination-rate-location-fields__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.destination-rate-location-fields__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted, #64748b);
+}

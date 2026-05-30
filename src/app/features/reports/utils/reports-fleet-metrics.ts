@@ -1,3 +1,4 @@
+import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import type { ReportsFilter, ReportsFleetTabView } from '../models/reports-view.models';
 import type { ReportsFilteredBundle } from './reports-bundle-filter';
 import { buildFleetChartsView } from './reports-fleet-charts';
@@ -9,6 +10,7 @@ import {
 export function buildFleetTabView(
   bundle: ReportsFilteredBundle,
   filter: ReportsFilter,
+  evaluator: TripEvaluator,
 ): ReportsFleetTabView {
   const fleetCounts = buildFleetOperationalCounts(
     bundle.units,
@@ -18,7 +20,7 @@ export function buildFleetTabView(
     filter,
   );
   const kpis = buildFleetStatusKpis(fleetCounts);
-  const charts = buildFleetChartsView(bundle, filter);
+  const charts = buildFleetChartsView(bundle, filter, evaluator);
 
   return {
     kpis,

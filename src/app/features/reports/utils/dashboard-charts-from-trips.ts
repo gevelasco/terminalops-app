@@ -1,4 +1,5 @@
-import type { Trip, TripOperationType } from '@shared/models/logistics.models';
+import type { Trip } from '@shared/models/logistics.models';
+import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import { localYmd } from '@shared/utils/local-ymd';
 
 function tripCompletionDayLocal(t: Trip): string | null {
@@ -16,7 +17,6 @@ function tripCompletionDayLocal(t: Trip): string | null {
   return localYmd(d);
 }
 
-/** Maniobras cuya `programmedAt` cae en el mes calendario de `now` (fecha local). */
 export function filterTripsProgrammedInCalendarMonth(
   trips: readonly Trip[],
   now = new Date(),
@@ -32,7 +32,6 @@ export function filterTripsProgrammedInCalendarMonth(
   });
 }
 
-/** Misma forma que `mock-dashboard-charts` para la UI existente. */
 export interface WeeklyTripPoint {
   day: string;
   value: number;
@@ -42,12 +41,10 @@ export interface OperationTypeSlice {
   label: string;
   count: number;
   pct: number;
-  tone: 'a' | 'b' | 'c';
+  tone: number;
+  chartColor: string;
 }
 
-/**
- * Maniobras **completadas** por día en la ventana de los últimos 7 días (fecha local).
- */
 export function buildWeeklyCompletedTripsByDay(
   trips: readonly Trip[],
   now = new Date(),
@@ -82,33 +79,35 @@ export function buildWeeklyCompletedTripsByDay(
   return out;
 }
 
-const OP_ORDER: { op: TripOperationType; label: string; tone: OperationTypeSlice['tone'] }[] =
-  [
-    { op: 'sencillo', label: 'Sencillo', tone: 'a' },
-    { op: 'full', label: 'Full', tone: 'b' },
-    { op: 'plana', label: 'Plana', tone: 'c' },
-  ];
-
-/** Reparto por `operationType` sobre el total de maniobras cargadas. */
+/** Reparto dinámico vía TripEvaluationService (groupingKey + label consistentes). */
 export function buildOperationTypeSlicesFromTrips(
   trips: readonly Trip[],
+  evaluator: TripEvaluator,
 ): OperationTypeSlice[] {
   const total = Math.max(trips.length, 1);
-  const by = new Map<TripOperationType, number>();
-  for (const { op } of OP_ORDER) {
-    by.set(op, 0);
-  }
+  const by = new Map<
+    string,
+    { label: string; count: number; tone: number; chartColor: string }
+  >();
+
   for (const t of trips) {
-    const c = by.get(t.operationType) ?? 0;
-    by.set(t.operationType, c + 1);
+    const ev = evaluator.evaluateTrip(t);
+    const prev = by.get(ev.groupingKey);
+    by.set(ev.groupingKey, {
+      label: evaluator.reportSliceLabel(ev),
+      count: (prev?.count ?? 0) + 1,
+      tone: ev.chartTone,
+      chartColor: evaluator.chartColorForResult(ev),
+    });
   }
-  return OP_ORDER.map(({ op, label, tone }) => {
-    const count = by.get(op) ?? 0;
-    return {
+
+  return [...by.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].label.localeCompare(b[1].label, 'es'))
+    .map(([, { label, count, tone, chartColor }]) => ({
       label,
       count,
       pct: Math.round((count / total) * 100),
       tone,
-    };
-  });
+      chartColor,
+    }));
 }

@@ -1,0 +1,95 @@
+.to-fleet-unit-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.to-fleet-unit-input__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.to-fleet-unit-input__wrap {
+  position: relative;
+  z-index: 0;
+  min-width: 0;
+}
+
+.to-fleet-unit-input__wrap--open {
+  z-index: 200;
+}
+
+.to-fleet-unit-input__control {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-md);
+  font: inherit;
+  font-size: 0.9375rem;
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+
+  &:focus {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+.to-fleet-unit-input__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--to-radius-sm);
+  background: transparent;
+  color: var(--to-color-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--to-color-text);
+    background: color-mix(in srgb, var(--to-color-border) 35%, transparent);
+  }
+}
+
+.to-fleet-unit-input__list {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  overflow: auto;
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface);
+  box-shadow: var(--to-shadow-md, 0 8px 24px rgb(0 0 0 / 12%));
+}
+
+.to-fleet-unit-input__item {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--to-color-primary) 10%, var(--to-color-surface));
+  }
+}

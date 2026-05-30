@@ -1,0 +1,51 @@
+<div class="to-fleet-equipment-input">
+  @if (label()) {
+    <label class="to-fleet-equipment-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-fleet-equipment-input__wrap"
+    [class.to-fleet-equipment-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-fleet-equipment-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="inputText()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (equipmentId()) {
+      <button
+        type="button"
+        class="to-fleet-equipment-input__clear"
+        aria-label="Quitar remolque"
+        (pointerdown)="clearEquipment($event)"
+      >
+        ×
+      </button>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-fleet-equipment-input__list" role="listbox">
+        @for (row of suggestions(); track row.equipment.id) {
+          <li
+            class="to-fleet-equipment-input__item"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(row, $event)"
+          >
+            {{ row.label }}
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

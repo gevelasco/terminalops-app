@@ -15,6 +15,7 @@ import { countBarFillClass, countBarSlices } from './reports-chart-mappers';
 import { buildMaintenanceServicedInPeriod } from './reports-fleet-maintenance-serviced';
 import { buildFleetOperatorPayments } from './reports-fleet-operator-payments';
 import { buildOperationDonut } from './reports-operation-donut';
+import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import { tripKm } from './reports-trip-helpers';
 
 export type ReportsFleetChartsView = Pick<
@@ -261,6 +262,7 @@ function buildAvgManeuversPerUnit(trips: readonly Trip[]): {
 export function buildFleetChartsView(
   bundle: ReportsFilteredBundle,
   filter: ReportsFilter,
+  evaluator: TripEvaluator,
 ): ReportsFleetChartsView {
   const trips = bundle.trips;
   const maint = maintenanceExpenses(bundle.expenses);
@@ -273,7 +275,7 @@ export function buildFleetChartsView(
 
   return {
     topUnitsByActivity: buildTopUnitsByActivity(trips, bundle.units),
-    operationDonut: buildOperationDonut(trips),
+    operationDonut: buildOperationDonut(trips, evaluator),
     topEquipmentByActivity: buildTopEquipmentByActivity(trips, bundle.equipment),
     unitsWithIncidents: buildUnitsWithIncidents(trips, bundle.units),
     maintenanceServicedInPeriod,

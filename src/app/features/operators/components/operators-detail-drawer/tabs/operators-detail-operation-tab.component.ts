@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { OperatorsDetailDrawerStore } from '../operators-detail-drawer.store';
+import { OperatorsDetailDrawerFacade } from '../operators-detail-drawer.facade';
 import {
   OPERATORS_DETAIL_TAB_IMPORTS,
   OPERATORS_DETAIL_TAB_STYLE_URLS,
@@ -13,5 +13,5 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperatorsDetailOperationTabComponent {
-  protected readonly vm = inject(OperatorsDetailDrawerStore);
+  protected readonly vm = inject(OperatorsDetailDrawerFacade);
 }

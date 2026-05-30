@@ -57,6 +57,18 @@
   }
 }
 
+/** Un solo control a ancho completo del formulario (p. ej. nombre del seguro). */
+.fleet-unit-sec__edit-grid--full {
+  grid-template-columns: 1fr;
+
+  > to-input,
+  > to-select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 .fleet-unit-sec__edit-actions {
   display: flex;
   justify-content: flex-end;
@@ -101,6 +113,12 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
+}
+
+.fleet-unit-detail__section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .fleet-unit-detail {
@@ -428,5 +446,23 @@
   .fleet-unit-detail__row {
     padding: 0.1rem 0;
   }
+}
+
+.fleet-unit-hitch__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.fleet-unit-hitch__add-form {
+  margin-bottom: 1rem;
+}
+
+.fleet-unit-hitch__configure-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text);
 }
 

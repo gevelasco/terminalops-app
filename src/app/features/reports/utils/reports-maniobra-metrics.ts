@@ -9,6 +9,7 @@ import type { ReportsFilteredBundle } from './reports-bundle-filter';
 import { countBarSlices } from './reports-chart-mappers';
 import { deltaLabel } from './reports-money';
 import { buildManiobrasByOperator } from './reports-maniobra-by-operator';
+import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import { buildOperationDonut } from './reports-operation-donut';
 import {
   tripCollectedRevenue,
@@ -89,7 +90,10 @@ function buildDestinationPerformance(
     .slice(0, 8);
 }
 
-export function buildManiobrasTabView(bundle: ReportsFilteredBundle): ReportsManiobrasTabView {
+export function buildManiobrasTabView(
+  bundle: ReportsFilteredBundle,
+  evaluator: TripEvaluator,
+): ReportsManiobrasTabView {
   const trips = bundle.trips;
   const completed = trips.filter((t) => t.status === 'completed').length;
   const inTransit = trips.filter((t) => t.status === 'in_transit').length;
@@ -149,7 +153,7 @@ export function buildManiobrasTabView(bundle: ReportsFilteredBundle): ReportsMan
       'reports-chart-bar__fill--expense',
       10,
     ),
-    operationDonut: buildOperationDonut(trips),
+    operationDonut: buildOperationDonut(trips, evaluator),
     maneuversByOperator: buildManiobrasByOperator(trips, bundle.operators),
     destinationPerformance: buildDestinationPerformance(trips),
     incidentsByRoute: buildIncidentsByRoute(trips),

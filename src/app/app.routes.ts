@@ -28,13 +28,12 @@ export const routes: Routes = [
       },
       {
         path: 'trips',
-        redirectTo: 'maniobra',
-        pathMatch: 'full',
+        loadChildren: () => import('./features/trips/routes').then((m) => m.tripsRoutes),
       },
       {
         path: 'maniobra',
-        loadChildren: () =>
-          import('./features/maniobra/routes').then((m) => m.maniobraRoutes),
+        redirectTo: 'trips',
+        pathMatch: 'full',
       },
       {
         path: 'fleet',

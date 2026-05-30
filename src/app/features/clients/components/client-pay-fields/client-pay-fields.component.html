@@ -6,30 +6,40 @@
   [class.client-pay-fields__row--edit]="!isNew"
 >
   <to-select
-    label="¿Crédito otorgado? *"
+    label="¿Crédito otorgado?"
     [options]="yesNoOptions()"
     [(value)]="payHasCredit"
   />
+  @if (creditGranted()) {
+    <to-input
+      label="Días de crédito"
+      type="text"
+      [placeholder]="isNew ? 'Ej. 30' : ''"
+      [(value)]="payCreditDays"
+    />
+  }
+</div>
+@if (creditGranted()) {
   <to-input
-    label="Días de crédito"
-    type="text"
-    [placeholder]="isNew ? 'Ej. 30' : ''"
-    [(value)]="payCreditDays"
+    label="Límite o volumen de crédito (Alerta)"
+    [placeholder]="isNew ? 'Ej. 5 MMXN, por definir con dirección…' : ''"
+    [(value)]="payCreditAmount"
+  />
+}
+<div
+  class="client-pay-fields__row"
+  [class.client-pay-fields__row--new]="isNew"
+  [class.client-pay-fields__row--edit]="!isNew"
+>
+  <to-select
+    label="Método de pago preferido"
+    placeholder="Opcional"
+    [options]="paymentMethodOptions()"
+    [(value)]="payDefaultPaymentMethod"
+  />
+  <to-select
+    [label]="isNew ? 'Estatus comercial' : 'Estatus comercial *'"
+    [options]="healthOptions()"
+    [(value)]="payHealth"
   />
 </div>
-<to-input
-  label="Límite o volumen de crédito (aprox.)"
-  [placeholder]="
-    isNew ? 'Ej. 5 MMXN, por definir con dirección…' : ''
-  "
-  [(value)]="payCreditAmount"
-/>
-<to-select
-  [label]="
-    isNew
-      ? 'Estatus comercial (manual por ahora) *'
-      : 'Estatus comercial *'
-  "
-  [options]="healthOptions()"
-  [(value)]="payHealth"
-/>

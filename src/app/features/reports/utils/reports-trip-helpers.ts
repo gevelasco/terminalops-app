@@ -1,4 +1,5 @@
 import type { Trip } from '@shared/models/logistics.models';
+import { tripOperationalKm } from '@features/trips/utils/trip-operational-km';
 import { parseMoney } from './reports-money';
 
 /** Monto pactado con el cliente (0 si no aplica cobro). */
@@ -57,8 +58,7 @@ export function tripDirectCost(t: Trip): number {
 }
 
 export function tripKm(t: Trip): number {
-  const km = t.routeDistanceKm;
-  return typeof km === 'number' && Number.isFinite(km) && km > 0 ? km : 0;
+  return tripOperationalKm(t);
 }
 
 export function sumTripKm(trips: readonly Trip[]): number {

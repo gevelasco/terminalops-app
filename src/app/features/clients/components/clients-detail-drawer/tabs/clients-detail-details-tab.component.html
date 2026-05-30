@@ -179,6 +179,93 @@
 
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="cli-dv-delivery"
+      >
+        <div class="fleet-unit-sec__header">
+          <h3 id="cli-dv-delivery" class="fleet-unit-sec__title">Datos de entrega</h3>
+          @if (vm.editingSection() !== "delivery") {
+            <button
+              type="button"
+              class="fleet-unit-sec__edit-btn"
+              aria-label="Editar datos de entrega"
+              [disabled]="vm.saving()"
+              (click)="vm.startEditSection('delivery')"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        @if (vm.editingSection() !== "delivery") {
+          @if (!vm.hasClientDelivery()) {
+            <p class="clients-contact-empty">Sin ubicación de entrega registrada.</p>
+          } @else {
+            <dl class="fleet-unit-detail__dl">
+              <div class="fleet-unit-detail__row">
+                <dt>C.P. origen</dt>
+                <dd>{{ vm.client().delivery?.postalCode?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Ciudad / municipio</dt>
+                <dd>{{ vm.client().delivery?.cityMunicipality?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Localidad</dt>
+                <dd>{{ vm.client().delivery?.locality?.trim() || "—" }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Latitud</dt>
+                <dd>{{ vm.deliveryCoordLabel(vm.client().delivery?.latitude) }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Longitud</dt>
+                <dd>{{ vm.deliveryCoordLabel(vm.client().delivery?.longitude) }}</dd>
+              </div>
+            </dl>
+          }
+        } @else {
+          <div class="fleet-unit-sec__edit-form">
+            <app-client-delivery-location-fields
+              [referencePostalCode]="vm.savedDeliveryPostalCode()"
+              [disabled]="vm.saving()"
+              [(postalCode)]="vm.deliveryCp"
+              [(cityMunicipality)]="vm.deliveryCity"
+              [(locality)]="vm.deliveryLocality"
+              [(settlementConsId)]="vm.deliverySettlementConsId"
+              [(latitude)]="vm.deliveryLatitude"
+              [(longitude)]="vm.deliveryLongitude"
+            />
+            <div class="fleet-unit-sec__edit-actions">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.cancelSectionEdit()"
+              >
+                Cancelar
+              </to-button>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.saveDelivery()"
+              >
+                <to-icon name="save" [size]="14" />
+                {{ vm.saving() ? "Guardando…" : "Guardar" }}
+              </to-button>
+            </div>
+          </div>
+        }
+      </section>
+
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
         aria-labelledby="cli-dv-contacts"
       >
         <div class="fleet-unit-detail__maint-history-block">
@@ -418,17 +505,23 @@
               <dt>Crédito otorgado</dt>
               <dd>{{ vm.creditYesNoLabel() }}</dd>
             </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Días de crédito</dt>
-              <dd>{{ vm.creditDaysLabel() }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
-              <dt>Límite o volumen (aprox.)</dt>
-              <dd>{{ vm.creditAmountLabel() }}</dd>
-            </div>
+            @if (vm.client().payment?.hasCredit) {
+              <div class="fleet-unit-detail__row">
+                <dt>Días de crédito</dt>
+                <dd>{{ vm.creditDaysLabel() }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Límite o volumen de crédito (Alerta)</dt>
+                <dd>{{ vm.creditAmountLabel() }}</dd>
+              </div>
+            }
             <div class="fleet-unit-detail__row">
               <dt>Estatus comercial</dt>
               <dd>{{ vm.healthSummary() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Método de pago preferido</dt>
+              <dd>{{ vm.defaultPaymentMethodLabel() }}</dd>
             </div>
           </dl>
         } @else {
@@ -437,10 +530,12 @@
               layout="edit"
               [yesNoOptions]="vm.yesNoOptions"
               [healthOptions]="vm.healthOptions"
+              [paymentMethodOptions]="vm.paymentMethodOptions"
               [(payHasCredit)]="vm.payHasCredit"
               [(payCreditDays)]="vm.payCreditDays"
               [(payCreditAmount)]="vm.payCreditAmount"
               [(payHealth)]="vm.payHealth"
+              [(payDefaultPaymentMethod)]="vm.payDefaultPaymentMethod"
             />
             <div class="fleet-unit-sec__edit-actions">
               <to-button

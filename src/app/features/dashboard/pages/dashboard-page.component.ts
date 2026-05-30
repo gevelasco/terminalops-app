@@ -2,7 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
+  OnInit,
   resource,
 } from '@angular/core';
 import { Router } from '@angular/router';
@@ -18,6 +20,9 @@ import {
   type OperationTypeSlice,
   type WeeklyTripPoint,
 } from '@features/reports/utils/dashboard-charts-from-trips';
+import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
+import { TRIP_EVALUATION_PROVIDERS } from '@shared/services/trip-evaluation.providers';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
 import { buildTripStatusSlices } from '@shared/utils/trip-status-slices';
 import {
@@ -51,7 +56,7 @@ type DashboardBundle = {
   selector: 'app-dashboard-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [DateShortPipe],
+  providers: [DateShortPipe, ...TRIP_EVALUATION_PROVIDERS],
   imports: [
     ToCardComponent,
     ToSkeletonComponent,
@@ -61,11 +66,24 @@ type DashboardBundle = {
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
 })
-export class DashboardPageComponent {
+export class DashboardPageComponent implements OnInit {
   private readonly dashboard = inject(DashboardService);
   private readonly unitsApi = inject(UnitsService);
   private readonly dateShort = inject(DateShortPipe);
   private readonly router = inject(Router);
+  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
+  private readonly tripEvaluation = inject(TripEvaluationService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.operationConfigsFeature.dispose();
+    });
+  }
+
+  ngOnInit(): void {
+    this.operationConfigsFeature.loadOperationConfigurations();
+  }
 
   private readonly dashResource = resource({
     loader: async (): Promise<DashboardBundle> => {
@@ -118,7 +136,7 @@ export class DashboardPageComponent {
     buildWeeklyCompletedTripsByDay(this.dashResource.value()?.maniobras ?? []),
   );
   readonly operationTypeSlices = computed<OperationTypeSlice[]>(() =>
-    buildOperationTypeSlicesFromTrips(this.tripsProgrammedThisMonth()),
+    buildOperationTypeSlicesFromTrips(this.tripsProgrammedThisMonth(), this.tripEvaluation),
   );
 
   readonly criticalIconPaths = CRITICAL_ALERT_ICON_PATHS;
@@ -207,13 +225,6 @@ export class DashboardPageComponent {
   }
 
   operationFillClass(tone: OperationTypeSlice['tone']): string {
-    switch (tone) {
-      case 'a':
-        return 'dash-chart-bar__fill--op-a';
-      case 'b':
-        return 'dash-chart-bar__fill--op-b';
-      case 'c':
-        return 'dash-chart-bar__fill--op-c';
-    }
+    return this.tripEvaluation.chartFillClass(tone, 'dash');
   }
 }

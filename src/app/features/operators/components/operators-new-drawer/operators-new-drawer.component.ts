@@ -13,7 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
-import { OperatorsService } from '@services/api/operators';
+import { OperatorsFeatureService } from '@features/operators/services/operators.service';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { filesToOperatorDocuments } from '@features/operators/utils/operator-attached-documents';
 import {
@@ -38,6 +38,14 @@ import { OperatorIdentificationFieldsComponent } from '../operator-identificatio
 import { OperatorOperationFieldsComponent } from '../operator-operation-fields/operator-operation-fields.component';import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
+
+function todayYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${da}`;
+}
 @Component({
   selector: 'app-operators-new-drawer',
   standalone: true,
@@ -57,11 +65,12 @@ import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
+    './operators-new-drawer.component.scss',
   ],
 })
 export class OperatorsNewDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly operatorsApi = inject(OperatorsService);
+  private readonly operatorsFeature = inject(OperatorsFeatureService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -80,7 +89,7 @@ export class OperatorsNewDrawerComponent {
   readonly phoneSecondary = model('');
   readonly address = model('');
   readonly photoDataUrl = model('');
-  readonly companyHireDate = model('');
+  readonly companyHireDate = model(todayYmd());
   readonly employmentContractType = model('');
   readonly status = model<OperatorOperationalStatus>('available');
 
@@ -195,10 +204,6 @@ export class OperatorsNewDrawerComponent {
       this.toast.show('La vigencia de licencia debe ser AAAA-MM-DD.', 'warning');
       return;
     }
-    if (!phone) {
-      this.toast.show('Indica un teléfono de contacto.', 'warning');
-      return;
-    }
 
     const payload: Omit<Operator, 'id'> = mergeOperatorNested({
       name,
@@ -247,14 +252,15 @@ export class OperatorsNewDrawerComponent {
     }) as Omit<Operator, 'id'>;
 
     this.saving.set(true);
-    this.operatorsApi
-      .postOperator(payload)
+    this.operatorsFeature
+      .createOperator(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (op) => {
           this.saving.set(false);
           this.toast.show('Operador registrado.', 'success');
           this.saved.emit(op);
+          this.dismiss.emit();
         },
         error: () => {
           this.toast.show('No se pudo guardar el operador.', 'error');

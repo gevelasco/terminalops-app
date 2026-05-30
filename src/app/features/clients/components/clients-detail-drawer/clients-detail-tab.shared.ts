@@ -1,5 +1,6 @@
 import { FormsModule } from '@angular/forms';
 import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fields/client-contact-inline-fields.component';
+import { ClientDeliveryLocationFieldsComponent } from '../client-delivery-location-fields/client-delivery-location-fields.component';
 import { ClientFiscalFieldsComponent } from '../client-fiscal-fields/client-fiscal-fields.component';
 import { ClientIdentificationFieldsComponent } from '../client-identification-fields/client-identification-fields.component';
 import { ClientPayFieldsComponent } from '../client-pay-fields/client-pay-fields.component';
@@ -11,6 +12,7 @@ import { ToIconButtonComponent } from '@shared/ui/to-icon-button/to-icon-button.
 /** Imports compartidos por pestañas del drawer de cliente (lazy via @defer). */
 export const CLIENTS_DETAIL_TAB_IMPORTS = [
   ClientContactInlineFieldsComponent,
+  ClientDeliveryLocationFieldsComponent,
   ClientFiscalFieldsComponent,
   ClientIdentificationFieldsComponent,
   ClientPayFieldsComponent,

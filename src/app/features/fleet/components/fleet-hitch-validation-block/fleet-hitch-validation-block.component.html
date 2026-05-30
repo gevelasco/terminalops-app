@@ -1,0 +1,26 @@
+@if (validation().blockMessage; as blockMsg) {
+  <p class="fleet-unit-callout fleet-unit-callout--bad">{{ blockMsg }}</p>
+}
+@if (validation().infoMessage; as infoMsg) {
+  <p class="fleet-unit-sec__hint">{{ infoMsg }}</p>
+}
+@if (validation().showSecondTrailerToggle) {
+  <div class="fleet-unit-toggle-row">
+    <span class="fleet-unit-toggle-row__label" [id]="toggleLabelId()">
+      ¿Segundo remolque (trasero)?
+    </span>
+    <button
+      type="button"
+      class="fleet-unit-toggle"
+      [class.fleet-unit-toggle--on]="isSecondTrailer()"
+      [class.fleet-unit-toggle--disabled]="!validation().canToggleSecondTrailer"
+      role="switch"
+      [attr.aria-checked]="isSecondTrailer()"
+      [attr.aria-disabled]="!validation().canToggleSecondTrailer"
+      [attr.aria-labelledby]="toggleLabelId()"
+      (click)="onToggleClick()"
+    >
+      <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+    </button>
+  </div>
+}

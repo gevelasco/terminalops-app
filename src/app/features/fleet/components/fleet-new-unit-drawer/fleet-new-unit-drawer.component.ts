@@ -14,7 +14,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import { ToastService } from '@core/notifications/toast.service';
-import { UnitsService } from '@services/api/units';
+import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   MaintenanceEntry,
@@ -119,13 +119,17 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-new-unit-drawer.component.html',
-  styleUrls: ['../fleet-drawer.shared.scss', '../styles/fleet-drawer-unit-sec.shared.scss'],
+  styleUrls: [
+    '../fleet-drawer.shared.scss',
+    '../styles/fleet-drawer-unit-sec.shared.scss',
+    './fleet-new-unit-drawer.component.scss',
+  ],
 })
 export class FleetNewUnitDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
   private readonly destroyRef = inject(DestroyRef);
-  private readonly unitsApi = inject(UnitsService);
+  private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -137,7 +141,6 @@ export class FleetNewUnitDrawerComponent {
   readonly modelYear = model('');
   readonly plate = model('');
   readonly trailerColor = model('');
-  readonly type = model('');
   readonly transmissionType = model('automatic');
   readonly transmissionSpeeds = model('10');
   readonly grossVehicleWeightLb = model('');
@@ -154,6 +157,7 @@ export class FleetNewUnitDrawerComponent {
   readonly doubleArticApplies = model(false);
   readonly verificationDoubleDate = model('');
   readonly verificationDoubleCost = model('');
+  readonly insuranceCarrierName = model('');
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
   readonly insuranceContractDate = model('');
@@ -361,23 +365,21 @@ export class FleetNewUnitDrawerComponent {
     const brand = this.brandCode().trim();
     const year = this.modelYear().trim();
     const plate = this.plate().trim();
-    const type = this.type().trim();
     const lbRaw = this.grossVehicleWeightLb().trim().replace(/,/g, '');
 
-    if (!brand || !year || !plate || !type) {
-      this.toast.show('Marca, año modelo, placa y tipo de unidad son obligatorios.', 'warning');
+    if (!brand || !year || !plate) {
+      this.toast.show('Marca, año modelo y placa son obligatorios.', 'warning');
       return;
     }
-    if (!lbRaw) {
-      this.toast.show('Indica el peso bruto (GVWR) en libras.', 'warning');
-      return;
+    let capacityKg = 0;
+    if (lbRaw) {
+      const lb = Number(lbRaw);
+      if (!Number.isFinite(lb) || lb <= 0) {
+        this.toast.show('GVWR en libras no es válido.', 'warning');
+        return;
+      }
+      capacityKg = Math.round(lb * 0.45359237);
     }
-    const lb = Number(lbRaw);
-    if (!Number.isFinite(lb) || lb <= 0) {
-      this.toast.show('GVWR en libras no es válido.', 'warning');
-      return;
-    }
-    const capacityKg = Math.round(lb * 0.45359237);
 
     if (this.doubleArticApplies() && !this.verificationDoubleDate().trim()) {
       this.toast.show('Si aplica doble articulado, indica la fecha de verificación.', 'warning');
@@ -510,6 +512,7 @@ export class FleetNewUnitDrawerComponent {
         : undefined,
       verificationDoubleArticulatedCost:
         this.doubleArticApplies() && doubleCost !== undefined ? doubleCost : undefined,
+      insuranceCarrierName: this.insuranceCarrierName().trim() || undefined,
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
@@ -534,10 +537,9 @@ export class FleetNewUnitDrawerComponent {
     };
 
     this.saving.set(true);
-    this.unitsApi
-      .postUnit({
+    this.unitsFeature
+      .createUnit({
         plate,
-        type,
         capacityKg,
         status: this.status(),
         trailerBrandAbbr: brand,

@@ -2,15 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   model,
-  resource,
+  OnInit,
   signal,
 } from '@angular/core';
-import { catchError, firstValueFrom, of } from 'rxjs';
 import { OperatorsDetailDrawerComponent } from '@features/operators/components/operators-detail-drawer/operators-detail-drawer.component';
 import { OperatorsNewDrawerComponent } from '@features/operators/components/operators-new-drawer/operators-new-drawer.component';
-import { OperatorsService } from '@services/api/operators';
+import { OperatorsFeatureService } from '@features/operators/services/operators.service';
+import { completedManeuverCountsByOperatorId } from '@features/operators/utils/completed-maneuver-counts-by-operator-id';
 import {
   operatorInsuranceKindLabel,
   operatorOperationalStatusLabel,
@@ -19,7 +20,6 @@ import type {
   Operator,
   OperatorOperationalStatus,
 } from '@shared/models/logistics.models';
-import { completedManeuverCountsByOperatorId } from '@features/operators/utils/completed-maneuver-counts-by-operator-id';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
@@ -44,6 +44,7 @@ function formatIsoDateEs(iso: string): string {
 @Component({
   selector: 'app-operators-page',
   standalone: true,
+  providers: [OperatorsFeatureService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
@@ -57,33 +58,26 @@ function formatIsoDateEs(iso: string): string {
   templateUrl: './operators-page.component.html',
   styleUrl: './operators-page.component.scss',
 })
-export class OperatorsPageComponent {
-  private readonly operatorsApi = inject(OperatorsService);
+export class OperatorsPageComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly operatorsFeature = inject(OperatorsFeatureService);
 
-  private readonly listResource = resource({
-    loader: async (): Promise<Operator[]> =>
-      firstValueFrom(
-        this.operatorsApi.getOperatorsList().pipe(catchError(() => of([] as Operator[]))),
-      ),
-  });
+  constructor() {
+    this.destroyRef.onDestroy(() => this.operatorsFeature.dispose());
+  }
 
-  readonly loading = computed(
-    () => !this.listResource.hasValue() && this.listResource.isLoading(),
-  );
-  readonly rows = computed(() => {
-    const ops = this.listResource.value();
-    if (!ops) {
-      return [] as Record<string, unknown>[];
-    }
-    const counts = completedManeuverCountsByOperatorId([]);
-    return ops.map((o) => this.mapRow(o, counts));
-  });
-  readonly searchQuery = model('');
-  readonly newOperatorOpen = signal(false);
-  readonly detailOperator = signal<Operator | null>(null);
+  readonly loading = this.operatorsFeature.loading;
   readonly completedManeuverCounts = computed(() =>
     completedManeuverCountsByOperatorId([]),
   );
+  readonly rows = computed(() => {
+    const counts = this.completedManeuverCounts();
+    return this.operatorsFeature
+      .operators()
+      .map((o) => OperatorsPageComponent.mapRow(o, counts));
+  });
+  readonly searchQuery = model('');
+  readonly newOperatorOpen = signal(false);
 
   readonly columns: ToTableColumn[] = [
     { key: 'name', label: 'Nombre' },
@@ -98,7 +92,6 @@ export class OperatorsPageComponent {
     { key: 'maneuverCount', label: 'Maniobras' },
   ];
 
-  /** Filas visibles según caja de búsqueda (nombre, licencia, fechas, estado, cobertura, id). */
   readonly displayedOperatorRows = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     const all = this.rows();
@@ -108,8 +101,8 @@ export class OperatorsPageComponent {
     return all.filter((row) => OperatorsPageComponent.rowMatchesQuery(row, q));
   });
 
-  loadOperators(): void {
-    void this.listResource.reload();
+  ngOnInit(): void {
+    this.operatorsFeature.loadOperators();
   }
 
   onRowClick(row: Record<string, unknown>): void {
@@ -117,24 +110,15 @@ export class OperatorsPageComponent {
     if (!id) {
       return;
     }
-    const op = this.listResource.value()?.find((o) => o.id === id);
-    if (op) {
-      this.detailOperator.set(op);
-    }
+    this.operatorsFeature.selectOperator(id);
   }
 
   onDetailDismiss(): void {
-    this.detailOperator.set(null);
-  }
-
-  onDetailOperatorChange(op: Operator): void {
-    this.detailOperator.set(op);
-    this.loadOperators();
+    this.operatorsFeature.clearSelection();
   }
 
   onOperatorCreated(_op: Operator): void {
     this.newOperatorOpen.set(false);
-    this.loadOperators();
   }
 
   private static rowMatchesQuery(
@@ -164,7 +148,7 @@ export class OperatorsPageComponent {
     return haystack.includes(q);
   }
 
-  private mapRow(
+  private static mapRow(
     o: Operator,
     maneuverCounts: Map<string, number>,
   ): Record<string, unknown> {

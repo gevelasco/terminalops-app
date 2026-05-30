@@ -1,5 +1,11 @@
+.profile-drawer__config-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .profile-drawer__operations {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0;
 }
 
 .profile-drawer__operations-intro {

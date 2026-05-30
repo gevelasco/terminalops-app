@@ -7,7 +7,8 @@
     "start": "npm run build && node scripts/serve-production.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "check:trip-distance": "node scripts/check-trip-distance-rules.mjs"
   },
   "private": true,
   "dependencies": {

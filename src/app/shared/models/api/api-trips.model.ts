@@ -4,13 +4,15 @@ import type { TripContainerType, TripLoadType } from '@shared/models/logistics.m
 export interface CreateTripPayload {
   origin: string;
   destination: string;
-  operationType: 'sencillo' | 'full' | 'plana';
+  operationType: string;
   loadType: TripLoadType;
   containerType: TripContainerType;
   cargoDescription: string;
   approximateWeightTons: string;
   dieselLiters: string;
   dieselAmount: string;
+  /** Snapshot MXN/L del fuel-estimate al guardar (inmutable en backend). */
+  dieselPricePerLiterAtCreation?: number;
   casetasAmount: string;
   operatorQuota: string;
   clientCharge: string;
@@ -27,6 +29,8 @@ export interface CreateTripPayload {
   arrivedAt: string | null;
   attachedDocumentFileNames: string[];
   routeDistanceKm?: number | null;
+  /** Ida + vuelta (calculado en backend). */
+  isRoundTrip?: boolean;
   maneuverKind?: string;
   originPostalCode?: string;
   originCityMunicipality?: string;
@@ -36,6 +40,7 @@ export interface CreateTripPayload {
   destinationLocality?: string;
   operatorLicenseNumber?: string;
   operatorLicenseExpiresLabel?: string;
+  tollCalculationMode?: 'auto' | 'manual';
 }
 
 export interface CancelTripPayload {

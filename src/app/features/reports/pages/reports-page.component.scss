@@ -622,16 +622,31 @@
   background: color-mix(in srgb, var(--to-color-danger) 75%, transparent);
 }
 
-.reports-chart-bar__fill--op-a {
+.reports-chart-bar__fill--op-a,
+.reports-chart-bar__fill--op-0 {
   background: color-mix(in srgb, #6366f1 82%, var(--to-color-surface));
 }
 
-.reports-chart-bar__fill--op-b {
+.reports-chart-bar__fill--op-b,
+.reports-chart-bar__fill--op-1 {
   background: color-mix(in srgb, #0ea5e9 78%, var(--to-color-surface));
 }
 
-.reports-chart-bar__fill--op-c {
+.reports-chart-bar__fill--op-c,
+.reports-chart-bar__fill--op-2 {
   background: color-mix(in srgb, #a855f7 72%, var(--to-color-surface));
+}
+
+.reports-chart-bar__fill--op-3 {
+  background: color-mix(in srgb, #14b8a6 72%, var(--to-color-surface));
+}
+
+.reports-chart-bar__fill--op-4 {
+  background: color-mix(in srgb, #f59e0b 72%, var(--to-color-surface));
+}
+
+.reports-chart-bar__fill--op-5 {
+  background: color-mix(in srgb, #ef4444 68%, var(--to-color-surface));
 }
 
 .reports-chart-bar__fill--cost-1 {

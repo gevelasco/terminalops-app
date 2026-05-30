@@ -54,8 +54,8 @@
                   cellValue(row, col.key)
                 }}</span>
               } @else if (col.cell === 'operation-type') {
-                <span [class]="operationTypeBadgeClass(row[col.key])">{{
-                  operationTypeCellLabel(row[col.key])
+                <span [class]="operationTypeBadgeClass(row[col.key], row)">{{
+                  operationTypeCellLabel(row[col.key], row)
                 }}</span>
               } @else if (col.cell === 'datetime-stacked') {
                 @if (stackedDatetime(row, col.key); as dt) {
@@ -83,6 +83,13 @@
                   <span class="to-table-pill__dot" aria-hidden="true"></span>
                   <span class="to-table-pill__label">{{
                     clientHealthPillLabel(row[col.key])
+                  }}</span>
+                </span>
+              } @else if (col.cell === 'rate-availability-pill') {
+                <span [class]="rateAvailabilityPillClass(row[col.key])">
+                  <span class="to-table-pill__dot" aria-hidden="true"></span>
+                  <span class="to-table-pill__label">{{
+                    rateAvailabilityPillLabel(row[col.key])
                   }}</span>
                 </span>
               } @else if (
