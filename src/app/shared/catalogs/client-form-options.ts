@@ -11,6 +11,13 @@ export const DESTINATION_RATE_AVAILABILITY_OPTIONS: ToSelectOption[] = [
   { value: 'no', label: 'Inactiva' },
 ];
 
+/** Unidad para tiempos estimados de referencia en tarifas por ruta. */
+export const DESTINATION_RATE_TIME_UNIT_OPTIONS: ToSelectOption[] = [
+  { value: '', label: 'Sin especificar' },
+  { value: 'hours', label: 'Horas' },
+  { value: 'days', label: 'Días' },
+];
+
 /**
  * Estado comercial visible hoy; el valor `not_evaluated` deja lugar al cálculo
  * automático por historial de pagos.

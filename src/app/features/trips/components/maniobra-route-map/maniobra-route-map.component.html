@@ -1,0 +1,93 @@
+<section class="maniobra-route-map" aria-label="Mapa operativo de maniobras">
+  <div class="maniobra-route-map__canvas-wrap">
+    @if (loading() || !geoReady()) {
+      <div class="maniobra-route-map__overlay">
+        <to-skeleton [lines]="4" />
+      </div>
+    }
+
+    @if (error() || geoLoadFailed()) {
+      <p class="maniobra-route-map__hint maniobra-route-map__hint--error">
+        No se pudo cargar el mapa operativo. Intenta de nuevo en unos momentos.
+      </p>
+    } @else if (!loading() && items().length === 0) {
+      <p class="maniobra-route-map__hint">
+        No hay maniobras programadas o en tránsito para mostrar en el mapa.
+      </p>
+    }
+
+    <div
+      #chartHost
+      class="maniobra-route-map__canvas"
+      [class.maniobra-route-map__canvas--hidden]="geoLoadFailed()"
+      role="img"
+      aria-label="Mapa de rutas activas"
+    ></div>
+  </div>
+
+  <aside class="maniobra-route-map__sidebar" aria-label="Resumen de maniobras activas">
+    <div class="maniobra-route-map__kpis">
+      <to-kpi-card
+        title="Programadas"
+        titleIcon="calendar"
+        [value]="'' + statusCounts().scheduled"
+      />
+      <to-kpi-card
+        title="En curso"
+        titleIcon="route"
+        [value]="'' + statusCounts().inTransit"
+      />
+      <to-kpi-card
+        title="Estados"
+        titleIcon="target"
+        [value]="'' + activeStateCount()"
+      />
+    </div>
+
+    <div class="maniobra-route-map__fleet-panel">
+      @if (stateFleet.selectedState(); as stateName) {
+        <header class="maniobra-route-map__fleet-header">
+          <h3 class="maniobra-route-map__fleet-title">{{ stateName }}</h3>
+          <p class="maniobra-route-map__fleet-subtitle">Flota en destino</p>
+        </header>
+
+        @if (stateFleet.loading()) {
+          <to-skeleton [lines]="3" />
+        } @else if (stateFleet.error()) {
+          <p class="maniobra-route-map__fleet-hint maniobra-route-map__fleet-hint--error">
+            No se pudo cargar la flota para este estado.
+          </p>
+        } @else if (stateFleet.cards().length === 0) {
+          <p class="maniobra-route-map__fleet-hint">
+            No hay unidades asignadas a las maniobras de este estado.
+          </p>
+        } @else {
+          <div class="fleet-overview maniobra-route-map__fleet-cards" role="list">
+            @for (entry of stateFleet.cards(); track entry.trip?.tripId ?? entry.unitId) {
+              <app-fleet-overview-card
+                [entry]="entry"
+                [readonly]="true"
+                [tripSelectable]="!!entry.trip?.tripId"
+                (tripSelect)="tripSelect.emit($event)"
+                role="listitem"
+              />
+            }
+          </div>
+        }
+      } @else {
+        <p class="maniobra-route-map__fleet-hint">
+          Selecciona un estado con maniobras activas para ver la flota asignada.
+        </p>
+      }
+    </div>
+  </aside>
+
+  @if (meta(); as mapMeta) {
+    @if (mapMeta.unresolved > 0) {
+      <p class="maniobra-route-map__footnote">
+        {{ mapMeta.unresolved }} maniobra(s) activa(s) no tienen coordenadas resueltas y no
+        se dibujan en el mapa.
+      </p>
+    }
+  }
+</section>

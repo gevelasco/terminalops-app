@@ -16,7 +16,15 @@ import {
 } from '@features/clients/utils/destination-rate-payload';
 import { formatMxn } from '@features/reports/utils/reports-money';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
-import { CLIENT_YES_NO_OPTIONS, DESTINATION_RATE_AVAILABILITY_OPTIONS } from '@shared/catalogs/client-form-options';
+import {
+  CLIENT_YES_NO_OPTIONS,
+  DESTINATION_RATE_AVAILABILITY_OPTIONS,
+  DESTINATION_RATE_TIME_UNIT_OPTIONS,
+} from '@shared/catalogs/client-form-options';
+import {
+  estimatedTimeUnitSuffix,
+  estimatedTimesFormStringsFromRate,
+} from '@features/clients/utils/destination-rate-estimated-time';
 import { formatDestinationRateUpdatedAt } from '@features/clients/utils/format-destination-rate-updated-at';
 import type { DestinationRatePriceDraft } from '@shared/models/destination-rate.models';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
@@ -38,13 +46,18 @@ export class DestinationRatesDetailDrawerFacade {
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
   readonly availabilityOptions: ToSelectOption[] = DESTINATION_RATE_AVAILABILITY_OPTIONS;
+  readonly timeUnitOptions: ToSelectOption[] = DESTINATION_RATE_TIME_UNIT_OPTIONS;
 
   readonly postalCode = signal('');
   readonly cityMunicipality = signal('');
   readonly locality = signal('');
+  readonly originOperationalCenterId = signal('');
   readonly priceDrafts = signal<DestinationRatePriceDraft[]>([]);
   readonly active = signal('yes');
   readonly notes = signal('');
+  readonly estimatedArrivalTimeValue = signal('');
+  readonly estimatedReturnTimeValue = signal('');
+  readonly estimatedTimeUnit = signal('');
 
   readonly referencePostalCode = signal('');
 
@@ -72,6 +85,10 @@ export class DestinationRatesDetailDrawerFacade {
     const r = this.rate();
     return formatDestinationRateUpdatedAt(r.updatedAt ?? r.createdAt);
   });
+
+  readonly estimatedTimeSuffix = computed(() =>
+    estimatedTimeUnitSuffix(this.estimatedTimeUnit()),
+  );
 
   bindDismiss(cb: () => void): void {
     this.dismissCallback = cb;
@@ -112,10 +129,14 @@ export class DestinationRatesDetailDrawerFacade {
 
   persist(): void {
     const err = validateDestinationRateForm({
+      originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
       priceDrafts: this.priceDrafts(),
+      estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
+      estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
+      estimatedTimeUnit: this.estimatedTimeUnit(),
     });
     if (err) {
       this.toast.show(err, 'warning');
@@ -123,12 +144,17 @@ export class DestinationRatesDetailDrawerFacade {
     }
 
     const payload = buildCreateDestinationRatePayload({
+      originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
       priceDrafts: this.priceDrafts(),
       active: this.active() === 'yes',
       notes: this.notes(),
+      estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
+      estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
+      estimatedTimeUnit: this.estimatedTimeUnit(),
+      forUpdate: true,
     });
 
     this.saving.set(true);
@@ -174,9 +200,14 @@ export class DestinationRatesDetailDrawerFacade {
     this.postalCode.set(r.postalCode);
     this.cityMunicipality.set(r.cityMunicipality);
     this.locality.set(r.locality);
+    this.originOperationalCenterId.set(r.originOperationalCenterId);
     this.referencePostalCode.set(r.postalCode);
     this.priceDrafts.set(priceDraftsFromRate(r));
     this.active.set(r.active ? 'yes' : 'no');
     this.notes.set(r.notes ?? '');
+    const estimated = estimatedTimesFormStringsFromRate(r);
+    this.estimatedArrivalTimeValue.set(estimated.arrival);
+    this.estimatedReturnTimeValue.set(estimated.returnValue);
+    this.estimatedTimeUnit.set(estimated.unit);
   }
 }

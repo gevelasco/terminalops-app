@@ -68,6 +68,23 @@
   min-width: 0;
 }
 
+.maniobra-drawer__route-head {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+
+  > * {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 480px) {
+  .maniobra-drawer__route-head {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
 .maniobra-drawer__grid2 {
   display: grid;
   gap: 0.85rem;
@@ -400,6 +417,7 @@
 
 .maniobra-drawer__footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -409,6 +427,14 @@
   border: 0;
   background: transparent;
   box-sizing: border-box;
+}
+
+.maniobra-drawer__creating-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
 }
 
 .maniobra-drawer__footer[toSideDrawerFooter] {

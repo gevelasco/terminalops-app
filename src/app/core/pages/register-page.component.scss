@@ -1,4 +1,4 @@
-@import './login-page.component.scss';
+@use './login-page.component.scss' as *;
 
 :host {
   display: block;

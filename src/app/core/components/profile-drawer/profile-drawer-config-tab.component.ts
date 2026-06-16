@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   DestroyRef,
   ElementRef,
   inject,
@@ -10,33 +9,26 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
-import { CompaniesService, type CompanyProfile } from '@core/services/api/companies';
+import {
+  CompaniesService,
+  type PatchCompanyOperationalSettings,
+} from '@core/services/api/companies';
+import { UsersService } from '@core/services/api/users';
 import { SessionService } from '@core/services/state/session';
 import { formatOperationalSettingChangedAt } from '@core/services/state/user-preferences';
-import {
-  cityMunicipalityLineFromSettlement,
-  formatSettlementOptionLabel,
-  geocodeQueryFromSettlement,
-  localityKey,
-  normalizeMxPostalCodeDigits,
-} from '@features/trips/utils/mx-postal-settlement';
+import { syncCompanySettingsFromProfile } from '@core/components/profile-drawer/profile-drawer-company-settings.util';
 import {
   MAINTENANCE_DATE_PERIOD_OPTIONS,
   type MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
-import {
-  MexicoPostalCodeService,
-  type MxPostalSettlement,
-} from '@shared/services/mexico-postal-code.service';
-import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
+import { forkJoin, of } from 'rxjs';
 
-type DisableConfirmKind = 'km' | 'date' | 'intelligent' | 'diesel';
+type DisableConfirmKind = 'km' | 'date' | 'intelligent' | 'diesel' | 'recognition';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
@@ -56,8 +48,7 @@ export class ProfileDrawerConfigTabComponent {
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
   private readonly companies = inject(CompaniesService);
-  private readonly sepomex = inject(MexicoPostalCodeService);
-  private readonly photon = inject(PhotonPlaceSearchService);
+  private readonly usersApi = inject(UsersService);
 
   readonly maintDatePeriodOptions = [...MAINTENANCE_DATE_PERIOD_OPTIONS];
   readonly saving = signal(false);
@@ -68,61 +59,12 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftDatePeriod = model<MaintenanceDatePeriod>('semiannual');
   readonly draftIntelligentEnabled = model(false);
   readonly draftDieselControlEnabled = model(true);
-
-  readonly centerCp = model('');
-  readonly centerLocalityKey = model('');
-  readonly centerSettlements = signal<MxPostalSettlement[]>([]);
-  readonly centerCpLoading = signal(false);
-  readonly centerLatitude = signal<number | null>(null);
-  readonly centerLongitude = signal<number | null>(null);
+  readonly draftControlAutomaticRecognition = model(false);
 
   readonly pendingDisableKind = signal<DisableConfirmKind | null>(null);
   private readonly disableConfirmDialog = viewChild<ElementRef<HTMLDialogElement>>(
     'disableConfirmDialog',
   );
-
-  readonly centerLocalityOptions = computed(() =>
-    this.centerSettlements().map((s) => ({
-      value: localityKey(s),
-      label: formatSettlementOptionLabel(s),
-    })),
-  );
-
-  readonly centerCityLine = computed(() => {
-    const saved = this.session.operationalCenterCityMunicipality()?.trim() ?? '';
-    const rows = this.centerSettlements();
-    if (rows.length > 0) {
-      const key = this.centerLocalityKey();
-      const row =
-        (key ? rows.find((s) => localityKey(s) === key) : undefined) ?? rows[0];
-      return cityMunicipalityLineFromSettlement(row);
-    }
-    return saved;
-  });
-
-  readonly centerLocalityLabel = computed(() => {
-    const key = this.centerLocalityKey().trim();
-    const rows = this.centerSettlements();
-    if (key && rows.length > 0) {
-      const row = rows.find((s) => localityKey(s) === key);
-      if (row) {
-        return formatSettlementOptionLabel(row);
-      }
-    }
-    return this.session.operationalCenterLocality()?.trim() ?? '';
-  });
-
-  readonly showCenterCoords = computed(
-    () => this.centerLatitude() != null && this.centerLongitude() != null,
-  );
-
-  /** Centro operativo: el usuario está editando CP (muestra select SEPOMex). */
-  readonly centerCpEditing = signal(false);
-  /** Evita geocodificar mientras se muestran coords guardadas en sesión. */
-  private readonly centerCoordsFromDb = signal(false);
-
-  readonly centerLatDisplay = computed(() => this.formatCoord(this.centerLatitude()));
-  readonly centerLonDisplay = computed(() => this.formatCoord(this.centerLongitude()));
 
   constructor() {
     this.loadDraftFromSession();
@@ -153,6 +95,13 @@ export class ProfileDrawerConfigTabComponent {
     return this.controlStatusLabel(
       this.session.dieselControlEnabled(),
       this.session.dieselControlChangedAt(),
+    );
+  }
+
+  suggestionsControlStatusLabel(): string {
+    return this.controlStatusLabel(
+      this.session.controlAutomaticRecognition(),
+      this.session.controlAutomaticRecognitionChangedAt(),
     );
   }
 
@@ -196,6 +145,16 @@ export class ProfileDrawerConfigTabComponent {
     this.draftDieselControlEnabled.set(next);
   }
 
+  toggleDraftControlAutomaticRecognition(): void {
+    const next = !this.draftControlAutomaticRecognition();
+    if (!next && this.draftControlAutomaticRecognition()) {
+      this.pendingDisableKind.set('recognition');
+      queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
+      return;
+    }
+    this.draftControlAutomaticRecognition.set(next);
+  }
+
   closeDisableConfirm(): void {
     this.pendingDisableKind.set(null);
     this.disableConfirmDialog()?.nativeElement.close();
@@ -212,39 +171,10 @@ export class ProfileDrawerConfigTabComponent {
       this.draftIntelligentEnabled.set(false);
     } else if (kind === 'diesel') {
       this.draftDieselControlEnabled.set(false);
+    } else if (kind === 'recognition') {
+      this.draftControlAutomaticRecognition.set(false);
     }
     this.closeDisableConfirm();
-  }
-
-  onCenterCpBlur(): void {
-    const digits = normalizeMxPostalCodeDigits(this.centerCp());
-    if (digits !== this.centerCp()) {
-      this.centerCp.set(digits);
-    }
-    if (digits.length === 0) {
-      this.clearCenterCpFields();
-      return;
-    }
-    if (digits.length !== 5) {
-      this.toast.show('El código postal debe tener 5 dígitos.', 'warning');
-      return;
-    }
-    const savedCp = this.session.operationalCenterPostalCode()?.trim() ?? '';
-    if (digits === savedCp) {
-      return;
-    }
-    this.centerCpEditing.set(true);
-    this.centerCoordsFromDb.set(false);
-    this.centerLocalityKey.set('');
-    this.centerLatitude.set(null);
-    this.centerLongitude.set(null);
-    this.fetchCenterCpSettlements(digits);
-  }
-
-  onCenterLocalityChange(value: string): void {
-    this.centerLocalityKey.set(value);
-    this.centerCoordsFromDb.set(false);
-    this.geocodeSelectedSettlement();
   }
 
   onDraftDatePeriodChange(value: string): void {
@@ -259,6 +189,14 @@ export class ProfileDrawerConfigTabComponent {
     if (!companyId) {
       return;
     }
+
+    const patch = this.buildConfigPatch();
+    const userPatch = this.buildUserPreferencePatch();
+    if (!patch && !userPatch) {
+      this.toast.show('No hay cambios en la configuración.', 'warning');
+      return;
+    }
+
     const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
     const kmN = kmRaw === '' ? undefined : Number(kmRaw);
     if (
@@ -271,96 +209,91 @@ export class ProfileDrawerConfigTabComponent {
       );
       return;
     }
-    const cpDigits = normalizeMxPostalCodeDigits(this.centerCp());
-    const localityKeyVal = this.centerLocalityKey().trim();
-    const settlement = this.centerSettlements().find(
-      (s) => localityKey(s) === localityKeyVal,
-    );
-    const savedCp = this.session.operationalCenterPostalCode()?.trim() ?? '';
-    const useSavedCenter =
-      cpDigits.length === 5 &&
-      cpDigits === savedCp &&
-      !localityKeyVal &&
-      !!this.session.operationalCenterLocality()?.trim();
-    if (cpDigits.length === 5 && !localityKeyVal && !useSavedCenter) {
-      this.toast.show('Elige la localidad del centro operativo.', 'warning');
-      return;
-    }
-    if (cpDigits.length === 5 && localityKeyVal && settlement == null && !useSavedCenter) {
-      this.toast.show('La localidad del centro operativo no es válida.', 'warning');
-      return;
-    }
-    const lat = this.centerLatitude();
-    const lon = this.centerLongitude();
-    const hasCoords = lat != null && lon != null;
-    if (cpDigits.length === 5 && (localityKeyVal || useSavedCenter) && !hasCoords) {
-      this.toast.show(
-        'Espera a que se obtengan las coordenadas del centro operativo o revisa el CP.',
-        'warning',
-      );
-      return;
-    }
 
     this.saving.set(true);
-    this.companies
-      .updateOperationalSettings(companyId, {
-        operationalAnalysisEnabled: this.draftIntelligentEnabled(),
-        dieselControlEnabled: this.draftDieselControlEnabled(),
-        maintenanceKmControlEnabled: this.draftKmEnabled(),
-        maintenanceKmIntervalDefault: this.draftKmEnabled() ? kmN : undefined,
-        maintenanceDateControlEnabled: this.draftDateEnabled(),
-        maintenanceDatePeriodDefault: this.draftDateEnabled()
-          ? this.draftDatePeriod()
-          : undefined,
-        operationalCenterPostalCode:
-          cpDigits.length === 5 ? cpDigits : undefined,
-        operationalCenterCityMunicipality: settlement
-          ? cityMunicipalityLineFromSettlement(settlement)
-          : useSavedCenter
-            ? this.session.operationalCenterCityMunicipality() ?? undefined
-            : undefined,
-        operationalCenterLocality: settlement?.settlement
-          ?? (useSavedCenter ? this.session.operationalCenterLocality() ?? undefined : undefined),
-        operationalCenterSettlementConsId: settlement?.settlementConsId
-          ?? (useSavedCenter
-            ? this.session.operationalCenterSettlementConsId() ?? undefined
-            : undefined),
-        operationalCenterLatitude: lat ?? undefined,
-        operationalCenterLongitude: lon ?? undefined,
-      })
+    const company$ = patch
+      ? this.companies.updateOperationalSettings(companyId, patch)
+      : of(null);
+    const user$ = userPatch ? this.usersApi.patchMe(userPatch) : of(null);
+
+    forkJoin({ company: company$, user: user$ })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (result) => this.applyCompanyResult(result),
+        next: ({ company, user }) => {
+          if (company) {
+            syncCompanySettingsFromProfile(this.session, company);
+          }
+          if (user) {
+            this.session.syncUserPreferenceSettings({
+              controlAutomaticRecognition: user.controlAutomaticRecognition ?? false,
+              controlAutomaticRecognitionChangedAt:
+                user.controlAutomaticRecognitionChangedAt,
+            });
+          }
+          this.loadDraftFromSession();
+          this.saving.set(false);
+          this.toast.show('Configuración guardada.', 'success');
+        },
         error: () => {
           this.saving.set(false);
           this.loadDraftFromSession();
-          this.toast.show('No se pudo guardar la configuración de la empresa.', 'error');
+          this.toast.show('No se pudo guardar la configuración.', 'error');
         },
       });
   }
 
-  private applyCompanyResult(result: CompanyProfile): void {
-    this.session.syncCompanyOperationalSettings({
-      operationalAnalysisEnabled: result.operationalAnalysisEnabled,
-      operationalAnalysisChangedAt: result.operationalAnalysisChangedAt,
-      dieselControlEnabled: result.dieselControlEnabled,
-      dieselControlChangedAt: result.dieselControlChangedAt,
-      maintenanceKmControlEnabled: result.maintenanceKmControlEnabled,
-      maintenanceKmIntervalDefault: result.maintenanceKmIntervalDefault,
-      maintenanceKmControlChangedAt: result.maintenanceKmControlChangedAt,
-      maintenanceDateControlEnabled: result.maintenanceDateControlEnabled,
-      maintenanceDatePeriodDefault: result.maintenanceDatePeriodDefault,
-      maintenanceDateControlChangedAt: result.maintenanceDateControlChangedAt,
-      operationalCenterPostalCode: result.operationalCenterPostalCode,
-      operationalCenterCityMunicipality: result.operationalCenterCityMunicipality,
-      operationalCenterLocality: result.operationalCenterLocality,
-      operationalCenterSettlementConsId: result.operationalCenterSettlementConsId,
-      operationalCenterLatitude: result.operationalCenterLatitude,
-      operationalCenterLongitude: result.operationalCenterLongitude,
-    });
-    this.loadDraftFromSession();
-    this.saving.set(false);
-    this.toast.show('Configuración guardada.', 'success');
+  private buildUserPreferencePatch(): { controlAutomaticRecognition: boolean } | null {
+    if (
+      this.draftControlAutomaticRecognition() !==
+      this.session.controlAutomaticRecognition()
+    ) {
+      return {
+        controlAutomaticRecognition: this.draftControlAutomaticRecognition(),
+      };
+    }
+    return null;
+  }
+
+  private buildConfigPatch(): PatchCompanyOperationalSettings | null {
+    const patch: PatchCompanyOperationalSettings = {};
+
+    if (this.draftIntelligentEnabled() !== this.session.operationalAnalysisEnabled()) {
+      patch.operationalAnalysisEnabled = this.draftIntelligentEnabled();
+    }
+    if (this.draftDieselControlEnabled() !== this.session.dieselControlEnabled()) {
+      patch.dieselControlEnabled = this.draftDieselControlEnabled();
+    }
+    if (this.draftKmEnabled() !== this.session.maintenanceKmControlEnabled()) {
+      patch.maintenanceKmControlEnabled = this.draftKmEnabled();
+    }
+    if (this.draftDateEnabled() !== this.session.maintenanceDateControlEnabled()) {
+      patch.maintenanceDateControlEnabled = this.draftDateEnabled();
+    }
+
+    const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
+    const kmN = kmRaw === '' ? undefined : Number(kmRaw);
+    const savedKm = this.session.maintenanceKmIntervalDefault();
+    const savedKmRounded =
+      savedKm != null && Number.isFinite(savedKm) && savedKm > 0
+        ? Math.round(savedKm)
+        : undefined;
+    const draftKmRounded =
+      kmN != null && Number.isFinite(kmN) && kmN > 0 ? Math.round(kmN) : undefined;
+
+    if (this.draftKmEnabled()) {
+      if (draftKmRounded !== savedKmRounded) {
+        patch.maintenanceKmIntervalDefault = draftKmRounded;
+      }
+    } else if (patch.maintenanceKmControlEnabled === false) {
+      patch.maintenanceKmIntervalDefault = undefined;
+    }
+
+    const savedPeriod = this.session.maintenanceDatePeriodDefault() ?? 'semiannual';
+    if (this.draftDateEnabled() && this.draftDatePeriod() !== savedPeriod) {
+      patch.maintenanceDatePeriodDefault = this.draftDatePeriod();
+    }
+
+    return Object.keys(patch).length > 0 ? patch : null;
   }
 
   private loadDraftFromSession(): void {
@@ -375,99 +308,7 @@ export class ProfileDrawerConfigTabComponent {
     );
     this.draftIntelligentEnabled.set(this.session.operationalAnalysisEnabled());
     this.draftDieselControlEnabled.set(this.session.dieselControlEnabled());
-
-    const cp = this.session.operationalCenterPostalCode()?.trim() ?? '';
-    this.centerCp.set(cp);
-    const savedLat = this.session.operationalCenterLatitude();
-    const savedLon = this.session.operationalCenterLongitude();
-    this.centerLocalityKey.set(
-      this.session.operationalCenterSettlementConsId()?.trim() ||
-        this.buildLocalityKeyFromSession(),
-    );
-    this.centerLatitude.set(savedLat);
-    this.centerLongitude.set(savedLon);
-    this.centerCoordsFromDb.set(
-      cp.length === 5 &&
-        savedLat != null &&
-        savedLon != null &&
-        !!this.session.operationalCenterLocality()?.trim(),
-    );
-    this.centerCpEditing.set(false);
-    this.centerSettlements.set([]);
-  }
-
-  private fetchCenterCpSettlements(cpDigits: string): void {
-    this.centerCpLoading.set(true);
-    this.sepomex
-      .lookupByPostalCode(cpDigits)
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.centerCpLoading.set(false)),
-      )
-      .subscribe((rows) => {
-        this.centerSettlements.set(rows);
-        if (rows.length === 0) {
-          this.centerLocalityKey.set('');
-          this.centerLatitude.set(null);
-          this.centerLongitude.set(null);
-          this.centerCoordsFromDb.set(false);
-          this.toast.show('Código postal no encontrado.', 'warning');
-          return;
-        }
-        this.centerLocalityKey.set('');
-        this.centerLatitude.set(null);
-        this.centerLongitude.set(null);
-        this.centerCoordsFromDb.set(false);
-      });
-  }
-
-  private geocodeSelectedSettlement(): void {
-    if (this.centerCoordsFromDb()) {
-      return;
-    }
-    const cp = normalizeMxPostalCodeDigits(this.centerCp());
-    const key = this.centerLocalityKey().trim();
-    const settlement =
-      key && this.centerSettlements().length > 0
-        ? (this.centerSettlements().find((r) => localityKey(r) === key) ?? null)
-        : null;
-    if (!settlement || cp.length !== 5) {
-      return;
-    }
-    this.photon
-      .firstCoordinatesForMexicanSepomex(
-        geocodeQueryFromSettlement(settlement, cp),
-        {
-          state: settlement.state,
-          municipality: settlement.municipality,
-          settlement: settlement.settlement,
-        },
-      )
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((coords) => {
-        this.centerLatitude.set(coords?.lat ?? null);
-        this.centerLongitude.set(coords?.lon ?? null);
-      });
-  }
-
-  private clearCenterCpFields(): void {
-    this.centerSettlements.set([]);
-    this.centerLocalityKey.set('');
-    this.centerLatitude.set(null);
-    this.centerLongitude.set(null);
-    this.centerCoordsFromDb.set(false);
-    this.centerCpEditing.set(false);
-  }
-
-  private buildLocalityKeyFromSession(): string {
-    const cp = this.session.operationalCenterPostalCode()?.trim() ?? '';
-    const loc = this.session.operationalCenterLocality()?.trim() ?? '';
-    const muni =
-      this.session.operationalCenterCityMunicipality()?.split(',')[0]?.trim() ?? '';
-    if (!cp || !loc) {
-      return '';
-    }
-    return `${cp}|${loc}|${muni}`;
+    this.draftControlAutomaticRecognition.set(this.session.controlAutomaticRecognition());
   }
 
   private controlStatusLabel(enabled: boolean, changedAt: string | null | undefined): string {
@@ -476,15 +317,5 @@ export class ProfileDrawerConfigTabComponent {
       return enabled ? 'Activado' : 'Desactivado';
     }
     return enabled ? `Activado el ${at}` : `Desactivado el ${at}`;
-  }
-
-  private formatCoord(n: number | null): string {
-    if (n == null || !Number.isFinite(n)) {
-      return '—';
-    }
-    return new Intl.NumberFormat('es-MX', {
-      maximumFractionDigits: 6,
-      minimumFractionDigits: 0,
-    }).format(n);
   }
 }

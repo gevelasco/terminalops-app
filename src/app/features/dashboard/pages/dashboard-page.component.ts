@@ -16,7 +16,7 @@ import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-ic
 import {
   buildOperationTypeSlicesFromTrips,
   buildWeeklyCompletedTripsByDay,
-  filterTripsProgrammedInCalendarMonth,
+  filterTripsCreatedInCalendarMonth,
   type OperationTypeSlice,
   type WeeklyTripPoint,
 } from '@features/reports/utils/dashboard-charts-from-trips';
@@ -120,23 +120,23 @@ export class DashboardPageComponent implements OnInit {
     return this.mapTripRows(v?.maniobras ?? [], v?.units ?? []);
   });
 
-  /** Maniobras del mes en curso (por `programmedAt`) — mismas que alimentan el resumen mensual. */
-  readonly tripsProgrammedThisMonth = computed(() =>
-    filterTripsProgrammedInCalendarMonth(
+  /** Maniobras del mes en curso (por `createdAt`) — mismas que alimentan el resumen mensual. */
+  readonly tripsCreatedThisMonth = computed(() =>
+    filterTripsCreatedInCalendarMonth(
       this.dashResource.value()?.maniobras ?? [],
       new Date(),
     ),
   );
 
   readonly tripStatusSlices = computed(() =>
-    buildTripStatusSlices(this.tripsProgrammedThisMonth()),
+    buildTripStatusSlices(this.tripsCreatedThisMonth()),
   );
 
   readonly weeklyTripVolume = computed<WeeklyTripPoint[]>(() =>
     buildWeeklyCompletedTripsByDay(this.dashResource.value()?.maniobras ?? []),
   );
   readonly operationTypeSlices = computed<OperationTypeSlice[]>(() =>
-    buildOperationTypeSlicesFromTrips(this.tripsProgrammedThisMonth(), this.tripEvaluation),
+    buildOperationTypeSlicesFromTrips(this.tripsCreatedThisMonth(), this.tripEvaluation),
   );
 
   readonly criticalIconPaths = CRITICAL_ALERT_ICON_PATHS;
@@ -146,7 +146,7 @@ export class DashboardPageComponent implements OnInit {
     { key: 'route', label: 'Ruta' },
     { key: 'unitId', label: 'Unidad', cell: 'muted-badge' },
     { key: 'status', label: 'Estado', cell: 'maniobra-status' },
-    { key: 'programmedAt', label: 'Programado' },
+    { key: 'createdAt', label: 'Creada' },
   ];
 
   onTripRowClick(_row: Record<string, unknown>): void {
@@ -190,8 +190,8 @@ export class DashboardPageComponent implements OnInit {
   private mapTripRows(trips: Trip[], units: readonly Unit[]): Record<string, unknown>[] {
     const sorted = [...trips].sort(
       (a, b) =>
-        new Date(b.programmedAt).getTime() -
-        new Date(a.programmedAt).getTime(),
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime(),
     );
     const latest = sorted.slice(0, 10);
     return latest.map((t) => ({
@@ -201,7 +201,7 @@ export class DashboardPageComponent implements OnInit {
       unitId: labelForUnitId(t.unitId, units),
       status: t.status,
       falseManeuver: t.falseManeuver === true,
-      programmedAt: this.formatDate(t.programmedAt),
+      createdAt: this.formatDate(t.createdAt),
     }));
   }
 

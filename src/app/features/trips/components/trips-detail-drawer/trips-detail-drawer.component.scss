@@ -59,6 +59,11 @@
   word-break: break-word;
 }
 
+.maniobra-detail__field-meta {
+  font-size: 0.75rem;
+  color: var(--to-color-text-muted);
+}
+
 .maniobra-detail__muted-block {
   margin: 0;
   font-size: 0.875rem;
@@ -587,3 +592,47 @@
   color: var(--to-color-text-muted);
   white-space: nowrap;
 }
+
+.maniobra-detail__dl--schedule {
+  margin-top: 0;
+}
+
+.maniobra-detail__schedule-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.maniobra-detail__schedule-edit-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.maniobra-detail__schedule-edit-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text);
+}
+
+.maniobra-detail__schedule-real-label {
+  color: var(--to-color-primary, #6366f1);
+}
+
+.maniobra-detail__schedule-real-value {
+  font-weight: 600;
+  color: var(--to-color-primary, #6366f1);
+}
+
+.maniobra-detail__schedule-justification {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--to-color-border, rgba(148, 163, 184, 0.25));
+}
+

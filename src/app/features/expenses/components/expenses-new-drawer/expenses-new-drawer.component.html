@@ -65,8 +65,8 @@
     <to-trip-input label="Maniobra" [(tripId)]="tripId" />
     @if (kind() === "maintenance") {
       <p class="fleet-unit-sec__docs-hint">
-        Indica si el mantenimiento fue a la unidad tractora o al equipo (remolque
-        / dolly) para enlazarlo con el registro de flota.
+        Indica si el mantenimiento fue a la unidad tractora o al equipo (dolly
+        incluido) para enlazarlo con el registro de flota.
       </p>
       <to-select
         label="Aplicó a *"
@@ -137,7 +137,7 @@
       </div>
     } @else if (isEquipmentOnlyKind(kind())) {
       <p class="fleet-unit-sec__docs-hint">
-        Vincula el gasto al equipo o remolque correspondiente.
+        Vincula el gasto al equipo correspondiente.
       </p>
       <to-select
         label="Equipo *"

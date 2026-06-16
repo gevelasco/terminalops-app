@@ -7,9 +7,11 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { switchMap } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
+import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import {
   companyMaintenancePolicyFromSession,
@@ -24,7 +26,9 @@ import {
 } from '@features/fleet/utils/list-trackers';
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
-import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
+import { fleetBrandDisplayName } from '@shared/utils/fleet/fleet-brand-display';
+import { registerFleetVersionResetOnBrandChange } from '@shared/utils/fleet/fleet-brand-version-link';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import {
   FleetRenewalBucket,
@@ -46,7 +50,7 @@ import {
   parseFleetOptionalAmount,
   parseFleetOptionalPositiveInt,
   parseFleetPositiveKm,
-  registerFleetHitchSecondTrailerSync,
+  registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import {
@@ -54,14 +58,19 @@ import {
   trailerTenureModeOrDefault,
 } from '@shared/utils/fleet/trailer-tenure-mode';
 import {
+  equipmentHitchAddActionLabel,
   equipmentSelectableForUnitHitch,
+  hitchPositionForNewEquipmentOnUnit,
   unitHasHitchSlot,
   validateEquipmentHitchAssignment,
 } from '@shared/utils/fleet/equipment-hitch-assignment';
 import {
-  hitchPositionForEquipmentWrite,
-  isSecondTrailerHitch,
+  equipmentPromoteToLeadPersistDraft,
+  equipmentUnhitchPersistDraft,
+  rearEquipmentToPromoteOnLeadUnhitch,
+  unhitchingLeadRequiresRearPromotion,
 } from '@shared/utils/fleet/equipment-hitch-position';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { resourceIdsEqual } from '@shared/utils/resource-id';
 import {
   equipmentAssignedToUnit,
@@ -69,7 +78,6 @@ import {
   equipmentHitchPositionDisplayLabel,
   unitConvoyFromEquipment,
 } from '@app/features/fleet/utils/unit-hitched-equipment';
-import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import {
   Equipment,
   MaintenanceEntry,
@@ -90,7 +98,7 @@ import {
   FLEET_MAINTENANCE_TYPE_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
 import { FleetUnitDetailDomain } from '@features/fleet/services/domain/fleet-unit-detail.domain';
-import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
+import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
 import type {
   FleetUnitDetailDrawerHostCallbacks,
   FleetUnitDetailDrawerHostLayout,
@@ -113,8 +121,9 @@ export class FleetUnitDetailDrawerFacade {
   readonly destroyRef = inject(DestroyRef);
   private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
+  private readonly fleetFeature = inject(FleetFeatureService);
   private readonly domain = inject(FleetUnitDetailDomain);
-  private readonly opResolver = inject(OperationConfigurationResolverService);
+  private readonly opResolver = FLEET_OPERATION_RESOLVER;
 
   private dismissCallback: (() => void) | null = null;
   private viewHitchedEquipmentCallback: ((equipment: Equipment) => void) | null = null;
@@ -250,6 +259,9 @@ export class FleetUnitDetailDrawerFacade {
     this.completedManeuverCountSource.set(layout.completedManeuverCount);
     this.completedTripDistanceKmSource.set(layout.completedTripDistanceKm);
     this.syncCatalogFromFeature();
+    if (layout.onRoute && this.editingSection() === 'hitch') {
+      this.cancelEditHitchAdd();
+    }
   }
 
   selectDetailTab(tab: UnitDetailDrawerTab): void {
@@ -327,6 +339,7 @@ export class FleetUnitDetailDrawerFacade {
           this.metaOverride.set({});
           this.localMaintEntries.set([]);
           this.syncCatalogFromFeature();
+          this.fleetFeature.refreshFleetModule();
           this.toast.show(successMessage, 'success');
           this.editingSection.set(null);
         },
@@ -348,18 +361,19 @@ export class FleetUnitDetailDrawerFacade {
     }
     this.saving.set(true);
     this.equipmentFeature
-      .updateEquipment(equipment, draft)
+      .updateEquipment(equipment, draft, { skipListRefresh: true })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (saved) => {
           this.saving.set(false);
           this.syncCatalogFromFeature();
+          this.fleetFeature.refreshFleetModule();
           this.toast.show(successMessage, 'success');
           onSuccess?.();
         },
         error: () => {
           this.saving.set(false);
-          this.toast.show('No se pudo actualizar el remolque.', 'error');
+          this.toast.show('No se pudo actualizar el equipo.', 'error');
         },
       });
   }
@@ -380,9 +394,21 @@ export class FleetUnitDetailDrawerFacade {
     }));
   });
 
-  readonly canAddHitch = computed(() =>
-    unitHasHitchSlot(this.equipmentCatalog(), this.unit().id),
+  readonly canAddHitch = computed(
+    () =>
+      !this.onRoute() && unitHasHitchSlot(this.equipmentCatalog(), this.unit().id),
   );
+
+  private readonly hitchBlockedMessage =
+    'No puede enganchar ni desenganchar equipos mientras la unidad está en curso.';
+
+  private hitchBlocked(): boolean {
+    if (!this.onRoute()) {
+      return false;
+    }
+    this.toast.show(this.hitchBlockedMessage, 'warning');
+    return true;
+  }
 
   readonly hitchSelectableEquipment = computed(() =>
     equipmentSelectableForUnitHitch(this.equipmentCatalog(), this.unit().id).filter(
@@ -392,12 +418,25 @@ export class FleetUnitDetailDrawerFacade {
 
   readonly hitchAddEquipmentId = signal('');
   readonly hitchAddIsSecondTrailer = signal(false);
-  readonly hitchConfigureEquipmentId = signal<string | null>(null);
-  readonly hitchConfigureIsSecondTrailer = signal(false);
+  readonly hitchLeadUnhitchConfirmOpen = signal(false);
+  private readonly pendingUnhitchEquipment = signal<Equipment | null>(null);
+
+  readonly hitchLeadUnhitchRearLabel = computed(() => {
+    const pending = this.pendingUnhitchEquipment();
+    if (!pending) {
+      return '';
+    }
+    const rear = rearEquipmentToPromoteOnLeadUnhitch(this.equipmentCatalog(), pending);
+    return rear ? formatEquipmentOperationalId(rear) : '';
+  });
 
   private unitTractorLabel(): string {
     return formatUnitTrailerOperationalId(this.effUnit());
   }
+
+  readonly hitchAddActionLabel = computed(() =>
+    equipmentHitchAddActionLabel(this.equipmentCatalog(), this.unit().id),
+  );
 
   readonly hitchAddValidation = computed(() =>
     validateEquipmentHitchAssignment({
@@ -408,39 +447,16 @@ export class FleetUnitDetailDrawerFacade {
     }),
   );
 
-  readonly hitchConfigureValidation = computed(() => {
-    const equipmentId = this.hitchConfigureEquipmentId();
-    if (!equipmentId) {
-      return validateEquipmentHitchAssignment({
-        unitId: '',
-        catalog: [],
-        isSecondTrailer: false,
-      });
-    }
-    return validateEquipmentHitchAssignment({
-      unitId: this.unit().id,
-      catalog: this.equipmentCatalog(),
-      excludeEquipmentId: equipmentId,
-      isSecondTrailer: this.hitchConfigureIsSecondTrailer(),
-      unitLabel: this.unitTractorLabel(),
-    });
-  });
-
-  isConfiguringHitchEquipment(equipmentId: string): boolean {
-    return this.hitchConfigureEquipmentId() === equipmentId;
-  }
-
   cancelHitchForms(): void {
     this.hitchAddEquipmentId.set('');
     this.hitchAddIsSecondTrailer.set(false);
-    this.hitchConfigureEquipmentId.set(null);
-    this.hitchConfigureIsSecondTrailer.set(false);
   }
 
   startEditHitchAdd(): void {
-    this.cancelConfigureHitch();
+    if (this.hitchBlocked()) {
+      return;
+    }
     this.hitchAddEquipmentId.set('');
-    this.hitchAddIsSecondTrailer.set(false);
     this.detailTab.set('ficha');
     this.editingSection.set('hitch');
   }
@@ -451,36 +467,13 @@ export class FleetUnitDetailDrawerFacade {
     this.editingSection.set(null);
   }
 
-  startConfigureHitch(equipment: Equipment): void {
-    this.cancelEditHitchAdd();
-    this.hitchConfigureEquipmentId.set(equipment.id);
-    this.hitchConfigureIsSecondTrailer.set(isSecondTrailerHitch(equipment));
-    this.detailTab.set('ficha');
-  }
-
-  cancelConfigureHitch(): void {
-    this.hitchConfigureEquipmentId.set(null);
-    this.hitchConfigureIsSecondTrailer.set(false);
-  }
-
-  toggleHitchAddIsSecondTrailer(): void {
-    if (!this.hitchAddValidation().canToggleSecondTrailer) {
-      return;
-    }
-    this.hitchAddIsSecondTrailer.update((v) => !v);
-  }
-
-  toggleHitchConfigureIsSecondTrailer(): void {
-    if (!this.hitchConfigureValidation().canToggleSecondTrailer) {
-      return;
-    }
-    this.hitchConfigureIsSecondTrailer.update((v) => !v);
-  }
-
   saveHitchAdd(): void {
+    if (this.hitchBlocked()) {
+      return;
+    }
     const equipmentId = this.hitchAddEquipmentId().trim();
     if (!equipmentId) {
-      this.toast.show('Seleccione un remolque para enganchar.', 'warning');
+      this.toast.show('Seleccione un equipo para enganchar.', 'warning');
       return;
     }
     const validation = this.hitchAddValidation();
@@ -491,65 +484,100 @@ export class FleetUnitDetailDrawerFacade {
       );
       return;
     }
-    const equipment = this.equipmentCatalog().find((e) => e.id === equipmentId);
+    const equipment = this.equipmentCatalog().find((e) =>
+      resourceIdsEqual(e.id, equipmentId),
+    );
     if (!equipment) {
-      this.toast.show('Remolque no encontrado.', 'warning');
+      this.toast.show('Equipo no encontrado.', 'warning');
       return;
     }
     const draft: EquipmentPersistDraft = {
       equipment: {
         unitId: this.unit().id,
-        hitchPosition: hitchPositionForEquipmentWrite(
+        hitchPosition: hitchPositionForNewEquipmentOnUnit(
+          this.equipmentCatalog(),
           this.unit().id,
-          this.hitchAddIsSecondTrailer(),
+          equipment.id,
         ),
       },
     };
-    this.persistEquipment('Remolque enganchado.', equipment, draft, () => {
+    this.persistEquipment('Equipo enganchado.', equipment, draft, () => {
       this.cancelEditHitchAdd();
     });
   }
 
-  saveConfigureHitch(): void {
-    const equipmentId = this.hitchConfigureEquipmentId();
-    if (!equipmentId) {
+  unhitchEquipment(equipment: Equipment): void {
+    if (this.hitchBlocked()) {
       return;
     }
-    const validation = this.hitchConfigureValidation();
-    if (!validation.canSave) {
-      this.toast.show(
-        validation.blockMessage ?? validation.infoMessage ?? 'Revise la posición en convoy.',
-        'warning',
-      );
+    if (unhitchingLeadRequiresRearPromotion(this.equipmentCatalog(), equipment)) {
+      this.pendingUnhitchEquipment.set(equipment);
+      this.hitchLeadUnhitchConfirmOpen.set(true);
       return;
     }
-    const equipment = this.equipmentCatalog().find((e) => e.id === equipmentId);
-    if (!equipment) {
-      this.toast.show('Remolque no encontrado.', 'warning');
-      return;
-    }
-    const draft: EquipmentPersistDraft = {
-      equipment: {
-        hitchPosition: hitchPositionForEquipmentWrite(
-          this.unit().id,
-          this.hitchConfigureIsSecondTrailer(),
-        ),
-      },
-    };
-    this.persistEquipment('Posición en convoy actualizada.', equipment, draft, () => {
-      this.cancelConfigureHitch();
-    });
+    this.commitUnhitchEquipment(equipment);
   }
 
-  unhitchEquipment(equipment: Equipment): void {
-    const draft: EquipmentPersistDraft = {
-      equipment: { unitId: '', hitchPosition: null },
+  confirmUnhitchLeadEquipment(): void {
+    const equipment = this.pendingUnhitchEquipment();
+    this.hitchLeadUnhitchConfirmOpen.set(false);
+    this.pendingUnhitchEquipment.set(null);
+    if (!equipment) {
+      return;
+    }
+    this.commitUnhitchEquipment(equipment);
+  }
+
+  cancelUnhitchLeadEquipment(): void {
+    this.hitchLeadUnhitchConfirmOpen.set(false);
+    this.pendingUnhitchEquipment.set(null);
+  }
+
+  private commitUnhitchEquipment(equipment: Equipment): void {
+    const rearToPromote = rearEquipmentToPromoteOnLeadUnhitch(
+      this.equipmentCatalog(),
+      equipment,
+    );
+    const unhitchDraft: EquipmentPersistDraft = {
+      equipment: equipmentUnhitchPersistDraft(),
     };
-    this.persistEquipment('Remolque desenganchado.', equipment, draft, () => {
-      if (this.hitchConfigureEquipmentId() === equipment.id) {
-        this.cancelConfigureHitch();
-      }
-    });
+    if (!rearToPromote) {
+      this.persistEquipment('Equipo desenganchado.', equipment, unhitchDraft, () => {
+        /* noop */
+      });
+      return;
+    }
+
+    if (this.saving()) {
+      return;
+    }
+    const promoteDraft: EquipmentPersistDraft = {
+      equipment: equipmentPromoteToLeadPersistDraft(),
+    };
+    // Primero desenganchar el 1.er; si se promueve el 2.do antes, el backend rechaza otro lead.
+    this.saving.set(true);
+    this.equipmentFeature
+      .updateEquipment(equipment, unhitchDraft, { skipListRefresh: true })
+      .pipe(
+        switchMap(() =>
+          this.equipmentFeature.updateEquipment(rearToPromote, promoteDraft, {
+            skipListRefresh: true,
+          }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.syncCatalogFromFeature();
+          this.fleetFeature.refreshFleetModule();
+          this.toast.show('Equipo desenganchado.', 'success');
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudo actualizar el equipo.', 'error');
+        },
+      });
   }
 
 
@@ -1032,16 +1060,21 @@ export class FleetUnitDetailDrawerFacade {
   readonly editSerial = signal('');
   readonly editAlias = signal('');
 
-  readonly brandOptions = TRAILER_BRAND_OPTIONS;
+  readonly unitBrandNames = this.fleetFeature.unitBrandNames;
+  readonly editUnitVersionNames = computed(() =>
+    this.fleetFeature.versionNamesFor('UNIT', this.editBrand()),
+  );
   readonly modelYearOptions = buildFleetModelYearSelectOptions();
   readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
 
   startEditId(): void {
+    this.fleetFeature.ensureFleetCatalogLoaded();
     this.focusDetailTab('ficha');
     this.clearStagedDocUploads();
     const u = this.effUnit();
     const m = u.fleetMeta ?? {};
-    this.editBrand.set(u.trailerBrandAbbr?.trim() || '');
+    const brandName = m.trailerBrandName?.trim() || u.trailerBrandAbbr?.trim() || '';
+    this.editBrand.set(brandName);
     this.editYear.set(u.trailerYear?.trim() || '');
     this.editVersion.set(m.trailerVersion?.trim() || '');
     this.editPlate.set(u.plate ?? '');
@@ -1057,25 +1090,32 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('Placa es obligatoria.', 'warning');
       return;
     }
-    const brandLabel =
-      this.brandOptions.find((o) => o.value === this.editBrand())?.label ||
-      this.editBrand().trim() ||
-      undefined;
+    const brandName = this.editBrand().trim();
+    if (!brandName) {
+      this.toast.show('Marca es obligatoria.', 'warning');
+      return;
+    }
+    const brandAbbr = deriveFleetBrandAbbr(brandName);
     const unitDraft: Partial<Unit> = {
       plate,
       status: this.editStatus(),
-      trailerBrandAbbr: this.editBrand().trim() || undefined,
+      trailerBrandAbbr: brandAbbr || undefined,
       trailerYear: this.editYear().trim() || undefined,
       serialNumber: this.editSerial().trim() || undefined,
       name: this.editAlias().trim() || undefined,
     };
     const fleetMetaDraft: Partial<UnitFleetMeta> = {
-      trailerBrandName: brandLabel,
+      trailerBrandName: brandName,
       trailerVersion: this.editVersion().trim() || undefined,
       trailerColor: this.editColor().trim() || undefined,
     };
     this.unitOverride.update((prev) => ({ ...prev, ...unitDraft }));
     this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
+    this.fleetFeature.registerLocalCatalogEntry(
+      'UNIT',
+      brandName,
+      this.editVersion().trim() || undefined,
+    );
     this.persistCurrentUnit('Identificación actualizada.', {
       unit: unitDraft,
       fleetMeta: fleetMetaDraft,
@@ -1305,15 +1345,10 @@ export class FleetUnitDetailDrawerFacade {
 
   brandDisplay(): string {
     const u = this.effUnit();
-    const name = u.fleetMeta?.trailerBrandName?.trim();
-    if (name) {
-      return name;
-    }
-    const abbr = u.trailerBrandAbbr?.trim();
-    if (!abbr) {
-      return '—';
-    }
-    return TRAILER_BRAND_OPTIONS.find((o) => o.value === abbr)?.label ?? abbr;
+    return fleetBrandDisplayName({
+      trailerBrandName: u.fleetMeta?.trailerBrandName,
+      trailerBrandAbbr: u.trailerBrandAbbr,
+    });
   }
 
   /** Suma de km en maniobras completadas (rutas con distancia registrada). */
@@ -1679,6 +1714,11 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   constructor() {
+    registerFleetVersionResetOnBrandChange({
+      brandName: () => this.editBrand(),
+      versionName: this.editVersion,
+    });
+
     effect(() => {
       const unit = this.unitsFeature.selectedUnit();
       if (!unit) {
@@ -1689,15 +1729,11 @@ export class FleetUnitDetailDrawerFacade {
       this.syncCatalogFromFeature();
     });
 
-    registerFleetHitchSecondTrailerSync({
+    registerFleetHitchSlotSync({
       isActive: () => this.editingSection() === 'hitch',
-      validation: () => this.hitchAddValidation(),
+      catalog: () => this.equipmentCatalog(),
+      unitId: () => this.unit().id,
       isSecondTrailer: this.hitchAddIsSecondTrailer,
-    });
-    registerFleetHitchSecondTrailerSync({
-      isActive: () => this.hitchConfigureEquipmentId() != null,
-      validation: () => this.hitchConfigureValidation(),
-      isSecondTrailer: this.hitchConfigureIsSecondTrailer,
     });
 
     let priorUnitId = '';

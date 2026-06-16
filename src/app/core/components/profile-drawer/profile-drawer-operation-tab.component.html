@@ -1,0 +1,77 @@
+<div class="profile-drawer__config-sections">
+<section
+  class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__center"
+  aria-labelledby="profile-center-heading"
+>
+  <h3 id="profile-center-heading" class="fleet-unit-sec__title">Centro operativo</h3>
+  <p class="fleet-unit-sec__docs-hint">
+    Ubicación base de la empresa para referencia operativa y cálculos de distancia.
+  </p>
+  <div class="profile-drawer__cp-stack">
+    <div class="profile-drawer__center-ident-row">
+      <to-input
+        label="Código postal"
+        placeholder="Ej. 64000"
+        [maxLength]="5"
+        inputName="operationalCenterCp"
+        autocomplete="postal-code"
+        [(value)]="centerCp"
+        [disabled]="saving()"
+        (blurNotify)="onCenterCpBlur()"
+      />
+      <to-input
+        label="Nombre del centro"
+        placeholder="Ej. Patio Colima"
+        inputName="operationalCenterName"
+        [(value)]="centerName"
+        [disabled]="saving()"
+      />
+    </div>
+    @if (centerCpLoading()) {
+      <p class="profile-drawer__cp-hint" aria-live="polite">Consultando catálogo postal…</p>
+    }
+    <to-input
+      label="Ciudad / municipio"
+      placeholder="—"
+      [disabled]="true"
+      [displayValue]="centerCityLine()"
+    />
+    @if (centerCpEditing() && centerLocalityOptions().length > 0) {
+      <to-select
+        label="Localidad"
+        placeholder="Elige localidad en la lista"
+        [options]="centerLocalityOptions()"
+        [value]="centerLocalityKey()"
+        [disabled]="saving()"
+        (valueChange)="onCenterLocalityChange($event)"
+      />
+    } @else if (centerLocalityLabel()) {
+      <to-input
+        label="Localidad"
+        [disabled]="true"
+        [displayValue]="centerLocalityLabel()"
+      />
+    } @else {
+      <to-input label="Localidad" [disabled]="true" displayValue="—" />
+    }
+    @if (showCenterCoords()) {
+      <div class="profile-drawer__coords-grid">
+        <to-input
+          label="Latitud"
+          [disabled]="true"
+          [displayValue]="centerLatDisplay()"
+        />
+        <to-input
+          label="Longitud"
+          [disabled]="true"
+          [displayValue]="centerLonDisplay()"
+        />
+      </div>
+    }
+  </div>
+  <p class="fleet-unit-sec__docs-hint profile-drawer__center-note">
+    Las coordenadas guardadas se muestran desde la configuración de empresa. Solo se recalculan si
+    cambias el CP o la localidad.
+  </p>
+</section>
+</div>

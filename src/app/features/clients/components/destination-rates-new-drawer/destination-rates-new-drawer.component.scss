@@ -10,6 +10,59 @@
   gap: 0.75rem;
 }
 
+.destination-rates-new-drawer__distance-grid,
+.destination-rates-new-drawer__time-grid {
+  margin-top: 0;
+}
+
+.destination-rates-new-drawer__duplicate-banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--to-color-warning-border, #f59e0b66);
+  border-radius: 0.5rem;
+  background: var(--to-color-warning-bg, #fffbeb);
+}
+
+.destination-rates-new-drawer__duplicate-icon {
+  flex-shrink: 0;
+  color: var(--to-color-warning, #d97706);
+}
+
+.destination-rates-new-drawer__duplicate-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.destination-rates-new-drawer__duplicate-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-warning-text, #92400e);
+}
+
+.destination-rates-new-drawer__duplicate-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-warning-text, #92400e);
+  opacity: 0.9;
+}
+
+.destination-rates-new-drawer__duplicate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.destination-rates-new-drawer__section--locked {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 @media (max-width: 640px) {
   .destination-rates-new-drawer__grid {
     grid-template-columns: 1fr;

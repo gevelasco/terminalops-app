@@ -1,8 +1,14 @@
 /** Material-style SVG paths (`viewBox="0 0 24 24"`). */
+import {
+  MATERIAL_SYMBOL_DELIVERY_TRUCK_SPEED,
+  MATERIAL_SYMBOL_MAP_SEARCH,
+  MATERIAL_SYMBOL_RV_HOOKUP,
+  MATERIAL_SYMBOL_VIEWBOX,
+} from './material-symbol-paths';
+
 export const TO_ICON_PATHS = {
   close:
     'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
-  save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8h10zM7 3v5h8V3H7z',
   warning: 'M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z',
   chevronDown: 'M7 10l5 5 5-5H7z',
   grid:
@@ -22,11 +28,14 @@ export const TO_ICON_PATHS = {
     'M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z',
   route:
     'M9.78,11.16l-1.42,1.42c-0.68-0.69-1.34-1.58-1.79-2.94l1.94-0.49C8.83,10.04,9.28,10.65,9.78,11.16z M11,6L7,2L3,6h3.02 C6.04,6.81,6.1,7.54,6.21,8.17l1.94-0.49C8.08,7.2,8.03,6.63,8.02,6H11z M21,6l-4-4l-4,4h2.99c-0.1,3.68-1.28,4.75-2.54,5.88 c-0.5,0.44-1.01,0.92-1.45,1.55c-0.34-0.49-0.73-0.88-1.13-1.24L9.46,13.6C10.39,14.45,11,15.14,11,17c0,0,0,0,0,0h0v5h2v-5 c0,0,0,0,0,0c0-2.02,0.71-2.66,1.79-3.63c1.38-1.24,3.08-2.78,3.2-7.37H21z',
+  /** Mapa con lupa (Material Symbols map_search). */
+  mapSearch: MATERIAL_SYMBOL_MAP_SEARCH,
   chartBar: 'M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z',
   revenue:
     'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z',
-  equipment:
-    'm22.7 19-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
+  equipment: MATERIAL_SYMBOL_RV_HOOKUP,
+  /** Unidad tractora (Material Symbols delivery_truck_speed). */
+  unit: MATERIAL_SYMBOL_DELIVERY_TRUCK_SPEED,
   person:
     'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
   client:
@@ -50,4 +59,41 @@ export const TO_ICON_PATHS = {
     'm21.41 11.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z',
 } as const;
 
-export type ToIconName = keyof typeof TO_ICON_PATHS;
+export type ToIconFillName = keyof typeof TO_ICON_PATHS;
+
+/** viewBox distinto al estándar 24×24 (Material Symbols Outlined). */
+export const TO_ICON_VIEWBOX: Partial<Record<ToIconFillName, string>> = {
+  equipment: MATERIAL_SYMBOL_VIEWBOX,
+  unit: MATERIAL_SYMBOL_VIEWBOX,
+  mapSearch: MATERIAL_SYMBOL_VIEWBOX,
+};
+
+/** Paths con trazo (legibles a 14–16px en botones). */
+export type ToIconStrokePath = {
+  d: string;
+};
+
+export type ToIconStrokeDef = {
+  strokeWidth: number;
+  paths: readonly ToIconStrokePath[];
+};
+
+export const TO_ICON_STROKE = {
+  save: {
+    strokeWidth: 2,
+    paths: [
+      {
+        d: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z',
+      },
+      { d: 'M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7' },
+      { d: 'M8 5h8v4H8V5z' },
+    ],
+  },
+} as const satisfies Record<string, ToIconStrokeDef>;
+
+export type ToIconStrokeName = keyof typeof TO_ICON_STROKE;
+
+export type ToIconName = ToIconFillName | ToIconStrokeName;
+
+/** Regla de relleno SVG para paths compuestos (huecos internos). */
+export const TO_ICON_FILL_RULE: Partial<Record<ToIconFillName, 'evenodd' | 'nonzero'>> = {};

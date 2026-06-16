@@ -1,0 +1,45 @@
+.profile-drawer__config-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-drawer__center {
+  margin-top: 0;
+}
+
+.profile-drawer__cp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.profile-drawer__center-ident-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-drawer__cp-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--to-color-text-muted);
+}
+
+.profile-drawer__coords-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-drawer__center-note {
+  margin-top: 0.65rem;
+}

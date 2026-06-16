@@ -1,0 +1,79 @@
+.to-confirm-dialog {
+  padding: 0;
+  border: none;
+  border-radius: var(--to-radius-md, 10px);
+  max-width: min(26rem, calc(100vw - 2rem));
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--to-color-border) 80%, transparent),
+    0 16px 48px color-mix(in srgb, #000 28%, transparent);
+
+  &::backdrop {
+    background: color-mix(in srgb, #000 42%, transparent);
+  }
+}
+
+.to-confirm-dialog__panel {
+  padding: 1.2rem 1.25rem 1.15rem;
+}
+
+.to-confirm-dialog__head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.to-confirm-dialog__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid var(--to-color-border);
+  background: color-mix(in srgb, var(--to-color-border) 5%, transparent);
+  color: var(--to-color-text-muted);
+}
+
+.to-confirm-dialog__icon {
+  display: block;
+  opacity: 0.92;
+}
+
+.to-confirm-dialog__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--to-color-text);
+  flex: 1;
+  min-width: 0;
+}
+
+.to-confirm-dialog__body {
+  :where(p) {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--to-color-text-muted);
+
+    &:last-child {
+      margin-bottom: 1rem;
+    }
+
+    strong {
+      color: var(--to-color-text);
+      font-weight: 600;
+    }
+  }
+}
+
+.to-confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

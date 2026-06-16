@@ -1,0 +1,102 @@
+.to-display-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.to-display-field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+
+  &--metric {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--to-color-text);
+  }
+}
+
+.to-display-field__metric-row,
+.to-display-field__plain-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.to-display-field__wand {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
+}
+
+.to-display-field--derived-ready .to-display-field__wand {
+  color: var(--to-color-derived);
+}
+
+.to-display-field__plain-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--to-color-text);
+
+  &--placeholder {
+    color: var(--to-color-text-muted);
+  }
+}
+
+.to-display-field__metric-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+
+  &--placeholder {
+    font-style: normal;
+  }
+}
+
+.to-display-field--derived-ready
+  .to-display-field__metric-value:not(.to-display-field__metric-value--placeholder) {
+  color: var(--to-color-text);
+}
+
+.to-display-field__box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.375rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--to-color-text-muted) 45%, transparent);
+  box-sizing: border-box;
+}
+
+.to-display-field--derived-ready .to-display-field__box {
+  border-left-color: var(--to-color-primary);
+}
+
+.to-display-field--derived-pending .to-display-field__box {
+  border-left-color: color-mix(in srgb, var(--to-color-text-muted) 45%, transparent);
+}
+
+.to-display-field__box-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: var(--to-color-text);
+  word-break: break-word;
+
+  &--placeholder {
+    color: color-mix(in srgb, var(--to-color-text-muted) 82%, transparent);
+  }
+}

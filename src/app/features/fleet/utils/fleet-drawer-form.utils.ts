@@ -1,7 +1,10 @@
-import type { EquipmentHitchAssignmentValidation } from '@shared/utils/fleet/equipment-hitch-assignment';
-import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import type { WritableSignal } from '@angular/core';
 import { effect } from '@angular/core';
+import {
+  isSecondTrailerForUnitHitchSlot,
+  unitHitchSlotForNewEquipment,
+} from '@shared/utils/fleet/equipment-hitch-assignment';
+import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
 /** Fecha local YYYY-MM-DD (medianoche local). */
 export function fleetDrawerTodayIso(): string {
@@ -60,19 +63,23 @@ export function fleetValueFromLabel(
   return opts.find((o) => o.label.trim().toLowerCase() === t)?.value ?? '';
 }
 
-/** Apaga «segundo remolque» cuando la validación lo exige (evita estado inválido en UI). */
-export function registerFleetHitchSecondTrailerSync(opts: {
+/** Sincroniza la posición de enganche (1.er / 2.do equipo) con el cupo de la tractora. */
+export function registerFleetHitchSlotSync(opts: {
   isActive: () => boolean;
-  validation: () => EquipmentHitchAssignmentValidation;
+  catalog: () => readonly import('@shared/models/logistics.models').Equipment[];
+  unitId: () => string;
+  excludeEquipmentId?: () => string | undefined;
   isSecondTrailer: WritableSignal<boolean>;
 }): ReturnType<typeof effect> {
   return effect(() => {
     if (!opts.isActive()) {
       return;
     }
-    const v = opts.validation();
-    if (v.forceSecondTrailerOff && opts.isSecondTrailer()) {
-      opts.isSecondTrailer.set(false);
-    }
+    const slot = unitHitchSlotForNewEquipment(
+      opts.catalog(),
+      opts.unitId(),
+      opts.excludeEquipmentId?.(),
+    );
+    opts.isSecondTrailer.set(isSecondTrailerForUnitHitchSlot(slot));
   });
 }

@@ -5,27 +5,15 @@ import {
   nextInsuranceTableDate,
   nextMaintenanceTableDate,
   nextVerificationTableDate,
-  operationalKey,
   type FleetOperationalKey,
   type FleetRenewalBucket,
 } from '@features/fleet/utils/fleet-unit-table-row';
-import {
-  approximateManeuverDaysLabel,
-  approximateManeuverKmLabel,
-  maneuverTimeProgress,
-} from '@features/trips/utils/maniobra-schema-eta';
-import {
-  schemaOperationalStatusClass,
-  schemaOperationalStatusLabel,
-} from '@features/trips/utils/maniobra-schema-operational-status';
-import { formatTripIsoOneLine } from '@features/trips/utils/maniobra-trip-schema-timeline';
 import type { Trip, Unit } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
-import { formatStackedMx } from '@shared/utils/format-datetime-mx';
-import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
 
 export type FleetOverviewPanelMode = 'maneuver' | 'parked';
 
+/** Usado por otros módulos (p. ej. Operadores); Flota no consume /trips. */
 export function activeTripForUnit(
   unitId: string | number,
   trips: readonly Trip[],
@@ -42,79 +30,24 @@ export function activeTripForUnit(
   const scheduled = mine
     .filter((t) => t.status === 'scheduled')
     .slice()
-    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+    .sort((a, b) => a.plannedDepartureAt.localeCompare(b.plannedDepartureAt));
   return scheduled[0] ?? null;
 }
 
+/** Sin datos de maniobra en Flota: panel de mantenimiento para todas las unidades. */
 export function fleetOverviewPanelMode(
-  operational: FleetOperationalKey,
-  trip: Trip | null,
+  _operational: FleetOperationalKey,
 ): FleetOverviewPanelMode {
-  if (trip?.status === 'in_transit' || trip?.status === 'scheduled') {
-    return 'maneuver';
-  }
-  if (operational === 'on_route' && trip) {
-    return 'maneuver';
-  }
   return 'parked';
 }
 
 export function fleetOverviewStatusPill(
-  trip: Trip | null,
   operational: FleetOperationalKey,
 ): { className: string; label: string } {
-  if (trip?.status === 'scheduled') {
-    return {
-      className: fleetOperationalPillClass('scheduled'),
-      label: fleetOperationalKeyLabel('scheduled'),
-    };
-  }
-  if (trip?.status === 'in_transit') {
-    return {
-      className: schemaOperationalStatusClass(trip),
-      label: schemaOperationalStatusLabel(trip),
-    };
-  }
   return {
     className: fleetOperationalPillClass(operational),
     label: fleetOperationalKeyLabel(operational),
   };
-}
-
-export function fleetOverviewDepartureLine(trip: Trip): string {
-  const dep = formatStackedMx(trip.departureAt);
-  if (dep) {
-    return `${dep.date} · ${dep.time}`;
-  }
-  const sch = formatStackedMx(trip.scheduledAt);
-  if (sch) {
-    return `Salida prevista: ${sch.date} · ${sch.time}`;
-  }
-  return '—';
-}
-
-export function fleetOverviewRouteLabel(trip: Trip): string {
-  return formatTripRouteLabel(trip.origin, trip.destination);
-}
-
-export function fleetOverviewArrivalLine(trip: Trip): string {
-  return formatTripIsoOneLine(trip.arrivedAt);
-}
-
-export function fleetOverviewReturnLine(trip: Trip): string {
-  return formatTripIsoOneLine(trip.returnAt);
-}
-
-export function fleetOverviewEtaDays(trip: Trip): string {
-  return approximateManeuverDaysLabel(trip);
-}
-
-export function fleetOverviewEtaKm(trip: Trip): string {
-  return approximateManeuverKmLabel(trip);
-}
-
-export function fleetOverviewProgress(trip: Trip) {
-  return maneuverTimeProgress(trip);
 }
 
 export function fleetRenewalIconClass(bucket: FleetRenewalBucket): string {
@@ -184,14 +117,11 @@ export function fleetOverviewTireStatusApprox(unitId: string): string {
   return options[Math.abs(h) % options.length] ?? options[0]!;
 }
 
-export function fleetOverviewSortRank(
-  operational: FleetOperationalKey,
-  trip: Trip | null = null,
-): number {
-  if (trip?.status === 'in_transit' || operational === 'on_route') {
+export function fleetOverviewSortRank(operational: FleetOperationalKey): number {
+  if (operational === 'on_route') {
     return 2;
   }
-  if (trip?.status === 'scheduled' || operational === 'scheduled') {
+  if (operational === 'scheduled') {
     return 1;
   }
   if (operational === 'maintenance') {
@@ -205,17 +135,10 @@ export function fleetOverviewSortRank(
 
 export function unitMatchesOverviewStatusFilter(
   operational: FleetOperationalKey,
-  trip: Trip | null,
   filter: FleetOperationalKey | 'all',
 ): boolean {
   if (filter === 'all') {
     return true;
-  }
-  if (filter === 'on_route') {
-    return trip?.status === 'in_transit' || operational === 'on_route';
-  }
-  if (filter === 'scheduled') {
-    return trip?.status === 'scheduled' || operational === 'scheduled';
   }
   return operational === filter;
 }

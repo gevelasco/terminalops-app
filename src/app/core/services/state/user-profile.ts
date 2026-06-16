@@ -115,9 +115,22 @@ export class UserProfileStore {
   }
 
   patchProfile(
-    patch: Partial<UserProfile> & { theme?: ThemeScheme },
+    patch: Partial<UserProfile> & {
+      theme?: ThemeScheme;
+      controlAutomaticRecognition?: boolean;
+    },
   ): Observable<UserProfile> {
     return this.usersApi.patchMe(profileToPatchBody(patch)).pipe(
+      tap((row) => {
+        if (patch.controlAutomaticRecognition !== undefined) {
+          this.session.syncUserPreferenceSettings({
+            controlAutomaticRecognition:
+              row.controlAutomaticRecognition ?? patch.controlAutomaticRecognition,
+            controlAutomaticRecognitionChangedAt:
+              row.controlAutomaticRecognitionChangedAt,
+          });
+        }
+      }),
       map((row) => mapUserMeToProfile(row)),
       tap((profile) => {
         this.session.syncUserProfile({

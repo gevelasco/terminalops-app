@@ -34,9 +34,10 @@ import {
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ProfileDrawerConfigTabComponent } from './profile-drawer-config-tab.component';
+import { ProfileDrawerOperationTabComponent } from './profile-drawer-operation-tab.component';
 
 type ProfileEditSection = 'personal' | 'password';
-type ProfileDrawerTab = 'perfil' | 'config';
+type ProfileDrawerTab = 'perfil' | 'config' | 'operacion';
 
 @Component({
   selector: 'app-profile-drawer',
@@ -49,6 +50,7 @@ type ProfileDrawerTab = 'perfil' | 'config';
     ToButtonComponent,
     ToInputComponent,
     ProfileDrawerConfigTabComponent,
+    ProfileDrawerOperationTabComponent,
   ],
   templateUrl: './profile-drawer.component.html',
   styleUrls: [
@@ -101,18 +103,28 @@ export class ProfileDrawerComponent {
       { id: 'perfil', label: 'Perfil', icon: 'person', htmlId: 'profile-tab-perfil' },
     ];
     if (this.canViewConfigTab()) {
-      tabs.push({
-        id: 'config',
-        label: 'Configuración',
-        icon: 'maintenance',
-        htmlId: 'profile-tab-config',
-      });
+      tabs.push(
+        {
+          id: 'config',
+          label: 'Configuración',
+          icon: 'maintenance',
+          htmlId: 'profile-tab-config',
+        },
+        {
+          id: 'operacion',
+          label: 'Operación',
+          icon: 'route',
+          htmlId: 'profile-tab-operacion',
+        },
+      );
     }
     return tabs;
   });
 
   readonly configTabRef = viewChild(ProfileDrawerConfigTabComponent);
+  readonly operationTabRef = viewChild(ProfileDrawerOperationTabComponent);
   readonly configSaving = computed(() => this.configTabRef()?.saving() ?? false);
+  readonly operationSaving = computed(() => this.operationTabRef()?.saving() ?? false);
 
   constructor() {
     this.reloadFromStore();
@@ -128,6 +140,10 @@ export class ProfileDrawerComponent {
 
   saveCompanyConfiguration(): void {
     this.configTabRef()?.saveCompanyConfiguration();
+  }
+
+  saveOperationSettings(): void {
+    this.operationTabRef()?.saveOperationSettings();
   }
 
   isEditing(section: ProfileEditSection): boolean {

@@ -121,7 +121,7 @@ export class ShellComponent implements OnDestroy {
 
   readonly nav = [
     { path: '/dashboard', label: 'Dashboard' },
-    { path: '/maniobra', label: 'Maniobras' },
+    { path: '/trips', label: 'Maniobras' },
     { path: '/fleet', label: 'Flota' },
     { path: '/operators', label: 'Operadores' },
     { path: '/clients', label: 'Clientes' },

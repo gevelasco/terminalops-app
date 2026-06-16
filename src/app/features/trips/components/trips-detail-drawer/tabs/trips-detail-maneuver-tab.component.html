@@ -20,6 +20,10 @@
           Detalle de ruta
         </h3>
         <dl class="maniobra-detail__dl">
+          @if (vm.showsClientBillingBlock()) {
+            <dt>Cliente</dt>
+            <dd>{{ vm.trip().clientName || '—' }}</dd>
+          }
           <dt>CP de Origen</dt>
           <dd>{{ vm.routeSnapshotOrDash(vm.trip().originPostalCode) }}</dd>
           <dt>Ciudad / municipio origen</dt>
@@ -42,6 +46,28 @@
           <dd>{{ vm.operationalDistanceDisplay() }}</dd>
           <dt>Tipo de maniobra</dt>
           <dd>{{ vm.maneuverKindDisplay() }}</dd>
+          <dt>Salida (plan)</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedDepartureAt) }}</dd>
+          <dt>Llegada cliente (plan)</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedArrivalAt) }}</dd>
+          <dt>Llegada / fin (plan)</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedCompletionAt) }}</dd>
+          @if (vm.trip().departureAt) {
+            <dt>Salida real</dt>
+            <dd>{{ vm.fmt(vm.trip().departureAt) }}</dd>
+          }
+          @if (vm.trip().arrivedAt) {
+            <dt>Llegada real</dt>
+            <dd>{{ vm.fmt(vm.trip().arrivedAt) }}</dd>
+          }
+          @if (vm.trip().returnAt) {
+            <dt>Regreso / fin real</dt>
+            <dd>{{ vm.fmt(vm.trip().returnAt) }}</dd>
+          }
+          @if (vm.destinationRateIdDisplay()) {
+            <dt>Tarifa de destino</dt>
+            <dd>ID {{ vm.destinationRateIdDisplay() }}</dd>
+          }
         </dl>
       </section>
 
@@ -107,7 +133,7 @@
           <dt>Vencimiento de licencia</dt>
           <dd>{{ vm.routeSnapshotOrDash(vm.trip().operatorLicenseExpiresLabel) }}</dd>
           <dt>Unidad</dt>
-          <dd>{{ vm.unitDisplay(vm.trip().unitId) }}</dd>
+          <dd>{{ vm.unitDisplay() }}</dd>
           @if (vm.isFullTrip()) {
             <dt>Equipo 1</dt>
             <dd>{{ vm.equipmentAt(0) }}</dd>
@@ -117,10 +143,6 @@
             <dt>Equipo</dt>
             <dd>{{ vm.equipmentAt(0) }}</dd>
           }
-          <dt>Salida</dt>
-          <dd>{{ vm.fmt(vm.trip().departureAt) }}</dd>
-          <dt>Llegada</dt>
-          <dd>{{ vm.fmt(vm.trip().arrivedAt) }}</dd>
         </dl>
       </section>
 
@@ -154,7 +176,14 @@
             <dd>{{ vm.dieselPriceAtCreationDisplay() }}</dd>
           }
           <dt>Casetas</dt>
-          <dd>{{ vm.displayMoney(vm.trip().casetasAmount) }}</dd>
+          <dd>
+            {{ vm.displayMoney(vm.trip().casetasAmount) }}
+            @if (vm.tollCalculationModeLabel()) {
+              <span class="maniobra-detail__field-meta">
+                · {{ vm.tollCalculationModeLabel() }}
+              </span>
+            }
+          </dd>
           <dt>Operador</dt>
           <dd>{{ vm.displayMoney(vm.trip().operatorQuota) }}</dd>
         </dl>

@@ -124,6 +124,15 @@
         suffix()
       }}</span>
     }
+    @if (derivedState() !== 'none') {
+      <span
+        class="to-field__affix to-field__affix--suffix to-field__affix--wand"
+        [class.to-field__affix--wand-ready]="derivedState() === 'ready'"
+        aria-hidden="true"
+      >
+        <to-derived-wand-icon />
+      </span>
+    }
   </div>
   @if (error()) {
     <p class="to-field__error" [attr.id]="id() + '-err'" role="alert">{{ error() }}</p>

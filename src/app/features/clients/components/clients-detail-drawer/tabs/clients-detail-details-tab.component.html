@@ -225,12 +225,18 @@
                 <dt>Longitud</dt>
                 <dd>{{ vm.deliveryCoordLabel(vm.client().delivery?.longitude) }}</dd>
               </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Ruta tarifada</dt>
+                <dd>{{ vm.deliveryRouteLinkLabel() }}</dd>
+              </div>
             </dl>
           }
         } @else {
           <div class="fleet-unit-sec__edit-form">
             <app-client-delivery-location-fields
               [referencePostalCode]="vm.savedDeliveryPostalCode()"
+              [savedDestinationRateId]="vm.client().delivery?.destinationRateId ?? null"
+              [savedIsUnpricedRoute]="vm.client().delivery?.isUnpricedRoute ?? false"
               [disabled]="vm.saving()"
               [(postalCode)]="vm.deliveryCp"
               [(cityMunicipality)]="vm.deliveryCity"

@@ -1,6 +1,6 @@
 .toast-host {
   position: fixed;
-  top: 1rem;
+  top: 3.8rem;
   right: 1rem;
   z-index: 10000;
   display: flex;
@@ -103,7 +103,11 @@
 .toast-host__msg {
   display: block;
   font-size: 0.875rem;
-  color: color-mix(in srgb, var(--to-color-text) 88%, var(--to-color-text-muted));
+  color: color-mix(
+    in srgb,
+    var(--to-color-text) 88%,
+    var(--to-color-text-muted)
+  );
 }
 
 .toast-host__close {

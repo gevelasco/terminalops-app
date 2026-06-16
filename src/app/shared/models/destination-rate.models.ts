@@ -1,9 +1,30 @@
+export type DestinationRateEstimatedTimeUnit = 'hours' | 'days';
+
 export interface DestinationRate {
   id: string;
   companyId: string;
+  originOperationalCenterId: string;
+  originOperationalCenterName?: string;
+  originOperationalCenterCode?: string;
+  originPostalCode: string;
+  originCityMunicipality: string;
+  originLocality: string;
+  originLatitude?: number;
+  originLongitude?: number;
   postalCode: string;
   cityMunicipality: string;
   locality: string;
+  destinationLatitude?: number;
+  destinationLongitude?: number;
+  routeDistanceKm?: number;
+  operationalDistanceKm?: number;
+  isRoundTrip: boolean;
+  distanceCalculatedAt?: string;
+  /** Referencia UX — no operativo; no alimenta trips. */
+  estimatedArrivalTimeValue?: number;
+  estimatedReturnTimeValue?: number;
+  estimatedTimeUnit?: DestinationRateEstimatedTimeUnit;
+  maneuverCount?: number;
   prices: readonly DestinationRatePrice[];
   active: boolean;
   notes?: string;
@@ -34,11 +55,19 @@ export interface DestinationRatePriceInput {
 }
 
 export interface CreateDestinationRatePayload {
+  originOperationalCenterId: string;
   postalCode: string;
   cityMunicipality: string;
   locality: string;
   prices: DestinationRatePriceInput[];
+  routeDistanceKm?: number;
+  isRoundTrip?: boolean;
+  destinationLatitude?: number;
+  destinationLongitude?: number;
   active?: boolean;
+  estimatedArrivalTimeValue?: number | null;
+  estimatedReturnTimeValue?: number | null;
+  estimatedTimeUnit?: DestinationRateEstimatedTimeUnit | null;
   notes?: string;
 }
 

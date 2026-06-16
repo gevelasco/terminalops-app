@@ -126,6 +126,24 @@
   font-weight: 500;
   color: var(--to-color-text);
   line-height: 1.35;
+
+  &--btn {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: start;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &:not(:disabled):hover {
+      color: var(--to-color-primary);
+    }
+  }
 }
 
 .fleet-unit-toggle {

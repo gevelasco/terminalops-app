@@ -1,4 +1,4 @@
-import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { deriveFleetBrandAbbr } from './derive-fleet-brand-abbr';
 import type { Equipment, Unit } from '@shared/models/logistics.models';
 import { resourceIdKey } from '@shared/utils/resource-id';
 
@@ -88,13 +88,7 @@ function resolveEquipmentBrandAbbr(e: Equipment): string {
   if (!name) {
     return '';
   }
-  const byLabel = TRAILER_BRAND_OPTIONS.find(
-    (o) => o.label.trim().toLowerCase() === name.toLowerCase(),
-  );
-  if (byLabel?.value) {
-    return byLabel.value.toUpperCase();
-  }
-  return name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  return deriveFleetBrandAbbr(name);
 }
 
 /**

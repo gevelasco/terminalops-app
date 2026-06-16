@@ -27,6 +27,12 @@
   }
 }
 
+.to-table-badge--op-tone-neutral {
+  color: var(--to-op-tone-neutral-fg, #475569);
+  background: var(--to-op-tone-neutral-bg, #f1f5f9);
+  border: 1px solid var(--to-op-tone-neutral-border, #cbd5e1);
+}
+
 :root {
   --to-op-tone-0-fg: #4338ca;
   --to-op-tone-0-bg: color-mix(in srgb, #6366f1 14%, #fff);
@@ -51,6 +57,10 @@
   --to-op-tone-5-fg: #b91c1c;
   --to-op-tone-5-bg: color-mix(in srgb, #ef4444 12%, #fff);
   --to-op-tone-5-border: color-mix(in srgb, #ef4444 26%, #fff);
+
+  --to-op-tone-neutral-fg: #475569;
+  --to-op-tone-neutral-bg: #f1f5f9;
+  --to-op-tone-neutral-border: #cbd5e1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -78,5 +88,9 @@
     --to-op-tone-5-fg: #fecaca;
     --to-op-tone-5-bg: color-mix(in srgb, #ef4444 20%, #0f172a);
     --to-op-tone-5-border: color-mix(in srgb, #ef4444 38%, #0f172a);
+
+    --to-op-tone-neutral-fg: #cbd5e1;
+    --to-op-tone-neutral-bg: color-mix(in srgb, #64748b 22%, #0f172a);
+    --to-op-tone-neutral-border: color-mix(in srgb, #64748b 38%, #0f172a);
   }
 }

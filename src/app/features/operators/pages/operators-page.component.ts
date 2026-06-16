@@ -12,6 +12,8 @@ import { OperatorsDetailDrawerComponent } from '@features/operators/components/o
 import { OperatorsNewDrawerComponent } from '@features/operators/components/operators-new-drawer/operators-new-drawer.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
 import { completedManeuverCountsByOperatorId } from '@features/operators/utils/completed-maneuver-counts-by-operator-id';
+import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
+import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
 import {
   operatorInsuranceKindLabel,
   operatorOperationalStatusLabel,
@@ -19,6 +21,7 @@ import {
 import type {
   Operator,
   OperatorOperationalStatus,
+  Trip,
 } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -44,7 +47,7 @@ function formatIsoDateEs(iso: string): string {
 @Component({
   selector: 'app-operators-page',
   standalone: true,
-  providers: [OperatorsFeatureService],
+  providers: [OperatorsFeatureService, OperationalTripsFeatureService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
@@ -61,20 +64,27 @@ function formatIsoDateEs(iso: string): string {
 export class OperatorsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly operatorsFeature = inject(OperatorsFeatureService);
+  private readonly operationalTrips = inject(OperationalTripsFeatureService);
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.operatorsFeature.dispose());
+    this.destroyRef.onDestroy(() => {
+      this.operatorsFeature.dispose();
+      this.operationalTrips.dispose();
+    });
   }
 
-  readonly loading = this.operatorsFeature.loading;
+  readonly loading = computed(
+    () => this.operatorsFeature.loading() || this.operationalTrips.loading(),
+  );
   readonly completedManeuverCounts = computed(() =>
-    completedManeuverCountsByOperatorId([]),
+    completedManeuverCountsByOperatorId([...this.operationalTrips.trips()]),
   );
   readonly rows = computed(() => {
     const counts = this.completedManeuverCounts();
+    const trips = this.operationalTrips.trips();
     return this.operatorsFeature
       .operators()
-      .map((o) => OperatorsPageComponent.mapRow(o, counts));
+      .map((o) => OperatorsPageComponent.mapRow(o, counts, trips));
   });
   readonly searchQuery = model('');
   readonly newOperatorOpen = signal(false);
@@ -103,6 +113,7 @@ export class OperatorsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.operatorsFeature.loadOperators();
+    this.operationalTrips.loadTrips();
   }
 
   onRowClick(row: Record<string, unknown>): void {
@@ -151,6 +162,7 @@ export class OperatorsPageComponent implements OnInit {
   private static mapRow(
     o: Operator,
     maneuverCounts: Map<string, number>,
+    trips: readonly Trip[],
   ): Record<string, unknown> {
     const n = maneuverCounts.get(o.id) ?? 0;
     return {
@@ -158,7 +170,7 @@ export class OperatorsPageComponent implements OnInit {
       name: o.name,
       licenseNumber: o.licenseNumber,
       licenseExpiresOn: formatIsoDateEs(o.licenseExpiresOn),
-      operationalStatus: o.status,
+      operationalStatus: deriveOperatorOperationalStatus(o, trips),
       coverageKind: operatorInsuranceKindLabel(o.insuranceKind),
       maneuverCount: String(n),
     };

@@ -22,7 +22,6 @@ import {
   type ManeuverAssignableUnitRow,
 } from '@features/trips/utils/assignable-fleet-for-maneuver';
 import { Equipment, Trip, TripOperationType, Unit } from '@shared/models/logistics.models';
-import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 let seq = 0;
@@ -44,8 +43,6 @@ export class ToUnitInputComponent {
   private readonly equipmentApi = inject(EquipmentService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hostEl = inject(ElementRef);
-  private readonly opResolver = inject(OperationConfigurationResolverService);
-
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
@@ -95,7 +92,6 @@ export class ToUnitInputComponent {
             this.unitsData(),
             this.equipmentData(),
             this.tripsData(),
-            this.opResolver,
           ),
         );
         this.syncInputFromUnitId();
@@ -113,9 +109,7 @@ export class ToUnitInputComponent {
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: ({ units, equipment }) => {
-            this.rows.set(
-              buildManeuverAssignableUnitRows(units, equipment, [], this.opResolver),
-            );
+            this.rows.set(buildManeuverAssignableUnitRows(units, equipment, []));
             this.syncInputFromUnitId();
             this.loading.set(false);
           },

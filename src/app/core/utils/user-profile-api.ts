@@ -17,9 +17,12 @@ export function mapUserMeToProfile(row: UserMeResponse): UserProfile {
 }
 
 export function profileToPatchBody(
-  patch: Partial<UserProfile> & { theme?: 'light' | 'dark' },
-): Record<string, string | undefined> {
-  const body: Record<string, string | undefined> = {};
+  patch: Partial<UserProfile> & {
+    theme?: 'light' | 'dark';
+    controlAutomaticRecognition?: boolean;
+  },
+): Record<string, string | boolean | undefined> {
+  const body: Record<string, string | boolean | undefined> = {};
   if (patch.displayName !== undefined) {
     body['displayName'] = patch.displayName;
   }
@@ -40,6 +43,9 @@ export function profileToPatchBody(
   }
   if (patch.theme !== undefined) {
     body['theme'] = patch.theme;
+  }
+  if (patch.controlAutomaticRecognition !== undefined) {
+    body['controlAutomaticRecognition'] = patch.controlAutomaticRecognition;
   }
   return body;
 }

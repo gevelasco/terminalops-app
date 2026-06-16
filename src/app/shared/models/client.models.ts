@@ -51,6 +51,10 @@ export interface ClientDelivery {
   settlementConsId?: string;
   latitude?: number;
   longitude?: number;
+  /** Tarifa operativa vinculada (ruta origen→destino). */
+  destinationRateId?: string;
+  /** Destino capturado sin tarifa configurada aún. */
+  isUnpricedRoute?: boolean;
 }
 
 export interface Client {

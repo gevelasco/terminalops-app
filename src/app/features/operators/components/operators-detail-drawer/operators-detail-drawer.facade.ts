@@ -8,7 +8,11 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '@core/notifications/toast.service';
+import { ExpensesService } from '@services/api/expenses';
+import { UnitsService } from '@services/api/units';
 import { buildOperatorOperationSummary } from '@features/operators/utils/operator-operation-summary';
+import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
+import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { companyTenureLabelEs } from '@features/operators/utils/operator-company-tenure';
 import { filesToOperatorDocuments } from '@features/operators/utils/operator-attached-documents';
@@ -39,12 +43,12 @@ import type {
   OperatorInsuranceKind,
   OperatorLicenseType,
   OperatorOperationalStatus,
-  Trip,
   Unit,
 } from '@shared/models/logistics.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
+import { catchError, forkJoin, of } from 'rxjs';
 
 export type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
 export type OperatorDrawerTab = 'details' | 'operation';
@@ -53,10 +57,12 @@ export type OperatorDrawerTab = 'details' | 'operation';
 export class OperatorsDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly operatorsFeature = inject(OperatorsFeatureService);
+  private readonly operationalTrips = inject(OperationalTripsFeatureService);
+  private readonly expensesApi = inject(ExpensesService);
+  private readonly unitsApi = inject(UnitsService);
   private readonly toast = inject(ToastService);
 
   private dismissCallback: (() => void) | null = null;
-  private readonly tripsSignal = signal<readonly Trip[]>([]);
   private readonly expensesSignal = signal<readonly Expense[]>([]);
   private readonly unitsSignal = signal<readonly Unit[]>([]);
 
@@ -144,10 +150,16 @@ export class OperatorsDetailDrawerFacade {
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
 
+  readonly operationTrips = computed(() => this.operationalTrips.trips());
+
+  readonly derivedOperationalStatus = computed(() =>
+    deriveOperatorOperationalStatus(this.operator(), this.operationTrips()),
+  );
+
   readonly operationSummary = computed(() =>
     buildOperatorOperationSummary(
       this.operator().id,
-      this.tripsSignal(),
+      this.operationTrips(),
       this.expensesSignal(),
       this.unitsSignal(),
     ),
@@ -169,10 +181,6 @@ export class OperatorsDetailDrawerFacade {
       }
       const idChanged = this.priorOperatorId !== o.id;
       this.priorOperatorId = o.id;
-      this.tripsSignal.set([]);
-      this.expensesSignal.set([]);
-      this.unitsSignal.set([]);
-      this.drawerLoading.set(false);
       if (idChanged) {
         this.drawerTab.set('operation');
         this.editingSection.set(null);
@@ -180,6 +188,30 @@ export class OperatorsDetailDrawerFacade {
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromOperator(o);
       }
+    });
+
+    effect((onCleanup) => {
+      const o = this.operatorsFeature.selectedOperator();
+      if (!o) {
+        this.expensesSignal.set([]);
+        this.unitsSignal.set([]);
+        this.drawerLoading.set(false);
+        return;
+      }
+      this.drawerLoading.set(true);
+      const sub = forkJoin({
+        expenses: this.expensesApi
+          .getExpensesList()
+          .pipe(catchError(() => of([] as Expense[]))),
+        units: this.unitsApi
+          .getUnitsList()
+          .pipe(catchError(() => of([] as Unit[]))),
+      }).subscribe(({ expenses, units }) => {
+        this.expensesSignal.set(expenses);
+        this.unitsSignal.set(units);
+        this.drawerLoading.set(false);
+      });
+      onCleanup(() => sub.unsubscribe());
     });
   }
 
@@ -210,11 +242,11 @@ export class OperatorsDetailDrawerFacade {
   }
 
   operatorStatusMod(): string {
-    return operatorOperationalStatusMod(this.operator().status);
+    return operatorOperationalStatusMod(this.derivedOperationalStatus());
   }
 
   operationalStatusLabel(): string {
-    return operatorOperationalStatusLabel(this.operator().status);
+    return operatorOperationalStatusLabel(this.derivedOperationalStatus());
   }
 
   insuranceKindLabel(): string {

@@ -1,0 +1,60 @@
+@use '../../../../shared/styles/trip-operation-type-badge.scss';
+@use '../../../../shared/styles/trip-maneuver-status-pill.scss';
+@use '../../../../shared/styles/fleet-operational-pill.scss';
+@use './fleet-overview-card.styles';
+
+:host(.fleet-overview-card-host--readonly) {
+  .fleet-overview__hit {
+    pointer-events: none;
+    cursor: default;
+  }
+}
+
+:host(.fleet-overview-card-host--selectable) {
+  cursor: pointer;
+  border-radius: var(--to-radius-md);
+  outline: none;
+
+  .fleet-overview__card {
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  &:hover .fleet-overview__card,
+  &:focus-visible .fleet-overview__card {
+    border-color: color-mix(in srgb, var(--to-color-primary) 42%, var(--to-color-border));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-primary) 18%, transparent);
+  }
+}
+
+:host-context([data-app-scheme='dark']) {
+  .fleet-overview__convoy-part {
+    filter: brightness(0) invert(1);
+    opacity: 0.72;
+  }
+
+  .fleet-overview__incident-hit {
+    color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
+
+    &--active {
+      color: #fb923c;
+    }
+  }
+
+  .fleet-overview__incident-tip-title {
+    color: #fb923c;
+  }
+
+  .fleet-overview__progress-value {
+    color: var(--to-color-primary);
+  }
+
+  .fleet-overview__progress-fill {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--to-color-primary) 45%, var(--to-color-surface)),
+      color-mix(in srgb, var(--to-color-primary) 62%, var(--to-color-surface))
+    );
+  }
+}

@@ -10,6 +10,51 @@
   color: var(--to-color-text-muted, #64748b);
 }
 
+.client-delivery-fields__route-link {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--to-color-border, #e2e8f0);
+  background: var(--to-color-surface-muted, #f8fafc);
+}
+
+.client-delivery-fields__route-link--linked {
+  border-color: var(--to-color-success-border, #22c55e66);
+  background: var(--to-color-success-bg, #f0fdf4);
+  color: var(--to-color-success-text, #166534);
+}
+
+.client-delivery-fields__route-link--unpriced {
+  border-color: var(--to-color-warning-border, #f59e0b66);
+  background: var(--to-color-warning-bg, #fffbeb);
+  color: var(--to-color-warning-text, #92400e);
+}
+
+.client-delivery-fields__route-link--checking {
+  opacity: 0.85;
+}
+
+.client-delivery-fields__route-link-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.client-delivery-fields__route-link-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.client-delivery-fields__route-link-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  opacity: 0.92;
+}
+
 .client-delivery-fields__coords-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

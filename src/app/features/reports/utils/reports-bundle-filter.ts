@@ -12,7 +12,7 @@ import type {
   ReportsFilter,
   ReportsTripPaymentMethod,
 } from '../models/reports-view.models';
-import { expenseDay, isoDayInRange, tripProgrammedDay } from './reports-filter';
+import { expenseDay, isoDayInRange, tripCreatedDay } from './reports-filter';
 
 export type ReportsRawBundle = {
   trips: Trip[];
@@ -70,7 +70,7 @@ export function filterTrips(
     if (!tripMatchesClientPaymentMethods(t, filter.clientPaymentMethods)) {
       return false;
     }
-    return isoDayInRange(tripProgrammedDay(t), from, to);
+    return isoDayInRange(tripCreatedDay(t), from, to);
   });
 }
 

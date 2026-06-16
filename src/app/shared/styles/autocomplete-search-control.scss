@@ -1,0 +1,30 @@
+@mixin autocomplete-search-control($block) {
+  .#{$block}__search {
+    position: absolute;
+    right: 0.65rem;
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--to-color-text-muted);
+    z-index: 1;
+  }
+
+  .#{$block}__search-svg {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .#{$block}__control {
+    padding-left: 0.75rem;
+    padding-right: 2.35rem;
+  }
+
+  .#{$block}__spinner {
+    right: 0.65rem;
+  }
+}

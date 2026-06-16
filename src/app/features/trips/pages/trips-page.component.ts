@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   model,
   signal,
@@ -13,35 +14,8 @@ import {
   maniobraListRowFromTrip,
   maniobraListRowMatchesSearch,
 } from '@features/trips/utils/maniobra-list-row';
-import { tripContainerTypeLabelMx } from '@features/trips/utils/trip-container-type-label';
-import { tripCargoDescriptionDisplay } from '@features/trips/utils/trip-cargo-description';
-import {
-  approximateManeuverDaysLabel,
-  approximateManeuverKmLabel,
-  maneuverTimeProgress,
-  type ManeuverTimeProgress,
-} from '@features/trips/utils/maniobra-schema-eta';
-import { formatTripIsoOneLine } from '@features/trips/utils/maniobra-trip-schema-timeline';
-import {
-  schemaOperationalStatusClass,
-  schemaOperationalStatusLabel,
-} from '@features/trips/utils/maniobra-schema-operational-status';
-import {
-  tripHasIncidents,
-  tripIncidentPostedBy,
-  tripIncidentsSorted,
-} from '@features/trips/utils/trip-incidents';
-import { snapshotTextOrDash } from '@features/trips/utils/maniobra-route-display';
-import {
-  schemaPrimaryTrailerAsset,
-  schemaSecondaryTrailerAsset,
-  SCHEMA_TRACTO_ASSET,
-  tripSchemaUsesPlataformaConvoy,
-} from '@features/trips/utils/maniobra-schema-convoy-assets';
-import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import { TRIP_EVALUATION_PROVIDERS } from '@shared/services/trip-evaluation.providers';
-import { Trip, TripIncident, TripStatus } from '@shared/models/logistics.models';
-import { formatStackedMx } from '@shared/utils/format-datetime-mx';
+import { Trip, TripStatus } from '@shared/models/logistics.models';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import {
   ToSegmentControlComponent,
@@ -58,19 +32,24 @@ import {
   ToTableComponent,
 } from '@shared/ui/to-table/to-table.component';
 import { TripsDetailDrawerComponent } from '@features/trips/components/trips-detail-drawer/trips-detail-drawer.component';
+import { ManiobraRouteMapComponent } from '@features/trips/components/maniobra-route-map/maniobra-route-map.component';
 import { TripsNewDrawerComponent } from '@features/trips/components/trips-new-drawer/trips-new-drawer.component';
+import { TripsMapService } from '@features/trips/services/trips-map.service';
+import { TripsMapStateFleetService } from '@features/trips/services/trips-map-state-fleet.service';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
-import { tripOperatorDisplayName, tripUnitDisplayCode, formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 
 export type TripsStatusFilter = TripStatus | 'all';
 
-export type TripsViewMode = 'table' | 'route';
+export type TripsViewMode = 'route' | 'list';
 
 @Component({
   selector: 'app-trips-page',
   standalone: true,
-  providers: [TripsFeatureService, ...TRIP_EVALUATION_PROVIDERS],
+  providers: [TripsFeatureService, TripsMapService, TripsMapStateFleetService, ...TRIP_EVALUATION_PROVIDERS],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    class: 'maniobra-page-host',
+  },
   imports: [
     ToPageHeaderComponent,
     ToTableComponent,
@@ -81,40 +60,53 @@ export type TripsViewMode = 'table' | 'route';
     ToSegmentControlComponent,
     TripsNewDrawerComponent,
     TripsDetailDrawerComponent,
+    ManiobraRouteMapComponent,
   ],
   templateUrl: './trips-page.component.html',
   styleUrl: './trips-page.component.scss',
 })
 export class TripsPageComponent implements OnInit {
-  readonly schemaTractoAsset = SCHEMA_TRACTO_ASSET;
-
   private readonly destroyRef = inject(DestroyRef);
   protected readonly tripsFeature = inject(TripsFeatureService);
-  private readonly opResolver = inject(OperationConfigurationResolverService);
+  protected readonly tripsMap = inject(TripsMapService);
+  private readonly stateFleet = inject(TripsMapStateFleetService);
   private readonly toast = inject(ToastService);
   readonly loading = this.tripsFeature.loading;
 
+  private mapRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor() {
     this.destroyRef.onDestroy(() => {
+      this.stopMapRefresh();
       this.tripsFeature.dispose();
+      this.tripsMap.dispose();
+      this.stateFleet.dispose();
+    });
+
+    effect(() => {
+      const mode = this.viewMode();
+      if (mode === 'route') {
+        this.tripsMap.load();
+        this.startMapRefresh();
+        return;
+      }
+      this.stopMapRefresh();
+      this.stateFleet.clear();
     });
   }
 
   readonly newTripOpen = signal(false);
 
-  /** Vista tabla vs. ruta (solo en tránsito + búsqueda en ruta). */
-  readonly viewMode = signal<TripsViewMode>('table');
+  readonly viewMode = signal<TripsViewMode>('route');
   readonly viewSegmentTabs: readonly ToSegmentTab<TripsViewMode>[] = [
-    { id: 'table', label: 'Tabla', icon: 'grid', htmlId: 'maniobra-tab-table' },
-    { id: 'route', label: 'Ruta', icon: 'route', htmlId: 'maniobra-tab-route' },
+    { id: 'route', label: 'Ruta', icon: 'mapSearch', htmlId: 'maniobra-tab-route' },
+    { id: 'list', label: 'Lista', icon: 'list', htmlId: 'maniobra-tab-list' },
   ];
 
   readonly rows = computed(() => {
     const trips = this.tripsFeature.trips();
     return trips.map((t) => maniobraListRowFromTrip(t));
   });
-
-  readonly tripsList = this.tripsFeature.trips;
 
   readonly statusFilter = signal<TripsStatusFilter>('all');
 
@@ -140,29 +132,18 @@ export class TripsPageComponent implements OnInit {
     return byStatus.filter((row) => maniobraListRowMatchesSearch(row, q));
   });
 
-  /** Vacío en listado: la vista ruta usa snapshots del trip (sin catálogo de equipment). */
-  private readonly schemaEquipmentById = new Map<
-    string,
-    import('@shared/models/logistics.models').Equipment
-  >();
-
-  /**
-   * Maniobras en tránsito para la vista Ruta (tablero operativo), con el mismo
-   * criterio de búsqueda de texto que la tabla.
-   */
-  readonly schemaTrips = computed(() => {
-    const trips = this.tripsFeature.trips();
+  readonly filteredMapItems = computed(() => {
+    const items = this.tripsMap.items();
     const q = this.searchQuery().trim().toLowerCase();
-    return trips.filter((t) => {
-      if (t.status !== 'in_transit') {
-        return false;
-      }
-      if (!q) {
-        return true;
-      }
-      const row = maniobraListRowFromTrip(t);
-      return maniobraListRowMatchesSearch(row, q);
-    });
+    if (!q) {
+      return items;
+    }
+    return items.filter(
+      (item) =>
+        item.maneuverCode.toLowerCase().includes(q) ||
+        item.origin.label.toLowerCase().includes(q) ||
+        item.destination.label.toLowerCase().includes(q),
+    );
   });
 
   readonly columns: ToTableColumn[] = [
@@ -182,134 +163,8 @@ export class TripsPageComponent implements OnInit {
     this.tripsFeature.loadTrips();
   }
 
-  tripContainerLabel(trip: Trip): string {
-    return tripContainerTypeLabelMx(trip.containerType);
-  }
-
-  tripCargoDescriptionForTrip(trip: Trip): string {
-    return tripCargoDescriptionDisplay(trip.cargoDescription);
-  }
-
-  unitLabelForTrip(trip: Trip): string {
-    return tripUnitDisplayCode(trip);
-  }
-
-  departureLineForTrip(trip: Trip): string {
-    const dep = formatStackedMx(trip.departureAt);
-    if (dep) {
-      return `${dep.date} · ${dep.time}`;
-    }
-    const sch = formatStackedMx(trip.scheduledAt);
-    if (sch) {
-      return `Salida prevista: ${sch.date} · ${sch.time}`;
-    }
-    return '—';
-  }
-
-  operatorLabelForTrip(trip: Trip): string {
-    return tripOperatorDisplayName(trip);
-  }
-
-  operatorLicenseForTrip(trip: Trip): string {
-    return snapshotTextOrDash(trip.operatorLicenseNumber);
-  }
-
-  schemaEtaDaysLabel(trip: Trip): string {
-    return approximateManeuverDaysLabel(trip);
-  }
-
-  schemaEtaKmLabel(trip: Trip): string {
-    return approximateManeuverKmLabel(trip);
-  }
-
-  schemaProgressForTrip(trip: Trip): ManeuverTimeProgress | null {
-    return maneuverTimeProgress(trip);
-  }
-
-  schemaUsesPlataformaConvoy(trip: Trip): boolean {
-    return tripSchemaUsesPlataformaConvoy(
-      trip,
-      this.schemaEquipmentById,
-      this.opResolver,
-    );
-  }
-
-  schemaPrimaryTrailerAssetForTrip(trip: Trip): string {
-    return schemaPrimaryTrailerAsset(
-      trip,
-      this.schemaEquipmentById,
-      this.opResolver,
-    );
-  }
-
-  schemaSecondaryTrailerAssetForTrip(trip: Trip): string {
-    return schemaSecondaryTrailerAsset(
-      trip,
-      this.schemaEquipmentById,
-      this.opResolver,
-    );
-  }
-
-  equipmentSlotsForTrip(trip: Trip): (string | null)[] {
-    const max = this.opResolver.resolveMaxEquipment(this.opResolver.contextFromTrip(trip));
-    const raw = (trip.equipment ?? [])
-      .map((s) => String(s).trim())
-      .filter((s) => s.length > 0);
-    const slots: (string | null)[] = [];
-    for (let i = 0; i < max; i++) {
-      slots.push(raw[i] ?? null);
-    }
-    return slots;
-  }
-
-  tripOperationDisplay(trip: Trip) {
-    return this.opResolver.resolveTripDisplay(trip);
-  }
-
-  tripUsesMultiEquipment(trip: Trip): boolean {
-    return this.opResolver.usesMultipleEquipment(this.opResolver.contextFromTrip(trip));
-  }
-
-  weightLineForTrip(trip: Trip): string {
-    const w = trip.approximateWeightTons?.trim();
-    return w ? `${w} t` : '—';
-  }
-
-  readonly schemaOperationalStatusClass = schemaOperationalStatusClass;
-  readonly schemaOperationalStatusLabel = schemaOperationalStatusLabel;
-  readonly tripHasIncidents = tripHasIncidents;
-  readonly tripIncidentsSorted = tripIncidentsSorted;
-  readonly formatStackedMx = formatStackedMx;
-
-  incidentAuthorLabel(inc: TripIncident): string {
-    return tripIncidentPostedBy(inc, []);
-  }
-
-  tripIncidentAriaLabel(trip: Trip): string {
-    if (!tripHasIncidents(trip)) {
-      return 'Sin incidentes';
-    }
-    const n = tripIncidentsSorted(trip).length;
-    if (n > 0) {
-      return `${n} incidente${n === 1 ? '' : 's'} registrado${n === 1 ? '' : 's'}`;
-    }
-    return 'Incidente registrado';
-  }
-
-  routeLabelForTrip(trip: Trip): string {
-    return formatTripRouteSummary(trip);
-  }
-
-  arrivalLineForTrip(trip: Trip): string {
-    return formatTripIsoOneLine(trip.arrivedAt);
-  }
-
-  returnLineForTrip(trip: Trip): string {
-    return formatTripIsoOneLine(trip.returnAt);
-  }
-
   onStatusFilterSelect(value: TripsStatusFilter): void {
-    if (this.viewMode() !== 'table') {
+    if (this.viewMode() !== 'list') {
       return;
     }
     this.statusFilter.set(value);
@@ -321,6 +176,29 @@ export class TripsPageComponent implements OnInit {
       return;
     }
     this.tripsFeature.selectTrip(id);
+  }
+
+  onMapTripSelect(tripId: string): void {
+    this.tripsFeature.selectTrip(tripId);
+  }
+
+  private startMapRefresh(): void {
+    if (this.mapRefreshTimer != null) {
+      return;
+    }
+    this.mapRefreshTimer = setInterval(() => {
+      if (this.viewMode() === 'route') {
+        this.tripsMap.refresh({ silent: true });
+      }
+    }, 90_000);
+  }
+
+  private stopMapRefresh(): void {
+    if (this.mapRefreshTimer == null) {
+      return;
+    }
+    clearInterval(this.mapRefreshTimer);
+    this.mapRefreshTimer = null;
   }
 
   onDetailDismiss(): void {

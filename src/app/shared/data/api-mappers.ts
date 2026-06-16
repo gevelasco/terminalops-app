@@ -71,6 +71,11 @@ export function mapApiClient(row: Record<string, unknown>): Client {
             Number.isFinite(delivery['longitude'])
               ? delivery['longitude']
               : undefined,
+          destinationRateId:
+            delivery['destinationRateId'] != null
+              ? String(delivery['destinationRateId'])
+              : undefined,
+          isUnpricedRoute: Boolean(delivery['isUnpricedRoute']),
         }
       : undefined,
     payment: paymentTerms
@@ -251,6 +256,14 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
       String(row['unitOperationalCodeSnapshot'] ?? '').trim() || undefined,
     operatorName: String(row['operatorName'] ?? '').trim() || undefined,
     unitOperationalCode: String(row['unitOperationalCode'] ?? '').trim() || undefined,
+    createdAt: String(row['createdAt'] ?? trip.createdAt ?? ''),
+    plannedDepartureAt: String(row['plannedDepartureAt'] ?? trip.plannedDepartureAt ?? ''),
+    plannedArrivalAt: String(row['plannedArrivalAt'] ?? trip.plannedArrivalAt ?? ''),
+    plannedCompletionAt: String(row['plannedCompletionAt'] ?? trip.plannedCompletionAt ?? ''),
+    destinationRateId:
+      row['destinationRateId'] != null
+        ? resourceIdKey(row['destinationRateId'] as string | number)
+        : (trip.destinationRateId ?? null),
     equipmentIds: Array.isArray(rawEquipmentIds)
       ? rawEquipmentIds.map((id) => resourceIdKey(id as string | number))
       : trip.equipmentIds,

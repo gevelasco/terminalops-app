@@ -15,6 +15,7 @@ import { FleetEquipmentDetailCobTabComponent } from './tabs/fleet-equipment-deta
 import { FleetEquipmentDetailFichaTabComponent } from './tabs/fleet-equipment-detail-ficha-tab.component';
 import { FleetEquipmentDetailMantTabComponent } from './tabs/fleet-equipment-detail-mant-tab.component';
 import { FleetEquipmentDetailDrawerFacade } from './fleet-equipment-detail-drawer.facade';
+import type { Unit } from '@shared/models/logistics.models';
 
 @Component({
   selector: 'app-fleet-equipment-detail-drawer',
@@ -45,10 +46,12 @@ export class FleetEquipmentDetailDrawerComponent {
   readonly completedManeuverCount = input(0);
 
   readonly dismiss = output<void>();
+  readonly viewAssignedUnit = output<Unit>();
 
   constructor() {
     this.vm.bindHostCallbacks({
       dismiss: () => this.dismiss.emit(),
+      viewAssignedUnit: (unit: Unit) => this.viewAssignedUnit.emit(unit),
     });
 
     effect(() => {

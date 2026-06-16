@@ -9,6 +9,7 @@ export interface CompanyMaintenancePolicy {
 }
 
 export interface CompanyOperationalCenter {
+  operationalCenterName?: string;
   operationalCenterPostalCode?: string;
   operationalCenterCityMunicipality?: string;
   operationalCenterLocality?: string;

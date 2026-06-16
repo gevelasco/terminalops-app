@@ -1,3 +1,4 @@
+import { tripDepartureIso } from '@features/trips/utils/trip-schedule-accessors';
 import type { Operator, Trip } from '@shared/models/logistics.models';
 import type { ReportsManiobraByOperatorRow } from '../models/reports-view.models';
 
@@ -8,7 +9,7 @@ function tripDurationMs(t: Trip): number | null {
   if (t.status === 'cancelled') {
     return null;
   }
-  const startRaw = t.departureAt ?? t.scheduledAt;
+  const startRaw = tripDepartureIso(t);
   const endRaw = t.returnAt ?? t.arrivedAt;
   if (!startRaw?.trim() || !endRaw?.trim()) {
     return null;

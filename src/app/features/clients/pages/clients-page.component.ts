@@ -14,10 +14,16 @@ import { DestinationRatesDetailDrawerComponent } from '@features/clients/compone
 import { DestinationRatesNewDrawerComponent } from '@features/clients/components/destination-rates-new-drawer/destination-rates-new-drawer.component';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import { formatDestinationRateEstimatedTimeDisplay } from '@features/clients/utils/destination-rate-estimated-time';
+import {
+  formatDestinationRateDestinationCell,
+  formatDestinationRateOriginCell,
+} from '@features/clients/utils/destination-rate-payload';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
+import { operationConfigRateTableBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import { formatDestinationRateUpdatedAt } from '@features/clients/utils/format-destination-rate-updated-at';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
@@ -32,6 +38,7 @@ import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.componen
 import {
   ToTableColumn,
   ToTableComponent,
+  type ToTableOperationTypeBadge,
 } from '@shared/ui/to-table/to-table.component';
 
 export type ClientsPageTab = 'clients' | 'destination-rates';
@@ -57,6 +64,7 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
   providers: [
     ClientsFeatureService,
     DestinationRatesFeatureService,
+    OperationalCentersFeatureService,
     ...OPERATION_CONFIGURATION_PROVIDERS,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -79,6 +87,7 @@ export class ClientsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly clientsFeature = inject(ClientsFeatureService);
   protected readonly ratesFeature = inject(DestinationRatesFeatureService);
+  protected readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
 
@@ -86,6 +95,7 @@ export class ClientsPageComponent implements OnInit {
     this.destroyRef.onDestroy(() => {
       this.clientsFeature.dispose();
       this.ratesFeature.dispose();
+      this.centersFeature.dispose();
       this.operationConfigsFeature.dispose();
     });
   }
@@ -141,15 +151,13 @@ export class ClientsPageComponent implements OnInit {
   ];
 
   readonly rateColumns: ToTableColumn[] = [
-    { key: 'postalCode', label: 'CP destino', cell: 'muted-badge' },
-    { key: 'locality', label: 'Localidad' },
-    { key: 'cityMunicipality', label: 'Ciudad / municipio' },
-    { key: 'priceTypesLabel', label: 'Tipos de maniobra' },
+    { key: 'originSummary', label: 'Origen', cell: 'datetime-stacked' },
+    { key: 'destinationSummary', label: 'Destino', cell: 'datetime-stacked' },
+    { key: 'operationTypeBadges', label: 'Tipos de Maniobra', cell: 'operation-type-badges' },
+    { key: 'estimatedArrivalTime', label: 'Tiempo ida' },
+    { key: 'estimatedReturnTime', label: 'Tiempo completo' },
     { key: 'rateAvailability', label: 'Estatus', cell: 'rate-availability-pill' },
-    {
-      key: 'updatedAtLabel',
-      label: 'Fecha de última actualización',
-    },
+    { key: 'maneuverCount', label: 'Maniobras' },
   ];
 
   readonly displayedClientRows = computed(() => {
@@ -176,10 +184,12 @@ export class ClientsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.clientsFeature.loadClients();
+    this.centersFeature.loadOperationalCenters();
   }
 
   /** Lazy: tarifas + catálogo operativo solo al entrar por primera vez a la tab Tarifas. */
   private ensureDestinationRatesTabLoaded(): void {
+    this.centersFeature.loadOperationalCenters();
     this.ratesFeature.loadDestinationRates();
     this.operationConfigsFeature.loadOperationConfigurations();
   }
@@ -227,6 +237,11 @@ export class ClientsPageComponent implements OnInit {
     this.newRateOpen.set(false);
   }
 
+  onOpenExistingRate(rate: DestinationRate): void {
+    this.newRateOpen.set(false);
+    this.ratesFeature.selectRate(rate.id, rate);
+  }
+
   private static clientRowMatchesQuery(
     row: Record<string, unknown>,
     q: string,
@@ -254,14 +269,22 @@ export class ClientsPageComponent implements OnInit {
     row: Record<string, unknown>,
     q: string,
   ): boolean {
+    const originHaystack = ClientsPageComponent.stackedCellHaystack(row['originSummary']);
+    const destinationHaystack = ClientsPageComponent.stackedCellHaystack(
+      row['destinationSummary'],
+    );
+    const badgesHaystack = ClientsPageComponent.operationTypeBadgesHaystack(
+      row['operationTypeBadges'],
+    );
     const haystack = [
       row['id'],
-      row['postalCode'],
-      row['locality'],
-      row['cityMunicipality'],
-      row['priceTypesLabel'],
+      originHaystack,
+      destinationHaystack,
+      badgesHaystack,
+      row['maneuverCount'],
+      row['estimatedArrivalTime'],
+      row['estimatedReturnTime'],
       row['rateAvailability'],
-      row['updatedAtLabel'],
     ]
       .map((v) => String(v ?? '').toLowerCase())
       .join(' ');
@@ -281,19 +304,64 @@ export class ClientsPageComponent implements OnInit {
   }
 
   private mapRateRow(r: DestinationRate): Record<string, unknown> {
-    const types = r.prices
-      .map((p) =>
-        this.opResolver.resolveLabel(this.opResolver.contextFromRatePrice(p)),
-      )
-      .filter((label) => label !== 'Configuración desconocida');
+    const seen = new Set<string>();
+    const operationTypeBadges: ToTableOperationTypeBadge[] = [];
+    for (const price of r.prices) {
+      const ctx = this.opResolver.contextFromRatePrice(price);
+      const label = this.opResolver.resolveLabel(ctx);
+      if (label === 'Configuración desconocida') {
+        continue;
+      }
+      const dedupeKey = ctx.operationConfigurationId?.trim() || label.toLowerCase();
+      if (seen.has(dedupeKey)) {
+        continue;
+      }
+      seen.add(dedupeKey);
+      operationTypeBadges.push({
+        label,
+        badgeClass: operationConfigRateTableBadgeClass(label, ctx.code),
+      });
+    }
     return {
       id: r.id,
-      postalCode: r.postalCode,
-      locality: r.locality || '—',
-      cityMunicipality: r.cityMunicipality || '—',
-      priceTypesLabel: types.length > 0 ? types.join(', ') : '—',
+      originSummary: formatDestinationRateOriginCell(r),
+      destinationSummary: formatDestinationRateDestinationCell(r),
+      operationTypeBadges,
+      estimatedArrivalTime: formatDestinationRateEstimatedTimeDisplay(
+        r.estimatedArrivalTimeValue,
+        r.estimatedTimeUnit,
+      ),
+      estimatedReturnTime: formatDestinationRateEstimatedTimeDisplay(
+        r.estimatedReturnTimeValue,
+        r.estimatedTimeUnit,
+      ),
+      maneuverCount: String(r.maneuverCount ?? 0),
       rateAvailability: r.active ? 'available' : 'inactive',
-      updatedAtLabel: formatDestinationRateUpdatedAt(r.updatedAt ?? r.createdAt),
     };
+  }
+
+  private static operationTypeBadgesHaystack(value: unknown): string {
+    if (!Array.isArray(value)) {
+      return '';
+    }
+    return value
+      .map((item) =>
+        item != null && typeof item === 'object'
+          ? String((item as ToTableOperationTypeBadge).label ?? '')
+          : '',
+      )
+      .join(' ');
+  }
+
+  private static stackedCellHaystack(value: unknown): string {
+    if (value != null && typeof value === 'object') {
+      return [
+        (value as { date?: unknown }).date,
+        (value as { time?: unknown }).time,
+      ]
+        .map((v) => String(v ?? ''))
+        .join(' ');
+    }
+    return String(value ?? '');
   }
 }

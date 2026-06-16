@@ -18,6 +18,8 @@ export type UserMeResponse = {
   department: string;
   workLocation: string;
   employeeId: string;
+  controlAutomaticRecognition?: boolean;
+  controlAutomaticRecognitionChangedAt?: string;
 };
 
 export type UpdateUserProfileRequest = {
@@ -28,6 +30,7 @@ export type UpdateUserProfileRequest = {
   jobTitle?: string;
   photoDataUrl?: string;
   theme?: ThemeScheme;
+  controlAutomaticRecognition?: boolean;
 };
 
 export type UpdateUserPasswordRequest = {

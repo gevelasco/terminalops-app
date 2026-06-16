@@ -15,10 +15,11 @@ import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-pa
 import { createRequestGeneration } from '@shared/utils/request-generation';
 import { normalizeEquipmentFromApi } from '@shared/utils/fleet/normalize-fleet-entities';
 
-/**
- * Lista de equipo en memoria + selección para el módulo Flota.
- * Fetch explícito: carga inicial, refresh tras mutaciones, dispose al salir de la ruta.
- */
+export type EquipmentUpdateOptions = {
+  /** Evita GET de lista tras PATCH cuando el caller refrescará el módulo (p. ej. `refreshFleetModule`). */
+  skipListRefresh?: boolean;
+};
+
 @Injectable()
 export class EquipmentFeatureService {
   private readonly destroyRef = inject(DestroyRef);
@@ -67,9 +68,7 @@ export class EquipmentFeatureService {
   }
 
   selectEquipment(equipmentId: string): void {
-    if (this._equipment().some((e) => e.id === equipmentId)) {
-      this._selectedEquipmentId.set(equipmentId);
-    }
+    this._selectedEquipmentId.set(equipmentId);
   }
 
   clearSelection(): void {
@@ -79,17 +78,30 @@ export class EquipmentFeatureService {
   updateEquipment(
     equipment: Equipment,
     draft?: EquipmentPersistDraft,
+    options?: EquipmentUpdateOptions,
   ): Observable<Equipment> {
-    const keepId = this._selectedEquipmentId() ?? equipment.id;
+    const keepId = this._selectedEquipmentId();
     const requestId = this.requestGen.next();
     return this.equipmentApi.patchEquipment(equipment, draft).pipe(
-      switchMap(() => this.fetchList()),
-      map((list) => {
-        if (!this.canApplyResponse(requestId)) {
-          return this._equipment().find((e) => e.id === keepId) ?? equipment;
+      switchMap((saved) => {
+        if (options?.skipListRefresh) {
+          if (this.canApplyResponse(requestId)) {
+            this.upsertEquipmentInList(saved, keepId);
+          }
+          const resolvedId = keepId ?? equipment.id;
+          return of(this._equipment().find((e) => e.id === resolvedId) ?? saved);
         }
-        this.applyList(list, keepId);
-        return this._equipment().find((e) => e.id === keepId) ?? equipment;
+        return this.fetchList().pipe(
+          map((list) => {
+            if (!this.canApplyResponse(requestId)) {
+              const fallbackId = keepId ?? equipment.id;
+              return this._equipment().find((e) => e.id === fallbackId) ?? equipment;
+            }
+            this.applyList(list, keepId);
+            const resolvedId = keepId ?? equipment.id;
+            return this._equipment().find((e) => e.id === resolvedId) ?? equipment;
+          }),
+        );
       }),
     );
   }
@@ -97,17 +109,13 @@ export class EquipmentFeatureService {
   createEquipment(payload: CreateEquipmentPayload): Observable<Equipment> {
     const requestId = this.requestGen.next();
     return this.equipmentApi.postEquipment(payload).pipe(
-      switchMap((created) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return created;
-            }
-            this.applyList(list, null);
-            return this._equipment().find((e) => e.id === created.id) ?? created;
-          }),
-        ),
-      ),
+      map((created) => {
+        const equipment = normalizeEquipmentFromApi(created);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertEquipmentInList(equipment, null);
+        }
+        return equipment;
+      }),
     );
   }
 
@@ -149,7 +157,10 @@ export class EquipmentFeatureService {
   private fetchList(): Observable<Equipment[]> {
     return this.equipmentApi
       .getEquipmentList({ includeFleetTenure: true })
-      .pipe(catchError(() => of([] as Equipment[])));
+      .pipe(
+        map((rows) => rows.map(normalizeEquipmentFromApi)),
+        catchError(() => of([] as Equipment[])),
+      );
   }
 
   private applyList(list: Equipment[], selectedId: string | null): void {
@@ -164,7 +175,13 @@ export class EquipmentFeatureService {
     this._selectedEquipmentId.set(null);
   }
 
-  /** Destrucción terminal al salir del feature (no reutilizar instancia). */
+  private upsertEquipmentInList(saved: Equipment, selectedId: string | null): void {
+    const list = this._equipment();
+    const idx = list.findIndex((e) => e.id === saved.id);
+    const next = idx >= 0 ? list.map((e, i) => (i === idx ? saved : e)) : [...list, saved];
+    this.applyList(next, selectedId);
+  }
+
   dispose(): void {
     if (this.disposed) {
       return;

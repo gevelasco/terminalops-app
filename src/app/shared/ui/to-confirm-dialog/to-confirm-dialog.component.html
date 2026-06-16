@@ -1,0 +1,27 @@
+<dialog
+  #dialog
+  class="to-confirm-dialog"
+  [attr.aria-labelledby]="titleId()"
+  (cancel)="onDialogCancel($event)"
+  (close)="onDialogClose()"
+>
+  <div class="to-confirm-dialog__panel">
+    <div class="to-confirm-dialog__head">
+      <div class="to-confirm-dialog__icon-wrap" aria-hidden="true">
+        <to-icon class="to-confirm-dialog__icon" [name]="icon()" [size]="22" />
+      </div>
+      <h2 [id]="titleId()" class="to-confirm-dialog__title">{{ title() }}</h2>
+    </div>
+    <div class="to-confirm-dialog__body">
+      <ng-content />
+    </div>
+    <div class="to-confirm-dialog__actions">
+      <to-button type="button" variant="outline" (click)="onCancelClick()">
+        {{ cancelLabel() }}
+      </to-button>
+      <to-button type="button" variant="primary" (click)="onConfirmClick()">
+        {{ confirmLabel() }}
+      </to-button>
+    </div>
+  </div>
+</dialog>

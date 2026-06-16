@@ -17,7 +17,7 @@ import { normalizeUnitFromApi } from '@shared/utils/fleet/normalize-fleet-entiti
 
 /**
  * Lista de unidades en memoria + selección para el módulo Flota.
- * Fetch explícito: carga inicial, refresh tras mutaciones, dispose al salir de la ruta.
+ * Carga inicial al entrar al módulo; dispose al salir de la ruta.
  */
 @Injectable()
 export class UnitsFeatureService {
@@ -67,9 +67,7 @@ export class UnitsFeatureService {
   }
 
   selectUnit(unitId: string): void {
-    if (this._units().some((u) => u.id === unitId)) {
-      this._selectedUnitId.set(unitId);
-    }
+    this._selectedUnitId.set(unitId);
   }
 
   clearSelection(): void {
@@ -94,17 +92,13 @@ export class UnitsFeatureService {
   createUnit(payload: CreateUnitPayload): Observable<Unit> {
     const requestId = this.requestGen.next();
     return this.unitsApi.postUnit(payload).pipe(
-      switchMap((created) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return created;
-            }
-            this.applyList(list, null);
-            return this._units().find((u) => u.id === created.id) ?? created;
-          }),
-        ),
-      ),
+      map((created) => {
+        const unit = normalizeUnitFromApi(created);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertUnitInList(unit, null);
+        }
+        return unit;
+      }),
     );
   }
 
@@ -164,7 +158,13 @@ export class UnitsFeatureService {
     this._selectedUnitId.set(null);
   }
 
-  /** Destrucción terminal al salir del feature (no reutilizar instancia). */
+  private upsertUnitInList(saved: Unit, selectedId: string | null): void {
+    const list = this._units();
+    const idx = list.findIndex((u) => u.id === saved.id);
+    const next = idx >= 0 ? list.map((u, i) => (i === idx ? saved : u)) : [...list, saved];
+    this.applyList(next, selectedId);
+  }
+
   dispose(): void {
     if (this.disposed) {
       return;

@@ -1,7 +1,10 @@
-import { equipmentAssignedToUnit, unitConvoyFromEquipment } from '@app/features/fleet/utils/unit-hitched-equipment';
+import {
+  equipmentAssignedToUnit,
+  unitConvoyConfigDisplayLabel,
+  unitConvoyOperationCodeFromHitched,
+} from '@app/features/fleet/utils/unit-hitched-equipment';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
-import type { OperationConfigurationResolver } from '@shared/services/operation-configuration-resolver.types';
 import {
   Equipment,
   Trip,
@@ -42,7 +45,6 @@ export function buildManeuverAssignableUnitRows(
   units: readonly Unit[],
   equipment: readonly Equipment[],
   trips: readonly Trip[],
-  resolver: OperationConfigurationResolver,
 ): ManeuverAssignableUnitRow[] {
   const busy = busyUnitIdsFromTrips(trips);
   return units
@@ -52,13 +54,11 @@ export function buildManeuverAssignableUnitRows(
     )
     .map((unit) => {
       const hitched = equipmentAssignedToUnit([...equipment], unit.id);
-      const convoy = unitConvoyFromEquipment(hitched, resolver);
-      const configLabel =
-        convoy.kind === 'none' ? 'Sin enganche' : convoy.label;
+      const configLabel = unitConvoyConfigDisplayLabel(hitched.length);
       return {
         unit,
         displayLabel: `${formatUnitTrailerOperationalId(unit)} - ${configLabel}`,
-        operationType: (convoy.code ?? '').trim() as TripOperationType,
+        operationType: unitConvoyOperationCodeFromHitched(hitched) as TripOperationType,
         hitchedEquipment: hitched,
         equipmentIds: hitched.map((e) => e.id),
       };

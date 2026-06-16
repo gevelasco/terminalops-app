@@ -110,6 +110,29 @@ export function originPrefillFromSession(session: {
   };
 }
 
+/** CP de origen desde entidad de centro operativo. */
+export function originPrefillFromOperationalCenter(center: {
+  postalCode?: string;
+  cityMunicipality?: string;
+  locality?: string;
+  settlementConsId?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}): TripRouteEndpointPrefill | null {
+  const postalCode = normalizeMxPostalCodeDigits(center.postalCode ?? '');
+  if (postalCode.length !== 5) {
+    return null;
+  }
+  return {
+    postalCode,
+    settlementConsId: center.settlementConsId?.trim() || undefined,
+    cityMunicipality: center.cityMunicipality?.trim() || undefined,
+    locality: center.locality?.trim() || undefined,
+    latitude: center.latitude ?? null,
+    longitude: center.longitude ?? null,
+  };
+}
+
 /** Destino desde expediente del cliente (entrega). */
 export function destinationPrefillFromClient(client: Client): TripRouteEndpointPrefill | null {
   const delivery = client.delivery;

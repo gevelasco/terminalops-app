@@ -1,6 +1,10 @@
-import type { Equipment } from '@shared/models/logistics.models';
+import type { Equipment, Unit } from '@shared/models/logistics.models';
+import { fleetUnitIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
+import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
+import { unitConvoyFromEquipment } from '@features/fleet/utils/unit-hitched-equipment';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
-import { equipmentAssignedToUnit } from '@shared/utils/fleet/equipment-hitch-position';
+import { equipmentAssignedToUnit, hitchPositionForEquipmentWrite } from '@shared/utils/fleet/equipment-hitch-position';
+import type { EquipmentHitchPosition } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
 /** Remolques sin tractora o ya asignados a esta unidad (candidatos para enganchar). */
@@ -18,7 +22,7 @@ export function equipmentSelectableForUnitHitch(
   });
 }
 
-/** Si la tractora aún tiene cupo (< 2 remolques), opcionalmente excluyendo un equipo. */
+/** Si la tractora aún tiene cupo (< 2 equipos), opcionalmente excluyendo un equipo. */
 export function unitHasHitchSlot(
   catalog: readonly Equipment[],
   unitId: string,
@@ -34,23 +38,99 @@ export function unitHasHitchSlot(
   return count < 2;
 }
 
+export type UnitHitchSlot = 'first' | 'second' | 'full';
+
+/** Cupo de enganche disponible en la tractora (excluye un equipo en edición). */
+export function unitHitchSlotForNewEquipment(
+  catalog: readonly Equipment[],
+  unitId: string,
+  excludeEquipmentId?: string,
+): UnitHitchSlot {
+  const uid = unitId.trim();
+  if (!uid) {
+    return 'first';
+  }
+  const others = othersOnUnit(catalog, uid, excludeEquipmentId);
+  if (others.length >= 2) {
+    return 'full';
+  }
+  if (others.length === 0) {
+    return 'first';
+  }
+  const hasLead = others.some((e) => !isRearHitch(e));
+  return hasLead ? 'second' : 'first';
+}
+
+export function isSecondTrailerForUnitHitchSlot(slot: UnitHitchSlot): boolean {
+  return slot === 'second';
+}
+
+export function equipmentHitchAddActionLabel(
+  catalog: readonly Equipment[],
+  unitId: string,
+  excludeEquipmentId?: string,
+): string {
+  const slot = unitHitchSlotForNewEquipment(catalog, unitId, excludeEquipmentId);
+  if (slot === 'second') {
+    return 'Enganchar 2do equipo';
+  }
+  return 'Enganchar 1er equipo';
+}
+
+/** Posición API al enganchar según cupo actual de la tractora (fuente de verdad en guardado). */
+export function hitchPositionForNewEquipmentOnUnit(
+  catalog: readonly Equipment[],
+  unitId: string,
+  excludeEquipmentId?: string,
+): EquipmentHitchPosition | null {
+  const uid = unitId.trim();
+  if (!uid) {
+    return null;
+  }
+  const slot = unitHitchSlotForNewEquipment(catalog, uid, excludeEquipmentId);
+  return hitchPositionForEquipmentWrite(uid, slot === 'second') ?? null;
+}
+
+/** Tractoras candidatas al enganchar un equipo (drawer de equipo). */
+export function unitsEligibleForEquipmentHitch(
+  units: readonly Unit[],
+  equipmentCatalog: readonly Equipment[],
+  excludeEquipmentId?: string,
+): Unit[] {
+  return units.filter((unit) =>
+    unitEligibleForEquipmentHitch(unit, equipmentCatalog, excludeEquipmentId),
+  );
+}
+
+export function unitEligibleForEquipmentHitch(
+  unit: Unit,
+  equipmentCatalog: readonly Equipment[],
+  excludeEquipmentId?: string,
+): boolean {
+  if (fleetUnitIsOnRoute(unit)) {
+    return false;
+  }
+  const hitched = equipmentAssignedToUnit(equipmentCatalog, unit.id).filter(
+    (e) => !resourceIdsEqual(e.id, excludeEquipmentId),
+  );
+  if (hitched.length === 0) {
+    return true;
+  }
+  if (hitched.length !== 1) {
+    return false;
+  }
+  const convoy = unitConvoyFromEquipment(hitched, FLEET_OPERATION_RESOLVER);
+  return convoy.kind === 'single' || convoy.kind === 'plataforma';
+}
+
 export type EquipmentHitchAssignmentValidation = {
   canSave: boolean;
-  /** Permite activar el toggle «segundo remolque». */
-  canToggleSecondTrailer: boolean;
-  /** Si el toggle debe quedar en off (p. ej. solo hay cupo de primer remolque). */
-  forceSecondTrailerOff: boolean;
-  /** Mostrar toggle de segundo remolque. */
-  showSecondTrailerToggle: boolean;
   blockMessage: string | null;
   infoMessage: string | null;
 };
 
 const OK_EMPTY: EquipmentHitchAssignmentValidation = {
   canSave: true,
-  canToggleSecondTrailer: false,
-  forceSecondTrailerOff: true,
-  showSecondTrailerToggle: false,
   blockMessage: null,
   infoMessage: null,
 };
@@ -61,7 +141,7 @@ function equipmentOperationalLabel(e: Equipment): string {
     return code;
   }
   const id = resourceIdKey(e.id);
-  return id || 'remolque';
+  return id || 'equipo';
 }
 
 function isRearHitch(e: Equipment): boolean {
@@ -79,7 +159,8 @@ function othersOnUnit(
 }
 
 /**
- * Valida asignación de enganche (primer / segundo remolque) según remolques ya en la tractora.
+ * Valida asignación de enganche (1.er / 2.do equipo) según equipos ya en la tractora.
+ * La posición la define el cupo: sin equipos → 1.er; con uno → 2.do.
  */
 export function validateEquipmentHitchAssignment(params: {
   unitId: string | undefined;
@@ -95,91 +176,86 @@ export function validateEquipmentHitchAssignment(params: {
 
   const unitLabel = params.unitLabel?.trim() || 'esta tractora';
   const others = othersOnUnit(params.catalog, uid, params.excludeEquipmentId);
+  const slot = unitHitchSlotForNewEquipment(
+    params.catalog,
+    uid,
+    params.excludeEquipmentId,
+  );
   const rearOther = others.find(isRearHitch);
   const leadOther = others.find((e) => !isRearHitch(e));
 
-  if (others.length >= 2) {
+  if (slot === 'full') {
     return {
       canSave: false,
-      canToggleSecondTrailer: false,
-      forceSecondTrailerOff: true,
-      showSecondTrailerToggle: false,
       blockMessage:
-        `La tractora ${unitLabel} ya está configurada como full (2 remolques enganchados). ` +
-        'No es posible agregar otro equipo. Es probable que el remolque que busca ya esté en esa configuración; ' +
-        'revise la ficha del equipo o desenganche uno antes de continuar.',
+        `La tractora ${unitLabel} ya está configurada como doble articulado (2 equipos enganchados). ` +
+        'No es posible agregar otro equipo. Revise la ficha del equipo o desenganche uno antes de continuar.',
+      infoMessage: null,
+    };
+  }
+
+  if (slot === 'first' && params.isSecondTrailer) {
+    return {
+      canSave: false,
+      blockMessage:
+        `${unitLabel} no tiene equipos enganchados. Debe enganchar primero un 1er equipo.`,
+      infoMessage: null,
+    };
+  }
+
+  if (slot === 'second' && !params.isSecondTrailer) {
+    const leadLabel = leadOther ? equipmentOperationalLabel(leadOther) : 'un equipo';
+    return {
+      canSave: false,
+      blockMessage:
+        `${unitLabel} ya tiene un 1er equipo enganchado (${leadLabel}). ` +
+        'Solo puede enganchar un 2do equipo.',
       infoMessage: null,
     };
   }
 
   if (params.isSecondTrailer) {
-    if (others.length === 0) {
-      return {
-        canSave: false,
-        canToggleSecondTrailer: false,
-        forceSecondTrailerOff: true,
-        showSecondTrailerToggle: false,
-        blockMessage: null,
-        infoMessage: 'Solo hay opción de configurar este equipo como primer remolque.',
-      };
-    }
     if (rearOther) {
       const rearLabel = equipmentOperationalLabel(rearOther);
       return {
         canSave: false,
-        canToggleSecondTrailer: true,
-        forceSecondTrailerOff: false,
-        showSecondTrailerToggle: true,
         blockMessage:
-          `No es posible agregar este equipo como segundo remolque: el remolque ${rearLabel} ` +
-          `ya está configurado como segundo remolque en ${unitLabel}. ` +
-          'Si desea continuar, cambie la configuración de ese equipo o desengánchelo de la tractora.',
+          `No es posible agregar este equipo como 2do equipo: ${rearLabel} ` +
+          `ya está configurado como 2do equipo en ${unitLabel}. ` +
+          'Cambie la configuración de ese equipo o desengánchelo de la tractora.',
         infoMessage: null,
       };
     }
     return {
       canSave: true,
-      canToggleSecondTrailer: true,
-      forceSecondTrailerOff: false,
-      showSecondTrailerToggle: true,
       blockMessage: null,
-      infoMessage: `${unitLabel} ya tiene un primer remolque. Este equipo se agregará como segundo remolque (configuración full).`,
+      infoMessage: `${unitLabel} ya tiene un 1er equipo. Este equipo se enganchará como 2do equipo (doble articulado).`,
     };
   }
 
-  // Primer remolque (lead)
-  if (others.length === 0) {
-    return {
-      canSave: true,
-      canToggleSecondTrailer: false,
-      forceSecondTrailerOff: true,
-      showSecondTrailerToggle: false,
-      blockMessage: null,
-      infoMessage: 'Solo hay opción de configurar este equipo como primer remolque.',
-    };
-  }
-
+  // 1.er equipo
   if (leadOther) {
     const leadLabel = equipmentOperationalLabel(leadOther);
     return {
       canSave: false,
-      canToggleSecondTrailer: true,
-      forceSecondTrailerOff: false,
-      showSecondTrailerToggle: true,
       blockMessage:
-        `Ya hay un primer remolque (${leadLabel}) en ${unitLabel}. ` +
-        'Active «Segundo remolque (trasero)» si este equipo va detrás, o desenganche el otro remolque.',
+        `${unitLabel} ya tiene un 1er equipo enganchado (${leadLabel}). ` +
+        'Solo puede enganchar un 2do equipo.',
       infoMessage: null,
     };
   }
 
-  // Un solo otro y es trasero: este solo puede ser primer remolque
+  if (rearOther) {
+    return {
+      canSave: true,
+      blockMessage: null,
+      infoMessage: `En ${unitLabel} ya hay un 2do equipo configurado; este equipo solo puede engancharse como 1er equipo.`,
+    };
+  }
+
   return {
     canSave: true,
-    canToggleSecondTrailer: false,
-    forceSecondTrailerOff: true,
-    showSecondTrailerToggle: false,
     blockMessage: null,
-    infoMessage: `En ${unitLabel} ya hay un segundo remolque configurado; este equipo solo puede engancharse como primer remolque.`,
+    infoMessage: 'Este equipo se enganchará como 1er equipo.',
   };
 }

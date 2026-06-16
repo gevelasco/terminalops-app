@@ -1,9 +1,11 @@
 import {
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   HostListener,
+  inject,
   input,
   model,
   output,
@@ -12,7 +14,7 @@ import {
 } from '@angular/core';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
 import type { Unit } from '@shared/models/logistics.models';
-import { resourceIdKey } from '@shared/utils/resource-id';
+import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 let fleetUnitInputSeq = 0;
 
@@ -23,6 +25,8 @@ let fleetUnitInputSeq = 0;
   styleUrl: './to-fleet-unit-input.component.scss',
 })
 export class ToFleetUnitInputComponent {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly hostEl = inject(ElementRef<HTMLElement>);
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
@@ -56,6 +60,13 @@ export class ToFleetUnitInputComponent {
   });
 
   constructor() {
+    installAutocompleteOutsideDismiss(
+      this.hostEl,
+      () => this.open(),
+      () => this.open.set(false),
+      this.destroyRef,
+    );
+
     effect(() => {
       const id = this.unitId().trim();
       if (!id) {
@@ -91,7 +102,10 @@ export class ToFleetUnitInputComponent {
   }
 
   onControlBlur(): void {
-    queueMicrotask(() => this.blurNotify.emit());
+    queueMicrotask(() => {
+      this.open.set(false);
+      this.blurNotify.emit();
+    });
   }
 
   onPickPointerDown(row: { unit: Unit; label: string }, ev: Event): void {

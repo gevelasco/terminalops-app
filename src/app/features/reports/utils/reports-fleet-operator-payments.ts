@@ -36,13 +36,13 @@ function formatDueLabel(iso: string): string {
 }
 
 function inTransitDueLabel(t: Trip): string {
-  const sched = t.scheduledAt?.trim();
-  if (sched) {
-    return `En curso · ${formatDueLabel(sched)}`;
+  const planned = t.plannedDepartureAt?.trim();
+  if (planned) {
+    return `En curso · ${formatDueLabel(planned)}`;
   }
-  const prog = t.programmedAt?.trim();
-  if (prog) {
-    return `En curso · ${formatDueLabel(prog)}`;
+  const created = t.createdAt?.trim();
+  if (created) {
+    return `En curso · ${formatDueLabel(created)}`;
   }
   return 'En curso';
 }

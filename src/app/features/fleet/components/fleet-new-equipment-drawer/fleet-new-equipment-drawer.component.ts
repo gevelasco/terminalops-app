@@ -13,11 +13,12 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EQUIPMENT_CONTAINER_SLOT_OPTIONS, EQUIPMENT_OPERATION_TYPE_OPTIONS, TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { EQUIPMENT_CONTAINER_SLOT_OPTIONS, EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { FleetHitchValidationBlockComponent } from '@features/fleet/components/fleet-hitch-validation-block/fleet-hitch-validation-block.component';
-import { registerFleetHitchSecondTrailerSync } from '@app/features/fleet/utils/fleet-drawer-form.utils';
-import { validateEquipmentHitchAssignment } from '@shared/utils/fleet/equipment-hitch-assignment';
-import { hitchPositionForEquipmentWrite } from '@shared/utils/fleet/equipment-hitch-position';
+import { registerFleetHitchSlotSync } from '@app/features/fleet/utils/fleet-drawer-form.utils';
+import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
+import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
 import { Equipment, Unit } from '@shared/models/logistics.models';
 import { ToastService } from '@core/notifications/toast.service';
@@ -34,6 +35,10 @@ import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToFleetUnitInputComponent } from '@shared/ui/to-fleet-unit-input/to-fleet-unit-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
+import { ToFleetBrandComboboxComponent } from '@shared/ui/to-fleet-brand-combobox/to-fleet-brand-combobox.component';
+import { ToFleetVersionComboboxComponent } from '@shared/ui/to-fleet-version-combobox/to-fleet-version-combobox.component';
+import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
+import { registerFleetVersionResetOnBrandChange } from '@shared/utils/fleet/fleet-brand-version-link';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
   buildFleetModelYearSelectOptions,
@@ -122,6 +127,8 @@ function parseOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
     FleetHitchValidationBlockComponent,
     ToFleetUnitInputComponent,
     ToSelectComponent,
+    ToFleetBrandComboboxComponent,
+    ToFleetVersionComboboxComponent,
     ToTextareaComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -136,6 +143,7 @@ export class FleetNewEquipmentDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
   private readonly destroyRef = inject(DestroyRef);
+  private readonly fleetFeature = inject(FleetFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
   private readonly toast = inject(ToastService);
 
@@ -143,6 +151,10 @@ export class FleetNewEquipmentDrawerComponent {
   readonly equipmentCatalog = input<Equipment[]>([]);
 
   readonly dismiss = output<void>();
+
+  readonly hitchSelectableUnits = computed(() =>
+    unitsEligibleForEquipmentHitch(this.units(), this.equipmentCatalog()),
+  );
 
   readonly hitchValidation = computed(() => {
     const uid = this.unitId().trim();
@@ -162,20 +174,33 @@ export class FleetNewEquipmentDrawerComponent {
       unitLabel,
     });
   });
+
+  readonly hitchUnitOnRoute = computed(() =>
+    fleetUnitIdIsOnRoute(this.unitId(), this.units()),
+  );
+
   readonly drawerLoading = signal(true);
   readonly saved = output<void>();
 
   readonly unitId = model('');
   readonly isSecondTrailer = signal(false);
 
-  toggleIsSecondTrailer(): void {
-    if (!this.hitchValidation().canToggleSecondTrailer) {
-      return;
-    }
-    this.isSecondTrailer.update((v) => !v);
+  constructor() {
+    this.fleetFeature.ensureFleetCatalogLoaded();
+    registerFleetVersionResetOnBrandChange({
+      brandName: () => this.brandName(),
+      versionName: this.trailerVersion,
+    });
+    afterNextRender(() => this.drawerLoading.set(false));
+    registerFleetHitchSlotSync({
+      isActive: () => Boolean(this.unitId().trim()),
+      catalog: () => this.equipmentCatalog(),
+      unitId: () => this.unitId(),
+      isSecondTrailer: this.isSecondTrailer,
+    });
   }
 
-  readonly brandCode = model('');
+  readonly brandName = model('');
   readonly modelYear = model('');
   readonly trailerVersion = model('');
   readonly operationTypeCode = model('');
@@ -219,7 +244,10 @@ export class FleetNewEquipmentDrawerComponent {
   readonly filesPolicy = signal<File[]>([]);
   readonly filesOwnership = signal<File[]>([]);
 
-  readonly brandOptions = TRAILER_BRAND_OPTIONS;
+  readonly equipmentBrandNames = this.fleetFeature.equipmentBrandNames;
+  readonly equipmentVersionNames = computed(() =>
+    this.fleetFeature.versionNamesFor('EQUIPMENT', this.brandName()),
+  );
   readonly operationTypeOptions = EQUIPMENT_OPERATION_TYPE_OPTIONS;
   readonly containerSlotOptions = EQUIPMENT_CONTAINER_SLOT_OPTIONS;
 
@@ -267,15 +295,6 @@ export class FleetNewEquipmentDrawerComponent {
     return 'ok' as const;
   });
 
-  constructor() {
-    afterNextRender(() => this.drawerLoading.set(false));
-    registerFleetHitchSecondTrailerSync({
-      isActive: () => Boolean(this.unitId().trim()),
-      validation: () => this.hitchValidation(),
-      isSecondTrailer: this.isSecondTrailer,
-    });
-  }
-
   @HostListener('document:keydown', ['$event'])
   onDocKey(ev: KeyboardEvent): void {
     if (ev.key === 'Escape') {
@@ -283,8 +302,8 @@ export class FleetNewEquipmentDrawerComponent {
     }
   }
 
-  brandLabel(code: string): string {
-    return this.brandOptions.find((o) => o.value === code)?.label ?? code;
+  brandLabel(name: string): string {
+    return name.trim();
   }
 
   operationTypeLabel(code: string): string {
@@ -361,13 +380,13 @@ export class FleetNewEquipmentDrawerComponent {
 
   submit(): void {
     const uid = this.unitId().trim();
-    const brand = this.brandCode().trim();
+    const brandName = this.brandName().trim();
     const year = this.modelYear().trim();
     const opType = this.operationTypeCode().trim();
     const plate = this.plate().trim();
     const serial = this.serialNumber().trim();
 
-    if (!brand || !year || !opType || !plate || !serial) {
+    if (!brandName || !year || !opType || !plate || !serial) {
       this.toast.show(
         'Marca, año modelo, tipo de unidad, placa y número de serie son obligatorios.',
         'warning',
@@ -376,6 +395,13 @@ export class FleetNewEquipmentDrawerComponent {
     }
 
     if (uid) {
+      if (this.hitchUnitOnRoute()) {
+        this.toast.show(
+          'No puede enganchar equipos a una unidad que está en curso.',
+          'warning',
+        );
+        return;
+      }
       const hitch = this.hitchValidation();
       if (!hitch.canSave) {
         this.toast.show(
@@ -453,7 +479,7 @@ export class FleetNewEquipmentDrawerComponent {
       this.equipmentContainerSlot();
 
     const meta: EquipmentFleetMeta = {
-      trailerBrandName: this.brandLabel(brand),
+      trailerBrandName: this.brandLabel(brandName),
       trailerVersion: this.trailerVersion().trim() || undefined,
       trailerColor: this.trailerColor().trim() || undefined,
       trailerTenureMode: tenureMode,
@@ -493,24 +519,33 @@ export class FleetNewEquipmentDrawerComponent {
 
     const lastSvc = this.lastMaintenanceDate().trim() || new Date().toISOString().slice(0, 10);
 
+    const brandAbbr = deriveFleetBrandAbbr(brandName);
+
     this.saving.set(true);
     this.equipmentFeature
       .createEquipment({
         unitId: uid || undefined,
-        hitchPosition: hitchPositionForEquipmentWrite(uid, this.isSecondTrailer()),
+        hitchPosition: uid
+          ? hitchPositionForNewEquipmentOnUnit(this.equipmentCatalog(), uid) ?? undefined
+          : undefined,
         name: this.name().trim() || serial,
         serialNumber: serial,
         lastServiceDate: lastSvc,
         plate,
         type: this.operationTypeLabel(opType),
         status: this.status(),
-        trailerBrandAbbr: brand,
+        trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         fleetMeta: meta,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          this.fleetFeature.registerLocalCatalogEntry(
+            'EQUIPMENT',
+            brandName,
+            this.trailerVersion().trim() || undefined,
+          );
           this.toast.show('Equipo registrado.', 'success');
           this.saved.emit();
           this.dismiss.emit();

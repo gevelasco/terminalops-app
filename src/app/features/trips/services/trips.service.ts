@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import { catchError, finalize, map, of, Subscription, switchMap, type Observable } from 'rxjs';
 import { TripsService as TripsApiService } from '@services/api/trips';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
 import type { Trip } from '@shared/models/logistics.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 
@@ -18,11 +19,13 @@ export class TripsFeatureService {
 
   private readonly _trips = signal<readonly Trip[]>([]);
   private readonly _selectedTripId = signal<string | null>(null);
+  private readonly _fallbackTrip = signal<Trip | null>(null);
   private readonly _loading = signal(false);
 
   private initialLoadStarted = false;
   private disposed = false;
   private fetchSub: Subscription | null = null;
+  private selectTripSub: Subscription | null = null;
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -35,7 +38,7 @@ export class TripsFeatureService {
     if (!id) {
       return null;
     }
-    return this._trips().find((t) => t.id === id) ?? null;
+    return this._trips().find((t) => t.id === id) ?? this._fallbackTrip();
   });
   readonly loading = this._loading.asReadonly();
 
@@ -58,30 +61,53 @@ export class TripsFeatureService {
   }
 
   selectTrip(tripId: string): void {
-    if (this._trips().some((t) => t.id === tripId)) {
-      this._selectedTripId.set(tripId);
+    const id = tripId.trim();
+    if (!id) {
+      return;
     }
+    if (this._trips().some((t) => t.id === id)) {
+      this.selectTripSub?.unsubscribe();
+      this._fallbackTrip.set(null);
+      this._selectedTripId.set(id);
+      return;
+    }
+    this._selectedTripId.set(id);
+    this._fallbackTrip.set(null);
+    this.selectTripSub?.unsubscribe();
+    this.selectTripSub = this.tripsApi.getTripById(id).subscribe({
+      next: (trip) => {
+        if (this._selectedTripId() !== id) {
+          return;
+        }
+        this._fallbackTrip.set(trip ?? null);
+      },
+      error: () => {
+        if (this._selectedTripId() !== id) {
+          return;
+        }
+        this.clearSelection();
+      },
+    });
   }
 
   clearSelection(): void {
+    this.selectTripSub?.unsubscribe();
     this._selectedTripId.set(null);
+    this._fallbackTrip.set(null);
   }
 
   createTrip(payload: CreateTripPayload): Observable<Trip> {
     const requestId = this.requestGen.next();
     return this.tripsApi.postTrip(payload).pipe(
-      switchMap((created) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return created;
-            }
-            // Al crear, no autoabrimos detalle: consistencia con clients.
-            this.applyList(list, null);
-            return this._trips().find((t) => t.id === created.id) ?? created;
-          }),
-        ),
-      ),
+      map((created) => {
+        if (!this.canApplyResponse(requestId)) {
+          return created;
+        }
+        const withoutDuplicate = this._trips().filter((t) => t.id !== created.id);
+        // Al crear, no autoabrimos detalle: consistencia con clients.
+        this.applyList([created, ...withoutDuplicate], null);
+        return created;
+      }),
     );
   }
 
@@ -125,6 +151,27 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.patchTripClientCollected(tripId, collected).pipe(
+      switchMap((updated) =>
+        this.fetchList().pipe(
+          map((list) => {
+            if (!this.canApplyResponse(requestId)) {
+              return updated;
+            }
+            this.applyList(list, keepId);
+            return this._trips().find((t) => t.id === keepId) ?? updated;
+          }),
+        ),
+      ),
+    );
+  }
+
+  updateActualSchedule(
+    tripId: string,
+    payload: UpdateActualSchedulePayload,
+  ): Observable<Trip> {
+    const keepId = this._selectedTripId() ?? tripId;
+    const requestId = this.requestGen.next();
+    return this.tripsApi.patchTripActualSchedule(tripId, payload).pipe(
       switchMap((updated) =>
         this.fetchList().pipe(
           map((list) => {
@@ -184,10 +231,12 @@ export class TripsFeatureService {
       return;
     }
     if (list.some((t) => t.id === selectedId)) {
+      this._fallbackTrip.set(null);
       this._selectedTripId.set(selectedId);
       return;
     }
     this._selectedTripId.set(null);
+    this._fallbackTrip.set(null);
   }
 
   /** Destrucción terminal al salir del feature (no reutilizar instancia). */
@@ -198,9 +247,12 @@ export class TripsFeatureService {
     this.disposed = true;
     this.requestGen.invalidate();
     this.fetchSub?.unsubscribe();
+    this.selectTripSub?.unsubscribe();
     this.fetchSub = null;
+    this.selectTripSub = null;
     this._trips.set([]);
     this._selectedTripId.set(null);
+    this._fallbackTrip.set(null);
     this._loading.set(false);
     this.initialLoadStarted = false;
   }

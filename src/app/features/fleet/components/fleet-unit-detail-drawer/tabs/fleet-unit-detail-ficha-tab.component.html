@@ -67,11 +67,11 @@
   } @else {
     <div class="fleet-unit-sec__edit-form">
       <div class="fleet-unit-sec__edit-grid">
-        <to-select
+        <to-fleet-brand-combobox
           label="Marca *"
-          placeholder="Selecciona"
-          [options]="vm.brandOptions"
-          [(value)]="vm.editBrand"
+          placeholder="Escribe o selecciona"
+          [suggestionsSource]="vm.unitBrandNames()"
+          [(brandName)]="vm.editBrand"
         />
         <to-select
           label="Modelo (año) *"
@@ -81,10 +81,12 @@
         />
       </div>
       <div class="fleet-unit-sec__edit-grid">
-        <to-input
+        <to-fleet-version-combobox
           label="Versión"
-          placeholder="Ej. Cascadia Evolution"
-          [(value)]="vm.editVersion"
+          placeholder="Escribe o selecciona"
+          [disabled]="!vm.editBrand().trim()"
+          [suggestionsSource]="vm.editUnitVersionNames()"
+          [(versionName)]="vm.editVersion"
         />
       </div>
       <div class="fleet-unit-sec__edit-grid">
@@ -494,13 +496,13 @@
 >
   <div class="fleet-unit-sec__header">
     <h3 id="fleet-udv-hitch" class="fleet-unit-sec__title">
-      Remolques enganchados
+      Equipos enganchados
     </h3>
     @if (!vm.isEditing("hitch") && vm.canAddHitch()) {
       <button
         type="button"
         class="fleet-unit-sec__edit-btn"
-        aria-label="Enganchar remolque"
+        [attr.aria-label]="vm.hitchAddActionLabel()"
         (click)="vm.startEditHitchAdd()"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -524,23 +526,19 @@
     <div class="fleet-unit-sec__edit-form fleet-unit-hitch__add-form">
       @if (vm.hitchSelectableEquipment().length === 0) {
         <p class="fleet-unit-sec__hint">
-          No hay remolques disponibles sin enganche. Regístrelos en Flota →
+          No hay equipos disponibles sin enganche. Regístrelos en Flota →
           Equipos o desengánchelos de otra tractora.
         </p>
       }
+      <p class="fleet-unit-sec__hint">{{ vm.hitchAddActionLabel() }}</p>
       <to-fleet-equipment-input
-        label="Remolque a enganchar *"
-        placeholder="Buscar remolque disponible…"
+        label="Equipo a enganchar *"
+        placeholder="Buscar equipo disponible…"
         [equipment]="vm.hitchSelectableEquipment()"
         [(equipmentId)]="vm.hitchAddEquipmentId"
       />
       @if (vm.hitchAddEquipmentId().trim()) {
-        <app-fleet-hitch-validation-block
-          [validation]="vm.hitchAddValidation()"
-          [isSecondTrailer]="vm.hitchAddIsSecondTrailer()"
-          toggleLabelId="fleet-udv-hitch-add-second-label"
-          (toggleSecondTrailer)="vm.toggleHitchAddIsSecondTrailer()"
-        />
+        <app-fleet-hitch-validation-block [validation]="vm.hitchAddValidation()" />
       }
       <div class="fleet-unit-sec__edit-actions">
         <to-button
@@ -551,16 +549,28 @@
         >
           Cancelar
         </to-button>
-        <to-button type="button" size="sm" (click)="vm.saveHitchAdd()">
-          Enganchar
+        <to-button
+          type="button"
+          size="sm"
+          [disabled]="!vm.hitchAddValidation().canSave"
+          (click)="vm.saveHitchAdd()"
+        >
+          {{ vm.hitchAddActionLabel() }}
         </to-button>
       </div>
     </div>
   }
 
-  @if (vm.hitchedEquipmentRows().length === 0 && !vm.isEditing("hitch")) {
+  @if (vm.onRoute()) {
     <p class="fleet-unit-sec__hint">
-      Sin remolques asignados. Use el botón + para enganchar un remolque
+      La unidad está <strong>en curso</strong>. No puede enganchar ni desenganchar
+      equipos hasta que finalice la maniobra.
+    </p>
+  }
+
+  @if (vm.hitchedEquipmentRows().length === 0 && !vm.isEditing("hitch") && !vm.onRoute()) {
+    <p class="fleet-unit-sec__hint">
+      Sin equipos asignados. Use el botón + para enganchar un equipo
       disponible o regístrelo en Flota → Equipos.
     </p>
   }
@@ -568,84 +578,51 @@
     <ul class="fleet-unit-hitch__list">
       @for (row of vm.hitchedEquipmentRows(); track row.equipment.id) {
         <li class="fleet-unit-hitch__card">
-          @if (vm.isConfiguringHitchEquipment(row.equipment.id)) {
-            <div class="fleet-unit-sec__edit-form">
-              <p class="fleet-unit-hitch__configure-title">
-                Configurar {{ row.operationalId }}
-              </p>
-              <app-fleet-hitch-validation-block
-                [validation]="vm.hitchConfigureValidation()"
-                [isSecondTrailer]="vm.hitchConfigureIsSecondTrailer()"
-                [toggleLabelId]="'fleet-udv-hitch-cfg-' + row.equipment.id"
-                (toggleSecondTrailer)="vm.toggleHitchConfigureIsSecondTrailer()"
-              />
-              <div class="fleet-unit-sec__edit-actions">
-                <to-button
+          <div class="fleet-unit-hitch__card-head">
+            <span class="fleet-unit-hitch__position">{{
+              row.positionLabel
+            }}</span>
+            <div class="fleet-unit-hitch__card-actions">
+              @if (!vm.onRoute()) {
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  (click)="vm.cancelConfigureHitch()"
-                >
-                  Cancelar
-                </to-button>
-                <to-button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                  class="fleet-unit-hitch__link"
                   (click)="vm.unhitchEquipment(row.equipment)"
                 >
                   Desenganchar
-                </to-button>
-                <to-button type="button" size="sm" (click)="vm.saveConfigureHitch()">
-                  Guardar
-                </to-button>
-              </div>
-            </div>
-          } @else {
-            <div class="fleet-unit-hitch__card-head">
-              <span class="fleet-unit-hitch__position">{{
-                row.positionLabel
-              }}</span>
-              <div class="fleet-unit-hitch__card-actions">
-                <button
-                  type="button"
-                  class="fleet-unit-hitch__link"
-                  (click)="vm.startConfigureHitch(row.equipment)"
-                >
-                  Configurar
                 </button>
-                <button
-                  type="button"
-                  class="fleet-unit-hitch__link"
-                  (click)="vm.requestViewHitchedEquipment(row.equipment)"
-                >
-                  Ver equipo
-                </button>
-              </div>
-            </div>
-            <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
-              <div class="fleet-unit-detail__row">
-                <dt>ID operativo</dt>
-                <dd class="fleet-unit-detail__mono">
-                  {{ row.operationalId }}
-                </dd>
-              </div>
-              <div class="fleet-unit-detail__row">
-                <dt>Placa</dt>
-                <dd>{{ row.plate }}</dd>
-              </div>
-              <div class="fleet-unit-detail__row">
-                <dt>Tipo de remolque</dt>
-                <dd>{{ row.typeLabel }}</dd>
-              </div>
-              @if (row.equipment.name.trim()) {
-                <div class="fleet-unit-detail__row">
-                  <dt>Alias</dt>
-                  <dd>{{ row.equipment.name.trim() }}</dd>
-                </div>
               }
-            </dl>
-          }
+              <button
+                type="button"
+                class="fleet-unit-hitch__link"
+                (click)="vm.requestViewHitchedEquipment(row.equipment)"
+              >
+                Ver equipo
+              </button>
+            </div>
+          </div>
+          <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
+            <div class="fleet-unit-detail__row">
+              <dt>ID operativo</dt>
+              <dd class="fleet-unit-detail__mono">
+                {{ row.operationalId }}
+              </dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Placa</dt>
+              <dd>{{ row.plate }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Tipo de equipo</dt>
+              <dd>{{ row.typeLabel }}</dd>
+            </div>
+            @if (row.equipment.name.trim()) {
+              <div class="fleet-unit-detail__row">
+                <dt>Alias</dt>
+                <dd>{{ row.equipment.name.trim() }}</dd>
+              </div>
+            }
+          </dl>
         </li>
       }
     </ul>
@@ -656,8 +633,24 @@
     !vm.isEditing("hitch")
   ) {
     <p class="fleet-unit-sec__hint">
-      Esta tractora ya tiene <strong>dos remolques enganchados</strong>. Para
-      enganchar otro remolque, desenganche uno primero.
+      Esta tractora ya tiene <strong>dos equipos enganchados</strong>. Para
+      enganchar otro equipo, desenganche uno primero.
     </p>
   }
 </section>
+
+<to-confirm-dialog
+  [open]="vm.hitchLeadUnhitchConfirmOpen()"
+  titleId="fleet-udv-hitch-lead-unhitch-title"
+  title="Confirmar desenganche"
+  confirmLabel="Desenganchar"
+  (cancel)="vm.cancelUnhitchLeadEquipment()"
+  (confirm)="vm.confirmUnhitchLeadEquipment()"
+>
+  <p>
+    Este equipo es el <strong>1.er equipo</strong>. Al desengancharlo, el equipo
+    <strong>{{ vm.hitchLeadUnhitchRearLabel() }}</strong> pasará a ser el
+    <strong>1.er equipo</strong> del convoy.
+  </p>
+  <p>¿Desea continuar?</p>
+</to-confirm-dialog>

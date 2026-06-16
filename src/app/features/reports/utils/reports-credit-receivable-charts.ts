@@ -1,3 +1,4 @@
+import { tripCompletionIso } from '@features/trips/utils/trip-schedule-accessors';
 import type { Trip } from '@shared/models/logistics.models';
 import type {
   ReportsCreditByClientRow,
@@ -8,7 +9,7 @@ import { localYmd } from './reports-filter';
 import { tripCreditReceivable } from './reports-trip-helpers';
 
 export function tripCollectionAnchor(t: Trip): Date | null {
-  const iso = t.arrivedAt ?? t.returnAt ?? t.programmedAt;
+  const iso = tripCompletionIso(t);
   if (!iso?.trim()) {
     return null;
   }

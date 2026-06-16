@@ -47,6 +47,7 @@
     <app-destination-rates-new-drawer
       (dismiss)="newRateOpen.set(false)"
       (saved)="onRateCreated($event)"
+      (openExisting)="onOpenExistingRate($event)"
     />
   }
 }

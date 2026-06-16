@@ -51,7 +51,7 @@ describe('OperationConfigurationResolverService', () => {
       operationConfigurationMaxEquipmentCountSnapshot: 2,
     };
     const ctx = resolver.contextFromTrip(trip);
-    expect(resolver.resolveLabel(ctx)).toBe('Full histórico');
+    expect(resolver.resolveLabel(ctx)).toBe('Doble articulado');
     expect(resolver.resolveMaxEquipment(ctx)).toBe(2);
     expect(ctx.versionSnapshot).toBe(2);
   });

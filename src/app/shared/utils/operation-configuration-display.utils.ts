@@ -44,6 +44,34 @@ export interface UnitConvoyDisplay {
 
 const UNKNOWN_LABEL = 'Configuración desconocida';
 
+/** Normaliza códigos internos del catálogo operativo para la UI. */
+export function operationConfigUserFacingLabel(
+  labelOrCode: string | null | undefined,
+  code?: string | null,
+): string {
+  const label = (labelOrCode ?? '').trim();
+  const labelLower = label.toLowerCase();
+  const codeNorm = (code ?? label).trim().toLowerCase();
+
+  if (
+    codeNorm === 'full' ||
+    labelLower === 'full' ||
+    (label && /\bfull\b/i.test(label))
+  ) {
+    return 'Doble articulado';
+  }
+  if (label && label !== UNKNOWN_LABEL) {
+    return label;
+  }
+  if (codeNorm === 'sencillo') {
+    return 'Sencillo';
+  }
+  if (codeNorm === 'full') {
+    return 'Doble articulado';
+  }
+  return label || UNKNOWN_LABEL;
+}
+
 const CHART_PALETTE = [
   '#6366f1',
   '#0ea5e9',
@@ -129,23 +157,33 @@ export function resolveOperationConfiguration(
   const full = params.catalog ?? [];
   const active = params.activeCatalog ?? full;
 
+  const resolvedCode =
+    code ||
+    (id
+      ? findCatalogEntryById(active, id)?.code?.trim() ||
+        findCatalogEntryById(full, id)?.code?.trim() ||
+        ''
+      : '');
+
   let label = UNKNOWN_LABEL;
 
   if (snap) {
-    label = snap;
+    label = operationConfigUserFacingLabel(snap, resolvedCode || code);
   } else if (id) {
-    label =
+    const catalogName =
       findCatalogEntryById(active, id)?.name?.trim() ||
       findCatalogEntryById(full, id)?.name?.trim() ||
-      UNKNOWN_LABEL;
+      '';
+    label = operationConfigUserFacingLabel(catalogName, resolvedCode || code);
   } else if (code) {
-    label =
+    const catalogName =
       findCatalogEntryByCode(active, code)?.name?.trim() ||
       findCatalogEntryByCode(full, code)?.name?.trim() ||
-      UNKNOWN_LABEL;
+      '';
+    label = operationConfigUserFacingLabel(catalogName || code, code);
   }
 
-  const badgeKey = label !== UNKNOWN_LABEL ? label : code || id || 'unknown';
+  const badgeKey = label !== UNKNOWN_LABEL ? label : resolvedCode || code || id || 'unknown';
   const groupingKey = groupingKeyFromParts({
     label,
     operationConfigurationId: id,
@@ -290,7 +328,7 @@ export function resolveUnitConvoyFromEquipment(
       label: 'Sin enganche',
       badgeClass: operationConfigBadgeClass('Sin enganche'),
       description:
-        'No hay remolques asignados a esta tractora. Enganche remolques según la configuración operacional requerida.',
+        'No hay equipos asignados a esta tractora. Enganche equipos según la configuración operacional requerida.',
     };
   }
 
@@ -300,10 +338,10 @@ export function resolveUnitConvoyFromEquipment(
   const kind = convoyKind(n, isPlataforma);
   const description =
     kind === 'multi'
-      ? `${n} remolques enganchados (${display.label}).`
+      ? `${n} equipos enganchados (${display.label}).`
       : kind === 'plataforma'
-        ? `Un remolque tipo plataforma (${display.label}).`
-        : `Un remolque enganchado (${display.label}).`;
+        ? `Un equipo tipo plataforma (${display.label}).`
+        : `Un equipo enganchado (${display.label}).`;
 
   return {
     kind,
@@ -321,6 +359,28 @@ export function operationConfigBadgeTone(key: string): number {
 export function operationConfigBadgeClass(key: string): string {
   const tone = operationConfigBadgeTone(key);
   return `to-table-badge to-table-badge--op to-table-badge--op-tone-${tone}`;
+}
+
+/** Colores semánticos para tabla de tarifas (Sencillo / Full / Plataforma / otros). */
+export function operationConfigRateTableBadgeClass(
+  label: string,
+  code?: string | null,
+): string {
+  const haystack = `${label} ${code ?? ''}`.trim().toLowerCase();
+  if (haystack.includes('sencillo')) {
+    return 'to-table-badge to-table-badge--op to-table-badge--op-tone-3';
+  }
+  if (/\bfull\b/.test(haystack) || haystack.includes('doble articulado')) {
+    return 'to-table-badge to-table-badge--op to-table-badge--op-tone-1';
+  }
+  if (
+    haystack.includes('plataforma') ||
+    haystack.includes('plana') ||
+    haystack.includes('flatbed')
+  ) {
+    return 'to-table-badge to-table-badge--op to-table-badge--op-tone-4';
+  }
+  return 'to-table-badge to-table-badge--op to-table-badge--op-tone-neutral';
 }
 
 export function operationConfigChartColor(key: string): string {

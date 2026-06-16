@@ -1,0 +1,204 @@
+<article
+  class="fleet-overview__card"
+  [class.fleet-overview__card--full]="isFull(entry())"
+  [class.fleet-overview__card--standalone-equipment]="entry().kind === 'standalone-equipment'"
+>
+  <div class="fleet-overview__card-grid">
+    <div class="fleet-overview__card-main">
+      <header class="fleet-overview__identity">
+        <div class="fleet-overview__identity-top">
+          <div class="fleet-overview__code-row">
+            @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
+              <span class="fleet-overview__code">{{ trip.maneuverCode }}</span>
+            } @else {
+              <span class="fleet-overview__code">{{ entry().unitName }}</span>
+            }
+          </div>
+          <span [class]="'fleet-overview__status-pill ' + entry().statusPill.className">
+            <span class="to-table-pill__dot" aria-hidden="true"></span>
+            <span class="to-table-pill__label">{{ entry().statusPill.label }}</span>
+          </span>
+        </div>
+        <span
+          class="fleet-overview__route"
+          [class.fleet-overview__route--reserved]="!(entry().panelMode === 'maneuver' && entry().trip)"
+        >
+          @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
+            {{ trip.origin }}
+          } @else {
+            &nbsp;
+          }
+        </span>
+        <div class="fleet-overview__client-line">
+          <span [class]="'fleet-overview__badge to-table-badge ' + entry().convoy.badgeClass">{{
+            entry().convoy.label
+          }}</span>
+          @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
+            <span class="fleet-overview__client">{{ trip.clientName }}</span>
+          } @else {
+            <span class="fleet-overview__client fleet-overview__client--reserved" aria-hidden="true"
+              >&nbsp;</span
+            >
+          }
+        </div>
+      </header>
+
+      <div
+        class="fleet-overview__graphic"
+        [class.fleet-overview__graphic--full-standard]="isFull(entry()) && !usesPlataforma(entry())"
+      >
+        <div
+          class="fleet-overview__convoy-strip"
+          [class.fleet-overview__convoy-strip--plana]="usesPlataforma(entry())"
+          [class.fleet-overview__convoy-strip--caja-seca]="usesCajaSeca(entry())"
+          [class.fleet-overview__convoy-strip--standalone]="entry().kind === 'standalone-equipment'"
+          role="group"
+        >
+          @if (entry().kind === 'unit') {
+            <div class="fleet-overview__segment">
+              <img
+                class="fleet-overview__convoy-part fleet-overview__convoy-part--tracto"
+                [src]="schemaTractoAsset"
+                loading="lazy"
+                decoding="async"
+                alt="Unidad tractora"
+              />
+              <div class="fleet-overview__hit fleet-overview__hit--unit">
+                <div class="fleet-overview__tip fleet-overview__tip--unit">
+                  <p class="fleet-overview__tip-title">Unidad</p>
+                  <dl class="fleet-overview__tip-dl">
+                    <div class="fleet-overview__tip-row">
+                      <dt>Código</dt>
+                      <dd>{{ entry().unitName }}</dd>
+                    </div>
+                    <div class="fleet-overview__tip-row">
+                      <dt>Placa</dt>
+                      <dd>{{ entry().unitPlate.trim() || '—' }}</dd>
+                    </div>
+                    <div class="fleet-overview__tip-row">
+                      <dt>Estado</dt>
+                      <dd>{{ entry().statusPill.label }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          }
+          @if (entry().hitched.length > 0) {
+            <div class="fleet-overview__segment">
+              <img
+                class="fleet-overview__convoy-part"
+                [class.fleet-overview__convoy-part--plana]="usesPlataformaAt(entry(), 0)"
+                [class.fleet-overview__convoy-part--caja-seca]="usesCajaSecaAt(entry(), 0)"
+                [class.fleet-overview__convoy-part--remolque]="
+                  !usesPlataformaAt(entry(), 0) && !usesCajaSecaAt(entry(), 0)
+                "
+                [src]="assetAt(entry(), 0)"
+                loading="lazy"
+                decoding="async"
+                [alt]="trailerAlt(entry(), 'primary')"
+              />
+              <div class="fleet-overview__hit fleet-overview__hit--eq">
+                <div class="fleet-overview__tip fleet-overview__tip--eq">
+                  <p class="fleet-overview__tip-title">{{ isFull(entry()) ? 'Primer equipo' : 'Equipo' }}</p>
+                  <dl class="fleet-overview__tip-dl">
+                    <div class="fleet-overview__tip-row">
+                      <dt>Código</dt>
+                      <dd>{{ entry().hitched[0]!.operationalCode }}</dd>
+                    </div>
+                    <div class="fleet-overview__tip-row">
+                      <dt>Tipo</dt>
+                      <dd>{{ entry().hitched[0]!.equipmentType }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          }
+          @if (isFull(entry())) {
+            <div class="fleet-overview__segment">
+              <img
+                class="fleet-overview__convoy-part"
+                [class.fleet-overview__convoy-part--plana]="usesPlataformaAt(entry(), 1)"
+                [class.fleet-overview__convoy-part--caja-seca]="usesCajaSecaAt(entry(), 1)"
+                [class.fleet-overview__convoy-part--remolque]="
+                  !usesPlataformaAt(entry(), 1) && !usesCajaSecaAt(entry(), 1)
+                "
+                [src]="assetAt(entry(), 1)"
+                loading="lazy"
+                decoding="async"
+                [alt]="trailerAlt(entry(), 'secondary')"
+              />
+              <div class="fleet-overview__hit fleet-overview__hit--eq">
+                <div class="fleet-overview__tip fleet-overview__tip--eq">
+                  <p class="fleet-overview__tip-title">Segundo equipo</p>
+                  <dl class="fleet-overview__tip-dl">
+                    <div class="fleet-overview__tip-row">
+                      <dt>Código</dt>
+                      <dd>{{ entry().hitched[1]!.operationalCode }}</dd>
+                    </div>
+                    <div class="fleet-overview__tip-row">
+                      <dt>Tipo</dt>
+                      <dd>{{ entry().hitched[1]!.equipmentType }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <aside class="fleet-overview__schedule" aria-label="Fechas de la maniobra">
+      @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
+        <dl class="fleet-overview__schedule-dl">
+          <div class="fleet-overview__schedule-row">
+            <dt>Salida</dt>
+            <dd>{{ tripDeparture(trip) }}</dd>
+          </div>
+          <div class="fleet-overview__schedule-row">
+            <dt>Entrega</dt>
+            <dd>{{ tripArrival(trip) }}</dd>
+          </div>
+          <div class="fleet-overview__schedule-row">
+            <dt>Llegada fin</dt>
+            <dd>{{ tripCompletion(trip) }}</dd>
+          </div>
+          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--eta">
+            <dt>ETA Viaje</dt>
+            <dd>{{ tripEtaDays(trip) }}</dd>
+          </div>
+          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--eta">
+            <dt>ETA KMS</dt>
+            <dd>{{ tripEtaKm(trip) }}</dd>
+          </div>
+          <div class="fleet-overview__schedule-row">
+            <dt>Operador</dt>
+            <dd>{{ trip.operatorName?.trim() || '—' }}</dd>
+          </div>
+        </dl>
+      }
+    </aside>
+
+    @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
+      @let progress = tripProgress(trip);
+      <div class="fleet-overview__progress-wrap fleet-overview__progress-wrap--footer">
+        <div class="fleet-overview__progress-head">
+          <span class="fleet-overview__progress-label">Avance</span>
+          <span class="fleet-overview__progress-value">{{ progress.percent }}%</span>
+        </div>
+        <div
+          class="fleet-overview__progress"
+          role="progressbar"
+          [attr.aria-valuenow]="progress.percent"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-label]="progress.ariaLabel"
+        >
+          <div class="fleet-overview__progress-fill" [style.width.%]="progress.percent"></div>
+        </div>
+      </div>
+    }
+  </div>
+</article>

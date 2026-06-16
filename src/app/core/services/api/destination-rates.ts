@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
+import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 import { mapApiDestinationRate } from '@shared/data/destination-rate-api-mapper';
 import type {
   CreateDestinationRatePayload,
@@ -14,6 +15,35 @@ import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url
 export class DestinationRatesService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
+
+  checkDestinationRateExists(params: {
+    originOperationalCenterId: string;
+    postalCode: string;
+    locality: string;
+  }): Observable<{ exists: boolean; destinationRateId?: string }> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http
+      .get<{ exists: boolean; destinationRateId?: number }>(
+        companyResourceUrl(companyId, 'destination-rates/check-exists', {
+          originOperationalCenterId: params.originOperationalCenterId.trim(),
+          postalCode: normalizeMxPostalCodeDigits(params.postalCode),
+          locality: params.locality.trim(),
+        }),
+      )
+      .pipe(
+        map((res) => ({
+          exists: res.exists,
+          destinationRateId:
+            res.destinationRateId != null ? String(res.destinationRateId) : undefined,
+        })),
+      );
+  }
+
+  getDestinationRateById(id: string): Observable<DestinationRate> {
+    return this.http
+      .get<Record<string, unknown>>(resourceByIdUrl('destination-rates', id))
+      .pipe(map((r) => mapApiDestinationRate(r)));
+  }
 
   getDestinationRatesList(): Observable<DestinationRate[]> {
     const companyId = requireCompanyId(this.session.companyId());

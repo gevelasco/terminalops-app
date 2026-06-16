@@ -25,6 +25,7 @@
 
     --to-color-primary: var(--palette-primary);
     --to-color-on-primary: var(--palette-on-primary);
+    --to-color-derived: #2563eb;
     --to-focus-ring: color-mix(in srgb, var(--to-color-primary) 38%, transparent);
     --to-primary-soft: color-mix(in srgb, var(--to-color-primary) 12%, transparent);
 
@@ -61,6 +62,7 @@
   :root[data-app-scheme='dark'] {
     --palette-primary: #748498;
     --palette-on-primary: #0f1115;
+    --to-color-derived: #60a5fa;
 
     --to-color-bg: #1c1b1f;
     --to-color-surface: #2b2930;

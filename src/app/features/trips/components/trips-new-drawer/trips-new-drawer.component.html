@@ -2,7 +2,7 @@
   titleId="maniobra-drawer-title"
   wide
   formMode
-  [loading]="drawerLoading()"
+  [loading]="drawerBusy()"
   skeletonVariant="form"
   bodyClass="maniobra-drawer__body"
   (dismiss)="dismiss.emit()"
@@ -48,17 +48,23 @@
       </svg>
       Detalle de ruta
     </h3>
-    @if (includeClientBilling()) {
-      <to-client-input
-        label="Cliente *"
-        placeholder="Buscar o elegir cliente…"
-        [prefetchMode]="true"
-        [clientsData]="pickerClients()"
-        [(value)]="clientName"
-        [(clientId)]="clientId"
-        (blurNotify)="onClientBlur()"
+    <div class="maniobra-drawer__route-head">
+      <app-operational-center-select
+        [includeNewRouteOption]="true"
+        [(selectedCenterId)]="originOperationalCenterId"
       />
-    }
+      @if (includeClientBilling()) {
+        <to-client-input
+          label="Cliente *"
+          placeholder="Buscar o elegir cliente…"
+          [prefetchMode]="true"
+          [clientsData]="pickerClients()"
+          [(value)]="clientName"
+          [(clientId)]="clientId"
+          (blurNotify)="onClientBlur()"
+        />
+      }
+    </div>
     <div class="maniobra-drawer__grid2">
       <div class="maniobra-cp-stack">
         <to-input
@@ -67,6 +73,7 @@
           [maxLength]="5"
           inputName="originCp"
           autocomplete="postal-code"
+          [disabled]="originRouteFieldsLocked()"
           [(value)]="originCp"
           (blurNotify)="onOriginCpBlur()"
         />
@@ -75,18 +82,21 @@
             Consultando catálogo postal…
           </p>
         }
-        <to-input
+        <to-display-field
           label="Ciudad / municipio origen"
-          placeholder="—"
-          [disabled]="true"
-          [displayValue]="originCityLine()"
+          variant="metric"
+          [value]="originCityLine()"
+          placeholder="Al capturar CP"
         />
         <to-select
           label="Localidad origen *"
           placeholder="Elige localidad en la lista (requerido para calcular ruta)"
           [options]="originLocalitySelectOptions()"
           [(value)]="originLocalityKey"
-          [disabled]="originLocalitySelectOptions().length === 0"
+          [disabled]="
+            originRouteFieldsLocked() ||
+            originLocalitySelectOptions().length === 0
+          "
         />
       </div>
       <div class="maniobra-cp-stack">
@@ -104,11 +114,11 @@
             Consultando catálogo postal…
           </p>
         }
-        <to-input
+        <to-display-field
           label="Ciudad / municipio Destino"
-          placeholder="—"
-          [disabled]="true"
-          [displayValue]="destinationCityLine()"
+          variant="metric"
+          [value]="destinationCityLine()"
+          placeholder="Al capturar CP"
         />
         <to-select
           label="Localidad Destino *"
@@ -120,39 +130,46 @@
       </div>
     </div>
     <div class="maniobra-drawer__grid3">
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Distancia de ruta</span>
-          <to-field-assist-info [auto]="routeDistanceAssistAuto()" />
-        </div>
-        <to-input
-          placeholder="Se calcula con OSRM al tener localidades y coordenadas"
-          [disabled]="true"
-          [displayValue]="routeDistanceOneWayDisplayValue()"
-        />
-      </div>
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Distancia total</span>
-          <to-field-assist-info [auto]="maneuverDistanceAssistAuto()" />
-        </div>
-        <to-input
-          placeholder="Se calcula con la estimación operativa"
-          [disabled]="true"
-          [displayValue]="operationalDistanceDisplayValue()"
-        />
-      </div>
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Tipo de maniobra</span>
-          <to-field-assist-info [auto]="maneuverKindAssistAuto()" />
-        </div>
-        <to-input
-          placeholder="Local o foránea según distancia de ruta (ida)"
-          [disabled]="true"
-          [displayValue]="maneuverKindInputValue()"
-        />
-      </div>
+      <to-display-field
+        label="Distancia de ruta"
+        variant="metric"
+        [value]="routeDistanceOneWayDisplayValue()"
+        placeholder="Calculado vía OSRM"
+      />
+      <to-display-field
+        label="Distancia total"
+        variant="metric"
+        [value]="operationalDistanceDisplayValue()"
+        placeholder="Calculado vía"
+      />
+      <to-display-field
+        label="Tipo de maniobra"
+        variant="metric"
+        [value]="maneuverKindInputValue()"
+        placeholder="Local o foránea"
+      />
+    </div>
+    <to-input
+      label="Salida *"
+      type="datetime-local"
+      [(value)]="plannedDepartureDateTime"
+      (blurNotify)="onPlannedDepartureBlur()"
+    />
+    <div class="maniobra-drawer__grid2">
+      <to-input
+        label="Llegada cliente *"
+        type="datetime-local"
+        [min]="plannedDepartureDateTime() || undefined"
+        [(value)]="plannedArrivalDateTime"
+        (blurNotify)="onPlannedArrivalBlur()"
+      />
+      <to-input
+        label="Llegada / fin *"
+        type="datetime-local"
+        [min]="plannedArrivalDateTime() || plannedDepartureDateTime() || undefined"
+        [(value)]="plannedCompletionDateTime"
+        (blurNotify)="onPlannedCompletionBlur()"
+      />
     </div>
     @if (routeFailed() && originCoords() && destinationCoords()) {
       <p class="maniobra-drawer__route-line maniobra-drawer__route-line--warn">
@@ -190,6 +207,13 @@
       </svg>
       Detalles de Carga
     </h3>
+    <app-cargo-description-combobox
+      label="Descripción"
+      placeholder="Ej. Bebidas embotelladas, autopartes, contenedor vacío para devolución…"
+      [items]="cargoHistoryItems()"
+      [(description)]="cargoDescription"
+      (picked)="onCargoHistoryPicked($event)"
+    />
     <div class="maniobra-drawer__grid2">
       <to-select
         label="Configuración"
@@ -202,7 +226,7 @@
         [(value)]="containerType"
       />
     </div>
-    <div class="maniobra-drawer__grid3">
+    <div class="maniobra-drawer__grid2">
       <to-select
         label="Tipo de carga"
         [options]="loadTypeOptions"
@@ -213,11 +237,6 @@
         placeholder="Ej. 18,5"
         prefix="Ton"
         [(value)]="approximateWeightTons"
-      />
-      <to-input
-        label="Descripción"
-        placeholder="Ej. Bebidas embotelladas, autopartes, contenedor vacío para devolución…"
-        [(value)]="cargoDescription"
       />
     </div>
   </section>
@@ -252,17 +271,17 @@
       (blurNotify)="onAssignedOperatorBlur()"
     />
     <div class="maniobra-drawer__grid2">
-      <to-input
+      <to-display-field
         label="No. de licencia"
-        placeholder="—"
-        [disabled]="true"
-        [displayValue]="operatorLicenseReadonly()"
+        variant="metric"
+        [value]="operatorLicenseReadonly()"
+        placeholder="Al elegir operador"
       />
-      <to-input
+      <to-display-field
         label="Vencimiento de licencia"
-        placeholder="—"
-        [disabled]="true"
-        [displayValue]="operatorLicenseExpiresReadonly()"
+        variant="metric"
+        [value]="operatorLicenseExpiresReadonly()"
+        placeholder="Al elegir operador"
       />
     </div>
     <div class="maniobra-drawer__grid3">
@@ -301,21 +320,6 @@
         (blurNotify)="onEquipmentSecondaryBlur()"
       />
     </div>
-    <div class="maniobra-drawer__grid2">
-      <to-input
-        label="Salida *"
-        type="datetime-local"
-        [(value)]="departureDateTime"
-        (blurNotify)="onDepartureBlur()"
-      />
-      <to-input
-        label="Llegada *"
-        type="datetime-local"
-        [attr.min]="departureDateTime() || null"
-        [(value)]="arrivalDateTime"
-        (blurNotify)="onArrivalBlur()"
-      />
-    </div>
   </section>
 
   <!-- Costos operativos -->
@@ -339,32 +343,24 @@
       Costos operativos
     </h3>
     <div class="maniobra-drawer__grid2">
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Diesel (litros) *</span>
-          <to-field-assist-info [auto]="dieselAssistAuto('liters')" />
-        </div>
-        <to-input
-          [placeholder]="dieselLitersPlaceholder()"
-          prefix="L"
-          [groupThousands]="true"
-          [(value)]="dieselLiters"
-          (blurNotify)="onDieselLitersBlur()"
-        />
-      </div>
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Diesel (monto) *</span>
-          <to-field-assist-info [auto]="dieselAssistAuto('amount')" />
-        </div>
-        <to-input
-          [placeholder]="dieselAmountPlaceholder()"
-          prefix="$"
-          [groupThousands]="true"
-          [(value)]="dieselAmount"
-          (blurNotify)="onDieselAmountBlur()"
-        />
-      </div>
+      <to-input
+        label="Diesel (litros) *"
+        [placeholder]="dieselLitersPlaceholder()"
+        prefix="L"
+        [groupThousands]="true"
+        [derivedState]="dieselDerivedState('liters')"
+        [(value)]="dieselLiters"
+        (blurNotify)="onDieselLitersBlur()"
+      />
+      <to-input
+        label="Diesel (monto) *"
+        [placeholder]="dieselAmountPlaceholder()"
+        prefix="$"
+        [groupThousands]="true"
+        [derivedState]="dieselDerivedState('amount')"
+        [(value)]="dieselAmount"
+        (blurNotify)="onDieselAmountBlur()"
+      />
     </div>
     @if (dieselControlEnabled() && dieselEstimateLoading()) {
       <p class="maniobra-drawer__route-line" aria-live="polite">
@@ -372,32 +368,22 @@
       </p>
     }
     <div class="maniobra-drawer__grid2">
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Casetas *</span>
-          <to-field-assist-info [auto]="casetasAssistAuto()" />
-        </div>
-        <to-input
-          placeholder="0"
-          prefix="$"
-          [groupThousands]="true"
-          [(value)]="casetasAmount"
-          (blurNotify)="onCasetasBlur()"
-        />
-      </div>
-      <div class="maniobra-drawer__labeled-field">
-        <div class="maniobra-drawer__field-label-row">
-          <span class="maniobra-drawer__field-label">Operador *</span>
-          <to-field-assist-info [auto]="operatorAssistAuto()" />
-        </div>
-        <to-input
-          placeholder="0"
-          prefix="$"
-          [groupThousands]="true"
-          [(value)]="operatorQuota"
-          (blurNotify)="onOperatorQuotaBlur()"
-        />
-      </div>
+      <to-input
+        label="Casetas *"
+        placeholder="0"
+        prefix="$"
+        [groupThousands]="true"
+        [(value)]="casetasAmount"
+        (blurNotify)="onCasetasBlur()"
+      />
+      <to-input
+        label="Operador *"
+        placeholder="0"
+        prefix="$"
+        [groupThousands]="true"
+        [(value)]="operatorQuota"
+        (blurNotify)="onOperatorQuotaBlur()"
+      />
     </div>
   </section>
 
@@ -554,13 +540,26 @@
     }
   </section>
   <div toSideDrawerFooter class="maniobra-drawer__footer">
+    @if (creating()) {
+      <p class="maniobra-drawer__creating-hint" role="status" aria-live="polite">
+        Creando maniobra…
+      </p>
+    }
     <button
       type="button"
       class="maniobra-drawer__cancel"
+      [disabled]="creating()"
       (click)="dismiss.emit()"
     >
       Cancelar
     </button>
-    <to-button type="submit" variant="primary">Programar maniobra</to-button>
+    <to-button
+      type="submit"
+      variant="primary"
+      [disabled]="!plannedScheduleValid() || creating()"
+    >
+      <to-icon name="calendar" [size]="16" />
+      {{ creating() ? "Programando maniobra…" : "Programar maniobra" }}
+    </to-button>
   </div>
 </to-side-drawer>

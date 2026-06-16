@@ -25,7 +25,7 @@ export class ToFleetEquipmentInputComponent {
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
 
   readonly label = input<string>('');
-  readonly placeholder = input<string>('Buscar remolque…');
+  readonly placeholder = input<string>('Buscar equipo…');
   readonly equipment = input<Equipment[]>([]);
 
   readonly equipmentId = model('');

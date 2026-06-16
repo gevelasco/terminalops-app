@@ -106,6 +106,12 @@ export class SessionService {
   readonly dieselControlChangedAt = computed(
     () => this.data()?.dieselControlChangedAt ?? null,
   );
+  readonly controlAutomaticRecognition = computed(
+    () => this.data()?.controlAutomaticRecognition ?? false,
+  );
+  readonly controlAutomaticRecognitionChangedAt = computed(
+    () => this.data()?.controlAutomaticRecognitionChangedAt ?? null,
+  );
   readonly maintenanceKmControlEnabled = computed(
     () => this.data()?.maintenanceKmControlEnabled ?? false,
   );
@@ -123,6 +129,9 @@ export class SessionService {
   );
   readonly maintenanceDateControlChangedAt = computed(
     () => this.data()?.maintenanceDateControlChangedAt ?? null,
+  );
+  readonly operationalCenterName = computed(
+    () => this.data()?.operationalCenterName ?? null,
   );
   readonly operationalCenterPostalCode = computed(
     () => this.data()?.operationalCenterPostalCode ?? null,
@@ -196,6 +205,7 @@ export class SessionService {
         | 'maintenanceDatePeriodDefault'
         | 'maintenanceKmControlChangedAt'
         | 'maintenanceDateControlChangedAt'
+        | 'operationalCenterName'
         | 'operationalCenterPostalCode'
         | 'operationalCenterCityMunicipality'
         | 'operationalCenterLocality'
@@ -211,6 +221,7 @@ export class SessionService {
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
       maintenanceKmControlChangedAt?: string | null;
       maintenanceDateControlChangedAt?: string | null;
+      operationalCenterName?: string | null;
       operationalCenterPostalCode?: string | null;
       operationalCenterCityMunicipality?: string | null;
       operationalCenterLocality?: string | null;
@@ -272,6 +283,12 @@ export class SessionService {
       next.maintenanceDateControlChangedAt = dateChangedAt;
     } else if (patch.maintenanceDateControlChangedAt === null) {
       next.maintenanceDateControlChangedAt = undefined;
+    }
+    if (patch.operationalCenterName !== undefined) {
+      next.operationalCenterName =
+        patch.operationalCenterName === null
+          ? undefined
+          : patch.operationalCenterName;
     }
     if (patch.operationalCenterPostalCode !== undefined) {
       next.operationalCenterPostalCode =
@@ -357,6 +374,28 @@ export class SessionService {
     saveEncryptedSession(next);
   }
 
+  syncUserPreferenceSettings(patch: {
+    controlAutomaticRecognition?: boolean;
+    controlAutomaticRecognitionChangedAt?: string | null;
+  }): void {
+    const current = this.data();
+    if (!current) {
+      return;
+    }
+    const next: SessionData = { ...current };
+    if (patch.controlAutomaticRecognition !== undefined) {
+      next.controlAutomaticRecognition = patch.controlAutomaticRecognition;
+    }
+    const changedAt = normalizeApiIsoDate(patch.controlAutomaticRecognitionChangedAt);
+    if (changedAt) {
+      next.controlAutomaticRecognitionChangedAt = changedAt;
+    } else if (patch.controlAutomaticRecognitionChangedAt === null) {
+      next.controlAutomaticRecognitionChangedAt = undefined;
+    }
+    this.data.set(next);
+    saveEncryptedSession(next);
+  }
+
   updateOperationalAnalysisEnabled(enabled: boolean, changedAt?: string): void {
     const current = this.data();
     if (!current) {
@@ -425,6 +464,14 @@ export class SessionService {
         normalizeApiIsoDate(user.dieselControlChangedAt) ??
         normalizeApiIsoDate(payload?.dieselControlChangedAt) ??
         undefined,
+      controlAutomaticRecognition:
+        user.controlAutomaticRecognition ??
+        payload?.controlAutomaticRecognition ??
+        false,
+      controlAutomaticRecognitionChangedAt:
+        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
+        normalizeApiIsoDate(payload?.controlAutomaticRecognitionChangedAt) ??
+        undefined,
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ??
         payload?.maintenanceKmControlEnabled ??
@@ -446,6 +493,8 @@ export class SessionService {
         normalizeApiIsoDate(user.maintenanceDateControlChangedAt) ??
         normalizeApiIsoDate(payload?.maintenanceDateControlChangedAt) ??
         undefined,
+      operationalCenterName:
+        user.operationalCenterName ?? payload?.operationalCenterName,
       operationalCenterPostalCode:
         user.operationalCenterPostalCode ?? payload?.operationalCenterPostalCode,
       operationalCenterCityMunicipality:

@@ -39,7 +39,7 @@ const mockResolver: OperationConfigurationResolver = {
       return {
         kind: 'multi',
         code: 'full',
-        label: 'Full',
+        label: 'Doble articulado',
         badgeClass: '',
         description: '',
       };
@@ -135,7 +135,7 @@ describe('unit-hitched-equipment', () => {
   });
 
   it('labels overview hitch slots by index', () => {
-    expect(convoyOverviewHitchPositionLabel(0, 2)).toMatch(/1\.er remolque/);
-    expect(convoyOverviewHitchPositionLabel(1, 2)).toMatch(/2\.º remolque/);
+    expect(convoyOverviewHitchPositionLabel(0, 2)).toMatch(/1\.er equipo/);
+    expect(convoyOverviewHitchPositionLabel(1, 2)).toMatch(/2\.do equipo/);
   });
 });

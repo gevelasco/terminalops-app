@@ -28,6 +28,17 @@
   @if (vm.editing()) {
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="dest-rate-edit-origin"
+    >
+      <h3 id="dest-rate-edit-origin" class="fleet-unit-sec__title">Origen</h3>
+      <app-operational-center-select
+        [selectedCenterId]="vm.originOperationalCenterId()"
+        (selectedCenterIdChange)="vm.originOperationalCenterId.set($event)"
+      />
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
       aria-labelledby="dest-rate-edit-location"
     >
       <h3 id="dest-rate-edit-location" class="fleet-unit-sec__title">
@@ -52,6 +63,36 @@
         [priceDrafts]="vm.priceDrafts()"
         (priceDraftsChange)="vm.updatePriceDrafts($event)"
       />
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="dest-rate-edit-estimated-times"
+    >
+      <h3 id="dest-rate-edit-estimated-times" class="fleet-unit-sec__title">
+        Tiempos estimados (referencia)
+      </h3>
+      <div class="destination-rates-detail-drawer__stack">
+        <to-select
+          label="Unidad"
+          [options]="vm.timeUnitOptions"
+          [(value)]="vm.estimatedTimeUnit"
+        />
+        <div class="destination-rates-detail-drawer__time-grid">
+          <to-input
+            label="Tiempo ida"
+            placeholder="Opcional"
+            [suffix]="vm.estimatedTimeSuffix()"
+            [(value)]="vm.estimatedArrivalTimeValue"
+          />
+          <to-input
+            label="Tiempo retorno"
+            placeholder="Opcional"
+            [suffix]="vm.estimatedTimeSuffix()"
+            [(value)]="vm.estimatedReturnTimeValue"
+          />
+        </div>
+      </div>
     </section>
 
     <section
@@ -115,6 +156,18 @@
       </div>
 
       <div class="destination-rates-detail-drawer__view-body">
+        <h4 class="destination-rates-detail-drawer__subheading">Origen</h4>
+        <dl class="destination-rates-detail-drawer__dl">
+          <div>
+            <dt>Centro operativo</dt>
+            <dd>{{ vm.rate().originOperationalCenterName || "—" }}</dd>
+          </div>
+          <div>
+            <dt>Localidad origen</dt>
+            <dd>{{ vm.rate().originLocality || "—" }}</dd>
+          </div>
+        </dl>
+
         <h4 class="destination-rates-detail-drawer__subheading">Destino</h4>
         <dl class="destination-rates-detail-drawer__dl">
           <div>

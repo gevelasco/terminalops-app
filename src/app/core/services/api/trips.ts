@@ -2,10 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
 import type {
   FuelEstimateRequest,
   FuelEstimateResponse,
 } from '@shared/models/api/api-trips-fuel.model';
+import type { ClientCargoHistoryResponse } from '@shared/models/api/api-trips-cargo-history.model';
+import type { TripsMapResponse } from '@shared/models/api/api-trips-map.model';
+import { mapApiTripsMapResponse } from '@shared/models/api/api-trips-map.model';
 import type { Trip } from '@shared/models/logistics.models';
 import { mapApiTrip } from '@shared/data/api-mappers';
 import { SessionService } from '../state/session';
@@ -23,6 +27,13 @@ export class TripsService {
       .pipe(map((rows) => rows.map((r) => mapApiTrip(r))));
   }
 
+  getTripsMap(): Observable<TripsMapResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http
+      .get<Record<string, unknown>>(companyResourceUrl(companyId, 'trips/map'))
+      .pipe(map((raw) => mapApiTripsMapResponse(raw)));
+  }
+
   getTripById(id: string): Observable<Trip | undefined> {
     return this.http
       .get<Record<string, unknown>>(resourceByIdUrl('trips', id))
@@ -33,8 +44,6 @@ export class TripsService {
     const companyId = requireCompanyId(this.session.companyId());
     const body = {
       ...payload,
-      programmedAt: new Date().toISOString(),
-      scheduledAt: new Date().toISOString(),
       status: 'scheduled',
     };
     return this.http
@@ -67,6 +76,26 @@ export class TripsService {
         collected,
       })
       .pipe(map((r) => mapApiTrip(r)));
+  }
+
+  patchTripActualSchedule(
+    tripId: string,
+    payload: UpdateActualSchedulePayload,
+  ): Observable<Trip> {
+    return this.http
+      .patch<Record<string, unknown>>(
+        resourceByIdUrl('trips', tripId, 'actual-schedule'),
+        payload,
+      )
+      .pipe(map((r) => mapApiTrip(r)));
+  }
+
+  getClientCargoHistory(clientId: string): Observable<ClientCargoHistoryResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    const id = clientId.trim();
+    return this.http.get<ClientCargoHistoryResponse>(
+      companyResourceUrl(companyId, `clients/${encodeURIComponent(id)}/cargo-history`),
+    );
   }
 
   /** Estimación operativa de diesel (heurística en backend). */

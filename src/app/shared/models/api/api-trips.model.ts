@@ -1,6 +1,12 @@
 import type { TripContainerType, TripLoadType } from '@shared/models/logistics.models';
 
-/** Cuerpo del formulario «Nueva maniobra». */
+/**
+ * Cuerpo del formulario «Nueva maniobra».
+ *
+ * Contrato obligatorio (lifecycle): el cliente MUST enviar plannedDepartureAt,
+ * plannedArrivalAt y plannedCompletionAt. Sin ellos el backend rechaza la creación.
+ * Los campos programmedAt y scheduledAt fueron eliminados del dominio.
+ */
 export interface CreateTripPayload {
   origin: string;
   destination: string;
@@ -25,8 +31,12 @@ export interface CreateTripPayload {
   clientId?: string;
   equipment: string[];
   equipmentIds: string[];
-  departureAt: string | null;
-  arrivedAt: string | null;
+  /** Salida planificada (planned_departure_at). */
+  plannedDepartureAt: string;
+  /** Llegada al cliente (planned_arrival_at). */
+  plannedArrivalAt: string;
+  /** Fin de maniobra (planned_completion_at). */
+  plannedCompletionAt: string;
   attachedDocumentFileNames: string[];
   routeDistanceKm?: number | null;
   /** Ida + vuelta (calculado en backend). */
@@ -41,6 +51,8 @@ export interface CreateTripPayload {
   operatorLicenseNumber?: string;
   operatorLicenseExpiresLabel?: string;
   tollCalculationMode?: 'auto' | 'manual';
+  destinationRateId?: string;
+  originOperationalCenterId?: string;
 }
 
 export interface CancelTripPayload {

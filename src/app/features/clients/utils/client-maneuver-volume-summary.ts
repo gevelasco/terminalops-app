@@ -41,7 +41,7 @@ function isBillableForVolumeSummary(t: Trip): boolean {
   return true;
 }
 
-function parseProgrammedUtc(iso: string): Date | null {
+function parseCreatedUtc(iso: string): Date | null {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -60,7 +60,7 @@ function calendarMonthsInclusiveUtc(a: Date, b: Date): number {
 
 /**
  * Promedios mensuales simples a partir de maniobras del cliente (`clientId` =
- * id del catálogo). Usa `programmedAt` para la ventana de meses y suma
+ * id del catálogo). Usa `createdAt` para la ventana de meses y suma
  * `clientCharge` y costos operativos (`dieselAmount`, `casetasAmount`, `operatorQuota`).
  */
 export function buildClientManeuverVolumeSummary(
@@ -100,7 +100,7 @@ export function buildClientManeuverVolumeSummary(
 
   const dates: Date[] = [];
   for (const t of subset) {
-    const d = parseProgrammedUtc(t.programmedAt);
+    const d = parseCreatedUtc(t.createdAt);
     if (d) {
       dates.push(d);
     }

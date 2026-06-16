@@ -7,6 +7,7 @@ import {
   output,
 } from '@angular/core';
 import { DestinationRateLocationFieldsComponent } from '@features/clients/components/destination-rate-location-fields/destination-rate-location-fields.component';
+import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
 import { DestinationRatePricesEditorComponent } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
@@ -28,6 +29,7 @@ import { DestinationRatesDetailDrawerFacade } from './destination-rates-detail-d
     ToInputComponent,
     ToSelectComponent,
     ToStatusPillComponent,
+    OperationalCenterSelectComponent,
     DestinationRateLocationFieldsComponent,
     DestinationRatePricesEditorComponent,
   ],

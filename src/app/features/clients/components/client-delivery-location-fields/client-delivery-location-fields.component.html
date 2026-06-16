@@ -38,6 +38,35 @@
   } @else {
     <to-input label="Localidad" [disabled]="true" displayValue="—" />
   }
+
+  @if (routeLinkStatus() !== 'idle') {
+    <div
+      class="client-delivery-fields__route-link"
+      [class.client-delivery-fields__route-link--linked]="routeLinkStatus() === 'linked'"
+      [class.client-delivery-fields__route-link--unpriced]="routeLinkStatus() === 'unpriced'"
+      [class.client-delivery-fields__route-link--checking]="routeLinkStatus() === 'checking'"
+      role="status"
+      aria-live="polite"
+    >
+      @if (routeLinkStatus() === 'linked') {
+        <to-icon name="checkCircle" [size]="16" />
+      } @else if (routeLinkStatus() === 'unpriced') {
+        <to-icon name="warning" [size]="16" />
+      }
+      <div class="client-delivery-fields__route-link-copy">
+        <p class="client-delivery-fields__route-link-title">{{ routeLinkTitle() }}</p>
+        @if (routeLinkHint()) {
+          <p class="client-delivery-fields__route-link-hint">{{ routeLinkHint() }}</p>
+        }
+        @if (suggestedRouteCount() > 1 && routeLinkStatus() === 'unpriced') {
+          <p class="client-delivery-fields__route-link-hint">
+            Hay {{ suggestedRouteCount() }} rutas tarifadas con este destino; configura la del centro operativo correspondiente.
+          </p>
+        }
+      </div>
+    </div>
+  }
+
   @if (showCoords()) {
     <div class="client-delivery-fields__coords-grid">
       <to-input label="Latitud" [disabled]="true" [displayValue]="latDisplay()" />

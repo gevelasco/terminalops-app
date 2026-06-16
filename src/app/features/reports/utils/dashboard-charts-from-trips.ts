@@ -1,3 +1,4 @@
+import { tripCompletionIso } from '@features/trips/utils/trip-schedule-accessors';
 import type { Trip } from '@shared/models/logistics.models';
 import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import { localYmd } from '@shared/utils/local-ymd';
@@ -6,7 +7,7 @@ function tripCompletionDayLocal(t: Trip): string | null {
   if (t.status !== 'completed') {
     return null;
   }
-  const iso = (t.arrivedAt ?? t.returnAt ?? t.scheduledAt ?? '').trim();
+  const iso = tripCompletionIso(t) ?? '';
   if (!iso) {
     return null;
   }
@@ -17,20 +18,23 @@ function tripCompletionDayLocal(t: Trip): string | null {
   return localYmd(d);
 }
 
-export function filterTripsProgrammedInCalendarMonth(
+export function filterTripsCreatedInCalendarMonth(
   trips: readonly Trip[],
   now = new Date(),
 ): Trip[] {
   const y = now.getFullYear();
   const m = now.getMonth();
   return trips.filter((t) => {
-    const d = new Date(t.programmedAt);
+    const d = new Date(t.createdAt);
     if (Number.isNaN(d.getTime())) {
       return false;
     }
     return d.getFullYear() === y && d.getMonth() === m;
   });
 }
+
+/** @deprecated Use filterTripsCreatedInCalendarMonth */
+export const filterTripsProgrammedInCalendarMonth = filterTripsCreatedInCalendarMonth;
 
 export interface WeeklyTripPoint {
   day: string;

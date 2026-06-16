@@ -73,6 +73,21 @@
   border-left: 1px solid var(--to-color-border);
 }
 
+.to-field__affix--wand {
+  padding: 0 0.5rem 0 0.25rem;
+  color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
+  background: transparent;
+  border: none;
+}
+
+.to-field__control-row--group .to-field__affix--suffix.to-field__affix--wand {
+  border-left: none;
+}
+
+.to-field__affix--wand-ready {
+  color: var(--to-color-derived);
+}
+
 .to-field__suffix-btn {
   display: inline-flex;
   align-items: center;

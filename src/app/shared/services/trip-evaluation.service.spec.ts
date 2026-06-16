@@ -55,7 +55,7 @@ describe('TripEvaluationService', () => {
     expect(ev.maxEquipmentCount).toBe(2);
     expect(ev.dieselCostBasis).toBe('full');
     expect(ev.configurationVersion).toBe(1);
-    expect(svc.reportSliceLabel(ev)).toBe('Full histórico');
+    expect(svc.reportSliceLabel(ev)).toBe('Doble articulado');
   });
 
   it('evaluateDraft uses live catalog for active calculation', () => {

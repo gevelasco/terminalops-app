@@ -1,0 +1,61 @@
+<div
+  class="to-display-field"
+  [class.to-display-field--plain]="variant() === 'plain'"
+  [class.to-display-field--boxed]="variant() === 'boxed'"
+  [class.to-display-field--metric]="variant() === 'metric'"
+  [class.to-display-field--derived-ready]="derived() === 'ready'"
+  [class.to-display-field--derived-pending]="derived() === 'pending'"
+>
+  @if (label()) {
+    <span
+      class="to-display-field__label"
+      [class.to-display-field__label--metric]="variant() === 'metric'"
+    >
+      {{ label() }}
+    </span>
+  }
+
+  @if (variant() === 'boxed') {
+    <div class="to-display-field__box">
+      <span
+        class="to-display-field__box-value"
+        [class.to-display-field__box-value--placeholder]="!resolvedValue()"
+      >
+        {{ resolvedValue() || placeholder() }}
+      </span>
+      @if (showDerived()) {
+        <span class="to-display-field__wand" aria-hidden="true">
+          <to-derived-wand-icon />
+        </span>
+      }
+    </div>
+  } @else if (variant() === 'metric') {
+    <div class="to-display-field__metric-row">
+      <span
+        class="to-display-field__metric-value"
+        [class.to-display-field__metric-value--placeholder]="!resolvedValue()"
+      >
+        {{ resolvedValue() || placeholder() }}
+      </span>
+      @if (showDerived()) {
+        <span class="to-display-field__wand" aria-hidden="true">
+          <to-derived-wand-icon />
+        </span>
+      }
+    </div>
+  } @else {
+    <div class="to-display-field__plain-row">
+      <span
+        class="to-display-field__plain-value"
+        [class.to-display-field__plain-value--placeholder]="!resolvedValue()"
+      >
+        {{ resolvedValue() || placeholder() }}
+      </span>
+      @if (showDerived()) {
+        <span class="to-display-field__wand" aria-hidden="true">
+          <to-derived-wand-icon />
+        </span>
+      }
+    </div>
+  }
+</div>

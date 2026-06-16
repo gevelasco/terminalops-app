@@ -212,7 +212,8 @@ export function buildDefaultTripOperationalProvisionExpenses(
 ): Expense[] {
   const distanceKm = resolveTripDistanceKm(trip);
   const weightTons = parseApproxWeightTons(trip.approximateWeightTons);
-  const incurredAt = trip.departureAt?.trim() || trip.programmedAt;
+  const incurredAt =
+    trip.departureAt?.trim() || trip.plannedDepartureAt?.trim() || trip.createdAt;
   const equipmentCatalog = context.equipmentCatalog ?? [];
   const evaluator = context.evaluator;
   const equipmentIds = resolveTripEquipmentIds(trip, equipmentCatalog);

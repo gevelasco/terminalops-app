@@ -1,209 +1,187 @@
 <div class="profile-drawer__config-sections">
-<section
-  class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__operations"
-  aria-labelledby="profile-operations-heading"
->
-  <h3 id="profile-operations-heading" class="fleet-unit-sec__title">
-    Configuración operativa
-  </h3>
-  <p class="fleet-unit-sec__docs-hint profile-drawer__operations-intro">
-    Ajustes de empresa para diesel, mantenimiento de flota y control operativo asistido. Aplica
-    para todos los usuarios de la compañía.
-  </p>
-
-  <article class="profile-drawer__setting-row" aria-labelledby="profile-setting-diesel">
-    <div class="profile-drawer__setting-head">
-      <div>
-        <h4 id="profile-setting-diesel" class="profile-drawer__setting-title">
-          Control automático de diesel
-        </h4>
-        <p class="profile-drawer__setting-meta">{{ dieselControlStatusLabel() }}</p>
-      </div>
-      <button
-        type="button"
-        class="fleet-unit-toggle"
-        [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
-        role="switch"
-        [attr.aria-checked]="draftDieselControlEnabled()"
-        [disabled]="saving()"
-        aria-labelledby="profile-setting-diesel"
-        (click)="toggleDraftDieselControl()"
-      >
-        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-      </button>
-    </div>
-    <p class="profile-drawer__setting-desc">
-      El sistema estima automáticamente consumo y costos de diesel usando distancia operativa,
-      configuración de unidad, tipo de carga y rendimiento estimado.
-    </p>
-  </article>
-
-  <article class="profile-drawer__setting-row" aria-labelledby="profile-setting-km">
-    <div class="profile-drawer__setting-head">
-      <div>
-        <h4 id="profile-setting-km" class="profile-drawer__setting-title">
-          Control por kilómetros
-        </h4>
-        <p class="profile-drawer__setting-meta">{{ kmStatusLabel() }}</p>
-      </div>
-      <button
-        type="button"
-        class="fleet-unit-toggle"
-        [class.fleet-unit-toggle--on]="draftKmEnabled()"
-        role="switch"
-        [attr.aria-checked]="draftKmEnabled()"
-        [disabled]="saving()"
-        aria-labelledby="profile-setting-km"
-        (click)="toggleDraftKm()"
-      >
-        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-      </button>
-    </div>
-    <p class="profile-drawer__setting-desc">
-      Ayuda a mantener el recorrido de la flota y calcular mantenimiento de manera controlada e
-      inteligente según los kilómetros recorridos entre servicios.
-    </p>
-    @if (draftKmEnabled()) {
-      <to-input
-        label="Kilómetros estándar entre servicios"
-        type="text"
-        placeholder="Ej. 15000"
-        [groupThousands]="true"
-        [(value)]="draftKmInterval"
-        [disabled]="saving()"
-      />
-    }
-  </article>
-
-  <article class="profile-drawer__setting-row" aria-labelledby="profile-setting-date">
-    <div class="profile-drawer__setting-head">
-      <div>
-        <h4 id="profile-setting-date" class="profile-drawer__setting-title">
-          Control por fechas
-        </h4>
-        <p class="profile-drawer__setting-meta">{{ dateStatusLabel() }}</p>
-      </div>
-      <button
-        type="button"
-        class="fleet-unit-toggle"
-        [class.fleet-unit-toggle--on]="draftDateEnabled()"
-        role="switch"
-        [attr.aria-checked]="draftDateEnabled()"
-        [disabled]="saving()"
-        aria-labelledby="profile-setting-date"
-        (click)="toggleDraftDate()"
-      >
-        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-      </button>
-    </div>
-    @if (draftDateEnabled()) {
-      <to-select
-        label="Periodo estándar entre servicios"
-        [options]="maintDatePeriodOptions"
-        [value]="draftDatePeriod()"
-        [disabled]="saving()"
-        (valueChange)="onDraftDatePeriodChange($event)"
-      />
-    }
-  </article>
-
-  <article
-    class="profile-drawer__setting-row"
-    aria-labelledby="profile-setting-intelligent"
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__operations"
+    aria-labelledby="profile-operations-heading"
   >
-    <div class="profile-drawer__setting-head">
-      <div>
-        <h4 id="profile-setting-intelligent" class="profile-drawer__setting-title">
-          Control operativo asistido
-        </h4>
-        <p class="profile-drawer__setting-meta">{{ intelligentStatusLabel() }}</p>
-      </div>
-      <button
-        type="button"
-        class="fleet-unit-toggle"
-        [class.fleet-unit-toggle--on]="draftIntelligentEnabled()"
-        role="switch"
-        [attr.aria-checked]="draftIntelligentEnabled()"
-        [disabled]="saving()"
-        aria-labelledby="profile-setting-intelligent"
-        (click)="toggleDraftIntelligent()"
-      >
-        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-      </button>
-    </div>
-    <p class="profile-drawer__setting-desc">
-      Estima desgaste de llantas y mantenimiento preventivo por maniobra; alimenta reportes y
-      controles operativos de la flota.
-    </p>
-  </article>
-</section>
+    <h3 id="profile-operations-heading" class="fleet-unit-sec__title">
+      Configuración operativa
+    </h3>
 
-<section
-  class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__center"
-  aria-labelledby="profile-center-heading"
->
-  <h3 id="profile-center-heading" class="fleet-unit-sec__title">Centro operativo</h3>
-  <p class="fleet-unit-sec__docs-hint">
-    Ubicación base de la empresa para referencia operativa y cálculos de distancia.
-  </p>
-  <div class="profile-drawer__cp-stack">
-    <to-input
-      label="Código postal"
-      placeholder="Ej. 64000"
-      [maxLength]="5"
-      inputName="operationalCenterCp"
-      autocomplete="postal-code"
-      [(value)]="centerCp"
-      [disabled]="saving()"
-      (blurNotify)="onCenterCpBlur()"
-    />
-    @if (centerCpLoading()) {
-      <p class="profile-drawer__cp-hint" aria-live="polite">Consultando catálogo postal…</p>
-    }
-    <to-input
-      label="Ciudad / municipio"
-      placeholder="—"
-      [disabled]="true"
-      [displayValue]="centerCityLine()"
-    />
-    @if (centerCpEditing() && centerLocalityOptions().length > 0) {
-      <to-select
-        label="Localidad"
-        placeholder="Elige localidad en la lista"
-        [options]="centerLocalityOptions()"
-        [value]="centerLocalityKey()"
-        [disabled]="saving()"
-        (valueChange)="onCenterLocalityChange($event)"
-      />
-    } @else if (centerLocalityLabel()) {
-      <to-input
-        label="Localidad"
-        [disabled]="true"
-        [displayValue]="centerLocalityLabel()"
-      />
-    } @else {
-      <to-input label="Localidad" [disabled]="true" displayValue="—" />
-    }
-    @if (showCenterCoords()) {
-      <div class="profile-drawer__coords-grid">
-        <to-input
-          label="Latitud"
-          [disabled]="true"
-          [displayValue]="centerLatDisplay()"
-        />
-        <to-input
-          label="Longitud"
-          [disabled]="true"
-          [displayValue]="centerLonDisplay()"
-        />
+    <article
+      class="profile-drawer__setting-row"
+      aria-labelledby="profile-setting-suggestions"
+    >
+      <div class="profile-drawer__setting-head">
+        <div>
+          <h4
+            id="profile-setting-suggestions"
+            class="profile-drawer__setting-title"
+          >
+            Control de sugerencias automáticas
+          </h4>
+          <p class="profile-drawer__setting-meta">
+            {{ suggestionsControlStatusLabel() }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-toggle"
+          [class.fleet-unit-toggle--on]="draftControlAutomaticRecognition()"
+          role="switch"
+          [attr.aria-checked]="draftControlAutomaticRecognition()"
+          [disabled]="saving()"
+          aria-labelledby="profile-setting-suggestions"
+          (click)="toggleDraftControlAutomaticRecognition()"
+        >
+          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+        </button>
       </div>
-    }
-  </div>
-  <p class="fleet-unit-sec__docs-hint profile-drawer__center-note">
-    Las coordenadas guardadas se muestran desde la configuración de empresa. Solo se recalculan si
-    cambias el CP o la localidad.
-  </p>
-</section>
+    </article>
+
+    <article
+      class="profile-drawer__setting-row"
+      aria-labelledby="profile-setting-diesel"
+    >
+      <div class="profile-drawer__setting-head">
+        <div>
+          <h4 id="profile-setting-diesel" class="profile-drawer__setting-title">
+            Control automático de diesel
+          </h4>
+          <p class="profile-drawer__setting-meta">
+            {{ dieselControlStatusLabel() }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-toggle"
+          [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
+          role="switch"
+          [attr.aria-checked]="draftDieselControlEnabled()"
+          [disabled]="saving()"
+          aria-labelledby="profile-setting-diesel"
+          (click)="toggleDraftDieselControl()"
+        >
+          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p class="profile-drawer__setting-desc">
+        El sistema estima automáticamente consumo y costos de diesel usando
+        distancia operativa, configuración de unidad, tipo de carga y
+        rendimiento estimado.
+      </p>
+    </article>
+
+    <article
+      class="profile-drawer__setting-row"
+      aria-labelledby="profile-setting-km"
+    >
+      <div class="profile-drawer__setting-head">
+        <div>
+          <h4 id="profile-setting-km" class="profile-drawer__setting-title">
+            Control por kilómetros
+          </h4>
+          <p class="profile-drawer__setting-meta">{{ kmStatusLabel() }}</p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-toggle"
+          [class.fleet-unit-toggle--on]="draftKmEnabled()"
+          role="switch"
+          [attr.aria-checked]="draftKmEnabled()"
+          [disabled]="saving()"
+          aria-labelledby="profile-setting-km"
+          (click)="toggleDraftKm()"
+        >
+          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p class="profile-drawer__setting-desc">
+        Ayuda a mantener el recorrido de la flota y calcular mantenimiento de
+        manera controlada e inteligente según los kilómetros recorridos entre
+        servicios.
+      </p>
+      @if (draftKmEnabled()) {
+        <to-input
+          label="Kilómetros estándar entre servicios"
+          type="text"
+          placeholder="Ej. 15000"
+          [groupThousands]="true"
+          [(value)]="draftKmInterval"
+          [disabled]="saving()"
+        />
+      }
+    </article>
+
+    <article
+      class="profile-drawer__setting-row"
+      aria-labelledby="profile-setting-date"
+    >
+      <div class="profile-drawer__setting-head">
+        <div>
+          <h4 id="profile-setting-date" class="profile-drawer__setting-title">
+            Control por fechas
+          </h4>
+          <p class="profile-drawer__setting-meta">{{ dateStatusLabel() }}</p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-toggle"
+          [class.fleet-unit-toggle--on]="draftDateEnabled()"
+          role="switch"
+          [attr.aria-checked]="draftDateEnabled()"
+          [disabled]="saving()"
+          aria-labelledby="profile-setting-date"
+          (click)="toggleDraftDate()"
+        >
+          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+        </button>
+      </div>
+      @if (draftDateEnabled()) {
+        <to-select
+          label="Periodo estándar entre servicios"
+          [options]="maintDatePeriodOptions"
+          [value]="draftDatePeriod()"
+          [disabled]="saving()"
+          (valueChange)="onDraftDatePeriodChange($event)"
+        />
+      }
+    </article>
+
+    <article
+      class="profile-drawer__setting-row"
+      aria-labelledby="profile-setting-intelligent"
+    >
+      <div class="profile-drawer__setting-head">
+        <div>
+          <h4
+            id="profile-setting-intelligent"
+            class="profile-drawer__setting-title"
+          >
+            Control operativo asistido
+          </h4>
+          <p class="profile-drawer__setting-meta">
+            {{ intelligentStatusLabel() }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="fleet-unit-toggle"
+          [class.fleet-unit-toggle--on]="draftIntelligentEnabled()"
+          role="switch"
+          [attr.aria-checked]="draftIntelligentEnabled()"
+          [disabled]="saving()"
+          aria-labelledby="profile-setting-intelligent"
+          (click)="toggleDraftIntelligent()"
+        >
+          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p class="profile-drawer__setting-desc">
+        Estima desgaste de llantas y mantenimiento preventivo por maniobra;
+        alimenta reportes y controles operativos de la flota.
+      </p>
+    </article>
+  </section>
 </div>
 
 <dialog
@@ -216,59 +194,94 @@
   <div class="profile-drawer__confirm-panel">
     <div class="profile-drawer__confirm-head">
       <div class="profile-drawer__confirm-icon-wrap" aria-hidden="true">
-        <to-icon class="profile-drawer__confirm-icon" name="warning" [size]="22" />
+        <to-icon
+          class="profile-drawer__confirm-icon"
+          name="warning"
+          [size]="22"
+        />
       </div>
-      <h2 id="profile-disable-confirm-title" class="profile-drawer__confirm-title">
+      <h2
+        id="profile-disable-confirm-title"
+        class="profile-drawer__confirm-title"
+      >
         @switch (pendingDisableKind()) {
-          @case ('km') {
+          @case ("km") {
             ¿Desactivar control por kilómetros?
           }
-          @case ('date') {
+          @case ("date") {
             ¿Desactivar control por fechas?
           }
-          @case ('intelligent') {
+          @case ("intelligent") {
             ¿Desactivar control operativo asistido?
           }
-          @case ('diesel') {
+          @case ("diesel") {
             ¿Desactivar control automático de diesel?
+          }
+          @case ("recognition") {
+            ¿Desactivar control de sugerencias automáticas?
           }
         }
       </h2>
     </div>
-    @if (pendingDisableKind() === 'intelligent') {
+    @if (pendingDisableKind() === "intelligent") {
       <p class="profile-drawer__confirm-text">
         Este cambio aplica para <strong>toda la empresa</strong> y para
         <strong>todos los usuarios</strong>.
       </p>
       <ul class="profile-drawer__confirm-list">
-        <li>Dejará de calcularse la reserva de llantas y mantenimiento por maniobra.</li>
-        <li><strong>Reportes</strong> ya no mostrará la provisión operativa estimada.</li>
-        <li><strong>Gastos</strong> pasará a control manual bajo el proceso propio del equipo.</li>
+        <li>
+          Dejará de calcularse la reserva de llantas y mantenimiento por
+          maniobra.
+        </li>
+        <li>
+          <strong>Reportes</strong> ya no mostrará la provisión operativa
+          estimada.
+        </li>
+        <li>
+          <strong>Gastos</strong> pasará a control manual bajo el proceso propio
+          del equipo.
+        </li>
       </ul>
       <p class="profile-drawer__confirm-note">
         Debes guardar la configuración para que el cambio quede registrado.
       </p>
-    } @else if (pendingDisableKind() === 'diesel') {
+    } @else if (pendingDisableKind() === "diesel") {
       <p class="profile-drawer__confirm-text">
-        Al desactivar el control automático de diesel, el sistema dejará de calcular de forma
-        automática el consumo estimado, litros y costos operativos en las maniobras. Los valores
-        deberán capturarse manualmente.
+        Al desactivar el control automático de diesel, el sistema dejará de
+        calcular de forma automática el consumo estimado, litros y costos
+        operativos en las maniobras. Los valores deberán capturarse manualmente.
       </p>
       <p class="profile-drawer__confirm-note">
-        Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar la configuración
-        para que quede registrado.
+        Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar
+        la configuración para que quede registrado.
+      </p>
+    } @else if (pendingDisableKind() === "recognition") {
+      <p class="profile-drawer__confirm-text">
+        Al desactivar el control de sugerencias automáticas, las maniobras no se
+        autocompletaran de manera agil.
+      </p>
+      <p class="profile-drawer__confirm-note">
+        Debes guardar la configuración para que el cambio quede registrado.
       </p>
     } @else {
       <p class="profile-drawer__confirm-text">
-        Este cambio aplica para <strong>toda la empresa</strong>. Las unidades volverán al control
-        manual hasta que vuelvas a activarlo y guardes.
+        Este cambio aplica para <strong>toda la empresa</strong>. Las unidades
+        volverán al control manual hasta que vuelvas a activarlo y guardes.
       </p>
     }
     <div class="profile-drawer__confirm-actions">
-      <to-button type="button" variant="outline" (click)="closeDisableConfirm()">
+      <to-button
+        type="button"
+        variant="outline"
+        (click)="closeDisableConfirm()"
+      >
         Cancelar
       </to-button>
-      <to-button type="button" variant="primary" (click)="confirmDisableControl()">
+      <to-button
+        type="button"
+        variant="primary"
+        (click)="confirmDisableControl()"
+      >
         Sí, desactivar
       </to-button>
     </div>

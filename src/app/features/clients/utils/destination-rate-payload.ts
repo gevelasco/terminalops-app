@@ -1,3 +1,7 @@
+import {
+  parseEstimatedTimeValueInput,
+  validateDestinationRateEstimatedTimesInput,
+} from '@features/clients/utils/destination-rate-estimated-time';
 import type {
   CreateDestinationRatePayload,
   DestinationRate,
@@ -45,11 +49,18 @@ export function priceDraftsFromRate(rate: DestinationRate): DestinationRatePrice
 }
 
 export function validateDestinationRateForm(params: {
+  originOperationalCenterId: string;
   postalCode: string;
   cityMunicipality: string;
   locality: string;
   priceDrafts: readonly DestinationRatePriceDraft[];
+  estimatedArrivalTimeValue?: string;
+  estimatedReturnTimeValue?: string;
+  estimatedTimeUnit?: string;
 }): string | null {
+  if (!params.originOperationalCenterId.trim()) {
+    return 'Selecciona el centro operativo de origen.';
+  }
   const cp = normalizeMxPostalCodeDigits(params.postalCode);
   if (cp.length !== 5) {
     return 'El código postal debe tener 5 dígitos.';
@@ -84,7 +95,47 @@ export function validateDestinationRateForm(params: {
       return 'Revisa cobro, pago operador y casetas aprox. en cada fila.';
     }
   }
-  return null;
+  return validateDestinationRateEstimatedTimesInput({
+    arrivalRaw: params.estimatedArrivalTimeValue ?? '',
+    returnRaw: params.estimatedReturnTimeValue ?? '',
+    unit: params.estimatedTimeUnit ?? '',
+  });
+}
+
+function appendEstimatedTimesToPayload(
+  payload: CreateDestinationRatePayload,
+  params: {
+    estimatedArrivalTimeValue: string;
+    estimatedReturnTimeValue: string;
+    estimatedTimeUnit: string;
+    forUpdate: boolean;
+  },
+): CreateDestinationRatePayload {
+  const arrivalRaw = params.estimatedArrivalTimeValue.trim();
+  const returnRaw = params.estimatedReturnTimeValue.trim();
+  const unit = params.estimatedTimeUnit.trim();
+  if (!arrivalRaw && !returnRaw && !unit) {
+    if (params.forUpdate) {
+      return {
+        ...payload,
+        estimatedArrivalTimeValue: null,
+        estimatedReturnTimeValue: null,
+        estimatedTimeUnit: null,
+      };
+    }
+    return payload;
+  }
+  const arrival = parseEstimatedTimeValueInput(arrivalRaw);
+  const returnValue = parseEstimatedTimeValueInput(returnRaw);
+  if (!arrival || !returnValue || (unit !== 'hours' && unit !== 'days')) {
+    return payload;
+  }
+  return {
+    ...payload,
+    estimatedArrivalTimeValue: arrival,
+    estimatedReturnTimeValue: returnValue,
+    estimatedTimeUnit: unit,
+  };
 }
 
 export function buildDestinationRatePricesPayload(
@@ -102,19 +153,89 @@ export function buildDestinationRatePricesPayload(
 }
 
 export function buildCreateDestinationRatePayload(params: {
+  originOperationalCenterId: string;
   postalCode: string;
   cityMunicipality: string;
   locality: string;
   priceDrafts: readonly DestinationRatePriceDraft[];
+  routeDistanceKm?: number | null;
+  destinationLatitude?: number | null;
+  destinationLongitude?: number | null;
   active: boolean;
   notes: string;
+  estimatedArrivalTimeValue?: string;
+  estimatedReturnTimeValue?: string;
+  estimatedTimeUnit?: string;
+  forUpdate?: boolean;
 }): CreateDestinationRatePayload {
-  return {
+  const base: CreateDestinationRatePayload = {
+    originOperationalCenterId: params.originOperationalCenterId.trim(),
     postalCode: normalizeMxPostalCodeDigits(params.postalCode),
     cityMunicipality: params.cityMunicipality.trim(),
     locality: params.locality.trim(),
     prices: buildDestinationRatePricesPayload(params.priceDrafts),
+    ...(params.routeDistanceKm != null && params.routeDistanceKm > 0
+      ? { routeDistanceKm: params.routeDistanceKm, isRoundTrip: true }
+      : {}),
+    ...(params.destinationLatitude != null && params.destinationLongitude != null
+      ? {
+          destinationLatitude: params.destinationLatitude,
+          destinationLongitude: params.destinationLongitude,
+        }
+      : {}),
     active: params.active,
     notes: params.notes.trim() || undefined,
   };
+  return appendEstimatedTimesToPayload(base, {
+    estimatedArrivalTimeValue: params.estimatedArrivalTimeValue ?? '',
+    estimatedReturnTimeValue: params.estimatedReturnTimeValue ?? '',
+    estimatedTimeUnit: params.estimatedTimeUnit ?? '',
+    forUpdate: params.forUpdate === true,
+  });
+}
+
+function municipalityFromCityMunicipalityLine(
+  line: string | null | undefined,
+): string {
+  const t = (line ?? '').trim();
+  if (!t) {
+    return '';
+  }
+  const comma = t.indexOf(',');
+  return (comma >= 0 ? t.slice(0, comma) : t).trim();
+}
+
+/** Celda apilada para columna Origen: localidad + municipio. */
+export function formatDestinationRateOriginCell(
+  rate: Pick<DestinationRate, 'originLocality' | 'originCityMunicipality'>,
+): { date: string; time: string } {
+  const locality = rate.originLocality.trim() || '—';
+  const municipality =
+    municipalityFromCityMunicipalityLine(rate.originCityMunicipality) || '—';
+  return { date: locality, time: municipality };
+}
+
+/** Celda apilada para columna Destino: localidad + municipio. */
+export function formatDestinationRateDestinationCell(
+  rate: Pick<DestinationRate, 'locality' | 'cityMunicipality'>,
+): { date: string; time: string } {
+  const locality = rate.locality.trim() || '—';
+  const municipality =
+    municipalityFromCityMunicipalityLine(rate.cityMunicipality) || '—';
+  return { date: locality, time: municipality };
+}
+
+export function formatDestinationRateRouteSummary(rate: Pick<
+  DestinationRate,
+  | 'originLocality'
+  | 'originOperationalCenterName'
+  | 'locality'
+  | 'postalCode'
+>): string {
+  const origin =
+    rate.originLocality.trim() ||
+    rate.originOperationalCenterName?.trim() ||
+    'Origen';
+  const dest = rate.locality.trim() || rate.postalCode.trim() || 'Destino';
+  return `${origin} → ${dest}`;
 }

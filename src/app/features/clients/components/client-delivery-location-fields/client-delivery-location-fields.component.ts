@@ -9,9 +9,19 @@ import {
   model,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { catchError, combineLatest, debounceTime, distinctUntilChanged, filter, finalize, map, of, switchMap, tap } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { DestinationRatesService as DestinationRatesApiService } from '@services/api/destination-rates';
+import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import {
+  clientDeliveryRouteLinkHint,
+  clientDeliveryRouteLinkTitle,
+  isClientDeliveryRouteLookupReady,
+  resolveClientDeliveryRoutePreview,
+  type ClientDeliveryRouteLinkPreview,
+} from '@features/clients/utils/client-delivery-route-link';
 import {
   cityMunicipalityLineFromSettlement,
   formatSettlementOptionLabel,
@@ -24,6 +34,7 @@ import {
   type MxPostalSettlement,
 } from '@shared/services/mexico-postal-code.service';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 
@@ -31,7 +42,7 @@ import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
   selector: 'app-client-delivery-location-fields',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToInputComponent, ToSelectComponent],
+  imports: [ToInputComponent, ToSelectComponent, ToIconComponent],
   templateUrl: './client-delivery-location-fields.component.html',
   styleUrl: './client-delivery-location-fields.component.scss',
 })
@@ -40,9 +51,14 @@ export class ClientDeliveryLocationFieldsComponent {
   private readonly toast = inject(ToastService);
   private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly photon = inject(PhotonPlaceSearchService);
+  private readonly ratesApi = inject(DestinationRatesApiService);
+  private readonly ratesFeature = inject(DestinationRatesFeatureService);
+  private readonly centersFeature = inject(OperationalCentersFeatureService);
 
   /** CP guardado en BD; si el blur coincide, no se consulta SEPOMEX. */
   readonly referencePostalCode = input('');
+  readonly savedDestinationRateId = input<string | null>(null);
+  readonly savedIsUnpricedRoute = input(false);
 
   readonly disabled = input(false);
 
@@ -57,6 +73,17 @@ export class ClientDeliveryLocationFieldsComponent {
   readonly cpLoading = signal(false);
   readonly cpEditing = signal(false);
   private readonly coordsFromDb = signal(false);
+
+  readonly routeLinkStatus = signal<ClientDeliveryRouteLinkPreview>('idle');
+  readonly linkedDestinationRateId = signal<string | null>(null);
+  readonly suggestedRouteCount = signal(0);
+
+  readonly routeLinkTitle = computed(() =>
+    clientDeliveryRouteLinkTitle(this.routeLinkStatus()),
+  );
+  readonly routeLinkHint = computed(() =>
+    clientDeliveryRouteLinkHint(this.routeLinkStatus()),
+  );
 
   readonly localityOptions = computed(() =>
     this.settlements().map((s) => ({
@@ -97,6 +124,9 @@ export class ClientDeliveryLocationFieldsComponent {
   readonly lonDisplay = computed(() => this.formatCoord(this.longitude()));
 
   constructor() {
+    this.centersFeature.loadOperationalCenters();
+    this.ratesFeature.loadDestinationRates();
+
     effect(() => {
       const refCp = this.referencePostalCode().trim();
       const cp = this.postalCode().trim();
@@ -110,6 +140,8 @@ export class ClientDeliveryLocationFieldsComponent {
         );
       }
     });
+
+    this.bindRouteLinkPipeline();
   }
 
   /** Restablece el modo lectura (p. ej. al cargar datos desde la API). */
@@ -122,6 +154,7 @@ export class ClientDeliveryLocationFieldsComponent {
         this.longitude() != null &&
         !!this.locality().trim(),
     );
+    this.syncRouteLinkFromSaved();
   }
 
   onCpBlur(): void {
@@ -163,6 +196,110 @@ export class ClientDeliveryLocationFieldsComponent {
     this.coordsFromDb.set(false);
     this.applySelectedSettlement();
     this.geocodeSelectedSettlement();
+  }
+
+  private bindRouteLinkPipeline(): void {
+    combineLatest([
+      toObservable(this.postalCode),
+      toObservable(this.locality),
+      toObservable(this.settlementConsId),
+    ])
+      .pipe(
+        debounceTime(300),
+        map(([postalCode, locality, settlementConsId]) => ({
+          postalCode,
+          locality,
+          settlementConsId,
+        })),
+        distinctUntilChanged(
+          (a, b) =>
+            normalizeMxPostalCodeDigits(a.postalCode) ===
+              normalizeMxPostalCodeDigits(b.postalCode) &&
+            a.locality.trim().toLowerCase() === b.locality.trim().toLowerCase() &&
+            a.settlementConsId.trim() === b.settlementConsId.trim(),
+        ),
+        tap((input) => {
+          if (!isClientDeliveryRouteLookupReady(input)) {
+            this.routeLinkStatus.set('idle');
+            this.linkedDestinationRateId.set(null);
+            this.suggestedRouteCount.set(0);
+            return;
+          }
+          this.routeLinkStatus.set('checking');
+          this.linkedDestinationRateId.set(null);
+        }),
+        filter(
+          (input): input is { postalCode: string; locality: string; settlementConsId: string } =>
+            isClientDeliveryRouteLookupReady(input),
+        ),
+        switchMap((input) => this.resolveRouteLink(input)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  private resolveRouteLink(input: { postalCode: string; locality: string }) {
+    const primaryOriginCenterId = this.centersFeature.defaultCenter()?.id ?? null;
+    const localPreview = resolveClientDeliveryRoutePreview(
+      this.ratesFeature.rates(),
+      {
+        postalCode: input.postalCode,
+        locality: input.locality,
+        primaryOriginCenterId,
+      },
+    );
+    this.suggestedRouteCount.set(localPreview.matches.length);
+
+    if (!primaryOriginCenterId) {
+      this.applyRouteLinkPreview(localPreview.rateId, localPreview.matches.length);
+      return of(undefined);
+    }
+
+    return this.ratesApi
+      .checkDestinationRateExists({
+        originOperationalCenterId: primaryOriginCenterId,
+        postalCode: input.postalCode,
+        locality: input.locality,
+      })
+      .pipe(
+        map((check) => check.destinationRateId ?? localPreview.rateId),
+        tap((rateId) => this.applyRouteLinkPreview(rateId, localPreview.matches.length)),
+        catchError(() => {
+          this.applyRouteLinkPreview(localPreview.rateId, localPreview.matches.length);
+          return of(undefined);
+        }),
+        finalize(() => {
+          if (this.routeLinkStatus() === 'checking') {
+            this.routeLinkStatus.set('idle');
+          }
+        }),
+        map(() => undefined),
+      );
+  }
+
+  private applyRouteLinkPreview(rateId: string | null, matchCount: number): void {
+    this.suggestedRouteCount.set(matchCount);
+    this.linkedDestinationRateId.set(rateId);
+    this.routeLinkStatus.set(rateId ? 'linked' : 'unpriced');
+  }
+
+  private syncRouteLinkFromSaved(): void {
+    const savedRateId = this.savedDestinationRateId()?.trim();
+    if (savedRateId) {
+      this.linkedDestinationRateId.set(savedRateId);
+      this.routeLinkStatus.set('linked');
+      return;
+    }
+    if (
+      isClientDeliveryRouteLookupReady({
+        postalCode: this.postalCode(),
+        locality: this.locality(),
+      }) &&
+      this.savedIsUnpricedRoute()
+    ) {
+      this.linkedDestinationRateId.set(null);
+      this.routeLinkStatus.set('unpriced');
+    }
   }
 
   private fetchSettlements(cpDigits: string): void {
@@ -245,6 +382,9 @@ export class ClientDeliveryLocationFieldsComponent {
     this.longitude.set(null);
     this.coordsFromDb.set(false);
     this.cpEditing.set(false);
+    this.routeLinkStatus.set('idle');
+    this.linkedDestinationRateId.set(null);
+    this.suggestedRouteCount.set(0);
   }
 
   private formatCoord(n: number | null): string {

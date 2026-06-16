@@ -20,6 +20,14 @@
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
+    aria-labelledby="dest-rate-new-origin"
+  >
+    <h3 id="dest-rate-new-origin" class="fleet-unit-sec__title">Origen</h3>
+    <app-operational-center-select [(selectedCenterId)]="originOperationalCenterId" />
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
     aria-labelledby="dest-rate-new-location"
   >
     <h3 id="dest-rate-new-location" class="fleet-unit-sec__title">Destino</h3>
@@ -28,10 +36,52 @@
       [(cityMunicipality)]="cityMunicipality"
       [(locality)]="locality"
     />
+    @if (routeMode() === 'EXISTING_ROUTE') {
+      <div
+        class="destination-rates-new-drawer__duplicate-banner"
+        role="alert"
+        aria-live="polite"
+      >
+        <to-icon class="destination-rates-new-drawer__duplicate-icon" name="warning" [size]="18" />
+        <div class="destination-rates-new-drawer__duplicate-content">
+          <p class="destination-rates-new-drawer__duplicate-title">
+            Ya existe una tarifa para esta ruta
+          </p>
+          <p class="destination-rates-new-drawer__duplicate-hint">
+            Resuelve la ruta usando la tarifa existente o cambia origen/destino para crear una nueva.
+          </p>
+          <div class="destination-rates-new-drawer__duplicate-actions">
+            <to-button type="button" variant="outline" (click)="onOpenExistingRate()">
+              Abrir tarifa existente
+            </to-button>
+            <to-button type="button" variant="ghost" (click)="dismiss.emit()">
+              Cancelar
+            </to-button>
+          </div>
+        </div>
+      </div>
+    }
+    @if (showDistanceFields()) {
+      <div class="destination-rates-new-drawer__grid destination-rates-new-drawer__distance-grid">
+        <to-input
+          label="Distancia ruta (ida)"
+          placeholder="Se calcula al completar origen y destino"
+          [disabled]="true"
+          [displayValue]="routeDistanceDisplay()"
+        />
+        <to-input
+          label="Distancia operativa (ida/vuelta)"
+          placeholder="Se calcula al completar origen y destino"
+          [disabled]="true"
+          [displayValue]="operationalDistanceDisplay()"
+        />
+      </div>
+    }
   </section>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
+    [class.destination-rates-new-drawer__section--locked]="routeMode() === 'EXISTING_ROUTE'"
     aria-labelledby="dest-rate-new-prices"
   >
     <h3 id="dest-rate-new-prices" class="fleet-unit-sec__title">
@@ -42,6 +92,38 @@
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
+    [class.destination-rates-new-drawer__section--locked]="routeMode() === 'EXISTING_ROUTE'"
+    aria-labelledby="dest-rate-new-estimated-times"
+  >
+    <h3 id="dest-rate-new-estimated-times" class="fleet-unit-sec__title">
+      Tiempos estimados (referencia)
+    </h3>
+    <div class="destination-rates-new-drawer__stack">
+      <to-select
+        label="Unidad"
+        [options]="timeUnitOptions"
+        [(value)]="estimatedTimeUnit"
+      />
+      <div class="destination-rates-new-drawer__grid destination-rates-new-drawer__time-grid">
+        <to-input
+          label="Tiempo ida"
+          placeholder="Opcional"
+          [suffix]="estimatedTimeSuffix()"
+          [(value)]="estimatedArrivalTimeValue"
+        />
+        <to-input
+          label="Tiempo retorno"
+          placeholder="Opcional"
+          [suffix]="estimatedTimeSuffix()"
+          [(value)]="estimatedReturnTimeValue"
+        />
+      </div>
+    </div>
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed"
+    [class.destination-rates-new-drawer__section--locked]="routeMode() === 'EXISTING_ROUTE'"
     aria-labelledby="dest-rate-new-meta"
   >
     <h3 id="dest-rate-new-meta" class="fleet-unit-sec__title">Referencia</h3>
@@ -55,7 +137,7 @@
     <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">
       Cancelar
     </to-button>
-    <to-button type="submit" variant="primary" [disabled]="saving()">
+    <to-button type="submit" variant="primary" [disabled]="!canSave()">
       <to-icon name="save" [size]="14" />
       {{ saving() ? 'Guardando…' : 'Guardar' }}
     </to-button>

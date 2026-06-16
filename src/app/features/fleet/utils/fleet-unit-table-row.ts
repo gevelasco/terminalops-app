@@ -1,4 +1,5 @@
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS, TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { fleetBrandDisplayName } from '@shared/utils/fleet/fleet-brand-display';
 import type { CompanyMaintenancePolicy } from '@shared/models/company-operational-settings.models';
 import {
   Equipment,
@@ -47,7 +48,7 @@ export function fleetOperationalKeyLabel(key: FleetOperationalKey): string {
     case 'available':
       return 'Disponible';
     case 'in_use':
-      return 'Asignada';
+      return tripStatusUiLabel('in_transit');
     case 'maintenance':
       return 'Mantenimiento';
     case 'scheduled':
@@ -65,7 +66,7 @@ export function fleetOperationalPillClass(key: FleetOperationalKey): string {
     case 'available':
       return `${base} to-table-pill--fleet-available`;
     case 'in_use':
-      return `${base} to-table-pill--fleet-in-use`;
+      return `${base} to-table-pill--fleet-maneuver`;
     case 'maintenance':
       return `${base} to-table-pill--fleet-maintenance`;
     case 'scheduled':
@@ -276,15 +277,10 @@ function worstBucket(...buckets: FleetRenewalBucket[]): FleetRenewalBucket {
 }
 
 function trailerBrandLabel(u: Unit): string {
-  const name = u.fleetMeta?.trailerBrandName?.trim();
-  if (name) {
-    return name;
-  }
-  const abbr = u.trailerBrandAbbr?.trim();
-  if (!abbr) {
-    return '—';
-  }
-  return TRAILER_BRAND_OPTIONS.find((o) => o.value === abbr)?.label ?? abbr;
+  return fleetBrandDisplayName({
+    trailerBrandName: u.fleetMeta?.trailerBrandName,
+    trailerBrandAbbr: u.trailerBrandAbbr,
+  });
 }
 
 function modelLabel(u: Unit): string {
@@ -730,6 +726,7 @@ export function buildFleetUnitTableRow(
   u: Unit,
   options: {
     onRoute: boolean;
+    operationalOverride?: FleetOperationalKey;
     completedTripKm?: number | null;
     hitchedEquipment?: Equipment[];
     resolver: OperationConfigurationResolver;
@@ -743,7 +740,8 @@ export function buildFleetUnitTableRow(
     fleetModel: modelLabel(u),
     fleetPlate: u.plate.trim() || '—',
     fleetConfig: unitConvoyOperationTypeForTable(hitched, options.resolver),
-    fleetOperational: operationalKey(u, options.onRoute),
+    fleetOperational:
+      options.operationalOverride ?? operationalKey(u, options.onRoute),
     fleetMaint: maintenanceBucket(meta, options.completedTripKm),
     fleetVerif: verificationBucket(meta),
     fleetIns: insuranceBucket(meta),
@@ -767,15 +765,10 @@ function equipmentOperationValueFromLabel(label: string | undefined): string {
 }
 
 function equipmentBrandLabel(e: Equipment): string {
-  const name = e.fleetMeta?.trailerBrandName?.trim();
-  if (name) {
-    return name;
-  }
-  const abbr = e.trailerBrandAbbr?.trim();
-  if (!abbr) {
-    return '—';
-  }
-  return TRAILER_BRAND_OPTIONS.find((o) => o.value === abbr)?.label ?? abbr;
+  return fleetBrandDisplayName({
+    trailerBrandName: e.fleetMeta?.trailerBrandName,
+    trailerBrandAbbr: e.trailerBrandAbbr,
+  });
 }
 
 function equipmentModelLabel(e: Equipment): string {
@@ -810,7 +803,7 @@ export function operationalKeyEquipment(
     case 'available':
       return 'available';
     case 'in_use':
-      return 'in_use';
+      return 'on_route';
     case 'maintenance':
       return 'maintenance';
     case 'scheduled':
@@ -825,6 +818,7 @@ export function buildFleetEquipmentTableRow(
   e: Equipment,
   options: {
     onRoute: boolean;
+    operationalOverride?: FleetOperationalKey;
     completedTripKm?: number | null;
   },
 ): Record<string, unknown> {
@@ -851,7 +845,9 @@ export function buildFleetEquipmentTableRow(
     fleetModel: equipmentModelLabel(e),
     fleetUnitType: equipmentTypeLabel(e),
     fleetPlate: e.plate?.trim() || '—',
-    fleetOperational: operationalKeyEquipment(e, options.onRoute),
+    fleetOperational:
+      options.operationalOverride ??
+      operationalKeyEquipment(e, options.onRoute),
     fleetMaint: maintenanceBucket(rowMaintMeta, options.completedTripKm),
     fleetVerif: equipmentPhysMechVerificationBucket(e, meta),
     fleetIns: insuranceBucket(insMeta),

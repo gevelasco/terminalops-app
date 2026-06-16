@@ -12,6 +12,15 @@ import { SessionService } from '@core/services/state/session';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@services/api/expenses';
 import { tripIncidentPostedBy } from '@features/trips/utils/trip-incidents';
+import {
+  seedActualScheduleDrafts,
+  validateActualScheduleBeforeSave,
+  isActualScheduleFieldEditable,
+  arrivalIsoForCompletionValidation,
+  type ActualScheduleDrafts,
+  type ActualScheduleFieldKey,
+} from '@features/trips/utils/actual-schedule-edit';
+import { isoToDateTimeLocalValue } from '@features/trips/utils/datetime-local';
 import { tripCargoDescriptionDisplay } from '@features/trips/utils/trip-cargo-description';
 import {
   buildManiobraSettlementSummary,
@@ -68,6 +77,12 @@ export class TripsDetailDrawerFacade {
   readonly incidentSaving = signal(false);
   readonly collectSaving = signal(false);
   readonly cancelSubmitting = signal(false);
+  readonly realDatesEditEnabled = signal(false);
+  readonly realDepartureDraft = signal('');
+  readonly realArrivalDraft = signal('');
+  readonly realCompletionDraft = signal('');
+  readonly justificationDraft = signal('');
+  readonly realDatesSaving = signal(false);
   readonly detailTab = signal<TripsDetailTab>('maneuver');
   readonly showsSettlementTab = computed(() => this.trip().status === 'completed');
   readonly detailSegmentTabs = computed((): readonly ToSegmentTab<TripsDetailTab>[] => {
@@ -98,12 +113,26 @@ export class TripsDetailDrawerFacade {
   readonly settlementSummary = computed(() =>
     buildManiobraSettlementSummary(this.trip(), this.expensesForSettlement()),
   );
+  readonly canEditRealDates = computed(() => this.trip().status === 'in_transit');
+  readonly realScheduleDrafts = computed(
+    (): ActualScheduleDrafts => ({
+      departureAt: this.realDepartureDraft(),
+      arrivedAt: this.realArrivalDraft(),
+      returnAt: this.realCompletionDraft(),
+    }),
+  );
   readonly cancelKind = signal<'operative' | 'false'>('operative');
   readonly cancelNoteDraft = signal('');
 
   private detailTabTripId: string | undefined;
 
   constructor() {
+    effect(() => {
+      const id = this.tripsFeature.selectedTripId();
+      const trip = this.tripsFeature.selectedTrip();
+      this.drawerLoading.set(Boolean(id && !trip));
+    });
+
     effect(() => {
       const t = this.tripsFeature.selectedTrip();
       if (!t) {
@@ -126,6 +155,16 @@ export class TripsDetailDrawerFacade {
     effect(() => {
       if (!this.showsSettlementTab() && this.detailTab() === 'settlement') {
         this.detailTab.set('maneuver');
+      }
+    });
+
+    effect(() => {
+      const t = this.tripsFeature.selectedTrip();
+      if (!t) {
+        return;
+      }
+      if (t.status !== 'in_transit' && this.realDatesEditEnabled()) {
+        this.resetRealScheduleEdit();
       }
     });
   }
@@ -227,18 +266,138 @@ export class TripsDetailDrawerFacade {
     return this.dateShort.transform(iso ?? undefined);
   }
 
-  enCursoDisplay(): string {
-    const t = this.trip().departureAt;
-    return t ? this.fmt(t) : '-';
+  showRealScheduleField(field: ActualScheduleFieldKey): boolean {
+    const t = this.trip();
+    const persisted = Boolean(t[field]?.trim());
+    if (!persisted) {
+      return false;
+    }
+    if (!this.realDatesEditEnabled()) {
+      return true;
+    }
+    return !isActualScheduleFieldEditable(t.status, field);
   }
 
-  completadaDisplay(): string {
-    const t = this.trip().arrivedAt;
-    return t ? this.fmt(t) : '-';
+  canEditRealScheduleField(field: ActualScheduleFieldKey): boolean {
+    return (
+      this.realDatesEditEnabled() &&
+      isActualScheduleFieldEditable(this.trip().status, field)
+    );
   }
 
-  unitDisplay(unitId: string): string {
-    return unitId?.trim() || '-';
+  realCompletionMinLocal(): string | undefined {
+    const trip = this.trip();
+    const arrIso = arrivalIsoForCompletionValidation(trip, this.realScheduleDrafts());
+    const local = isoToDateTimeLocalValue(arrIso);
+    return local || undefined;
+  }
+
+  resetRealScheduleEdit(): void {
+    this.realDatesEditEnabled.set(false);
+    this.realDepartureDraft.set('');
+    this.realArrivalDraft.set('');
+    this.realCompletionDraft.set('');
+    this.justificationDraft.set('');
+  }
+
+  toggleRealDatesEdit(): void {
+    if (!this.canEditRealDates() || this.realDatesSaving()) {
+      return;
+    }
+    const next = !this.realDatesEditEnabled();
+    this.realDatesEditEnabled.set(next);
+    if (next) {
+      const seeded = seedActualScheduleDrafts(this.trip());
+      this.realDepartureDraft.set(seeded.departureAt);
+      this.realArrivalDraft.set(seeded.arrivedAt);
+      this.realCompletionDraft.set(seeded.returnAt);
+      this.justificationDraft.set('');
+      return;
+    }
+    this.resetRealScheduleEdit();
+  }
+
+  onJustificationDraftInput(ev: Event): void {
+    this.justificationDraft.set((ev.target as HTMLTextAreaElement).value);
+  }
+
+  saveRealSchedule(): void {
+    if (!this.canEditRealDates() || this.realDatesSaving() || !this.realDatesEditEnabled()) {
+      return;
+    }
+
+    const result = validateActualScheduleBeforeSave(
+      this.trip(),
+      this.realScheduleDrafts(),
+      this.justificationDraft(),
+    );
+
+    if ('error' in result) {
+      if (result.error === 'no_changes') {
+        this.toast.show('No hay cambios en fechas reales para guardar.', 'info');
+        return;
+      }
+      this.toast.show(result.error, 'warning');
+      return;
+    }
+
+    this.realDatesSaving.set(true);
+    this.tripsFeature
+      .updateActualSchedule(this.trip().id, result.payload)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.realDatesSaving.set(false);
+          this.resetRealScheduleEdit();
+          this.toast.show('Cronograma real actualizado.', 'success');
+        },
+        error: (err: unknown) => {
+          this.realDatesSaving.set(false);
+          const detail =
+            err instanceof Error
+              ? err.message.trim()
+              : typeof err === 'string'
+                ? err.trim()
+                : '';
+          this.toast.show(
+            detail || 'No se pudo actualizar el cronograma real. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
+  }
+
+  unitDisplay(): string {
+    const t = this.trip();
+    const code =
+      t.unitOperationalCodeSnapshot?.trim() ||
+      t.unitOperationalCode?.trim() ||
+      t.unitId?.trim();
+    return code || '—';
+  }
+
+  destinationRateIdDisplay(): string {
+    const raw = this.trip().destinationRateId;
+    if (raw == null || raw === '') {
+      return '';
+    }
+    return String(raw).trim();
+  }
+
+  tollCalculationModeLabel(): string {
+    switch (this.trip().tollCalculationMode) {
+      case 'auto':
+        return 'Sugerido por tarifa';
+      case 'manual':
+        return 'Captura manual';
+      default:
+        return '';
+    }
+  }
+
+  plannedScheduleDisplay(iso: string | null | undefined): string {
+    const t = iso?.trim();
+    return t ? this.fmt(t) : '—';
   }
 
   isFullTrip(): boolean {

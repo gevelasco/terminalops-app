@@ -18,7 +18,7 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
   { value: 'unit_rent', label: 'Arriendo de unidad' },
   {
     value: 'trailer_admin_payout',
-    label: 'Pago por administración de remolque / rendimiento',
+    label: 'Pago por administración de equipo / rendimiento',
   },
   { value: 'operator_payment', label: 'Pago a operador' },
   { value: 'operator_commission', label: 'Comisiones a operador' },
@@ -27,7 +27,7 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
 
 export const EXPENSE_MAINTENANCE_TARGET_OPTIONS: ToSelectOption[] = [
   { value: 'unit', label: 'Unidad tractora' },
-  { value: 'equipment', label: 'Equipo / remolque' },
+  { value: 'equipment', label: 'Equipo' },
 ];
 
 /** Misma convención que mantenimiento: póliza sobre unidad o sobre equipo. */

@@ -20,6 +20,10 @@ import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
 import {
+  isPlannedScheduleValid,
+  plannedScheduleIsoTriplet,
+} from '@features/trips/utils/planned-schedule-validation';
+import {
   cityMunicipalityLineFromSettlement,
   formatLocationLabelFromSettlement,
   formatSettlementOptionLabel,
@@ -42,6 +46,7 @@ import {
   destinationPrefillFromClient,
   logPrefillLocation,
   originPrefillFromSession,
+  originPrefillFromOperationalCenter,
   routeEndpointFingerprint,
   type TripRouteEndpointPrefill,
 } from '@features/trips/utils/trips-new-drawer-route-prefill';
@@ -58,15 +63,21 @@ import {
 import { TripsService as TripsApiService } from '@core/services/api/trips';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
 import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import {
-  findDestinationRateByPostalCode,
+  destinationRateHasEstimatedTime,
+  destinationRateHasRouteCache,
+  findDestinationRateByRoute,
   suggestedClientChargeFromDestinationRate,
   suggestedEstimatedTollFromDestinationRate,
   suggestedOperatorPaymentFromDestinationRate,
 } from '@features/clients/utils/find-destination-rate-by-postal-code';
+import { computePlannedScheduleSuggestionFromRate } from '@features/trips/utils/planned-schedule-from-destination-rate';
 import type { FuelEstimateResponse } from '@shared/models/api/api-trips-fuel.model';
 import {
   buildFuelEstimateRequest,
@@ -85,7 +96,8 @@ import {
 } from '@shared/services/mexico-postal-code.service';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToFieldAssistInfoComponent } from '@shared/ui/to-field-assist-info/to-field-assist-info.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToDisplayFieldComponent } from '@shared/ui/to-display-field/to-display-field.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import {
@@ -103,6 +115,8 @@ import {
   type UnitPickedEvent,
 } from '@shared/ui/to-unit-input/to-unit-input.component';
 import { ToEquipmentInputComponent } from '@shared/ui/to-equipment-input/to-equipment-input.component';
+import { CargoDescriptionComboboxComponent } from '@features/trips/components/cargo-description-combobox/cargo-description-combobox.component';
+import type { ClientCargoHistoryItem } from '@shared/models/api/api-trips-cargo-history.model';
 import { combineLatest, EMPTY, of, type Observable } from 'rxjs';
 import {
   catchError,
@@ -121,6 +135,7 @@ import {
   providers: [
     TripsFormCatalogService,
     DestinationRatesFeatureService,
+    OperationalCentersFeatureService,
     OperationConfigurationsFeatureService,
     ...OPERATION_CONFIGURATION_PROVIDERS,
   ],
@@ -128,13 +143,16 @@ import {
     ToSideDrawerComponent,
     FormsModule,
     ToButtonComponent,
-    ToFieldAssistInfoComponent,
+    ToIconComponent,
+    OperationalCenterSelectComponent,
+    ToDisplayFieldComponent,
     ToInputComponent,
     ToSelectComponent,
     ToClientInputComponent,
     ToOperatorInputComponent,
     ToUnitInputComponent,
     ToEquipmentInputComponent,
+    CargoDescriptionComboboxComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trips-new-drawer.component.html',
@@ -153,6 +171,7 @@ export class TripsNewDrawerComponent {
   private readonly session = inject(SessionService);
   private readonly tripsFeature = inject(TripsFeatureService);
   private readonly destinationRatesFeature = inject(DestinationRatesFeatureService);
+  private readonly operationalCentersFeature = inject(OperationalCentersFeatureService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly tripEvaluation = inject(TripEvaluationService);
   private readonly tripsApi = inject(TripsApiService);
@@ -162,6 +181,10 @@ export class TripsNewDrawerComponent {
   readonly dieselEstimateLoading = signal(false);
   /** Control automático de diesel (config empresa en sesión). */
   readonly dieselControlEnabled = computed(() => this.session.dieselControlEnabled());
+  /** Preferencia de usuario: autollenado inteligente en Nueva Maniobra. */
+  readonly autoRecognitionEnabled = computed(
+    () => this.session.controlAutomaticRecognition(),
+  );
   readonly dieselLitersPlaceholder = computed(() =>
     this.dieselControlEnabled()
       ? 'Se estima al tener distancia y configuración'
@@ -191,11 +214,27 @@ export class TripsNewDrawerComponent {
   readonly clientChargeSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
   readonly casetasSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
   readonly destinationRateMatched = signal(false);
+  readonly originOperationalCenterId = model('');
+  private readonly matchedDestinationRateId = signal<string | null>(null);
+  private readonly routeCacheActive = signal(false);
+
+  /** Sugerencia UX de fechas planificadas desde tiempos referenciales de tarifa. */
+  readonly plannedScheduleSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
+  private lastPlannedScheduleContextFp = '';
+  private lastAutoPlannedArrival = '';
+  private lastAutoPlannedCompletion = '';
+  private applyingPlannedScheduleSuggestion = false;
 
   /** Creado en constructor (contexto de inyección requerido por `toObservable`). */
   private readonly fuelEstimatePipeline$: Observable<FuelEstimateResponse | undefined>;
 
   private readonly originPrefillApplied = signal(false);
+  private lastHandledOriginCenterId = '';
+  /** CP y localidad de origen bloqueados mientras el origen viene del centro operativo. */
+  readonly originRouteFieldsLocked = computed(() => {
+    const id = this.originOperationalCenterId().trim();
+    return id !== '' && !isOperationalCenterNewRoute(id);
+  });
   private readonly destinationPrefillForClientId = signal('');
   private readonly originLocalityPending = signal<string | null>(null);
   private readonly destinationLocalityPending = signal<string | null>(null);
@@ -254,6 +293,7 @@ export class TripsNewDrawerComponent {
   readonly loadType = model<TripLoadType>('vacio');
   readonly containerType = model<TripContainerType>('na');
   readonly cargoDescription = model('');
+  readonly cargoHistoryItems = signal<readonly ClientCargoHistoryItem[]>([]);
   readonly approximateWeightTons = model('');
   readonly dieselLiters = model('');
   readonly dieselAmount = model('');
@@ -268,9 +308,18 @@ export class TripsNewDrawerComponent {
   /** Valores internos de `ASSIGNABLE_EQUIPMENT_OPTIONS`; en Full se usan dos filas. */
   readonly equipmentPrimary = model('');
   readonly equipmentSecondary = model('');
-  /** `yyyy-mm-ddTHH:mm` para datetime-local */
-  readonly departureDateTime = model('');
-  readonly arrivalDateTime = model('');
+  /** `yyyy-mm-ddTHH:mm` — mapeo 1:1 a planned_departure_at / planned_arrival_at / planned_completion_at */
+  readonly plannedDepartureDateTime = model('');
+  readonly plannedArrivalDateTime = model('');
+  readonly plannedCompletionDateTime = model('');
+
+  readonly plannedScheduleValid = computed(() =>
+    isPlannedScheduleValid(
+      this.plannedDepartureDateTime(),
+      this.plannedArrivalDateTime(),
+      this.plannedCompletionDateTime(),
+    ),
+  );
   readonly clientName = model('');
   readonly clientId = model('');
 
@@ -281,7 +330,7 @@ export class TripsNewDrawerComponent {
   /** Por defecto activo: la mayoría de maniobras llevan cliente y cobro. */
   readonly includeClientBilling = model(true);
 
-  readonly equipmentPlaceholder = 'Buscar remolque enganchado…';
+  readonly equipmentPlaceholder = 'Buscar equipo enganchado…';
 
   /** Full → dos equipos obligatorios; otras configuraciones → uno (según catálogo). */
   readonly selectedOperationConfig = computed(() =>
@@ -321,7 +370,9 @@ export class TripsNewDrawerComponent {
 
   readonly unitPlaceholder = 'Buscar unidad disponible…';
 
+  readonly creating = signal(false);
   readonly drawerLoading = computed(() => !this.catalog.ready());
+  readonly drawerBusy = computed(() => this.drawerLoading() || this.creating());
 
   /** CP + localidad válidos en origen y destino (listo para OSRM / mensajes de error de par). */
   readonly routePairReady = computed(() => {
@@ -450,11 +501,13 @@ export class TripsNewDrawerComponent {
 
   constructor() {
     this.destinationRatesFeature.loadDestinationRates();
+    this.operationalCentersFeature.loadOperationalCenters();
     this.operationConfigsFeature.loadOperationConfigurations();
     this.catalog.ensureLoaded();
 
     this.destroyRef.onDestroy(() => {
       this.destinationRatesFeature.dispose();
+      this.operationalCentersFeature.dispose();
       this.operationConfigsFeature.dispose();
     });
 
@@ -577,20 +630,64 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
+      const centerId = this.originOperationalCenterId().trim();
+
+      if (isOperationalCenterNewRoute(centerId)) {
+        if (this.lastHandledOriginCenterId !== centerId) {
+          const wasOperationalCenter =
+            this.lastHandledOriginCenterId !== '' &&
+            !isOperationalCenterNewRoute(this.lastHandledOriginCenterId);
+          this.lastHandledOriginCenterId = centerId;
+          if (wasOperationalCenter) {
+            this.clearOriginRouteEndpoint();
+          }
+        }
+        return;
+      }
+
+      if (!centerId) {
+        return;
+      }
+
+      const center = this.operationalCentersFeature.centerById(centerId);
+      if (!center) {
+        return;
+      }
+
+      if (this.lastHandledOriginCenterId === centerId) {
+        return;
+      }
+
+      this.lastHandledOriginCenterId = centerId;
+      this.routeCacheActive.set(false);
+      this.matchedDestinationRateId.set(null);
+      const prefill =
+        originPrefillFromOperationalCenter(center) ??
+        originPrefillFromSession({
+          operationalCenterPostalCode: this.session.operationalCenterPostalCode(),
+          operationalCenterCityMunicipality: this.session.operationalCenterCityMunicipality(),
+          operationalCenterLocality: this.session.operationalCenterLocality(),
+          operationalCenterSettlementConsId: this.session.operationalCenterSettlementConsId(),
+          operationalCenterLatitude: this.session.operationalCenterLatitude(),
+          operationalCenterLongitude: this.session.operationalCenterLongitude(),
+        });
+      if (prefill) {
+        this.applyRouteEndpointPrefill('origin', prefill);
+      }
+    });
+
+    effect(() => {
       if (!this.catalog.ready() || this.originPrefillApplied()) {
         return;
       }
+      const centers = this.operationalCentersFeature.centers();
+      if (centers.length === 0) {
+        return;
+      }
       this.originPrefillApplied.set(true);
-      const prefill = originPrefillFromSession({
-        operationalCenterPostalCode: this.session.operationalCenterPostalCode(),
-        operationalCenterCityMunicipality: this.session.operationalCenterCityMunicipality(),
-        operationalCenterLocality: this.session.operationalCenterLocality(),
-        operationalCenterSettlementConsId: this.session.operationalCenterSettlementConsId(),
-        operationalCenterLatitude: this.session.operationalCenterLatitude(),
-        operationalCenterLongitude: this.session.operationalCenterLongitude(),
-      });
-      if (prefill) {
-        this.applyRouteEndpointPrefill('origin', prefill);
+      const defaultCenter = this.operationalCentersFeature.defaultCenter();
+      if (defaultCenter && !this.originOperationalCenterId().trim()) {
+        this.originOperationalCenterId.set(defaultCenter.id);
       }
     });
 
@@ -608,14 +705,16 @@ export class TripsNewDrawerComponent {
         return;
       }
       this.destinationPrefillForClientId.set(id);
-      if (client.payment?.hasCredit && client.payment.creditDays != null) {
-        this.creditDays.set(String(client.payment.creditDays));
-      } else {
-        this.creditDays.set('');
-      }
-      const preferred = client.payment?.defaultPaymentMethod?.trim();
-      if (preferred && isTripManeuverPaymentMethod(preferred)) {
-        this.paymentMethod.set(preferred);
+      if (this.autoRecognitionEnabled()) {
+        if (client.payment?.hasCredit && client.payment.creditDays != null) {
+          this.creditDays.set(String(client.payment.creditDays));
+        } else {
+          this.creditDays.set('');
+        }
+        const preferred = client.payment?.defaultPaymentMethod?.trim();
+        if (preferred && isTripManeuverPaymentMethod(preferred)) {
+          this.paymentMethod.set(preferred);
+        }
       }
       const prefill = destinationPrefillFromClient(client);
       if (prefill) {
@@ -777,6 +876,9 @@ export class TripsNewDrawerComponent {
           if (!isValidLatLon(o) || !isValidLatLon(d)) {
             return false;
           }
+          if (this.routeCacheActive()) {
+            return false;
+          }
           if (!this.routePairReady()) {
             console.log('[Trips][OSRM][Skip] Par de ruta incompleto (CP/localidad)');
             return false;
@@ -805,7 +907,7 @@ export class TripsNewDrawerComponent {
       .subscribe();
 
     effect((onCleanup) => {
-      if (!this.session.dieselControlEnabled()) {
+      if (!this.session.dieselControlEnabled() || !this.autoRecognitionEnabled()) {
         this.resetFuelEstimateAutoState();
         return;
       }
@@ -817,34 +919,77 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
+      if (!this.autoRecognitionEnabled()) {
+        this.destinationRateMatched.set(false);
+        this.matchedDestinationRateId.set(null);
+        this.clearDestinationRateSuggestionUi();
+        return;
+      }
+      const originId = this.originOperationalCenterId().trim();
+      const clientId = this.clientId().trim();
       const cp = normalizeMxPostalCodeDigits(this.destinationCp());
+      const destLocality = (() => {
+        const key = this.destinationLocalityKey().trim();
+        const rows = this.destinationSettlements();
+        if (!key || rows.length === 0) {
+          return '';
+        }
+        const settlement = rows.find((r) => localityKey(r) === key);
+        return settlement?.settlement.trim() ?? '';
+      })();
       const op = this.operationType();
       const billing = this.includeClientBilling();
-      const fp = `${cp}|${op}|${billing ? '1' : '0'}`;
+      const fp = `${originId}|${cp}|${destLocality}|${op}|${billing ? '1' : '0'}`;
       const rates = this.destinationRatesFeature.rates();
 
       if (fp !== this.lastDestinationRateInputFp) {
         this.lastDestinationRateInputFp = fp;
         this.destinationRateSuggestionLocked.set(false);
+        this.routeCacheActive.set(false);
+        this.matchedDestinationRateId.set(null);
       }
 
-      if (cp.length !== 5) {
+      const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
+      const rate =
+        rateOriginId && cp.length === 5 && destLocality
+          ? findDestinationRateByRoute(rates, {
+              originOperationalCenterId: rateOriginId,
+              destinationPostalCode: cp,
+              destinationLocality: destLocality,
+            })
+          : undefined;
+
+      const departure = this.plannedDepartureDateTime().trim();
+      const scheduleContextFp = `${originId}|${clientId}|${cp}|${destLocality}|${rate?.id ?? ''}`;
+      if (scheduleContextFp !== this.lastPlannedScheduleContextFp) {
+        this.lastPlannedScheduleContextFp = scheduleContextFp;
+        this.resetPlannedScheduleSuggestionForContextChange();
+      }
+
+      if (!rateOriginId || cp.length !== 5 || !destLocality) {
         this.destinationRateMatched.set(false);
+        this.matchedDestinationRateId.set(null);
         this.clearDestinationRateSuggestionUi();
         return;
       }
 
-      const rate = findDestinationRateByPostalCode(rates, cp);
       this.destinationRateMatched.set(rate != null);
 
-      if (!rate || this.destinationRateSuggestionLocked()) {
-        if (!rate) {
-          this.clearDestinationRateSuggestionUi();
-        }
+      if (!rate) {
+        this.matchedDestinationRateId.set(null);
+        this.clearDestinationRateSuggestionUi();
         return;
       }
 
-      this.applyDestinationRateSuggestion(rate, op, billing);
+      this.matchedDestinationRateId.set(rate.id);
+
+      if (!this.destinationRateSuggestionLocked()) {
+        this.applyDestinationRateSuggestion(rate, op, billing);
+      }
+
+      if (departure && dateTimeLocalValueToIso(departure)) {
+        this.tryApplyPlannedScheduleFromMatchedRate(rate);
+      }
     });
 
     toObservable(this.originCp)
@@ -926,6 +1071,53 @@ export class TripsNewDrawerComponent {
         takeUntilDestroyed(),
       )
       .subscribe();
+
+    combineLatest([
+      toObservable(this.includeClientBilling),
+      toObservable(this.clientId),
+      toObservable(this.autoRecognitionEnabled),
+    ])
+      .pipe(
+        map(([billing, id, autoOn]) => ({
+          billing,
+          id: id.trim(),
+          autoOn,
+        })),
+        distinctUntilChanged(
+          (a, b) =>
+            a.billing === b.billing && a.id === b.id && a.autoOn === b.autoOn,
+        ),
+        switchMap(({ billing, id, autoOn }) => {
+          if (!autoOn || !billing || !id) {
+            this.cargoHistoryItems.set([]);
+            return EMPTY;
+          }
+          return this.tripsApi.getClientCargoHistory(id).pipe(
+            tap((res) => this.cargoHistoryItems.set(res.items ?? [])),
+            catchError(() => {
+              this.cargoHistoryItems.set([]);
+              return EMPTY;
+            }),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+  }
+
+  onCargoHistoryPicked(item: ClientCargoHistoryItem): void {
+    if (!this.autoRecognitionEnabled()) {
+      return;
+    }
+    this.cargoDescription.set(item.description);
+    const op = item.operationType.trim();
+    const validOp = this.operationOptions().some((o) => String(o.value) === op);
+    if (validOp) {
+      this.operationType.set(op);
+    }
+    this.containerType.set(item.containerType as TripContainerType);
+    this.loadType.set(item.loadType as TripLoadType);
+    this.approximateWeightTons.set(item.approximateWeightTons);
   }
 
   private applyPhotonCoords(side: 'origin' | 'destination', ll: LatLon | null): void {
@@ -1096,6 +1288,23 @@ export class TripsNewDrawerComponent {
     }
   }
 
+  private clearOriginRouteEndpoint(): void {
+    this.originLocalityPending.set(null);
+    this.originCompletePrefillFingerprint.set(null);
+    this.originSettlements.set([]);
+    this.originLocalityKey.set('');
+    this.originCoords.set(null);
+    this.originGeocodeFailed.set(false);
+    this.origin.set('');
+    this.originCp.set('');
+    this.originCpLoading.set(false);
+    this.routeCacheActive.set(false);
+    this.routeKm.set(null);
+    this.routeLoading.set(false);
+    this.routeFailed.set(false);
+    this.operationalDistanceKmFromApi.set(null);
+  }
+
   private applyRouteEndpointPrefill(
     side: 'origin' | 'destination',
     prefill: TripRouteEndpointPrefill,
@@ -1252,18 +1461,20 @@ export class TripsNewDrawerComponent {
     return false;
   }
 
-  private maybeToastDateOrder(): void {
-    const depIso = dateTimeLocalValueToIso(this.departureDateTime());
-    const arrIso = dateTimeLocalValueToIso(this.arrivalDateTime());
-    if (!depIso || !arrIso) {
+  private maybeToastPlannedScheduleOrder(): void {
+    if (this.plannedScheduleValid()) {
       return;
     }
-    if (new Date(arrIso).getTime() <= new Date(depIso).getTime()) {
-      this.toast.show(
-        'La llegada debe ser posterior a la salida; no puede ser la misma fecha y hora.',
-        'warning',
-      );
+    const dep = this.plannedDepartureDateTime().trim();
+    const arr = this.plannedArrivalDateTime().trim();
+    const fin = this.plannedCompletionDateTime().trim();
+    if (!dep || !arr || !fin) {
+      return;
     }
+    this.toast.show(
+      'El plan debe cumplir: salida < llegada cliente < llegada / fin.',
+      'warning',
+    );
   }
 
   onOriginCpBlur(): void {
@@ -1326,32 +1537,54 @@ export class TripsNewDrawerComponent {
     }
   }
 
-  onDepartureBlur(): void {
-    const t = this.departureDateTime().trim();
+  onPlannedDepartureBlur(): void {
+    const t = this.plannedDepartureDateTime().trim();
     if (!t) {
+      if (this.plannedScheduleSuggestionUi() === 'auto') {
+        this.clearPlannedScheduleAutoFields();
+      }
       this.toast.show('Indica fecha y hora de salida.', 'warning');
-      this.maybeToastDateOrder();
+      this.maybeToastPlannedScheduleOrder();
       return;
     }
     if (!dateTimeLocalValueToIso(t)) {
       this.toast.show('La fecha y hora de salida no son válidas.', 'warning');
       return;
     }
-    this.maybeToastDateOrder();
+    if (this.plannedScheduleSuggestionUi() !== 'manual') {
+      this.tryApplyPlannedScheduleFromMatchedRate();
+    }
+    this.maybeToastPlannedScheduleOrder();
   }
 
-  onArrivalBlur(): void {
-    const t = this.arrivalDateTime().trim();
+  onPlannedArrivalBlur(): void {
+    this.markPlannedScheduleManualOverrideIfEdited();
+    const t = this.plannedArrivalDateTime().trim();
     if (!t) {
-      this.toast.show('Indica fecha y hora de llegada.', 'warning');
-      this.maybeToastDateOrder();
+      this.toast.show('Indica fecha y hora de llegada al cliente.', 'warning');
+      this.maybeToastPlannedScheduleOrder();
       return;
     }
     if (!dateTimeLocalValueToIso(t)) {
-      this.toast.show('La fecha y hora de llegada no son válidas.', 'warning');
+      this.toast.show('La fecha y hora de llegada al cliente no son válidas.', 'warning');
       return;
     }
-    this.maybeToastDateOrder();
+    this.maybeToastPlannedScheduleOrder();
+  }
+
+  onPlannedCompletionBlur(): void {
+    this.markPlannedScheduleManualOverrideIfEdited();
+    const t = this.plannedCompletionDateTime().trim();
+    if (!t) {
+      this.toast.show('Indica fecha y hora de llegada / fin de maniobra.', 'warning');
+      this.maybeToastPlannedScheduleOrder();
+      return;
+    }
+    if (!dateTimeLocalValueToIso(t)) {
+      this.toast.show('La fecha y hora de llegada / fin no son válidas.', 'warning');
+      return;
+    }
+    this.maybeToastPlannedScheduleOrder();
   }
 
   onDieselLitersBlur(): void {
@@ -1389,6 +1622,9 @@ export class TripsNewDrawerComponent {
   }
 
   submit(): void {
+    if (this.creating()) {
+      return;
+    }
     const oCp = normalizeMxPostalCodeDigits(this.originCp());
     const dCp = normalizeMxPostalCodeDigits(this.destinationCp());
     if (oCp.length !== 5 || dCp.length !== 5) {
@@ -1478,21 +1714,14 @@ export class TripsNewDrawerComponent {
       return;
     }
 
-    const depIso = dateTimeLocalValueToIso(this.departureDateTime());
-    const arrIso = dateTimeLocalValueToIso(this.arrivalDateTime());
-    if (!depIso) {
-      this.toast.show('Indica fecha y hora de salida.', 'warning');
-      return;
-    }
-    if (!arrIso) {
-      this.toast.show('Indica fecha y hora de llegada.', 'warning');
-      return;
-    }
-    const depMs = new Date(depIso).getTime();
-    const arrMs = new Date(arrIso).getTime();
-    if (arrMs <= depMs) {
+    const plannedSchedule = plannedScheduleIsoTriplet(
+      this.plannedDepartureDateTime(),
+      this.plannedArrivalDateTime(),
+      this.plannedCompletionDateTime(),
+    );
+    if (!plannedSchedule) {
       this.toast.show(
-        'La llegada debe ser posterior a la salida; no puede ser la misma fecha y hora.',
+        'Completa salida, llegada cliente y llegada / fin en orden cronológico.',
         'warning',
       );
       return;
@@ -1570,8 +1799,9 @@ export class TripsNewDrawerComponent {
         : undefined,
       equipment: equipmentLabels,
       equipmentIds,
-      departureAt: depIso,
-      arrivedAt: arrIso,
+      plannedDepartureAt: plannedSchedule.plannedDepartureAt,
+      plannedArrivalAt: plannedSchedule.plannedArrivalAt,
+      plannedCompletionAt: plannedSchedule.plannedCompletionAt,
       attachedDocumentFileNames: this.attachedFiles().map((f) => f.name),
       routeDistanceKm: kmSnap,
       isRoundTrip: true,
@@ -1587,14 +1817,28 @@ export class TripsNewDrawerComponent {
       ...(this.casetasAssistAuto()
         ? { tollCalculationMode: 'auto' as const }
         : { tollCalculationMode: 'manual' as const }),
+      ...(this.matchedDestinationRateId()
+        ? { destinationRateId: this.matchedDestinationRateId()! }
+        : {}),
+      ...(() => {
+        const centerId = this.originOperationalCenterId().trim();
+        if (!centerId || isOperationalCenterNewRoute(centerId)) {
+          return {};
+        }
+        return { originOperationalCenterId: centerId };
+      })(),
     };
+    this.creating.set(true);
     this.tripsFeature
       .createTrip(payload)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        finalize(() => this.creating.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
-      next: (trip) => this.saved.emit(trip),
-      error: () => this.toast.show('No se pudo guardar la maniobra.', 'error'),
-    });
+        next: (trip) => this.saved.emit(trip),
+        error: () => this.toast.show('No se pudo guardar la maniobra.', 'error'),
+      });
   }
 
   private applyDestinationRateSuggestion(
@@ -1602,6 +1846,9 @@ export class TripsNewDrawerComponent {
     operationType: string,
     includeBilling: boolean,
   ): void {
+    if (!this.autoRecognitionEnabled()) {
+      return;
+    }
     const opPay = suggestedOperatorPaymentFromDestinationRate(rate, operationType);
     const charge = suggestedClientChargeFromDestinationRate(rate, operationType);
     const toll = suggestedEstimatedTollFromDestinationRate(rate, operationType);
@@ -1629,6 +1876,13 @@ export class TripsNewDrawerComponent {
       this.casetasAmount.set(formatted);
       this.lastAutoCasetasAmount = formatted;
       this.casetasSuggestionUi.set('auto');
+    }
+
+    if (destinationRateHasRouteCache(rate)) {
+      this.routeKm.set(rate.routeDistanceKm ?? null);
+      this.routeFailed.set(false);
+      this.routeLoading.set(false);
+      this.routeCacheActive.set(true);
     }
 
     this.applyingDestinationRateSuggestion = false;
@@ -1672,6 +1926,86 @@ export class TripsNewDrawerComponent {
     this.lastAutoCasetasAmount = '';
   }
 
+  private resetPlannedScheduleSuggestionForContextChange(): void {
+    this.plannedScheduleSuggestionUi.set('none');
+    this.lastAutoPlannedArrival = '';
+    this.lastAutoPlannedCompletion = '';
+    this.applyingPlannedScheduleSuggestion = true;
+    this.plannedArrivalDateTime.set('');
+    this.plannedCompletionDateTime.set('');
+    this.applyingPlannedScheduleSuggestion = false;
+  }
+
+  private clearPlannedScheduleAutoFields(): void {
+    this.plannedScheduleSuggestionUi.set('none');
+    this.lastAutoPlannedArrival = '';
+    this.lastAutoPlannedCompletion = '';
+    this.applyingPlannedScheduleSuggestion = true;
+    this.plannedArrivalDateTime.set('');
+    this.plannedCompletionDateTime.set('');
+    this.applyingPlannedScheduleSuggestion = false;
+  }
+
+  private tryApplyPlannedScheduleFromMatchedRate(rate?: DestinationRate): void {
+    if (!this.autoRecognitionEnabled()) {
+      return;
+    }
+    if (this.plannedScheduleSuggestionUi() === 'manual') {
+      return;
+    }
+    const departure = this.plannedDepartureDateTime().trim();
+    if (!departure || !dateTimeLocalValueToIso(departure)) {
+      return;
+    }
+    const matched =
+      rate ??
+      this.destinationRatesFeature
+        .rates()
+        .find((r) => r.id === this.matchedDestinationRateId());
+    if (!matched || !destinationRateHasEstimatedTime(matched)) {
+      return;
+    }
+    const suggested = computePlannedScheduleSuggestionFromRate(departure, matched);
+    if (!suggested) {
+      return;
+    }
+    this.applyingPlannedScheduleSuggestion = true;
+    this.plannedArrivalDateTime.set(suggested.arrivalLocal);
+    this.plannedCompletionDateTime.set(suggested.completionLocal);
+    this.lastAutoPlannedArrival = suggested.arrivalLocal;
+    this.lastAutoPlannedCompletion = suggested.completionLocal;
+    this.plannedScheduleSuggestionUi.set('auto');
+    this.applyingPlannedScheduleSuggestion = false;
+  }
+
+  private markPlannedScheduleManualOverrideIfEdited(): void {
+    if (this.applyingPlannedScheduleSuggestion) {
+      return;
+    }
+    const arrival = this.plannedArrivalDateTime().trim();
+    const completion = this.plannedCompletionDateTime().trim();
+    if (
+      (this.lastAutoPlannedArrival !== '' &&
+        arrival !== '' &&
+        arrival !== this.lastAutoPlannedArrival) ||
+      (this.lastAutoPlannedCompletion !== '' &&
+        completion !== '' &&
+        completion !== this.lastAutoPlannedCompletion)
+    ) {
+      this.plannedScheduleSuggestionUi.set('manual');
+    }
+  }
+
+  dieselDerivedState(field: 'liters' | 'amount'): 'none' | 'pending' | 'ready' {
+    if (!this.dieselControlEnabled()) {
+      return 'none';
+    }
+    if (this.dieselAssistAuto(field)) {
+      return 'ready';
+    }
+    return 'pending';
+  }
+
   dieselAssistAuto(field: 'liters' | 'amount'): boolean {
     if (!this.dieselControlEnabled()) {
       return false;
@@ -1691,22 +2025,6 @@ export class TripsNewDrawerComponent {
 
   operatorAssistAuto(): boolean {
     return this.operatorQuotaSuggestionUi() === 'auto';
-  }
-
-  routeDistanceAssistAuto(): boolean {
-    return !this.routeLoading() && this.routeKm() != null;
-  }
-
-  maneuverDistanceAssistAuto(): boolean {
-    if (!this.dieselControlEnabled()) {
-      return false;
-    }
-    const op = this.operationalDistanceKmFromApi();
-    return op != null && Number.isFinite(op) && op > 0;
-  }
-
-  maneuverKindAssistAuto(): boolean {
-    return !this.routeLoading() && this.routeKm() != null;
   }
 
   /** Limpia estado automático de diesel; no borra valores que el usuario capturó a mano. */

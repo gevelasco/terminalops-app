@@ -70,9 +70,9 @@
 .fleet-unit-detail__status--inuse,
 .to-status-pill--inuse {
   @include status-tone(
-    #9a3412,
-    color-mix(in srgb, #fb923c 14%, var(--to-color-surface)),
-    color-mix(in srgb, #fb923c 30%, transparent)
+    #1d4ed8,
+    color-mix(in srgb, #3b82f6 16%, var(--to-color-surface)),
+    color-mix(in srgb, #3b82f6 35%, transparent)
   );
 }
 

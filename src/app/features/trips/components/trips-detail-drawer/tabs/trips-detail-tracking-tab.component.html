@@ -1,5 +1,4 @@
 <div class="maniobra-detail-tab">
-      <!-- Actualizaciones del ciclo -->
       <section
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
         aria-labelledby="maniobra-detail-updates"
@@ -22,29 +21,148 @@
           </svg>
           Actualizaciones
         </h3>
-        <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
-          <dt>Programada</dt>
-          <dd>{{ vm.fmt(vm.trip().programmedAt) }}</dd>
-          <dt>En curso</dt>
-          <dd>{{ vm.enCursoDisplay() }}</dd>
-          <dt>Completado</dt>
-          <dd>{{ vm.completadaDisplay() }}</dd>
-          @if (vm.trip().falseManeuver === true) {
+
+        @if (vm.canEditRealDates()) {
+          <div
+            class="maniobra-detail__schedule-edit-toggle"
+            role="group"
+            aria-labelledby="maniobra-detail-schedule-edit-label"
+          >
+            <span
+              id="maniobra-detail-schedule-edit-label"
+              class="maniobra-detail__schedule-edit-label"
+              >Editar fechas reales</span
+            >
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="vm.realDatesEditEnabled()"
+              role="switch"
+              [attr.aria-checked]="vm.realDatesEditEnabled()"
+              aria-labelledby="maniobra-detail-schedule-edit-label"
+              [disabled]="vm.realDatesSaving()"
+              (click)="vm.toggleRealDatesEdit()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+        }
+
+        <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+          <dt>Registrada</dt>
+          <dd>{{ vm.fmt(vm.trip().createdAt) }}</dd>
+        </dl>
+
+        <div class="maniobra-detail__schedule-block">
+          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+            <dt>Salida planeada</dt>
+            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedDepartureAt) }}</dd>
+            @if (vm.showRealScheduleField('departureAt')) {
+              <dt class="maniobra-detail__schedule-real-label">Salida real</dt>
+              <dd class="maniobra-detail__schedule-real-value">{{
+                vm.plannedScheduleDisplay(vm.trip().departureAt)
+              }}</dd>
+            }
+          </dl>
+          @if (vm.canEditRealScheduleField('departureAt')) {
+            <to-input
+              label="Salida real"
+              type="datetime-local"
+              [value]="vm.realDepartureDraft()"
+              (valueChange)="vm.realDepartureDraft.set($event)"
+            />
+          }
+        </div>
+
+        <div class="maniobra-detail__schedule-block">
+          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+            <dt>Llegada cliente planeada</dt>
+            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedArrivalAt) }}</dd>
+            @if (vm.showRealScheduleField('arrivedAt')) {
+              <dt class="maniobra-detail__schedule-real-label">Llegada cliente real</dt>
+              <dd class="maniobra-detail__schedule-real-value">{{
+                vm.plannedScheduleDisplay(vm.trip().arrivedAt)
+              }}</dd>
+            }
+          </dl>
+          @if (vm.canEditRealScheduleField('arrivedAt')) {
+            <to-input
+              label="Llegada cliente real"
+              type="datetime-local"
+              [value]="vm.realArrivalDraft()"
+              (valueChange)="vm.realArrivalDraft.set($event)"
+            />
+          }
+        </div>
+
+        <div class="maniobra-detail__schedule-block">
+          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+            <dt>Fin planeado</dt>
+            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedCompletionAt) }}</dd>
+            @if (vm.showRealScheduleField('returnAt')) {
+              <dt class="maniobra-detail__schedule-real-label">Fin real</dt>
+              <dd class="maniobra-detail__schedule-real-value">{{
+                vm.plannedScheduleDisplay(vm.trip().returnAt)
+              }}</dd>
+            }
+          </dl>
+          @if (vm.canEditRealScheduleField('returnAt')) {
+            <to-input
+              label="Fin real"
+              type="datetime-local"
+              [min]="vm.realCompletionMinLocal()"
+              [value]="vm.realCompletionDraft()"
+              (valueChange)="vm.realCompletionDraft.set($event)"
+            />
+          }
+        </div>
+
+        @if (vm.realDatesEditEnabled()) {
+          <div class="maniobra-detail__schedule-justification">
+            <label
+              class="maniobra-detail__incident-label"
+              for="maniobra-schedule-justification"
+              >Justificación</label
+            >
+            <textarea
+              id="maniobra-schedule-justification"
+              class="maniobra-detail__incident-textarea"
+              rows="2"
+              [value]="vm.justificationDraft()"
+              (input)="vm.onJustificationDraftInput($event)"
+              placeholder="Describe el motivo del cambio…"
+              [disabled]="vm.realDatesSaving()"
+            ></textarea>
+            <to-button
+              type="button"
+              variant="primary"
+              [disabled]="vm.realDatesSaving()"
+              (click)="vm.saveRealSchedule()"
+            >
+              <to-icon name="updates" [size]="16" />
+              Actualizar fechas
+            </to-button>
+          </div>
+        }
+
+        @if (vm.trip().falseManeuver === true) {
+          <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
             <dt>Cobro</dt>
             <dd class="maniobra-detail__dd-highlight">
               Vigente según pacto / maniobra en falso
             </dd>
-          }
-          @if (vm.cancellationNoteDisplay().length > 0) {
+          </dl>
+        }
+        @if (vm.cancellationNoteDisplay().length > 0) {
+          <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
             <dt>Motivo registrado</dt>
             <dd class="maniobra-detail__cancellation-note">{{
               vm.cancellationNoteDisplay()
             }}</dd>
-          }
-        </dl>
+          </dl>
+        }
       </section>
 
-      <!-- Incidentes -->
       <section
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
         aria-labelledby="maniobra-detail-inc"
@@ -102,7 +220,7 @@
           <label
             class="maniobra-detail__incident-label"
             for="maniobra-incident-draft"
-            >Registrar incidente</label
+            >Registrar Incidente</label
           >
           <textarea
             id="maniobra-incident-draft"
@@ -118,8 +236,10 @@
             variant="primary"
             [disabled]="vm.incidentSaving()"
             (click)="vm.registerIncident()"
-            >Registrar</to-button
           >
+            <to-icon name="warning" [size]="16" />
+            Registrar Incidente
+          </to-button>
         </div>
       </section>
 </div>

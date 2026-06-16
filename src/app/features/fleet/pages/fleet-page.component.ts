@@ -8,87 +8,65 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
-import {
-  formatUnitTrailerOperationalId,
-  labelForUnitId,
-} from '@shared/utils/fleet/unit-label';
 import { FleetEquipmentDetailDrawerComponent } from '@features/fleet/components/fleet-equipment-detail-drawer/fleet-equipment-detail-drawer.component';
 import { FleetNewEquipmentDrawerComponent } from '@features/fleet/components/fleet-new-equipment-drawer/fleet-new-equipment-drawer.component';
 import { FleetNewUnitDrawerComponent } from '@features/fleet/components/fleet-new-unit-drawer/fleet-new-unit-drawer.component';
 import { FleetUnitDetailDrawerComponent } from '@features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer.component';
-import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
+import { FleetCatalogFeatureService } from '@features/fleet/services/fleet-catalog.service';
+import { FleetOverviewFeatureService } from '@features/fleet/services/fleet-overview.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
+import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
+import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
+import {
+  fleetOperationalKeyFromEquipment,
+  fleetOperationalKeyFromUnit,
+} from '@features/fleet/utils/fleet-operational-status';
 import {
   buildFleetEquipmentTableRow,
   buildFleetUnitTableRow,
+} from '@features/fleet/utils/fleet-unit-table-row';
+import {
+  equipmentAssignedToUnit,
+  unitConvoyFromEquipment,
+} from '@features/fleet/utils/unit-hitched-equipment';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
+import { labelForUnitId } from '@shared/utils/fleet/unit-label';
+import type { Equipment } from '@shared/models/logistics.models';
+import {
+  overviewCardEntryFromDto,
+  overviewCardEntryFromEquipmentRow,
+  overviewMatchesStatusFilter,
+  overviewPrimaryAsset,
+  overviewSecondaryAsset,
+  overviewAssetAt,
+  overviewTrailerVisualAt,
+  overviewSortRank,
+  overviewTripArrivalLine,
+  overviewTripDepartureLine,
+  renewalBucketFromOverview,
+  SCHEMA_TRACTO,
+  type FleetOverviewCardEntry,
+} from '@features/fleet/utils/fleet-overview-view';
+import {
+  overviewTripCompletionLine,
+  overviewTripEtaDaysLabel,
+  overviewTripEtaKmLabel,
+  overviewTripProgress,
+} from '@features/fleet/utils/fleet-overview-trip-metrics';
+import { fleetRenewalIconClass } from '@features/fleet/utils/fleet-overview-card';
+import {
   fleetOperationalKeyLabel,
-  operationalKey,
   type FleetOperationalKey,
   type FleetRenewalBucket,
 } from '@features/fleet/utils/fleet-unit-table-row';
-import {
-  SCHEMA_TRACTO_ASSET,
-  unitConvoyPrimaryAsset,
-  unitConvoySecondaryAsset,
-  unitConvoyUsesPlataforma,
-} from '@features/fleet/utils/fleet-unit-convoy-assets';
-import { buildUnitCompletedTripStats } from '@features/fleet/utils/unit-completed-trip-stats';
-import {
-  equipmentAssignedToUnit,
-  equipmentTypeDisplayLabel,
-  convoyOverviewHitchPositionLabel,
-  unitConvoyFromEquipment,
-} from '@features/fleet/utils/unit-hitched-equipment';
-import {
-  schemaPrimaryTrailerAsset,
-  schemaSecondaryTrailerAsset,
-  tripSchemaUsesPlataformaConvoy,
-} from '@features/trips/utils/maniobra-schema-convoy-assets';
-import {
-  tripHasIncidents,
-  tripIncidentPostedBy,
-  tripIncidentsSorted,
-} from '@features/trips/utils/trip-incidents';
-import {
-  activeTripForUnit,
-  fleetOverviewArrivalLine,
-  fleetOverviewDepartureLine,
-  fleetOverviewEtaDays,
-  fleetOverviewEtaKm,
-  fleetOverviewInsuranceNext,
-  fleetOverviewKmSinceMaintenance,
-  fleetOverviewLastMaintenanceLabel,
-  fleetOverviewNextMaintenanceLabel,
-  fleetOverviewPanelMode,
-  fleetOverviewProgress,
-  fleetOverviewReturnLine,
-  fleetOverviewRouteLabel,
-  fleetOverviewSortRank,
-  fleetOverviewStatusPill,
-  fleetOverviewTireStatusApprox,
-  fleetOverviewVerificationNext,
-  fleetRenewalIconClass,
-  unitMatchesOverviewStatusFilter,
-  type FleetOverviewPanelMode,
-} from '@features/fleet/utils/fleet-overview-card';
-import { resourceIdKey } from '@shared/utils/resource-id';
-import { formatStackedMx } from '@shared/utils/format-datetime-mx';
-import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
-import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
-import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import {
-  Equipment,
-  Trip,
-  TripIncident,
-  Unit,
-} from '@shared/models/logistics.models';
+import type { Unit } from '@shared/models/logistics.models';
 import {
   ToSegmentControlComponent,
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import type { ToFilterTab } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -110,15 +88,17 @@ export type FleetOverviewStatusFilter = Exclude<
   selector: 'app-fleet-page',
   standalone: true,
   providers: [
+    FleetOverviewFeatureService,
+    FleetCatalogFeatureService,
     UnitsFeatureService,
     EquipmentFeatureService,
     FleetFeatureService,
-    ...OPERATION_CONFIGURATION_PROVIDERS,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
     ToButtonComponent,
+    ToIconComponent,
     ToInputComponent,
     ToTableComponent,
     ToSkeletonComponent,
@@ -135,20 +115,17 @@ export type FleetOverviewStatusFilter = Exclude<
 export class FleetPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly fleet = inject(FleetFeatureService);
-  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
-  private readonly opResolver = inject(OperationConfigurationResolverService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.fleet.dispose();
-      this.operationConfigsFeature.dispose();
     });
   }
 
   readonly tab = signal<FleetPageTab>('overview');
   readonly viewSegmentTabs: readonly ToSegmentTab<FleetPageTab>[] = [
     { id: 'overview', label: 'Flota', icon: 'truck', htmlId: 'fleet-tab-overview' },
-    { id: 'units', label: 'Unidades', icon: 'list', htmlId: 'fleet-tab-units' },
+    { id: 'units', label: 'Unidades', icon: 'unit', htmlId: 'fleet-tab-units' },
     {
       id: 'equipment',
       label: 'Equipo',
@@ -157,8 +134,7 @@ export class FleetPageComponent implements OnInit {
     },
   ];
 
-  readonly schemaTractoAsset = SCHEMA_TRACTO_ASSET;
-  readonly formatUnitTrailerOperationalId = formatUnitTrailerOperationalId;
+  readonly schemaTractoAsset = SCHEMA_TRACTO;
 
   readonly overviewStatusFilter = signal<FleetOverviewStatusFilter>('all');
 
@@ -180,24 +156,10 @@ export class FleetPageComponent implements OnInit {
   readonly equipmentList = this.fleet.equipment;
   readonly unitListMutable = computed(() => [...this.unitList()]);
   readonly equipmentListMutable = computed(() => [...this.equipmentList()]);
-  readonly tripsList = computed((): Trip[] => []);
-
-  readonly equipmentById = computed(() => {
-    const map = new Map<string, Equipment>();
-    for (const e of this.equipmentList()) {
-      map.set(e.id, e);
-    }
-    return map;
-  });
 
   ngOnInit(): void {
     this.fleet.loadFleetModule();
-    this.operationConfigsFeature.loadOperationConfigurations();
   }
-
-  readonly unitTripStats = computed(() =>
-    buildUnitCompletedTripStats(this.tripsList()),
-  );
 
   readonly newUnitOpen = signal(false);
   readonly newEquipmentOpen = signal(false);
@@ -205,42 +167,23 @@ export class FleetPageComponent implements OnInit {
   readonly detailUnitOnRoute = signal(false);
   readonly detailEquipmentOnRoute = signal(false);
 
-  readonly detailEquipmentForDrawer = computed((): Equipment | null => {
-    const e = this.fleet.selectedEquipment();
-    if (!e) {
-      return null;
-    }
-    const km =
-      this.unitTripStats().completedDistanceKmSumByUnitId.get(e.unitId) ??
-      null;
-    return { ...e, uiTractorCompletedTripDistanceKm: km };
-  });
+  readonly detailEquipmentForDrawer = computed(() => this.fleet.selectedEquipment());
 
   readonly searchQuery = model('');
-
-  readonly unitsInTransitIds = computed(() => {
-    const ids = new Set<string>();
-    for (const t of this.tripsList()) {
-      if (t.status === 'in_transit') {
-        ids.add(resourceIdKey(t.unitId));
-      }
-    }
-    return ids;
-  });
 
   readonly displayedUnitRows = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     const list = this.unitList();
-    const onSet = this.unitsInTransitIds();
-    const kmById = this.unitTripStats().completedDistanceKmSumByUnitId;
     const equipment = this.equipmentList();
     const rowOpts = (u: Unit) => {
       const hitched = equipmentAssignedToUnit(equipment, u.id);
+      const operational = fleetOperationalKeyFromUnit(u);
       return {
-        onRoute: onSet.has(u.id),
-        completedTripKm: kmById.get(u.id) ?? null,
+        onRoute: operational === 'on_route',
+        operationalOverride: operational,
+        completedTripKm: null,
         hitchedEquipment: hitched,
-        resolver: this.opResolver,
+        resolver: FLEET_OPERATION_RESOLVER,
       };
     };
     const filtered = q
@@ -251,8 +194,10 @@ export class FleetPageComponent implements OnInit {
             row['fleetBrand'],
             row['fleetModel'],
             row['fleetPlate'],
-            this.opResolver.resolveLabel({ code: String(row['fleetConfig'] ?? '') }),
-            unitConvoyFromEquipment(hitched, this.opResolver).label,
+            FLEET_OPERATION_RESOLVER.resolveLabel({
+              code: String(row['fleetConfig'] ?? ''),
+            }),
+            unitConvoyFromEquipment(hitched, FLEET_OPERATION_RESOLVER).label,
             u.id,
             u.status,
             u.serialNumber,
@@ -272,16 +217,18 @@ export class FleetPageComponent implements OnInit {
     const q = this.searchQuery().trim().toLowerCase();
     const list = this.equipmentList();
     const units = this.unitList();
-    const onSet = this.unitsInTransitIds();
-    const kmById = this.unitTripStats().completedDistanceKmSumByUnitId;
     return list
-      .map((e) => ({
-        e,
-        row: buildFleetEquipmentTableRow(e, {
-          onRoute: onSet.has(e.unitId),
-          completedTripKm: kmById.get(e.unitId) ?? null,
-        }),
-      }))
+      .map((e) => {
+        const operational = fleetOperationalKeyFromEquipment(e);
+        return {
+          e,
+          row: buildFleetEquipmentTableRow(e, {
+            onRoute: operational === 'on_route' || operational === 'in_use',
+            operationalOverride: operational,
+            completedTripKm: null,
+          }),
+        };
+      })
       .filter(({ e, row }) => {
         if (!q) {
           return true;
@@ -317,73 +264,34 @@ export class FleetPageComponent implements OnInit {
       .map(({ row }) => row);
   });
 
-  readonly overviewUnits = computed(() => {
-    const list = this.unitList();
-    const equipment = this.equipmentList();
-    const trips = this.tripsList();
-    const onSet = this.unitsInTransitIds();
+  readonly overviewUnits = computed((): FleetOverviewCardEntry[] => {
     const status = this.overviewStatusFilter();
     const q = this.searchQuery().trim().toLowerCase();
-    const kmById = this.unitTripStats().completedDistanceKmSumByUnitId;
 
-    return list
-      .map((unit) => {
-        const hitched = equipmentAssignedToUnit(equipment, unit.id);
-        const onRoute = onSet.has(unit.id);
-        const operational = operationalKey(unit, onRoute);
-        const convoy = unitConvoyFromEquipment(hitched, this.opResolver);
-        const activeTrip = activeTripForUnit(unit.id, trips);
-        const panelMode = fleetOverviewPanelMode(operational, activeTrip);
-        const statusPill = fleetOverviewStatusPill(activeTrip, operational);
-        const completedTripKm = kmById.get(unit.id) ?? null;
-        const tableRow = buildFleetUnitTableRow(unit, {
-          onRoute,
-          completedTripKm,
-          hitchedEquipment: hitched,
-          resolver: this.opResolver,
-        });
-        return {
-          unit,
-          hitched,
-          onRoute,
-          operational,
-          convoy,
-          activeTrip,
-          panelMode,
-          statusPill,
-          tableRow,
-          completedTripKm,
-        };
-      })
+    const unitEntries = this.fleet.overviewItems().map((item) => overviewCardEntryFromDto(item));
+    const standaloneEntries = this.fleet
+      .overviewEquipmentRows()
+      .map((row) => overviewCardEntryFromEquipmentRow(row))
+      .filter((entry): entry is FleetOverviewCardEntry => entry != null);
+
+    return [...unitEntries, ...standaloneEntries]
       .filter((entry) => {
-        if (
-          !unitMatchesOverviewStatusFilter(
-            entry.operational,
-            entry.activeTrip,
-            status,
-          )
-        ) {
+        if (!overviewMatchesStatusFilter(entry, status)) {
           return false;
         }
         if (!q) {
           return true;
         }
         const blob = [
-          formatUnitTrailerOperationalId(entry.unit),
-          entry.tableRow['fleetBrand'],
-          entry.tableRow['fleetPlate'],
-          entry.tableRow['fleetModel'],
-          this.opResolver.resolveLabel({
-            code: String(entry.tableRow['fleetConfig'] ?? ''),
-          }),
+          entry.unitName,
+          entry.unitPlate,
           entry.convoy.label,
-          entry.unit.id,
           entry.statusPill.label,
-          entry.activeTrip?.maneuverCode,
-          entry.activeTrip?.clientName,
-          entry.activeTrip?.origin,
-          entry.activeTrip?.destination,
-          ...entry.hitched.map((e) => formatEquipmentOperationalId(e)),
+          entry.trip?.maneuverCode,
+          entry.trip?.clientName,
+          entry.trip?.origin,
+          ...entry.hitched.map((e) => e.operationalCode),
+          ...entry.hitched.map((e) => e.equipmentType),
         ]
           .filter((x) => x != null && String(x).trim() !== '')
           .join(' ')
@@ -391,16 +299,11 @@ export class FleetPageComponent implements OnInit {
         return blob.includes(q);
       })
       .sort((a, b) => {
-        const rankDiff =
-          fleetOverviewSortRank(a.operational, a.activeTrip) -
-          fleetOverviewSortRank(b.operational, b.activeTrip);
+        const rankDiff = overviewSortRank(b) - overviewSortRank(a);
         if (rankDiff !== 0) {
           return rankDiff;
         }
-        return formatUnitTrailerOperationalId(a.unit).localeCompare(
-          formatUnitTrailerOperationalId(b.unit),
-          'es',
-        );
+        return a.unitName.localeCompare(b.unitName, 'es');
       });
   });
 
@@ -434,7 +337,7 @@ export class FleetPageComponent implements OnInit {
   readonly equipmentColumns: ToTableColumn[] = [
     { key: 'fleetBrand', label: 'Marca' },
     { key: 'fleetModel', label: 'Modelo' },
-    { key: 'fleetUnitType', label: 'Tipo de remolque' },
+    { key: 'fleetUnitType', label: 'Tipo de equipo' },
     { key: 'fleetPlate', label: 'Placa' },
     {
       key: 'fleetOperational',
@@ -459,142 +362,93 @@ export class FleetPageComponent implements OnInit {
     this.searchQuery.set('');
   }
 
-  showOverview(): void {
-    this.onViewTabSelect('overview');
-  }
-
-  showUnits(): void {
-    this.onViewTabSelect('units');
-  }
-
-  showEquipment(): void {
-    this.onViewTabSelect('equipment');
-  }
-
   onOverviewStatusFilterSelect(value: FleetOverviewStatusFilter): void {
     this.overviewStatusFilter.set(value);
   }
 
-  overviewUsesPlataformaForEntry(entry: {
-    panelMode: FleetOverviewPanelMode;
-    activeTrip: Trip | null;
-    hitched: Equipment[];
-  }): boolean {
-    if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return tripSchemaUsesPlataformaConvoy(
-        entry.activeTrip,
-        this.equipmentById(),
-        this.opResolver,
-      );
+  overviewIsFullForEntry(entry: FleetOverviewCardEntry): boolean {
+    return entry.isFullConvoy;
+  }
+
+  overviewUsesPlataformaForEntry(entry: FleetOverviewCardEntry): boolean {
+    return entry.usesPlataforma;
+  }
+
+  overviewUsesPlataformaAt(entry: FleetOverviewCardEntry, index: number): boolean {
+    return overviewTrailerVisualAt(entry, index) === 'plataforma';
+  }
+
+  overviewUsesCajaSecaForEntry(entry: FleetOverviewCardEntry): boolean {
+    return entry.usesCajaSeca;
+  }
+
+  overviewUsesCajaSecaAt(entry: FleetOverviewCardEntry, index: number): boolean {
+    return overviewTrailerVisualAt(entry, index) === 'caja_seca';
+  }
+
+  overviewTrailerAltForEntry(entry: FleetOverviewCardEntry, position: 'primary' | 'secondary'): string {
+    const index = position === 'primary' ? 0 : 1;
+    const visual = overviewTrailerVisualAt(entry, index);
+    if (visual === 'plataforma') {
+      return position === 'primary' ? 'Plataforma (primer equipo)' : 'Plataforma (segundo equipo)';
     }
-    return unitConvoyUsesPlataforma(entry.hitched);
-  }
-
-  overviewIsFullForEntry(entry: {
-    panelMode: FleetOverviewPanelMode;
-    activeTrip: Trip | null;
-    hitched: Equipment[];
-  }): boolean {
-    if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return this.opResolver.usesMultipleEquipment(
-        this.opResolver.contextFromTrip(entry.activeTrip),
-      );
+    if (visual === 'caja_seca') {
+      return position === 'primary' ? 'Caja seca (primer equipo)' : 'Caja seca (segundo equipo)';
     }
-    return this.opResolver.resolveConvoyMode([...entry.hitched]) === 'multi';
+    return position === 'primary' ? 'Equipo (delantero)' : 'Equipo (trasero)';
   }
 
-  overviewPrimaryAssetForEntry(entry: {
-    panelMode: FleetOverviewPanelMode;
-    activeTrip: Trip | null;
-    hitched: Equipment[];
-  }): string {
-    if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return schemaPrimaryTrailerAsset(
-        entry.activeTrip,
-        this.equipmentById(),
-        this.opResolver,
-      );
-    }
-    return unitConvoyPrimaryAsset(entry.hitched);
+  overviewPrimaryAssetForEntry(entry: FleetOverviewCardEntry): string {
+    return overviewPrimaryAsset(entry);
   }
 
-  overviewSecondaryAssetForEntry(entry: {
-    panelMode: FleetOverviewPanelMode;
-    activeTrip: Trip | null;
-    hitched: Equipment[];
-  }): string {
-    if (entry.panelMode === 'maneuver' && entry.activeTrip) {
-      return schemaSecondaryTrailerAsset(
-        entry.activeTrip,
-        this.equipmentById(),
-        this.opResolver,
-      );
-    }
-    return unitConvoySecondaryAsset(entry.hitched);
+  overviewSecondaryAssetForEntry(entry: FleetOverviewCardEntry): string {
+    return overviewSecondaryAsset(entry);
   }
 
-  overviewEquipmentLabel(eq: Equipment): string {
-    return formatEquipmentOperationalId(eq);
-  }
-
-  overviewEquipmentTypeLabel(eq: Equipment): string {
-    return equipmentTypeDisplayLabel(eq);
-  }
-
-  overviewHitchLabel(index: number, total: number): string {
-    return convoyOverviewHitchPositionLabel(index, total);
-  }
-
-  readonly tripHasIncidents = tripHasIncidents;
-  readonly tripIncidentsSorted = tripIncidentsSorted;
-  readonly formatStackedMx = formatStackedMx;
-
-  overviewTripIncidentAuthor(inc: TripIncident): string {
-    return tripIncidentPostedBy(inc, []);
-  }
-
-  overviewTripIncidentAria(trip: Trip): string {
-    if (!tripHasIncidents(trip)) {
-      return 'Sin incidentes';
-    }
-    const n = tripIncidentsSorted(trip).length;
-    if (n > 0) {
-      return `${n} incidente${n === 1 ? '' : 's'} registrado${n === 1 ? '' : 's'}`;
-    }
-    return 'Incidente registrado';
+  overviewAssetAtForEntry(entry: FleetOverviewCardEntry, index: number): string {
+    return overviewAssetAt(entry, index);
   }
 
   overviewRenewalIconClass(bucket: unknown): string {
     return fleetRenewalIconClass(bucket as FleetRenewalBucket);
   }
 
-  overviewLastMaint = fleetOverviewLastMaintenanceLabel;
-  overviewNextMaint = fleetOverviewNextMaintenanceLabel;
-  overviewKmSinceMaint = fleetOverviewKmSinceMaintenance;
-  overviewInsNext = fleetOverviewInsuranceNext;
-  overviewVerifNext = fleetOverviewVerificationNext;
-  overviewTireStatus = fleetOverviewTireStatusApprox;
-  overviewDepartureLine = fleetOverviewDepartureLine;
-  overviewRouteLabel = fleetOverviewRouteLabel;
-  overviewArrivalLine = fleetOverviewArrivalLine;
-  overviewReturnLine = fleetOverviewReturnLine;
-  overviewEtaDays = fleetOverviewEtaDays;
-  overviewEtaKm = fleetOverviewEtaKm;
-  overviewProgress = fleetOverviewProgress;
-
-  onOverviewUnitClick(unit: Unit): void {
-    this.detailUnitOnRoute.set(this.unitsInTransitIds().has(unit.id));
-    this.fleet.selectUnit(unit.id);
+  overviewMaintBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
+    return renewalBucketFromOverview(entry.maintenance?.maintenanceRenewal);
   }
 
-  onOverviewEquipmentClick(event: Event, equipment: Equipment): void {
+  overviewInsBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
+    return renewalBucketFromOverview(entry.maintenance?.insuranceRenewal);
+  }
+
+  overviewVerifBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
+    return renewalBucketFromOverview(entry.maintenance?.inspectionRenewal);
+  }
+
+  overviewTripDeparture = overviewTripDepartureLine;
+  overviewTripArrival = overviewTripArrivalLine;
+  overviewTripCompletion = overviewTripCompletionLine;
+  overviewTripEtaDays = overviewTripEtaDaysLabel;
+  overviewTripEtaKm = overviewTripEtaKmLabel;
+  overviewTripProgress = overviewTripProgress;
+
+  onOverviewUnitClick(event: Event, entry: FleetOverviewCardEntry): void {
     event.stopPropagation();
+    this.detailUnitOnRoute.set(entry.operational === 'on_route');
+    this.fleet.selectUnit(entry.unitId);
+  }
+
+  onOverviewEquipmentClick(event: Event, equipmentId: number): void {
+    event.stopPropagation();
+    this.openOverviewEquipment(equipmentId);
+  }
+
+  private openOverviewEquipment(equipmentId: number): void {
     this.detailUnitOnRoute.set(false);
-    const unitRef = resourceIdKey(equipment.unitId);
-    this.detailEquipmentOnRoute.set(
-      Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
-    );
-    this.fleet.selectEquipment(equipment.id);
+    const e = this.equipmentList().find((x) => x.id === String(equipmentId));
+    this.detailEquipmentOnRoute.set(e ? this.equipmentDrawerOnRoute(e) : false);
+    this.fleet.selectEquipment(String(equipmentId));
   }
 
   openNewEquipment(): void {
@@ -609,7 +463,9 @@ export class FleetPageComponent implements OnInit {
     if (!id) {
       return;
     }
-    this.detailUnitOnRoute.set(this.unitsInTransitIds().has(id));
+    const unit = this.unitList().find((u) => u.id === id);
+    const operational = unit ? fleetOperationalKeyFromUnit(unit) : null;
+    this.detailUnitOnRoute.set(operational === 'on_route');
     this.fleet.selectUnit(id);
   }
 
@@ -618,15 +474,12 @@ export class FleetPageComponent implements OnInit {
     this.detailUnitOnRoute.set(false);
   }
 
-  onUnitDetailViewEquipment(e: Equipment): void {
+  onUnitDetailViewEquipment(equipment: Equipment): void {
     this.fleet.clearUnitSelection();
     this.detailUnitOnRoute.set(false);
     this.tab.set('equipment');
-    const unitRef = resourceIdKey(e.unitId);
-    this.detailEquipmentOnRoute.set(
-      Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
-    );
-    this.fleet.selectEquipment(e.id);
+    this.detailEquipmentOnRoute.set(this.equipmentDrawerOnRoute(equipment));
+    this.fleet.selectEquipment(equipment.id);
   }
 
   onEquipmentRowClick(row: Record<string, unknown>): void {
@@ -638,15 +491,30 @@ export class FleetPageComponent implements OnInit {
     if (!e) {
       return;
     }
-    const unitRef = resourceIdKey(e.unitId);
-    this.detailEquipmentOnRoute.set(
-      Boolean(unitRef) && this.unitsInTransitIds().has(unitRef),
-    );
+    this.detailEquipmentOnRoute.set(this.equipmentDrawerOnRoute(e));
     this.fleet.selectEquipment(id);
+  }
+
+  private equipmentDrawerOnRoute(equipment: Equipment): boolean {
+    const operational = fleetOperationalKeyFromEquipment(equipment);
+    return operational === 'in_use' || operational === 'on_route';
   }
 
   onEquipmentDetailDismiss(): void {
     this.fleet.clearEquipmentSelection();
     this.detailEquipmentOnRoute.set(false);
+  }
+
+  onEquipmentDetailViewUnit(unit: Unit): void {
+    this.fleet.clearEquipmentSelection();
+    this.detailEquipmentOnRoute.set(false);
+    this.tab.set('units');
+    const operational = fleetOperationalKeyFromUnit(unit);
+    this.detailUnitOnRoute.set(operational === 'on_route');
+    this.fleet.selectUnit(unit.id);
+  }
+
+  onFleetDataChanged(): void {
+    this.fleet.refreshFleetModule();
   }
 }

@@ -21,13 +21,29 @@
   z-index: 200;
 }
 
+.to-client-input__search {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--to-color-text-muted);
+}
+
+.to-client-input__search-svg {
+  display: block;
+}
+
 .to-client-input__control {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  padding: 0.5rem 2rem 0.5rem 2.5rem;
   border: 1px solid var(--to-color-border);
   border-radius: var(--to-radius-md);
   font: inherit;

@@ -55,10 +55,14 @@ export interface Trip {
   /** Código operativo resuelto en listado (snapshot o join). */
   unitOperationalCode?: string;
   status: TripStatus;
-  /** Momento en que la maniobra quedó registrada en el sistema (alta / programación del envío). */
-  programmedAt: string;
-  /** Ventana operativa prevista del servicio en ruta (distinta del momento de alta). */
-  scheduledAt: string;
+  /** Alta de la maniobra en el sistema (`created_at`). */
+  createdAt: string;
+  /** Plan operativo — salida de patio. */
+  plannedDepartureAt: string;
+  /** Plan operativo — llegada al cliente. */
+  plannedArrivalAt: string;
+  /** Plan operativo — fin de maniobra. */
+  plannedCompletionAt: string;
   operationType: TripOperationType;
   /** Nombre congelado al crear la maniobra (histórico). */
   operationConfigurationNameSnapshot?: string;
@@ -100,6 +104,8 @@ export interface Trip {
   isRoundTrip?: boolean;
   /** «Local» / «Foránea» si se derivó del formulario de programación. */
   maneuverKind?: string;
+  /** Tarifa de destino vinculada al crear (si hubo match). */
+  destinationRateId?: string | null;
   /** CP de origen (5 dígitos) y desglose SEPOMex al programar. */
   originPostalCode?: string;
   /** Ciudad y/o municipio + estado (línea legible, snapshot). */

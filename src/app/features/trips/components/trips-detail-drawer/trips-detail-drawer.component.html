@@ -7,202 +7,202 @@
   skeletonVariant="detail"
   (dismiss)="vm.requestDismiss()"
 >
-  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
-    <h2
-      id="maniobra-detail-title"
-      class="to-side-drawer__title fleet-unit-detail__title"
-    >
-      <to-icon class="to-side-drawer__title-icon" name="route" [size]="22" />
-      <span class="maniobra-detail-drawer__title-code">{{
-        vm.trip().maneuverCode
-      }}</span>
-    </h2>
-    <span [class]="vm.detailStatusPillClasses()">
-      <span class="to-table-pill__dot" aria-hidden="true"></span>
-      <span class="to-table-pill__label">{{ vm.detailStatusLabel() }}</span>
-    </span>
-  </div>
-
-  <to-segment-control
-    layout="drawer"
-    ariaLabel="Secciones del detalle"
-    [tabs]="vm.detailSegmentTabs()"
-    [activeId]="vm.detailTab()"
-    (tabSelect)="vm.selectDetailTab($event)"
-  />
-
-  @defer (when vm.detailTab() === 'maneuver'; prefetch on idle) {
-    <app-trips-detail-maneuver-tab />
-  } @loading (minimum 0ms) {
-    <to-drawer-tab-placeholder />
-  }
-
-  @defer (when vm.detailTab() === 'settlement'; prefetch on idle) {
-    <app-trips-detail-settlement-tab />
-  } @loading (minimum 0ms) {
-    <to-drawer-tab-placeholder />
-  }
-
-  @defer (when vm.detailTab() === 'tracking'; prefetch on idle) {
-    <app-trips-detail-tracking-tab />
-  } @loading (minimum 0ms) {
-    <to-drawer-tab-placeholder />
-  }
-
-  <footer toSideDrawerFooter class="maniobra-drawer__footer maniobra-detail__footer">
-    <div class="maniobra-detail__footer-start">
-      @if (vm.canCancelManiobra()) {
-        <button
-          type="button"
-          class="maniobra-detail__cancel-maniobra-btn"
-          (click)="openCancelDialog()"
-        >
-          Cancelar maniobra
-        </button>
-      }
+  @if (vm.trip(); as trip) {
+    <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+      <h2
+        id="maniobra-detail-title"
+        class="to-side-drawer__title fleet-unit-detail__title"
+      >
+        <to-icon class="to-side-drawer__title-icon" name="route" [size]="22" />
+        <span class="maniobra-detail-drawer__title-code">{{ trip.maneuverCode }}</span>
+      </h2>
+      <span [class]="vm.detailStatusPillClasses()">
+        <span class="to-table-pill__dot" aria-hidden="true"></span>
+        <span class="to-table-pill__label">{{ vm.detailStatusLabel() }}</span>
+      </span>
     </div>
-    <to-button type="button" variant="outline" (click)="vm.requestDismiss()"
-      >Cerrar</to-button
-    >
-  </footer>
+  }
 
-  <dialog
-    #cancelDialog
-    class="maniobra-detail__confirm-dialog"
-    aria-labelledby="maniobra-cancel-title"
-    (close)="vm.resetCancelModalForm()"
-  >
-    <div class="maniobra-detail__confirm-panel">
-      <div class="maniobra-detail__confirm-head">
-        <div class="maniobra-detail__confirm-icon-wrap" aria-hidden="true">
-          <svg
-            class="maniobra-detail__confirm-icon"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+  @if (vm.trip()) {
+    <to-segment-control
+      layout="drawer"
+      ariaLabel="Secciones del detalle"
+      [tabs]="vm.detailSegmentTabs()"
+      [activeId]="vm.detailTab()"
+      (tabSelect)="vm.selectDetailTab($event)"
+    />
+
+    @switch (vm.detailTab()) {
+      @case ('maneuver') {
+        <app-trips-detail-maneuver-tab />
+      }
+      @case ('settlement') {
+        <app-trips-detail-settlement-tab />
+      }
+      @case ('tracking') {
+        <app-trips-detail-tracking-tab />
+      }
+    }
+  }
+
+  @if (vm.trip()) {
+    <footer toSideDrawerFooter class="maniobra-drawer__footer maniobra-detail__footer">
+      <div class="maniobra-detail__footer-start">
+        @if (vm.canCancelManiobra()) {
+          <button
+            type="button"
+            class="maniobra-detail__cancel-maniobra-btn"
+            (click)="openCancelDialog()"
           >
-            <path
-              d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+            Cancelar maniobra
+          </button>
+        }
+      </div>
+      <to-button type="button" variant="outline" (click)="vm.requestDismiss()"
+        >Cerrar</to-button
+      >
+    </footer>
+  }
+
+  @if (vm.trip(); as trip) {
+    <dialog
+      #cancelDialog
+      class="maniobra-detail__confirm-dialog"
+      aria-labelledby="maniobra-cancel-title"
+      (close)="vm.resetCancelModalForm()"
+    >
+      <div class="maniobra-detail__confirm-panel">
+        <div class="maniobra-detail__confirm-head">
+          <div class="maniobra-detail__confirm-icon-wrap" aria-hidden="true">
+            <svg
+              class="maniobra-detail__confirm-icon"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+            </svg>
+          </div>
+          <h2 id="maniobra-cancel-title" class="maniobra-detail__confirm-title">
+            Dar de baja la maniobra
+          </h2>
+        </div>
+        <p class="maniobra-detail__confirm-text">
+          <strong>{{ trip.maneuverCode }}</strong>
+          —
+          {{
+            vm.cancelKind() === 'false'
+              ? 'Quedará marcada como en falso: no habrá ejecución de ruta y el cobro acordado se mantiene.'
+              : 'Quedará cancelada operativamente: no habrá ejecución de la ruta y no aplica cobro por servicio no realizado.'
+          }}
+        </p>
+        <fieldset class="maniobra-detail__cancel-fieldset">
+          <legend class="maniobra-detail__cancel-legend">Tipo de registro</legend>
+
+          <label class="maniobra-detail__cancel-option">
+            <input
+              class="maniobra-detail__cancel-radio-input"
+              type="radio"
+              name="maniobra-cancel-kind"
+              value="operative"
+              [checked]="vm.cancelKind() === 'operative'"
+              [disabled]="vm.cancelSubmitting()"
+              (change)="vm.cancelKind.set('operative')"
             />
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-          </svg>
-        </div>
-        <h2 id="maniobra-cancel-title" class="maniobra-detail__confirm-title">
-          Dar de baja la maniobra
-        </h2>
-      </div>
-      <p class="maniobra-detail__confirm-text">
-        <strong>{{ vm.trip().maneuverCode }}</strong>
-        —
-        {{
-          vm.cancelKind() === 'false'
-            ? 'Quedará marcada como en falso: no habrá ejecución de ruta y el cobro acordado se mantiene.'
-            : 'Quedará cancelada operativamente: no habrá ejecución de la ruta y no aplica cobro por servicio no realizado.'
-        }}
-      </p>
-      <fieldset class="maniobra-detail__cancel-fieldset">
-        <legend class="maniobra-detail__cancel-legend">Tipo de registro</legend>
+            <span class="maniobra-detail__cancel-option-body">
+              <span class="maniobra-detail__cancel-option-title"
+                >Cancelación operativa</span
+              >
+              <span class="maniobra-detail__cancel-option-help"
+                >Viaje sin ejecutarse; típica baja administrativa sin generar cobro por el tramo.</span
+              >
+            </span>
+          </label>
 
-        <label class="maniobra-detail__cancel-option">
-          <input
-            class="maniobra-detail__cancel-radio-input"
-            type="radio"
-            name="maniobra-cancel-kind"
-            value="operative"
-            [checked]="vm.cancelKind() === 'operative'"
+          <label class="maniobra-detail__cancel-option">
+            <input
+              class="maniobra-detail__cancel-radio-input"
+              type="radio"
+              name="maniobra-cancel-kind"
+              value="false"
+              [checked]="vm.cancelKind() === 'false'"
+              [disabled]="vm.cancelSubmitting()"
+              (change)="vm.cancelKind.set('false')"
+            />
+            <span class="maniobra-detail__cancel-option-body">
+              <span class="maniobra-detail__cancel-option-title"
+                >Maniobra en falso</span
+              >
+              <span class="maniobra-detail__cancel-option-help"
+                >Sin ejecución de ruta, pero el cliente / cobro pactado siguen aplicando. Requiere un detalle
+                registrado.</span
+              >
+            </span>
+          </label>
+        </fieldset>
+
+        @if (vm.cancelKind() === 'false') {
+          <div class="maniobra-detail__cancel-note-wrap">
+            <label
+              class="maniobra-detail__cancel-note-label"
+              for="maniobra-cancel-note"
+              >Motivo u observación<span class="maniobra-detail__req">*</span></label
+            >
+            <textarea
+              id="maniobra-cancel-note"
+              class="maniobra-detail__incident-textarea maniobra-detail__cancel-note-textarea"
+              rows="3"
+              [value]="vm.cancelNoteDraft()"
+              (input)="vm.onCancelNoteInput($event)"
+              [disabled]="vm.cancelSubmitting()"
+              placeholder="Breve explicación (auditoría, acuerdo con cliente, orden interna…)"
+            ></textarea>
+          </div>
+        }
+
+        <div class="maniobra-detail__confirm-actions">
+          <to-button
+            type="button"
+            variant="outline"
             [disabled]="vm.cancelSubmitting()"
-            (change)="vm.cancelKind.set('operative')"
-          />
-          <span class="maniobra-detail__cancel-option-body">
-            <span class="maniobra-detail__cancel-option-title"
-              >Cancelación operativa</span
-            >
-            <span class="maniobra-detail__cancel-option-help"
-              >Viaje sin ejecutarse; típica baja administrativa sin generar cobro por el tramo.</span
-            >
-          </span>
-        </label>
-
-        <label class="maniobra-detail__cancel-option">
-          <input
-            class="maniobra-detail__cancel-radio-input"
-            type="radio"
-            name="maniobra-cancel-kind"
-            value="false"
-            [checked]="vm.cancelKind() === 'false'"
-            [disabled]="vm.cancelSubmitting()"
-            (change)="vm.cancelKind.set('false')"
-          />
-          <span class="maniobra-detail__cancel-option-body">
-            <span class="maniobra-detail__cancel-option-title"
-              >Maniobra en falso</span
-            >
-            <span class="maniobra-detail__cancel-option-help"
-              >Sin ejecución de ruta, pero el cliente / cobro pactado siguen aplicando. Requiere un detalle
-              registrado.</span
-            >
-          </span>
-        </label>
-      </fieldset>
-
-      @if (vm.cancelKind() === 'false') {
-        <div class="maniobra-detail__cancel-note-wrap">
-          <label
-            class="maniobra-detail__cancel-note-label"
-            for="maniobra-cancel-note"
-            >Motivo u observación<span class="maniobra-detail__req">*</span></label
+            (click)="closeCancelDialog()"
           >
-          <textarea
-            id="maniobra-cancel-note"
-            class="maniobra-detail__incident-textarea maniobra-detail__cancel-note-textarea"
-            rows="3"
-            [value]="vm.cancelNoteDraft()"
-            (input)="vm.onCancelNoteInput($event)"
+            <svg
+              class="maniobra-detail__confirm-action-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            No, volver
+          </to-button>
+          <to-button
+            type="button"
+            variant="primary"
+            [loading]="vm.cancelSubmitting()"
             [disabled]="vm.cancelSubmitting()"
-            placeholder="Breve explicación (auditoría, acuerdo con cliente, orden interna…)"
-          ></textarea>
-        </div>
-      }
-
-      <div class="maniobra-detail__confirm-actions">
-        <to-button
-          type="button"
-          variant="outline"
-          [disabled]="vm.cancelSubmitting()"
-          (click)="closeCancelDialog()"
-        >
-          <svg
-            class="maniobra-detail__confirm-action-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+            (click)="vm.confirmCancelManiobra()"
           >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          No, volver
-        </to-button>
-        <to-button
-          type="button"
-          variant="primary"
-          [loading]="vm.cancelSubmitting()"
-          [disabled]="vm.cancelSubmitting()"
-          (click)="vm.confirmCancelManiobra()"
-        >
-          Confirmar
-        </to-button>
+            Confirmar
+          </to-button>
+        </div>
       </div>
-    </div>
-  </dialog>
+    </dialog>
+  }
 </to-side-drawer>

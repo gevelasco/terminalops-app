@@ -29,6 +29,7 @@ export type ToTableCellKind =
   | 'incident-dot'
   | 'muted-badge'
   | 'operation-type'
+  | 'operation-type-badges'
   | 'datetime-stacked'
   | 'fleet-op-pill'
   | 'fleet-maintenance-icon'
@@ -42,6 +43,12 @@ export type ToTableCellKind =
 export interface ToTableStackedDatetime {
   date: string;
   time: string;
+}
+
+/** Valor en la fila para `cell: 'operation-type-badges'`. */
+export interface ToTableOperationTypeBadge {
+  label: string;
+  badgeClass: string;
 }
 
 export interface ToTableColumn {
@@ -192,6 +199,23 @@ export class ToTableComponent {
     return this.opResolver.resolveCellDisplay(op, row).label;
   }
 
+  operationTypeBadges(
+    row: Record<string, unknown>,
+    key: string,
+  ): readonly ToTableOperationTypeBadge[] {
+    const v = row[key];
+    if (!Array.isArray(v)) {
+      return [];
+    }
+    return v.filter(
+      (item): item is ToTableOperationTypeBadge =>
+        item != null &&
+        typeof item === 'object' &&
+        typeof (item as ToTableOperationTypeBadge).label === 'string' &&
+        typeof (item as ToTableOperationTypeBadge).badgeClass === 'string',
+    );
+  }
+
   fleetOpPillClass(v: unknown): string {
     const base = 'to-table-pill';
     switch (v) {
@@ -200,7 +224,7 @@ export class ToTableComponent {
       case 'available':
         return `${base} to-table-pill--fleet-available`;
       case 'in_use':
-        return `${base} to-table-pill--fleet-in-use`;
+        return `${base} to-table-pill--fleet-maneuver`;
       case 'maintenance':
         return `${base} to-table-pill--fleet-maintenance`;
       case 'scheduled':

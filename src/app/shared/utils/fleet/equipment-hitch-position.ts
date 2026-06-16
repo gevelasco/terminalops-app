@@ -32,15 +32,15 @@ export function equipmentHitchPositionDisplayLabel(
   total?: number,
 ): string {
   if (e.hitchPosition === 'rear') {
-    return '2.º remolque (trasero)';
+    return '2.do equipo';
   }
   if (e.hitchPosition === 'lead') {
-    return total != null && total > 1 ? '1.er remolque (delantero)' : 'Remolque enganchado';
+    return total != null && total > 1 ? '1.er equipo' : 'Equipo enganchado';
   }
   if (index != null && total != null) {
-    return total <= 1 ? 'Remolque enganchado' : index === 0 ? '1.er remolque (delantero)' : '2.º remolque (trasero)';
+    return total <= 1 ? 'Equipo enganchado' : index === 0 ? '1.er equipo' : '2.do equipo';
   }
-  return 'Remolque enganchado';
+  return 'Equipo enganchado';
 }
 
 /** Valor API al guardar según tractora y toggle de segundo remolque. */
@@ -53,6 +53,43 @@ export function hitchPositionForEquipmentWrite(
     return null;
   }
   return isSecondTrailer ? 'rear' : 'lead';
+}
+
+/** Borrador API al desenganchar un equipo de la tractora. */
+export function equipmentUnhitchPersistDraft(): Pick<Equipment, 'unitId' | 'hitchPosition'> {
+  return { unitId: '', hitchPosition: null };
+}
+
+/** Borrador API al promover un 2.do equipo a 1.er en el mismo convoy. */
+export function equipmentPromoteToLeadPersistDraft(): Pick<Equipment, 'hitchPosition'> {
+  return { hitchPosition: 'lead' };
+}
+
+/**
+ * 2.do equipo que debe pasar a 1.er si se desengancha el equipo delantero de la misma tractora.
+ */
+export function rearEquipmentToPromoteOnLeadUnhitch(
+  catalog: readonly Equipment[],
+  equipmentToUnhitch: Equipment,
+): Equipment | null {
+  const unitId = resourceIdKey(equipmentToUnhitch.unitId);
+  if (!unitId || equipmentToUnhitch.hitchPosition === 'rear') {
+    return null;
+  }
+  const onUnit = equipmentAssignedToUnit(catalog, unitId);
+  return (
+    onUnit.find(
+      (e) =>
+        e.hitchPosition === 'rear' && !resourceIdsEqual(e.id, equipmentToUnhitch.id),
+    ) ?? null
+  );
+}
+
+export function unhitchingLeadRequiresRearPromotion(
+  catalog: readonly Equipment[],
+  equipment: Equipment,
+): boolean {
+  return rearEquipmentToPromoteOnLeadUnhitch(catalog, equipment) != null;
 }
 
 export function isSecondTrailerHitch(e: Equipment): boolean {

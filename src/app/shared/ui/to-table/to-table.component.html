@@ -57,6 +57,14 @@
                 <span [class]="operationTypeBadgeClass(row[col.key], row)">{{
                   operationTypeCellLabel(row[col.key], row)
                 }}</span>
+              } @else if (col.cell === 'operation-type-badges') {
+                <div class="to-table-op-badges">
+                  @for (badge of operationTypeBadges(row, col.key); track badge.label) {
+                    <span [class]="badge.badgeClass">{{ badge.label }}</span>
+                  } @empty {
+                    —
+                  }
+                </div>
               } @else if (col.cell === 'datetime-stacked') {
                 @if (stackedDatetime(row, col.key); as dt) {
                   <div class="to-table-datetime">

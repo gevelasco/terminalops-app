@@ -85,10 +85,13 @@ export function isoDayInRange(iso: string | undefined | null, from: string, to: 
   return day >= from && day <= to;
 }
 
-export function tripProgrammedDay(t: { programmedAt: string }): string {
-  const iso = t.programmedAt?.trim() ?? '';
+export function tripCreatedDay(t: { createdAt: string }): string {
+  const iso = t.createdAt?.trim() ?? '';
   return iso.length >= 10 ? iso.slice(0, 10) : iso;
 }
+
+/** @deprecated Use tripCreatedDay */
+export const tripProgrammedDay = tripCreatedDay;
 
 export function expenseDay(e: { incurredAt: string }): string {
   const iso = e.incurredAt?.trim() ?? '';

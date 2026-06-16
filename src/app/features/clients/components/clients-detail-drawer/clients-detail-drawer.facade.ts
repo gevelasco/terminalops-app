@@ -19,6 +19,7 @@ import {
   validateClientDelivery,
   yesNoToBool,
 } from '@features/clients/utils/client-payload';
+import { clientDeliveryRouteLinkTitle } from '@features/clients/utils/client-delivery-route-link';
 import { buildClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
 import { buildClientManeuverVolumeSummary } from '@features/clients/utils/client-maneuver-volume-summary';
 import {
@@ -408,6 +409,23 @@ export class ClientsDetailDrawerFacade {
 
   deliveryCoordLabel(value: number | undefined): string {
     return formatClientDeliveryCoord(value);
+  }
+
+  deliveryRouteLinkLabel(): string {
+    const delivery = this.client().delivery;
+    if (!delivery?.postalCode?.trim() || !delivery.locality?.trim()) {
+      return '—';
+    }
+    if (delivery.destinationRateId) {
+      return clientDeliveryRouteLinkTitle('linked') ?? 'Ruta tarifada disponible';
+    }
+    if (delivery.isUnpricedRoute) {
+      return (
+        clientDeliveryRouteLinkTitle('unpriced') ??
+        'Ruta sin tarifa (pendiente de configuración)'
+      );
+    }
+    return '—';
   }
 
   hasClientDelivery(): boolean {

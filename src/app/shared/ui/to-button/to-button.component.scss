@@ -17,6 +17,16 @@
     opacity: 0.55;
     cursor: not-allowed;
   }
+
+  to-icon,
+  :where(svg) {
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  to-icon {
+    display: inline-flex;
+  }
 }
 
 .to-button--sm {

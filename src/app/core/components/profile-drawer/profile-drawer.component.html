@@ -310,6 +310,9 @@
     @case ('config') {
       <app-profile-drawer-config-tab />
     }
+    @case ('operacion') {
+      <app-profile-drawer-operation-tab />
+    }
   }
   </div>
 
@@ -326,6 +329,19 @@
       >
         <to-icon name="save" [size]="14" />
         {{ configSaving() ? 'Guardando…' : 'Guardar configuración' }}
+      </to-button>
+    } @else if (profileTab() === 'operacion' && canViewConfigTab()) {
+      <to-button
+        type="button"
+        variant="primary"
+        size="md"
+        class="profile-drawer__footer-btn"
+        [loading]="operationSaving()"
+        [disabled]="operationSaving()"
+        (click)="saveOperationSettings()"
+      >
+        <to-icon name="save" [size]="14" />
+        {{ operationSaving() ? 'Guardando…' : 'Guardar operación' }}
       </to-button>
     } @else if (profileTab() === 'perfil') {
       <button

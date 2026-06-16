@@ -69,11 +69,11 @@
   } @else {
     <div class="fleet-unit-sec__edit-form">
       <div class="fleet-unit-sec__edit-grid">
-        <to-select
+        <to-fleet-brand-combobox
           label="Marca *"
-          placeholder="Selecciona marca"
-          [options]="vm.brandOptions"
-          [(value)]="vm.editBrand"
+          placeholder="Escribe o selecciona"
+          [suggestionsSource]="vm.equipmentBrandNames()"
+          [(brandName)]="vm.editBrand"
         />
         <to-select
           label="Modelo (año) *"
@@ -83,10 +83,12 @@
         />
       </div>
       <div class="fleet-unit-sec__edit-grid">
-        <to-input
+        <to-fleet-version-combobox
           label="Versión"
-          placeholder="Ej. Cascadia Evolution"
-          [(value)]="vm.editVersion"
+          placeholder="Escribe o selecciona"
+          [disabled]="!vm.editBrand().trim()"
+          [suggestionsSource]="vm.editEquipmentVersionNames()"
+          [(versionName)]="vm.editVersion"
         />
         <to-select
           label="Tipo de unidad / caja *"
@@ -491,76 +493,102 @@
 </section>
 
 <section
-  class="fleet-unit-sec fleet-unit-sec--boxed"
+  class="fleet-unit-sec fleet-unit-sec--boxed fleet-unit-hitch"
   aria-labelledby="fleet-eq-hitch"
 >
   <div class="fleet-unit-sec__header">
     <h3 id="fleet-eq-hitch" class="fleet-unit-sec__title">
       Enganche a unidad tractora
     </h3>
-    @if (!vm.isEditing("hitch")) {
+    @if (
+      vm.hitchAssignmentAvailable() &&
+      !vm.isEditing('hitch') &&
+      !vm.hitchManagementBlocked()
+    ) {
       <button
         type="button"
         class="fleet-unit-sec__edit-btn"
-        aria-label="Editar enganche"
+        aria-label="Asignar tractora"
         (click)="vm.startEditHitch()"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-          />
+          <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
         </svg>
       </button>
     }
   </div>
-  @if (!vm.isEditing("hitch")) {
+  @if (!vm.isEditing('hitch')) {
     @if (vm.hitchAssignmentAvailable()) {
       <p class="fleet-unit-sec__hint" style="margin: 0">
         <strong>Disponible</strong> — sin unidad tractora asignada.
       </p>
     } @else {
-      <dl class="fleet-unit-detail__dl">
-        <div class="fleet-unit-detail__row">
-          <dt>Estado</dt>
-          <dd>Enganchado</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Unidad tractora</dt>
-          <dd class="fleet-unit-detail__mono">
-            {{ vm.hitchTractorOperationalId() }}
-          </dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Placa tractora</dt>
-          <dd>{{ vm.hitchTractorPlate() }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Posición en convoy</dt>
-          <dd>{{ vm.hitchPositionLabel() }}</dd>
-        </div>
-        @if (vm.assignedTractor()?.name?.trim()) {
-          <div class="fleet-unit-detail__row">
-            <dt>Alias tractora</dt>
-            <dd>{{ vm.assignedTractor()!.name!.trim() }}</dd>
-          </div>
-        }
-      </dl>
+      @if (vm.hitchTractorCard(); as card) {
+        <ul class="fleet-unit-hitch__list">
+          <li class="fleet-unit-hitch__card">
+            <div class="fleet-unit-hitch__card-head">
+              <span class="fleet-unit-hitch__position">{{ card.positionLabel }}</span>
+              <div class="fleet-unit-hitch__card-actions">
+                @if (!vm.hitchManagementBlocked()) {
+                  <button
+                    type="button"
+                    class="fleet-unit-hitch__link"
+                    (click)="vm.unhitchFromTractor()"
+                  >
+                    Desenganchar
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="fleet-unit-hitch__link"
+                  (click)="vm.requestViewAssignedTractor()"
+                >
+                  Ver unidad
+                </button>
+              </div>
+            </div>
+            <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
+              <div class="fleet-unit-detail__row">
+                <dt>ID operativo</dt>
+                <dd class="fleet-unit-detail__mono">{{ card.operationalId }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Placa</dt>
+                <dd>{{ card.plate }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Tractora</dt>
+                <dd>{{ card.description }}</dd>
+              </div>
+              @if (card.alias) {
+                <div class="fleet-unit-detail__row">
+                  <dt>Alias</dt>
+                  <dd>{{ card.alias }}</dd>
+                </div>
+              }
+            </dl>
+          </li>
+        </ul>
+      }
+    }
+    @if (vm.hitchManagementBlocked()) {
+      <p class="fleet-unit-sec__hint" style="margin: 0">
+        La unidad tractora está <strong>en curso</strong>. No puede modificar el
+        enganche hasta que finalice la maniobra.
+      </p>
     }
   } @else {
     <div class="fleet-unit-sec__edit-form">
       <to-fleet-unit-input
         label="Unidad tractora (opcional)"
         placeholder="Buscar tractora o dejar vacío…"
-        [units]="vm.unitCatalog()"
+        [units]="vm.hitchSelectableUnits()"
         [(unitId)]="vm.editUnitId"
       />
       @if (vm.editUnitId().trim()) {
         <app-fleet-hitch-validation-block
           [validation]="vm.editHitchValidation()"
-          [isSecondTrailer]="vm.editIsSecondTrailer()"
-          toggleLabelId="fleet-eq-hitch-second-label"
-          (toggleSecondTrailer)="vm.toggleEditIsSecondTrailer()"
+          [hideInfo]="true"
         />
       }
       <div class="fleet-unit-sec__edit-actions">
@@ -572,10 +600,47 @@
         >
           Cancelar
         </to-button>
-        <to-button type="button" size="sm" (click)="vm.saveEditHitch()">
+        <to-button
+          type="button"
+          size="sm"
+          [disabled]="!vm.editHitchValidation().canSave"
+          (click)="vm.saveEditHitch()"
+        >
           Guardar
         </to-button>
       </div>
     </div>
   }
 </section>
+
+<to-confirm-dialog
+  [open]="vm.hitchSecondConfirmOpen()"
+  titleId="fleet-eq-hitch-second-confirm-title"
+  title="Confirmar 2do equipo"
+  confirmLabel="Enganchar"
+  (cancel)="vm.cancelEditHitchSecondConfirm()"
+  (confirm)="vm.confirmEditHitchAsSecondEquipment()"
+>
+  <p>
+    Este equipo se enganchará como <strong>2do equipo</strong> en la unidad
+    <strong>{{ vm.editTractorLabel() }}</strong>. El convoy pasará a configuración
+    <strong>doble articulado</strong>.
+  </p>
+  <p>¿Desea continuar?</p>
+</to-confirm-dialog>
+
+<to-confirm-dialog
+  [open]="vm.hitchLeadUnhitchConfirmOpen()"
+  titleId="fleet-eq-hitch-lead-unhitch-title"
+  title="Confirmar desenganche"
+  confirmLabel="Desenganchar"
+  (cancel)="vm.cancelUnhitchLeadFromTractor()"
+  (confirm)="vm.confirmUnhitchLeadFromTractor()"
+>
+  <p>
+    Este equipo es el <strong>1.er equipo</strong>. Al desengancharlo, el equipo
+    <strong>{{ vm.hitchLeadUnhitchRearLabel() }}</strong> pasará a ser el
+    <strong>1.er equipo</strong> del convoy.
+  </p>
+  <p>¿Desea continuar?</p>
+</to-confirm-dialog>

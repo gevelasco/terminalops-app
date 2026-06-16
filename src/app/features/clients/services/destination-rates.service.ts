@@ -68,7 +68,12 @@ export class DestinationRatesFeatureService {
     this.runFetch();
   }
 
-  selectRate(rateId: string): void {
+  selectRate(rateId: string, rate?: DestinationRate): void {
+    if (rate?.id === rateId) {
+      this._rates.update((list) =>
+        list.some((r) => r.id === rateId) ? list : [...list, rate],
+      );
+    }
     if (this._rates().some((r) => r.id === rateId)) {
       this._selectedRateId.set(rateId);
     }

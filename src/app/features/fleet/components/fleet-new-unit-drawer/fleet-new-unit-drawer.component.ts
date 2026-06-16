@@ -12,8 +12,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { TRAILER_BRAND_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import { ToastService } from '@core/notifications/toast.service';
+import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
@@ -26,6 +26,10 @@ import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
+import { ToFleetBrandComboboxComponent } from '@shared/ui/to-fleet-brand-combobox/to-fleet-brand-combobox.component';
+import { ToFleetVersionComboboxComponent } from '@shared/ui/to-fleet-version-combobox/to-fleet-version-combobox.component';
+import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
+import { registerFleetVersionResetOnBrandChange } from '@shared/utils/fleet/fleet-brand-version-link';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
   buildFleetModelYearSelectOptions,
@@ -115,6 +119,8 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
     ToIconComponent,
     ToInputComponent,
     ToSelectComponent,
+    ToFleetBrandComboboxComponent,
+    ToFleetVersionComboboxComponent,
     ToTextareaComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -129,6 +135,7 @@ export class FleetNewUnitDrawerComponent {
   readonly trackFileEntry = trackFileEntry;
 
   private readonly destroyRef = inject(DestroyRef);
+  private readonly fleetFeature = inject(FleetFeatureService);
   private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly toast = inject(ToastService);
 
@@ -136,7 +143,7 @@ export class FleetNewUnitDrawerComponent {
   readonly drawerLoading = signal(true);
   readonly saved = output<void>();
 
-  readonly brandCode = model('');
+  readonly brandName = model('');
   readonly trailerVersion = model('');
   readonly modelYear = model('');
   readonly plate = model('');
@@ -187,7 +194,10 @@ export class FleetNewUnitDrawerComponent {
   readonly filesPolicy = signal<File[]>([]);
   readonly filesOwnership = signal<File[]>([]);
 
-  readonly brandOptions = TRAILER_BRAND_OPTIONS;
+  readonly unitBrandNames = this.fleetFeature.unitBrandNames;
+  readonly unitVersionNames = computed(() =>
+    this.fleetFeature.versionNamesFor('UNIT', this.brandName()),
+  );
 
   readonly modelYearOptions = buildFleetModelYearSelectOptions();
 
@@ -272,6 +282,11 @@ export class FleetNewUnitDrawerComponent {
   });
 
   constructor() {
+    this.fleetFeature.ensureFleetCatalogLoaded();
+    registerFleetVersionResetOnBrandChange({
+      brandName: () => this.brandName(),
+      versionName: this.trailerVersion,
+    });
     afterNextRender(() => this.drawerLoading.set(false));
   }
 
@@ -282,8 +297,8 @@ export class FleetNewUnitDrawerComponent {
     }
   }
 
-  brandLabel(code: string): string {
-    return this.brandOptions.find((o) => o.value === code)?.label ?? code;
+  brandLabel(name: string): string {
+    return name.trim();
   }
 
   /** Una sola entrada al dar de alta; el detalle puede sumar más en el tiempo. */
@@ -362,12 +377,12 @@ export class FleetNewUnitDrawerComponent {
   }
 
   submit(): void {
-    const brand = this.brandCode().trim();
+    const brandName = this.brandName().trim();
     const year = this.modelYear().trim();
     const plate = this.plate().trim();
     const lbRaw = this.grossVehicleWeightLb().trim().replace(/,/g, '');
 
-    if (!brand || !year || !plate) {
+    if (!brandName || !year || !plate) {
       this.toast.show('Marca, año modelo y placa son obligatorios.', 'warning');
       return;
     }
@@ -480,7 +495,7 @@ export class FleetNewUnitDrawerComponent {
       this.gpsPaymentCadence();
 
     const meta: UnitFleetMeta = {
-      trailerBrandName: this.brandLabel(brand),
+      trailerBrandName: this.brandLabel(brandName),
       trailerVersion: this.trailerVersion().trim() || undefined,
       trailerColor: this.trailerColor().trim() || undefined,
       trailerTenureMode: tenureMode,
@@ -536,13 +551,15 @@ export class FleetNewUnitDrawerComponent {
       documentOwnershipNames: this.filesOwnership().map((f) => f.name),
     };
 
+    const brandAbbr = deriveFleetBrandAbbr(brandName);
+
     this.saving.set(true);
     this.unitsFeature
       .createUnit({
         plate,
         capacityKg,
         status: this.status(),
-        trailerBrandAbbr: brand,
+        trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         serialNumber: this.serialNumber().trim() || undefined,
         name: this.unitAlias().trim() || undefined,
@@ -551,6 +568,11 @@ export class FleetNewUnitDrawerComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          this.fleetFeature.registerLocalCatalogEntry(
+            'UNIT',
+            brandName,
+            this.trailerVersion().trim() || undefined,
+          );
           this.toast.show('Unidad registrada.', 'success');
           this.saved.emit();
           this.dismiss.emit();

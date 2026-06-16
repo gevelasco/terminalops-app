@@ -64,7 +64,7 @@ export type TripEvaluationPick = Pick<
       | 'equipmentIds'
       | 'approximateWeightTons'
       | 'departureAt'
-      | 'programmedAt'
+      | 'plannedDepartureAt'
     >
   >;
 

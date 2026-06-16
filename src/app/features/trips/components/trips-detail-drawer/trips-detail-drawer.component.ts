@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToDrawerTabPlaceholderComponent } from '@shared/ui/to-drawer-tab-placeholder/to-drawer-tab-placeholder.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -28,7 +27,6 @@ import { TripsDetailDrawerFacade } from './trips-detail-drawer.facade';
     ToIconComponent,
     ToSegmentControlComponent,
     ToSideDrawerComponent,
-    ToDrawerTabPlaceholderComponent,
     TripsDetailManeuverTabComponent,
     TripsDetailSettlementTabComponent,
     TripsDetailTrackingTabComponent,

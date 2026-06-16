@@ -1,8 +1,10 @@
 import { Component, computed, input, model, output, signal } from '@angular/core';
+import { ToDerivedWandIconComponent } from '../to-derived-wand-icon/to-derived-wand-icon.component';
 
 @Component({
   selector: 'to-input',
   standalone: true,
+  imports: [ToDerivedWandIconComponent],
   templateUrl: './to-input.component.html',
   styleUrl: './to-input.component.scss',
 })
@@ -26,6 +28,8 @@ export class ToInputComponent {
   readonly prefix = input<string>();
   /** Icono antes del valor. */
   readonly prefixIcon = input<'none' | 'search' | 'user' | 'lock'>('none');
+  /** Indicador sparkle: pending = gris; ready = primario (autocalculado). */
+  readonly derivedState = input<'none' | 'pending' | 'ready'>('none');
   readonly suffix = input<string>();
   /**
    * Si es `true` y `type` es `password`, muestra botón para alternar visibilidad.
@@ -65,6 +69,7 @@ export class ToInputComponent {
       this.prefix()?.trim() ||
       this.suffix()?.trim() ||
       this.prefixIcon() !== 'none' ||
+      this.derivedState() !== 'none' ||
       this.showPasswordReveal()
     );
 

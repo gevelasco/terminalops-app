@@ -148,8 +148,8 @@
 }
 
 .to-table-pill--fleet-in-use {
-  color: #9a3412;
-  background: color-mix(in srgb, #fb923c 18%, var(--to-color-surface, #fff));
+  color: #1e40af;
+  background: color-mix(in srgb, #3b82f6 14%, var(--to-color-surface, #fff));
 }
 
 .to-table-pill--fleet-maintenance {
@@ -365,6 +365,15 @@
   letter-spacing: 0.02em;
 }
 
+.to-table-op-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* Incidente: mismo icono que en la vista Ruta de maniobras (gris sin / naranja con). */
 .to-table-incident-cell {
   text-align: center;
@@ -432,8 +441,8 @@
   }
 
   .to-table-pill--fleet-in-use {
-    color: #fdba74;
-    background: color-mix(in srgb, #fb923c 22%, var(--to-color-surface));
+    color: #93c5fd;
+    background: color-mix(in srgb, #3b82f6 22%, var(--to-color-surface));
   }
 
   .to-table-pill--fleet-maintenance {
