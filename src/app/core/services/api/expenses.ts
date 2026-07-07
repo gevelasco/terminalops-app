@@ -276,7 +276,7 @@ export class ExpensesService {
   }
 
   patchExpense(id: string, payload: Partial<Omit<Expense, 'id'>>): Observable<Expense> {
-    const expenseId = requireCompanyId(id);
+    const expenseId = id.trim();
     return this.http
       .patch<Expense>(resourceByIdUrl('expenses', expenseId), {
         ...payload,
@@ -286,7 +286,7 @@ export class ExpensesService {
   }
 
   deleteExpense(id: string): Observable<{ id: string; deleted: boolean }> {
-    const expenseId = requireCompanyId(id);
+    const expenseId = id.trim();
     return this.http.delete<{ id: string | number; deleted: boolean }>(
       resourceByIdUrl('expenses', expenseId),
     ).pipe(
