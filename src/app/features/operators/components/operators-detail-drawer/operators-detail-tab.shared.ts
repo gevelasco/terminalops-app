@@ -6,6 +6,7 @@ import { OperatorOperationFieldsComponent } from '../operator-operation-fields/o
 import { ToBadgeComponent } from '@shared/ui/to-badge/to-badge.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 
 /** Imports compartidos por pestañas del drawer de operador (lazy via @defer). */
 export const OPERATORS_DETAIL_TAB_IMPORTS = [
@@ -17,6 +18,7 @@ export const OPERATORS_DETAIL_TAB_IMPORTS = [
   ToBadgeComponent,
   ToButtonComponent,
   ToIconComponent,
+  ToSelectComponent,
 ] as const;
 
 export const OPERATORS_DETAIL_TAB_STYLE_URLS = [

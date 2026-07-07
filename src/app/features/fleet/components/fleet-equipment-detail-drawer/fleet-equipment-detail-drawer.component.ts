@@ -7,43 +7,37 @@ import {
   input,
   output,
 } from '@angular/core';
+import { FleetDetailDrawerShellComponent } from '@features/fleet/components/fleet-detail-drawer-shell/fleet-detail-drawer-shell.component';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
-import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
-import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
-import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
+import type { Unit } from '@shared/models/logistics.models';
 import { FleetEquipmentDetailCobTabComponent } from './tabs/fleet-equipment-detail-cob-tab.component';
 import { FleetEquipmentDetailFichaTabComponent } from './tabs/fleet-equipment-detail-ficha-tab.component';
 import { FleetEquipmentDetailMantTabComponent } from './tabs/fleet-equipment-detail-mant-tab.component';
 import { FleetEquipmentDetailDrawerFacade } from './fleet-equipment-detail-drawer.facade';
-import type { Unit } from '@shared/models/logistics.models';
 
 @Component({
   selector: 'app-fleet-equipment-detail-drawer',
   standalone: true,
   providers: [FleetEquipmentDetailDrawerFacade],
   imports: [
-    ToSideDrawerComponent,
+    FleetDetailDrawerShellComponent,
+    ToButtonComponent,
+    ToConfirmDialogComponent,
     ToIconComponent,
-    ToSegmentControlComponent,
-    ToStatusPillComponent,
     FleetEquipmentDetailFichaTabComponent,
     FleetEquipmentDetailMantTabComponent,
     FleetEquipmentDetailCobTabComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-equipment-detail-drawer.component.html',
-  styleUrls: [
-    '../fleet-drawer.shared.scss',
-    '../styles/fleet-drawer-unit-sec.shared.scss',
-    '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
-    '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables.scss',
-  ],
+  styleUrls: ['../styles/fleet-detail-drawer-footer.shared.scss'],
 })
 export class FleetEquipmentDetailDrawerComponent {
   protected readonly vm = inject(FleetEquipmentDetailDrawerFacade);
 
   readonly onRoute = input(false);
-  readonly completedManeuverCount = input(0);
 
   readonly dismiss = output<void>();
   readonly viewAssignedUnit = output<Unit>();
@@ -55,10 +49,7 @@ export class FleetEquipmentDetailDrawerComponent {
     });
 
     effect(() => {
-      this.vm.syncHostLayout({
-        onRoute: this.onRoute(),
-        completedManeuverCount: this.completedManeuverCount(),
-      });
+      this.vm.syncHostLayout({ onRoute: this.onRoute() });
     });
   }
 

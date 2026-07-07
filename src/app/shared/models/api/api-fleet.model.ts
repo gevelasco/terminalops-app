@@ -7,10 +7,12 @@ import type {
 export interface CreateUnitPayload {
   plate: string;
   capacityKg: number;
-  status: string;
+  isActive?: boolean;
   trailerBrandAbbr?: string;
   trailerYear?: string;
   serialNumber?: string;
+  motorNumber?: string;
+  capacityTons?: number;
   name?: string;
   fleetMeta?: UnitFleetMeta;
 }
@@ -24,7 +26,7 @@ export interface CreateEquipmentPayload {
   lastServiceDate: string;
   plate?: string;
   type?: string;
-  status?: string;
+  isActive?: boolean;
   trailerBrandAbbr?: string;
   trailerYear?: string;
   fleetMeta?: EquipmentFleetMeta;

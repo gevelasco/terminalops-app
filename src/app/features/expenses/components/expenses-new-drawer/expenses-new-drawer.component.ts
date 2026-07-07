@@ -3,33 +3,34 @@ import {
   Component,
   DestroyRef,
   HostListener,
+  computed,
+  effect,
   inject,
+  input,
   model,
   output,
-  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
-import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
-import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import { ToastService } from '@core/notifications/toast.service';
-import { EquipmentService } from '@services/api/equipment';
-import { UnitsService } from '@services/api/units';
 import { ExpensesService } from '@services/api/expenses';
-import { OperatorsService } from '@services/api/operators';
 import {
   EXPENSE_CURRENCY_OPTIONS,
-  EXPENSE_INSURANCE_TARGET_OPTIONS,
-  EXPENSE_KIND_OPTIONS,
-  EXPENSE_MAINTENANCE_TARGET_OPTIONS,
   EXPENSE_PAYMENT_METHOD_OPTIONS,
   EXPENSE_VERIFICATION_SCOPE_OPTIONS,
 } from '@shared/catalogs/expense-form-options';
+import {
+  EXPENSE_RUBRO_OPTIONS,
+  applyExpenseConceptSelection,
+  expenseConceptOptionsForRubro,
+  isExpenseCustomConcept,
+  resolveExpenseConceptFromExpense,
+  validateExpenseRubroTripLink,
+  type ExpenseRubro,
+} from '@features/expenses/utils/expense-rubro.util';
 import type {
   Expense,
   ExpenseKind,
-  ExpenseMaintenanceTarget,
   ExpenseVerificationScope,
 } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -38,9 +39,10 @@ import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.componen
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import {
   ToSelectComponent,
-  ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
-import { ToTripInputComponent } from '@shared/ui/to-trip-input/to-trip-input.component';
+import { ExpenseOperationalRelationFieldsComponent } from '@features/expenses/components/expense-operational-relation-fields/expense-operational-relation-fields.component';
+import { inferExpenseRelationTab } from '@features/expenses/utils/expense-operational-relation.util';
+import type { ExpenseOperationalRelationTab } from '@features/expenses/utils/expense-operational-relation.util';
 
 function todayYmd(): string {
   const d = new Date();
@@ -50,17 +52,11 @@ function todayYmd(): string {
   return `${y}-${mo}-${da}`;
 }
 
-function parseAmount(raw: string): number | 'invalid' {
-  const t = raw.trim().replace(/\s/g, '').replace(/,/g, '');
-  if (t === '') {
-    return 'invalid';
-  }
-  const n = Number(t);
-  if (!Number.isFinite(n) || n < 0) {
-    return 'invalid';
-  }
-  return n;
-}
+import {
+  parseExpenseAmount,
+  resolveExpenseRelationFields,
+  expenseIncurredDateInput,
+} from '@features/expenses/utils/expenses-form.util';
 
 @Component({
   selector: 'app-expenses-new-drawer',
@@ -73,7 +69,7 @@ function parseAmount(raw: string): number | 'invalid' {
     ToSelectComponent,
     ToSideDrawerComponent,
     ToTextareaComponent,
-    ToTripInputComponent,
+    ExpenseOperationalRelationFieldsComponent,
   ],
   templateUrl: './expenses-new-drawer.component.html',
   styleUrls: [
@@ -86,24 +82,21 @@ export class ExpensesNewDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly expensesApi = inject(ExpensesService);
-  private readonly unitsApi = inject(UnitsService);
-  private readonly equipmentApi = inject(EquipmentService);
-  private readonly operatorsApi = inject(OperatorsService);
 
   readonly dismiss = output<void>();
   readonly saved = output<Expense>();
 
-  readonly kindOptions = EXPENSE_KIND_OPTIONS;
-  readonly maintenanceTargetOptions = EXPENSE_MAINTENANCE_TARGET_OPTIONS;
-  readonly insuranceTargetOptions = EXPENSE_INSURANCE_TARGET_OPTIONS;
+  /** Si se define, el drawer opera en modo edición. */
+  readonly editingExpense = input<Expense | null>(null);
+  readonly isEditing = computed(() => this.editingExpense() != null);
+
+  readonly rubroOptions = EXPENSE_RUBRO_OPTIONS;
   readonly verificationScopeOptions = EXPENSE_VERIFICATION_SCOPE_OPTIONS;
   readonly paymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
   readonly currencyOptions = EXPENSE_CURRENCY_OPTIONS;
 
-  readonly unitOptions = signal<ToSelectOption[]>([]);
-  readonly equipmentOptions = signal<ToSelectOption[]>([]);
-  readonly operatorOptions = signal<ToSelectOption[]>([]);
-
+  readonly rubro = model<ExpenseRubro>('gasto');
+  readonly conceptId = model('gasto_custom');
   readonly kind = model<ExpenseKind>('other');
   readonly category = model('');
   readonly description = model('');
@@ -115,74 +108,84 @@ export class ExpensesNewDrawerComponent {
   readonly invoiceRequired = model(false);
 
   readonly tripId = model('');
-  readonly maintenanceTarget = model<ExpenseMaintenanceTarget>('unit');
-  readonly insuranceTarget = model<ExpenseMaintenanceTarget>('unit');
   readonly relatedUnitId = model('');
   readonly relatedEquipmentId = model('');
   readonly relatedOperatorId = model('');
   readonly verificationScope = model<ExpenseVerificationScope>('phys_mech');
+  readonly relationTab = model<ExpenseOperationalRelationTab>('trip');
 
-  readonly drawerLoading = signal(true);
+  readonly conceptOptions = computed(() =>
+    expenseConceptOptionsForRubro(this.rubro()),
+  );
+
+  readonly isCustomConcept = computed(() =>
+    isExpenseCustomConcept(this.conceptId()),
+  );
+
+  readonly isManiobraRubro = computed(() => this.rubro() === 'maniobra');
 
   constructor() {
-    forkJoin({
-      units: this.unitsApi.getUnitsList(),
-      equipment: this.equipmentApi.getEquipmentList(),
-      operators: this.operatorsApi.getOperatorsList(),
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ units, equipment, operators }) => {
-        this.unitOptions.set([
-          { value: '', label: '— Seleccionar unidad —' },
-          ...units.map((u) => ({
-            value: u.id,
-            label: formatUnitTrailerOperationalId(u),
-          })),
-        ]);
-        this.equipmentOptions.set([
-          { value: '', label: '— Seleccionar equipo —' },
-          ...equipment.map((eq) => ({
-            value: eq.id,
-            label: formatEquipmentOperationalId(eq),
-          })),
-        ]);
-        this.operatorOptions.set([
-          { value: '', label: '— Seleccionar operador —' },
-          ...operators.map((o) => ({
-            value: o.id,
-            label: o.name,
-          })),
-        ]);
-        this.drawerLoading.set(false);
-        },
-        error: () => this.drawerLoading.set(false),
-      });
+    effect(() => {
+      const editing = this.editingExpense();
+      if (editing) {
+        this.applyExpenseToForm(editing);
+      }
+    });
   }
 
-  isEquipmentOnlyKind(k: ExpenseKind): boolean {
-    return (
-      k === 'equipment_purchase' ||
-      k === 'equipment_rent' ||
-      k === 'trailer_admin_payout'
-    );
+  setRubro(value: string): void {
+    const rubro = value as ExpenseRubro;
+    this.rubro.set(rubro);
+    const first = expenseConceptOptionsForRubro(rubro)[0]?.value;
+    if (first) {
+      this.setConcept(first);
+    }
   }
 
-  isUnitOnlyAssetKind(k: ExpenseKind): boolean {
-    return k === 'unit_purchase' || k === 'unit_rent';
+  setConcept(value: string): void {
+    this.conceptId.set(value);
+    const applied = applyExpenseConceptSelection(value);
+    if (!applied) {
+      return;
+    }
+    this.kind.set(applied.kind);
+    if (applied.category) {
+      this.category.set(applied.category);
+    } else {
+      this.category.set('');
+    }
   }
 
-  isOperatorKind(k: ExpenseKind): boolean {
-    return k === 'operator_payment' || k === 'operator_commission';
+  private applyExpenseToForm(e: Expense): void {
+    const { rubro, conceptId } = resolveExpenseConceptFromExpense(e);
+    this.rubro.set(rubro);
+    this.conceptId.set(conceptId);
+    this.kind.set(e.kind);
+    this.category.set(e.category);
+    this.description.set(e.description ?? '');
+    this.vendor.set(e.vendor ?? '');
+    this.amountStr.set(String(e.amount));
+    this.currency.set(e.currency || 'MXN');
+    this.paymentMethod.set(e.paymentMethod ?? '');
+    this.incurredAt.set(expenseIncurredDateInput(e.incurredAt));
+    this.invoiceRequired.set(e.invoiceRequired === true);
+    this.tripId.set(e.tripId ?? '');
+    this.relatedUnitId.set(e.relatedUnitId ?? '');
+    this.relatedEquipmentId.set(e.relatedEquipmentId ?? '');
+    this.relatedOperatorId.set(e.relatedOperatorId ?? '');
+    if (e.verificationScope) {
+      this.verificationScope.set(e.verificationScope);
+    }
+    this.relationTab.set(inferExpenseRelationTab(e));
   }
 
   submit(): void {
     const categoryText = this.category().trim();
     if (!categoryText) {
-      this.toast.show('Indica un concepto o categoría.', 'warning');
+      this.toast.show('Indica el concepto del gasto.', 'warning');
       return;
     }
-    const amountResult = parseAmount(this.amountStr());
+    const amountResult = parseExpenseAmount(this.amountStr());
     if (amountResult === 'invalid') {
       this.toast.show('Indica un monto válido (≥ 0).', 'warning');
       return;
@@ -194,93 +197,31 @@ export class ExpensesNewDrawerComponent {
     }
 
     const kind = this.kind();
-    const tripId = this.tripId().trim();
-    let maintenanceTarget: ExpenseMaintenanceTarget | undefined;
-    let insuranceTarget: ExpenseMaintenanceTarget | undefined;
-    let relatedUnitId: string | undefined;
-    let relatedEquipmentId: string | undefined;
-    let relatedOperatorId: string | undefined;
-    let verificationScope: ExpenseVerificationScope | undefined;
-
-    if (kind === 'maintenance') {
-      const target = this.maintenanceTarget();
-      maintenanceTarget = target;
-      if (target === 'unit') {
-        const uid = this.relatedUnitId().trim();
-        if (!uid) {
-          this.toast.show(
-            'Selecciona la unidad a la que aplica el mantenimiento.',
-            'warning',
-          );
-          return;
-        }
-        relatedUnitId = uid;
-      } else {
-        const eid = this.relatedEquipmentId().trim();
-        if (!eid) {
-          this.toast.show(
-            'Selecciona el equipo al que aplica el mantenimiento.',
-            'warning',
-          );
-          return;
-        }
-        relatedEquipmentId = eid;
-      }
-    } else if (kind === 'insurance') {
-      const target = this.insuranceTarget();
-      insuranceTarget = target;
-      if (target === 'unit') {
-        const uid = this.relatedUnitId().trim();
-        if (!uid) {
-          this.toast.show('Selecciona la unidad asegurada.', 'warning');
-          return;
-        }
-        relatedUnitId = uid;
-      } else {
-        const eid = this.relatedEquipmentId().trim();
-        if (!eid) {
-          this.toast.show('Selecciona el equipo asegurado.', 'warning');
-          return;
-        }
-        relatedEquipmentId = eid;
-      }
-    } else if (kind === 'gps') {
-      const uid = this.relatedUnitId().trim();
-      if (!uid) {
-        this.toast.show('Selecciona la unidad con servicio de GPS.', 'warning');
-        return;
-      }
-      relatedUnitId = uid;
-    } else if (kind === 'verification') {
-      const uid = this.relatedUnitId().trim();
-      if (!uid) {
-        this.toast.show('Selecciona la unidad verificada.', 'warning');
-        return;
-      }
-      relatedUnitId = uid;
-      verificationScope = this.verificationScope();
-    } else if (this.isEquipmentOnlyKind(kind)) {
-      const eid = this.relatedEquipmentId().trim();
-      if (!eid) {
-        this.toast.show('Selecciona el equipo.', 'warning');
-        return;
-      }
-      relatedEquipmentId = eid;
-    } else if (this.isUnitOnlyAssetKind(kind)) {
-      const uid = this.relatedUnitId().trim();
-      if (!uid) {
-        this.toast.show('Selecciona la unidad.', 'warning');
-        return;
-      }
-      relatedUnitId = uid;
-    } else if (this.isOperatorKind(kind)) {
-      const oid = this.relatedOperatorId().trim();
-      if (!oid) {
-        this.toast.show('Selecciona el operador.', 'warning');
-        return;
-      }
-      relatedOperatorId = oid;
+    const tripValidation = validateExpenseRubroTripLink(this.rubro(), this.tripId());
+    if (tripValidation) {
+      this.toast.show(tripValidation, 'warning');
+      return;
     }
+    const resolved = resolveExpenseRelationFields(kind, {
+      tripId: this.tripId(),
+      relatedUnitId: this.relatedUnitId(),
+      relatedEquipmentId: this.relatedEquipmentId(),
+      relatedOperatorId: this.relatedOperatorId(),
+      verificationScope: this.verificationScope(),
+    });
+    if (!resolved.ok) {
+      this.toast.show(resolved.message, 'warning');
+      return;
+    }
+    const {
+      tripId,
+      maintenanceTarget,
+      insuranceTarget,
+      relatedUnitId,
+      relatedEquipmentId,
+      relatedOperatorId,
+      verificationScope,
+    } = resolved.fields;
 
     const payload: Omit<Expense, 'id'> = {
       tripId,
@@ -295,23 +236,33 @@ export class ExpensesNewDrawerComponent {
       invoiceRequired: this.invoiceRequired(),
       maintenanceTarget,
       insuranceTarget,
-      relatedUnitId,
-      relatedEquipmentId,
-      relatedOperatorId,
+      relatedUnitId: relatedUnitId || undefined,
+      relatedEquipmentId: relatedEquipmentId || undefined,
+      relatedOperatorId: relatedOperatorId || undefined,
       verificationScope,
     };
 
-    this.expensesApi
-      .postExpense(payload)
+    const editing = this.editingExpense();
+    const request$ = editing
+      ? this.expensesApi.patchExpense(editing.id, payload)
+      : this.expensesApi.postExpense(payload);
+
+    request$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (row: Expense) => {
-          this.toast.show('Gasto registrado.', 'success');
+          this.toast.show(
+            editing ? 'Gasto actualizado.' : 'Gasto registrado.',
+            'success',
+          );
           this.saved.emit(row);
           this.dismiss.emit();
         },
         error: () => {
-          this.toast.show('No se pudo guardar el gasto.', 'error');
+          this.toast.show(
+            editing ? 'No se pudo actualizar el gasto.' : 'No se pudo guardar el gasto.',
+            'error',
+          );
         },
       });
   }

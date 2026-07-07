@@ -10,10 +10,16 @@ import {
 } from 'rxjs';
 import { UnitsService as UnitsApiService } from '@services/api/units';
 import type { CreateUnitPayload } from '@shared/models/api/api-fleet.model';
+import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
 import type { Unit } from '@shared/models/logistics.models';
 import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 import { normalizeUnitFromApi } from '@shared/utils/fleet/normalize-fleet-entities';
+
+export type UnitUpdateOptions = {
+  /** Evita GET de lista tras PATCH cuando el caller actualiza el listado en memoria. */
+  skipListRefresh?: boolean;
+};
 
 /**
  * Lista de unidades en memoria + selección para el módulo Flota.
@@ -74,17 +80,75 @@ export class UnitsFeatureService {
     this._selectedUnitId.set(null);
   }
 
-  updateUnit(unit: Unit, draft?: UnitPersistDraft): Observable<Unit> {
+  updateUnit(
+    unit: Unit,
+    draft?: UnitPersistDraft,
+    options?: UnitUpdateOptions,
+  ): Observable<Unit> {
     const keepId = this._selectedUnitId() ?? unit.id;
     const requestId = this.requestGen.next();
     return this.unitsApi.patchUnit(unit, draft).pipe(
+      switchMap((saved) => {
+        if (options?.skipListRefresh) {
+          const normalized = normalizeUnitFromApi(saved);
+          if (this.canApplyResponse(requestId)) {
+            this.upsertUnitInList(normalized, keepId);
+          }
+          return of(this._units().find((u) => u.id === keepId) ?? normalized);
+        }
+        return this.fetchList().pipe(
+          map((list) => {
+            if (!this.canApplyResponse(requestId)) {
+              return this._units().find((u) => u.id === keepId) ?? unit;
+            }
+            this.applyList(list, keepId);
+            return this._units().find((u) => u.id === keepId) ?? unit;
+          }),
+        );
+      }),
+    );
+  }
+
+  deleteUnit(unitId: string): Observable<void> {
+    const requestId = this.requestGen.next();
+    return this.unitsApi.deleteUnit(unitId).pipe(
       switchMap(() => this.fetchList()),
       map((list) => {
-        if (!this.canApplyResponse(requestId)) {
-          return this._units().find((u) => u.id === keepId) ?? unit;
+        if (this.canApplyResponse(requestId)) {
+          this.applyList(list, null);
         }
-        this.applyList(list, keepId);
-        return this._units().find((u) => u.id === keepId) ?? unit;
+      }),
+      map(() => void 0),
+    );
+  }
+
+  setUnitMaintenance(unitId: string, action: FleetMaintenanceAction): Observable<Unit> {
+    const keepId = unitId.trim();
+    const requestId = this.requestGen.next();
+    return this.unitsApi.postUnitMaintenance(keepId, action).pipe(
+      switchMap((saved) =>
+        this.fetchList().pipe(
+          map((list) => {
+            if (this.canApplyResponse(requestId)) {
+              this.applyList(list, keepId);
+            }
+            return saved;
+          }),
+        ),
+      ),
+    );
+  }
+
+  syncUnitInsuranceExpenses(unitId: string): Observable<Unit> {
+    const keepId = unitId.trim();
+    const requestId = this.requestGen.next();
+    return this.unitsApi.postUnitInsuranceSyncExpenses(keepId).pipe(
+      map((saved) => {
+        const unit = normalizeUnitFromApi(saved);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertUnitInList(unit, keepId);
+        }
+        return unit;
       }),
     );
   }

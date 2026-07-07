@@ -6,9 +6,11 @@ import {
   tripUnitDisplayCode,
 } from '@features/trips/utils/trip-display-labels';
 import {
+  tripArrivalIso,
   tripCompletionIso,
   tripDepartureIso,
 } from '@features/trips/utils/trip-schedule-accessors';
+import { tripHasIncidents } from '@features/trips/utils/trip-incidents';
 
 const STATUS_SEARCH_HINTS: Record<string, string> = {
   in_transit: 'en curso transito ruta',
@@ -34,11 +36,12 @@ export function maniobraListRowFromTrip(
     status: t.status,
     falseManeuver: t.falseManeuver === true,
     departureAt: formatStackedMx(tripDepartureIso(t)),
-    arrivedAt: formatStackedMx(tripCompletionIso(t)),
+    arrivedAt: formatStackedMx(tripArrivalIso(t)),
+    completionAt: formatStackedMx(tripCompletionIso(t)),
     operationType: t.operationType,
     operationConfigurationId: t.operationConfigurationId ?? '',
     operationConfigurationNameSnapshot: t.operationConfigurationNameSnapshot ?? '',
-    hasIncident: (t.incidents?.length ?? 0) > 0 || t.hasIncident,
+    hasIncident: tripHasIncidents(t),
     equipmentJoined: (t.equipment ?? []).join(' '),
   };
 }

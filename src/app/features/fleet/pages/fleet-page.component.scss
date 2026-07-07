@@ -1,7 +1,4 @@
-@use "../components/fleet-drawer.shared.scss" as *;
 @use "../../../shared/styles/toolbar-filter-tabs.scss";
-@use "../../../shared/styles/trip-operation-type-badge.scss";
-@use "../../../shared/styles/trip-maneuver-status-pill.scss";
 @use "../../../shared/styles/fleet-operational-pill.scss";
 @use "../components/fleet-overview-card/fleet-overview-card.styles";
 
@@ -10,6 +7,35 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.fleet-sticky-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  padding-top: clamp(0.75rem, 2vw, 1.25rem);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--to-color-bg, #f9f9f9);
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 88%, transparent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--to-color-text) 5%, transparent);
+
+  ::ng-deep to-page-header {
+    position: static;
+    top: auto;
+    z-index: auto;
+    padding-top: 0;
+    background: transparent;
+    box-shadow: none;
+
+    .to-page-header {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid
+        color-mix(in srgb, var(--to-color-border) 72%, transparent);
+      box-shadow: none;
+    }
+  }
 }
 
 .fleet-table-block {
@@ -24,7 +50,7 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.75rem 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   --fleet-toolbar-control-height: calc(
     0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px
   );

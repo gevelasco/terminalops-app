@@ -66,8 +66,8 @@
             @for (entry of stateFleet.cards(); track entry.trip?.tripId ?? entry.unitId) {
               <app-fleet-overview-card
                 [entry]="entry"
-                [readonly]="true"
                 [tripSelectable]="!!entry.trip?.tripId"
+                [showAssignmentSummary]="true"
                 (tripSelect)="tripSelect.emit($event)"
                 role="listitem"
               />

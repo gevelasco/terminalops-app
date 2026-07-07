@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnDestroy,
   ViewChild,
@@ -13,6 +13,9 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import type { ECElementEvent, EChartsType } from 'echarts/core';
 import type { TripMapItem, TripsMapMeta } from '@shared/models/api/api-trips-map.model';
 import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-overview-card/fleet-overview-card.component';
@@ -44,6 +47,7 @@ import { countTripsMapByStatus } from '@features/trips/utils/trips-map-viewport.
 })
 export class ManiobraRouteMapComponent implements AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly stateFleet = inject(TripsMapStateFleetService);
 
   @ViewChild('chartHost', { static: true })
@@ -104,12 +108,11 @@ export class ManiobraRouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private async registerMexicoMap(): Promise<void> {
-    const geo = await new Promise<Record<string, unknown>>((resolve, reject) => {
-      this.http.get<Record<string, unknown>>('/geo/mexico-states.json').subscribe({
-        next: (json) => resolve(json),
-        error: () => reject(new Error('geo load failed')),
-      });
-    });
+    const geo = await firstValueFrom(
+      this.http
+        .get<Record<string, unknown>>('/geo/mexico-states.json')
+        .pipe(takeUntilDestroyed(this.destroyRef)),
+    );
     ensureTripsMapEchartsModules().registerMap(TRIPS_MAP_GEO_NAME, geo as never);
     this.geoJson = geo as unknown as MexicoStatesGeoJson;
     this.geoJsonSignal.set(this.geoJson);

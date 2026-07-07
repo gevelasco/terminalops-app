@@ -41,4 +41,31 @@ describe('equipment-api-payload', () => {
     expect(payload.unitId).toBe('1');
     expect(payload.hitchPosition).toBe('rear');
   });
+
+  it('never sends operational status in write payload (A6)', () => {
+    const payload = buildEquipmentWritePayload(baseEquipment(), {
+      equipment: { status: 'available' },
+    });
+    expect('status' in (payload as object)).toBe(false);
+  });
+
+  it('keeps maintenanceEntries when draft fleetMeta is partial', () => {
+    const payload = buildEquipmentWritePayload(
+      baseEquipment({
+        fleetMeta: {
+          maintenanceEntries: [
+            {
+              date: '2026-06-01',
+              type: 'Frenos',
+              status: 'concluido',
+              cost: 3200,
+            },
+          ],
+        },
+      }),
+      { fleetMeta: { lastMaintenanceDate: '2026-06-01' } },
+    );
+    expect(payload.fleetMeta?.maintenanceEntries?.length).toBe(1);
+    expect(payload.fleetMeta?.lastMaintenanceDate).toBe('2026-06-01');
+  });
 });

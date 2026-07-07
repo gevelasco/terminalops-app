@@ -1,1 +1,7 @@
 @use '../../styles/toolbar-filter-tabs.scss';
+
+:host {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+}

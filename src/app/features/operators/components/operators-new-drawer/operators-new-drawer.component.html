@@ -52,6 +52,25 @@
 
         <section
           class="fleet-unit-sec fleet-unit-sec--boxed"
+          aria-labelledby="operators-new-sec-contact"
+        >
+          <h3 id="operators-new-sec-contact" class="fleet-unit-sec__title">
+            Persona de contacto
+          </h3>
+          <app-operator-emergency-contact-fields
+            layout="new"
+            medicalAuthLabelledBy="operators-new-ec-auth"
+            [relationshipOptions]="relationshipOptions"
+            [(contactName)]="ecName"
+            [(contactRelationship)]="ecRelationship"
+            [(contactPhone)]="ecPhone"
+            [(contactEmail)]="ecEmail"
+            [(authorizedMedical)]="ecAuthMedical"
+          />
+        </section>
+
+        <section
+          class="fleet-unit-sec fleet-unit-sec--boxed"
           aria-labelledby="operators-new-sec-op"
         >
           <h3 id="operators-new-sec-op" class="fleet-unit-sec__title">
@@ -59,11 +78,13 @@
           </h3>
           <app-operator-operation-fields
             layout="new"
-            [statusOptions]="statusOptions"
             [employmentContractOptions]="employmentContractOptions"
-            [(status)]="status"
+            [paymentScheduleOptions]="paymentScheduleOptions"
+            [paymentMethodOptions]="paymentMethodOptions"
             [(companyHireDate)]="companyHireDate"
             [(employmentContractType)]="employmentContractType"
+            [(paymentSchedule)]="paymentSchedule"
+            [(paymentMethod)]="paymentMethod"
           />
           <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
           <div class="fleet-unit-upload">
@@ -102,25 +123,6 @@
           } @else {
             <p class="fleet-unit-sec__docs-hint">Sin archivos adjuntos.</p>
           }
-        </section>
-
-        <section
-          class="fleet-unit-sec fleet-unit-sec--boxed"
-          aria-labelledby="operators-new-sec-contact"
-        >
-          <h3 id="operators-new-sec-contact" class="fleet-unit-sec__title">
-            Persona de contacto
-          </h3>
-          <app-operator-emergency-contact-fields
-            layout="new"
-            medicalAuthLabelledBy="operators-new-ec-auth"
-            [relationshipOptions]="relationshipOptions"
-            [(contactName)]="ecName"
-            [(contactRelationship)]="ecRelationship"
-            [(contactPhone)]="ecPhone"
-            [(contactEmail)]="ecEmail"
-            [(authorizedMedical)]="ecAuthMedical"
-          />
         </section>
 
         <section

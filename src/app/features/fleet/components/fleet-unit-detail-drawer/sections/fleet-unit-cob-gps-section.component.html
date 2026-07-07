@@ -6,7 +6,7 @@
             <h3 id="fleet-udv-gps" class="fleet-unit-sec__title">
               GPS y rastreo
             </h3>
-            @if (!vm.isEditing("gps")) {
+            @if (vm.showSectionEdit("gps")) {
               <button
                 type="button"
                 class="fleet-unit-sec__edit-btn"
@@ -28,19 +28,22 @@
             }
           </div>
           @if (!vm.isEditing("gps")) {
-            @if (vm.meta()?.hasGps !== true) {
-              <p class="fleet-unit-detail__empty-files">
-                Sin GPS contratado registrado para esta unidad.
-              </p>
-            } @else {
               <dl class="fleet-unit-detail__dl">
                 <div class="fleet-unit-detail__row">
                   <dt>Marca o proveedor</dt>
                   <dd>{{ vm.meta()?.gpsProviderBrand?.trim() || "—" }}</dd>
                 </div>
                 <div class="fleet-unit-detail__row">
-                  <dt>Forma de pago / renovación</dt>
+                  <dt>Periodicidad</dt>
                   <dd>{{ vm.meta()?.gpsPaymentCadence?.trim() || "—" }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Forma de pago</dt>
+                  <dd>{{ vm.insurancePaymentMethodLabel(vm.meta()?.gpsPaymentMethod) }}</dd>
+                </div>
+                <div class="fleet-unit-detail__row">
+                  <dt>Factura fiscal</dt>
+                  <dd>{{ vm.meta()?.gpsInvoiceRequired ? "Sí" : "No" }}</dd>
                 </div>
                 <div class="fleet-unit-detail__row">
                   <dt>Fecha de contratación</dt>
@@ -80,7 +83,7 @@
                   </dd>
                 </div>
               </dl>
-              <div class="fleet-unit-detail__badge-block">
+              <div class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--insurance">
                 <p class="fleet-unit-detail__badge-label">
                   Contrato y próximo ciclo de pago
                 </p>
@@ -102,25 +105,99 @@
                     Próx. pago: {{ vm.gpsNext() }}
                   </span>
                 </div>
+                @if (
+                  !vm.isEditing("gps") &&
+                  vm.isAnnualGpsPolicy() &&
+                  vm.canConfirmGpsPayment()
+                ) {
+                  <div class="fleet-unit-detail__insurance-payment-cta">
+                    <p class="fleet-unit-detail__insurance-payment-hint">
+                      {{ vm.gpsPaymentConfirmHint() }}
+                    </p>
+                    <to-button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      [disabled]="vm.saving()"
+                      (click)="vm.confirmGpsPayment()"
+                    >
+                      <to-icon name="save" [size]="14" />
+                      Registrar pago del ciclo
+                    </to-button>
+                  </div>
+                }
               </div>
-            }
+              @if (!vm.isEditing("gps") && vm.showGpsPaymentScheduleTable()) {
+                <app-fleet-insurance-payment-schedule
+                  [schedule]="vm.gpsPaymentSchedule()"
+                  [saving]="vm.saving()"
+                  [formatDate]="vm.formatYmd"
+                  [formatAmount]="vm.formatTrackingAmount.bind(vm)"
+                  (confirmCycle)="vm.confirmGpsPaymentCycle($event)"
+                />
+              }
           } @else {
             <div class="fleet-unit-sec__edit-form">
+              <to-input
+                label="Marca o proveedor"
+                placeholder="Ej. SkyBitz, Motive…"
+                [(value)]="vm.editGpsBrand"
+              />
+              <div class="fleet-unit-sec__edit-grid">
+                <to-input
+                  label="Fecha de contratación"
+                  type="date"
+                  [(value)]="vm.editGpsContractDate"
+                />
+                <to-input
+                  label="Portal (ubicación en vivo)"
+                  type="url"
+                  placeholder="https://…"
+                  [(value)]="vm.editGpsPortal"
+                />
+              </div>
+              <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
+                <to-select
+                  label="Periodicidad"
+                  [options]="vm.cadenceOptions"
+                  [(value)]="vm.editGpsCadence"
+                />
+                <to-input
+                  label="Precio o cuota"
+                  type="text"
+                  [groupThousands]="true"
+                  placeholder="Ej. 450"
+                  [(value)]="vm.editGpsPrice"
+                />
+                <to-select
+                  label="Forma de pago"
+                  [options]="vm.insurancePaymentMethodOptions"
+                  [(value)]="vm.editGpsPaymentMethod"
+                />
+              </div>
+              <label class="fleet-unit-detail__checkbox-row">
+                <input
+                  type="checkbox"
+                  [checked]="vm.editGpsInvoiceRequired()"
+                  (change)="vm.editGpsInvoiceRequired.set($any($event.target).checked)"
+                />
+                Factura fiscal requerida
+              </label>
               <div class="fleet-unit-toggle-row">
                 <span
                   class="fleet-unit-toggle-row__label"
-                  id="fleet-udv-gps-on-label"
+                  id="fleet-udv-gps-end-label"
                 >
-                  Tiene GPS contratado
+                  Consta en la póliza como endoso o anexo
                 </span>
                 <button
                   type="button"
                   class="fleet-unit-toggle"
-                  [class.fleet-unit-toggle--on]="vm.editGpsHas()"
+                  [class.fleet-unit-toggle--on]="vm.editGpsEndorse()"
                   role="switch"
-                  [attr.aria-checked]="vm.editGpsHas()"
-                  aria-labelledby="fleet-udv-gps-on-label"
-                  (click)="vm.toggleEditGpsHas()"
+                  [attr.aria-checked]="vm.editGpsEndorse()"
+                  aria-labelledby="fleet-udv-gps-end-label"
+                  (click)="vm.toggleEditGpsEndorse()"
                 >
                   <span
                     class="fleet-unit-toggle__thumb"
@@ -128,62 +205,6 @@
                   ></span>
                 </button>
               </div>
-              @if (vm.editGpsHas()) {
-                <to-input
-                  label="Marca o proveedor"
-                  placeholder="Ej. SkyBitz, Motive…"
-                  [(value)]="vm.editGpsBrand"
-                />
-                <div class="fleet-unit-sec__edit-grid">
-                  <to-input
-                    label="Fecha de contratación"
-                    type="date"
-                    [(value)]="vm.editGpsContractDate"
-                  />
-                  <to-select
-                    label="Forma de pago / renovación"
-                    [options]="vm.cadenceOptions"
-                    [(value)]="vm.editGpsCadence"
-                  />
-                </div>
-                <div class="fleet-unit-sec__edit-grid">
-                  <to-input
-                    label="Precio o cuota (opcional)"
-                    type="text"
-                    [groupThousands]="true"
-                    placeholder="Ej. 450"
-                    [(value)]="vm.editGpsPrice"
-                  />
-                  <to-input
-                    label="Portal (ubicación en vivo)"
-                    type="url"
-                    placeholder="https://…"
-                    [(value)]="vm.editGpsPortal"
-                  />
-                </div>
-                <div class="fleet-unit-toggle-row">
-                  <span
-                    class="fleet-unit-toggle-row__label"
-                    id="fleet-udv-gps-end-label"
-                  >
-                    Consta en la póliza como endoso o anexo
-                  </span>
-                  <button
-                    type="button"
-                    class="fleet-unit-toggle"
-                    [class.fleet-unit-toggle--on]="vm.editGpsEndorse()"
-                    role="switch"
-                    [attr.aria-checked]="vm.editGpsEndorse()"
-                    aria-labelledby="fleet-udv-gps-end-label"
-                    (click)="vm.toggleEditGpsEndorse()"
-                  >
-                    <span
-                      class="fleet-unit-toggle__thumb"
-                      aria-hidden="true"
-                    ></span>
-                  </button>
-                </div>
-              }
               <div class="fleet-unit-sec__edit-actions">
                 <to-button
                   type="button"

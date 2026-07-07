@@ -5,9 +5,10 @@ import {
   effect,
   inject,
   input,
+  model,
   output,
-  signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logistics.models';
 import type { ClientCommercialHealth } from '@shared/models/client.models';
@@ -22,9 +23,19 @@ import {
   fleetOperationalKeyLabel,
   type FleetOperationalKey,
 } from '@features/fleet/utils/fleet-unit-table-row';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
+import {
+  roleDisplayLabel,
+  userRolePillClass as resolveUserRolePillClass,
+  userRoleTableIcon,
+  userStatusPillClass as resolveUserStatusPillClass,
+  userStatusPillLabel as resolveUserStatusPillLabel,
+} from '@shared/utils/access-control';
 
 export type ToTableCellKind =
   | 'text'
+  | 'nowrap'
   | 'maniobra-status'
   | 'incident-dot'
   | 'muted-badge'
@@ -37,7 +48,19 @@ export type ToTableCellKind =
   | 'fleet-insurance-icon'
   | 'operator-op-pill'
   | 'client-health-pill'
-  | 'rate-availability-pill';
+  | 'rate-availability-pill'
+  | 'module-access-icons'
+  | 'user-role-pill'
+  | 'user-status-pill'
+  | 'trip-collected-icon'
+  | 'expense-invoice-icon';
+
+/** Valor en la fila para `cell: 'module-access-icons'`. */
+export interface ToTableModuleAccessIcon {
+  label: string;
+  icon: string;
+  active: boolean;
+}
 
 /** Valor en la fila para `cell: 'datetime-stacked'` (fecha + hora en dos líneas). */
 export interface ToTableStackedDatetime {
@@ -63,6 +86,7 @@ export interface ToTableColumn {
   standalone: true,
   providers: [OperationConfigurationResolverService],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ToIconComponent, FormsModule],
   templateUrl: './to-table.component.html',
   styleUrl: './to-table.component.scss',
 })
@@ -77,21 +101,71 @@ export class ToTableComponent {
   readonly interactiveRows = input(false);
 
   /** Filas visibles por página. ≤0 desactiva paginación y muestra todas las filas. */
-  readonly pageSize = input<number>(12);
+  readonly pageSize = model<number>(15);
 
+  /** Total de filas (paginación en servidor). Si se define, `rows` ya viene paginado. */
+  readonly totalItems = input<number | null>(null);
+
+  /** Opciones del selector de tamaño de página (p. ej. 10, 15, 25, 50, 100). */
+  readonly pageSizeOptions = input<readonly number[] | null>(null);
+
+  /** Índice de página actual (0-based). */
+  readonly pageIndex = model(0);
+
+  /** Contenedor con scroll vertical y encabezados sticky. */
+  readonly scrollable = input(false);
+
+  /** Fila de resumen al final de la tabla (`tfoot`). */
+  readonly footerRow = input<Record<string, unknown> | null>(null);
+
+  /** Hover tooltip en celdas de mantenimiento, verificación y seguro de flota. */
+  readonly fleetIconTooltips = input(true);
+
+  readonly pageSizeChange = output<number>();
+  readonly pageIndexChange = output<number>();
   readonly rowClick = output<Record<string, unknown>>();
 
-  protected readonly pageIndex = signal(0);
   private prevRowsLength = -1;
+  private prevTotalItems = -1;
 
   constructor() {
     effect(() => {
-      const n = this.rows().length;
+      const opts = this.pageSizeOptions();
+      if (!opts?.length) {
+        return;
+      }
+      const ps = this.pageSize();
+      if (opts.includes(ps)) {
+        return;
+      }
+      const max = Math.max(...opts);
+      const total = this.totalItems();
+      const outOfRange = ps > max || ps < opts[0];
+      const matchesTotal = total != null && total > 0 && ps === total;
+      if (!outOfRange && !matchesTotal) {
+        return;
+      }
+      const resolved = nearestPageSizeOption(ps, opts);
+      if (resolved === ps) {
+        return;
+      }
+      this.pageSize.set(resolved);
+      this.pageSizeChange.emit(resolved);
+    });
+
+    effect(() => {
+      const serverTotal = this.totalItems();
+      const n = serverTotal ?? this.rows().length;
       const ps = this.pageSize();
       const lenChanged = n !== this.prevRowsLength;
-      if (lenChanged) {
+      const totalChanged =
+        serverTotal != null && serverTotal !== this.prevTotalItems;
+      if (lenChanged || totalChanged) {
         this.prevRowsLength = n;
-        this.pageIndex.set(0);
+        this.prevTotalItems = serverTotal ?? -1;
+        if (serverTotal == null) {
+          this.pageIndex.set(0);
+        }
         return;
       }
       if (ps != null && ps > 0 && n > 0) {
@@ -104,14 +178,41 @@ export class ToTableComponent {
     });
   }
 
+  protected readonly serverSidePagination = computed(
+    () => this.totalItems() != null,
+  );
+
+  protected readonly effectiveTotal = computed(
+    () => this.totalItems() ?? this.rows().length,
+  );
+
+  protected readonly showPageSizeSelect = computed(() => {
+    const opts = this.pageSizeOptions();
+    return opts != null && opts.length > 0;
+  });
+
   protected readonly showPagination = computed(() => {
     const ps = this.pageSize();
-    const n = this.rows().length;
-    return ps > 0 && n > ps;
+    const n = this.effectiveTotal();
+    if (ps <= 0 || n <= 0) {
+      return false;
+    }
+    if (this.serverSidePagination()) {
+      const pageRows = this.pagedRows().length;
+      if (pageRows === 0) {
+        return false;
+      }
+      const idx = this.pageIndex();
+      return idx > 0 || idx * ps + pageRows < n;
+    }
+    return n > ps;
   });
 
   protected readonly pagedRows = computed(() => {
     const all = this.rows();
+    if (this.serverSidePagination()) {
+      return [...all];
+    }
     const ps = this.pageSize();
     if (ps == null || ps <= 0) {
       return [...all];
@@ -127,17 +228,24 @@ export class ToTableComponent {
   });
 
   protected readonly paginationRange = computed(() => {
-    const all = this.rows();
     const ps = this.pageSize();
-    const n = all.length;
+    const n = this.effectiveTotal();
+    const pageRows = this.pagedRows();
     if (ps <= 0 || n === 0) {
       return null;
     }
     const pages = Math.max(1, Math.ceil(n / ps));
     const idx = Math.min(this.pageIndex(), pages - 1);
+    const from = pageRows.length === 0 ? 0 : idx * ps + 1;
+    const to =
+      pageRows.length === 0
+        ? 0
+        : this.serverSidePagination()
+          ? idx * ps + pageRows.length
+          : Math.min(n, (idx + 1) * ps);
     return {
-      from: idx * ps + 1,
-      to: Math.min(n, (idx + 1) * ps),
+      from,
+      to,
       total: n,
       page: idx + 1,
       pages,
@@ -145,17 +253,32 @@ export class ToTableComponent {
   });
 
   prevTablePage(): void {
-    this.pageIndex.update((i) => Math.max(0, i - 1));
+    const next = Math.max(0, this.pageIndex() - 1);
+    this.pageIndex.set(next);
+    this.pageIndexChange.emit(next);
   }
 
   nextTablePage(): void {
     const ps = this.pageSize();
-    const n = this.rows().length;
+    const n = this.effectiveTotal();
     if (ps <= 0) {
       return;
     }
     const pages = Math.max(1, Math.ceil(n / ps));
-    this.pageIndex.update((i) => Math.min(pages - 1, i + 1));
+    const next = Math.min(pages - 1, this.pageIndex() + 1);
+    this.pageIndex.set(next);
+    this.pageIndexChange.emit(next);
+  }
+
+  onPageSizeModelChange(raw: number | string): void {
+    const next = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(next) || next <= 0 || next === this.pageSize()) {
+      return;
+    }
+    this.pageSize.set(next);
+    this.pageIndex.set(0);
+    this.pageSizeChange.emit(next);
+    this.pageIndexChange.emit(0);
   }
 
   trackRow = (index: number, row: Record<string, unknown>): string => {
@@ -314,7 +437,7 @@ export class ToTableComponent {
       case 'due':
         return 'Verificaciones: vencida o incompleta';
       case 'soon':
-        return 'Verificaciones: próximas a vencer';
+        return 'Verificaciones: próximas a vencer (menos de 10 días)';
       case 'ok':
         return 'Verificaciones: al corriente';
       default:
@@ -327,7 +450,7 @@ export class ToTableComponent {
       case 'due':
         return 'Seguro: póliza o pago vencido';
       case 'soon':
-        return 'Seguro: próximo pago o vigencia en menos de 30 días';
+        return 'Seguro: próximo pago o vigencia en menos de 10 días';
       case 'ok':
         return 'Seguro: vigente';
       default:
@@ -404,6 +527,48 @@ export class ToTableComponent {
     return null;
   }
 
+  moduleAccessIcons(
+    row: Record<string, unknown>,
+    key: string,
+  ): readonly ToTableModuleAccessIcon[] {
+    const v = row[key];
+    if (!Array.isArray(v)) {
+      return [];
+    }
+    return v.filter(
+      (item): item is ToTableModuleAccessIcon =>
+        item != null &&
+        typeof item === 'object' &&
+        typeof (item as ToTableModuleAccessIcon).label === 'string' &&
+        typeof (item as ToTableModuleAccessIcon).icon === 'string' &&
+        typeof (item as ToTableModuleAccessIcon).active === 'boolean',
+    );
+  }
+
+  moduleAccessIconName(icon: string): ToIconName {
+    return icon as ToIconName;
+  }
+
+  userRolePillClass(role: unknown): string {
+    return resolveUserRolePillClass(typeof role === 'string' ? role : '');
+  }
+
+  userRolePillLabel(role: unknown): string {
+    return roleDisplayLabel(typeof role === 'string' ? role : '');
+  }
+
+  userRolePillIcon(role: unknown): ToIconName {
+    return userRoleTableIcon(typeof role === 'string' ? role : '');
+  }
+
+  userStatusPillClass(status: unknown): string {
+    return resolveUserStatusPillClass(typeof status === 'string' ? status : '');
+  }
+
+  userStatusPillLabel(status: unknown): string {
+    return resolveUserStatusPillLabel(typeof status === 'string' ? status : '');
+  }
+
   onRowActivate(row: Record<string, unknown>): void {
     if (!this.interactiveRows()) {
       return;
@@ -424,6 +589,8 @@ export class ToTableComponent {
   tdCentered(cell: ToTableCellKind | undefined): boolean {
     return (
       cell === 'incident-dot' ||
+      cell === 'trip-collected-icon' ||
+      cell === 'expense-invoice-icon' ||
       cell === 'fleet-maintenance-icon' ||
       cell === 'fleet-verification-icon' ||
       cell === 'fleet-insurance-icon'
@@ -437,4 +604,19 @@ export class ToTableComponent {
       cell === 'fleet-insurance-icon'
     );
   }
+}
+
+function nearestPageSizeOption(
+  pageSize: number,
+  options: readonly number[],
+): number {
+  if (!Number.isFinite(pageSize) || pageSize <= 0) {
+    return options[0];
+  }
+  if (options.includes(pageSize)) {
+    return pageSize;
+  }
+  return options.reduce((best, option) =>
+    Math.abs(option - pageSize) < Math.abs(best - pageSize) ? option : best,
+  );
 }

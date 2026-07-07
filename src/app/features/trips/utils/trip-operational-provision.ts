@@ -129,17 +129,6 @@ function defaultEquipmentTirePositions(
   return Array.from({ length: equipmentCount }, (_, index) => base + (index < remainder ? 1 : 0));
 }
 
-function equipmentTirePositions(
-  equipment: Pick<Equipment, 'fleetMeta'> | undefined,
-  fallback: number,
-): number {
-  const configured = equipment?.fleetMeta?.equipmentTireCount;
-  if (configured != null && configured > 0) {
-    return configured;
-  }
-  return fallback;
-}
-
 function tireCpk(positions: number, weightTons: number): number {
   const baseCpk = (positions * AVG_TIRE_COST_MXN) / TIRE_LIFE_KM;
   return baseCpk * tireLoadFactor(weightTons);
@@ -237,10 +226,7 @@ export function buildDefaultTripOperationalProvisionExpenses(
   const equipmentRows = equipmentIds.map((id, index) => ({
     id,
     row: equipmentCatalog.find((entry) => entry.id === id),
-    positions: equipmentTirePositions(
-      equipmentCatalog.find((entry) => entry.id === id),
-      defaultEquipPositions[index] ?? 8,
-    ),
+    positions: defaultEquipPositions[index] ?? 8,
   }));
 
   const positionWeights = [

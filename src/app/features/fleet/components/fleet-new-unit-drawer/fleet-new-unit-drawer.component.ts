@@ -16,6 +16,7 @@ import { ToastService } from '@core/notifications/toast.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
+import { parseFleetRequiredDigits } from '@features/fleet/utils/fleet-drawer-form.utils';
 import {
   MaintenanceEntry,
   TrailerTenureMode,
@@ -32,15 +33,16 @@ import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abb
 import { registerFleetVersionResetOnBrandChange } from '@shared/utils/fleet/fleet-brand-version-link';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
-  buildFleetModelYearSelectOptions,
   FLEET_MAINTENANCE_TYPE_OPTIONS,
   FLEET_PAYMENT_CADENCE_OPTIONS,
+  FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TIRE_CONDITION_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
-  FLEET_UNIT_STATUS_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
+import { gpsFleetFormHasContent } from '@features/fleet/utils/fleet-gps-payment.util';
 
 type RenewUi = 'due' | 'soon' | 'ok' | null;
 
@@ -148,6 +150,7 @@ export class FleetNewUnitDrawerComponent {
   readonly modelYear = model('');
   readonly plate = model('');
   readonly trailerColor = model('');
+  readonly serviceModality = model('');
   readonly transmissionType = model('automatic');
   readonly transmissionSpeeds = model('10');
   readonly grossVehicleWeightLb = model('');
@@ -167,11 +170,14 @@ export class FleetNewUnitDrawerComponent {
   readonly insuranceCarrierName = model('');
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
+  readonly insurancePaymentMethod = model('transfer');
+  readonly insuranceInvoiceRequired = model(false);
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
-  readonly hasGps = model(false);
   readonly gpsProviderBrand = model('');
   readonly gpsPaymentCadence = model('annual');
+  readonly gpsPaymentMethod = model('transfer');
+  readonly gpsInvoiceRequired = model(false);
   readonly gpsContractDate = model('');
   readonly gpsPrice = model('');
   readonly gpsTrackingPortalUrl = model('');
@@ -182,9 +188,12 @@ export class FleetNewUnitDrawerComponent {
   readonly trailerRecurringPaymentDate = model('');
   readonly trailerRecurringInstallmentCount = model('');
   readonly trailerManagementOwnerPayout = model('');
-  readonly status = model('available');
   /** Número de serie / VIN (opcional en alta). */
   readonly serialNumber = model('');
+  /** Número de motor (obligatorio en alta). */
+  readonly motorNumber = model('');
+  /** Capacidad de carga en toneladas (obligatorio en alta). */
+  readonly capacityTons = model('');
   /** Nombre comercial o alias interno (opcional). */
   readonly unitAlias = model('');
   readonly saving = model(false);
@@ -199,19 +208,20 @@ export class FleetNewUnitDrawerComponent {
     this.fleetFeature.versionNamesFor('UNIT', this.brandName()),
   );
 
-  readonly modelYearOptions = buildFleetModelYearSelectOptions();
-
   readonly transmissionOptions = FLEET_TRANSMISSION_TYPE_OPTIONS;
 
   readonly speedOptions = FLEET_TRANSMISSION_SPEED_OPTIONS;
+
+  readonly serviceModalityOptions = FLEET_SERVICE_MODALITY_OPTIONS;
 
   readonly maintenanceTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
   readonly tireOptions = FLEET_TIRE_CONDITION_OPTIONS;
 
   readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
-
-  readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
+  readonly insurancePaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS.filter(
+    (o) => o.value !== '',
+  );
 
   readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
 
@@ -251,9 +261,6 @@ export class FleetNewUnitDrawerComponent {
   });
 
   readonly gpsRenewHint = computed(() => {
-    if (!this.hasGps()) {
-      return null;
-    }
     const iso = this.gpsContractDate().trim();
     const cad = this.gpsPaymentCadence();
     if (!iso) {
@@ -309,7 +316,7 @@ export class FleetNewUnitDrawerComponent {
     const date = this.lastMaintenanceDate().trim();
     const notes = this.lastMaintenanceNotes().trim();
     const docs = this.filesMaintenance().map((f) => f.name);
-    const hasData = !!(date || (typeLabel && typeLabel.trim()) || cost !== undefined || notes || docs.length > 0);
+    const hasData = !!(date || cost !== undefined || notes || docs.length > 0);
     if (!hasData) {
       return undefined;
     }
@@ -356,10 +363,6 @@ export class FleetNewUnitDrawerComponent {
     this.doubleArticApplies.set(!this.doubleArticApplies());
   }
 
-  toggleGpsSwitch(): void {
-    this.hasGps.set(!this.hasGps());
-  }
-
   toggleGpsEndorsementSwitch(): void {
     this.gpsCoveredByInsuranceEndorsement.set(!this.gpsCoveredByInsuranceEndorsement());
   }
@@ -378,22 +381,46 @@ export class FleetNewUnitDrawerComponent {
 
   submit(): void {
     const brandName = this.brandName().trim();
-    const year = this.modelYear().trim();
+    const yearRaw = this.modelYear().trim();
     const plate = this.plate().trim();
+    const motorNumber = this.motorNumber().trim();
     const lbRaw = this.grossVehicleWeightLb().trim().replace(/,/g, '');
+    const tonsRaw = this.capacityTons().trim().replace(/,/g, '');
 
-    if (!brandName || !year || !plate) {
-      this.toast.show('Marca, año modelo y placa son obligatorios.', 'warning');
+    if (!brandName || !plate) {
+      this.toast.show('Marca y placa son obligatorios.', 'warning');
       return;
     }
-    let capacityKg = 0;
+    const yearParsed = parseFleetRequiredDigits(yearRaw);
+    if (yearParsed === 'empty') {
+      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+      return;
+    }
+    if (yearParsed === 'invalid') {
+      this.toast.show('Modelo (año) debe contener solo números.', 'warning');
+      return;
+    }
+    const year = yearParsed;
+    if (!motorNumber) {
+      this.toast.show('Número de motor es obligatorio.', 'warning');
+      return;
+    }
+    if (!tonsRaw) {
+      this.toast.show('Indica la capacidad en toneladas.', 'warning');
+      return;
+    }
+    const capacityTons = Number(tonsRaw);
+    if (!Number.isFinite(capacityTons) || capacityTons <= 0) {
+      this.toast.show('La capacidad en toneladas no es válida.', 'warning');
+      return;
+    }
+    const capacityKg = Math.round(capacityTons * 1000);
     if (lbRaw) {
       const lb = Number(lbRaw);
-      if (!Number.isFinite(lb) || lb <= 0) {
-        this.toast.show('GVWR en libras no es válido.', 'warning');
+      if (!Number.isFinite(lb) || lb <= 0 || !Number.isInteger(lb)) {
+        this.toast.show('Ejes de tracción debe ser un número entero válido.', 'warning');
         return;
       }
-      capacityKg = Math.round(lb * 0.45359237);
     }
 
     if (this.doubleArticApplies() && !this.verificationDoubleDate().trim()) {
@@ -423,7 +450,13 @@ export class FleetNewUnitDrawerComponent {
       return;
     }
 
-    const gpsPriceParsed = this.hasGps() ? parseOptionalAmount(this.gpsPrice()) : undefined;
+    const gpsHasContent = gpsFleetFormHasContent({
+      brand: this.gpsProviderBrand(),
+      contractDate: this.gpsContractDate(),
+      price: this.gpsPrice(),
+      portal: this.gpsTrackingPortalUrl(),
+    });
+    const gpsPriceParsed = gpsHasContent ? parseOptionalAmount(this.gpsPrice()) : undefined;
     if (gpsPriceParsed === 'invalid') {
       this.toast.show(
         'El precio del GPS debe ser un número válido (≥ 0) o dejarse vacío.',
@@ -487,6 +520,9 @@ export class FleetNewUnitDrawerComponent {
     const speedsLabel =
       this.speedOptions.find((o) => o.value === this.transmissionSpeeds())?.label ??
       this.transmissionSpeeds();
+    const modalityLabel =
+      this.serviceModalityOptions.find((o) => o.value === this.serviceModality())?.label ??
+      (this.serviceModality().trim() || undefined);
     const cadenceLabel =
       this.cadenceOptions.find((o) => o.value === this.insurancePaymentCadence())?.label ??
       this.insurancePaymentCadence();
@@ -498,6 +534,7 @@ export class FleetNewUnitDrawerComponent {
       trailerBrandName: this.brandLabel(brandName),
       trailerVersion: this.trailerVersion().trim() || undefined,
       trailerColor: this.trailerColor().trim() || undefined,
+      serviceModality: modalityLabel,
       trailerTenureMode: tenureMode,
       trailerCommercialValue,
       trailerRecurringPaymentAmount,
@@ -508,6 +545,7 @@ export class FleetNewUnitDrawerComponent {
       transmissionSpeeds: speedsLabel,
       grossVehicleWeightLb: lbRaw || undefined,
       odometerKm: this.odometerKm().trim() || undefined,
+      maintenanceKmCounter: 0,
       lastMaintenanceDate: this.lastMaintenanceDate().trim() || undefined,
       lastMaintenanceType: maintTypeLabel,
       lastMaintenanceCost: maintCost === undefined ? undefined : maintCost,
@@ -530,13 +568,17 @@ export class FleetNewUnitDrawerComponent {
       insuranceCarrierName: this.insuranceCarrierName().trim() || undefined,
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
+      insurancePaymentMethod: this.insurancePaymentMethod().trim() || undefined,
+      insuranceInvoiceRequired: this.insuranceInvoiceRequired(),
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
-      ...(this.hasGps()
+      ...(gpsHasContent
         ? {
             hasGps: true,
             gpsProviderBrand: this.gpsProviderBrand().trim() || undefined,
             gpsPaymentCadence: gpsCadenceLabel,
+            gpsPaymentMethod: this.gpsPaymentMethod().trim() || undefined,
+            gpsInvoiceRequired: this.gpsInvoiceRequired(),
             gpsContractDate: this.gpsContractDate().trim() || undefined,
             gpsPrice: gpsPriceParsed === undefined ? undefined : gpsPriceParsed,
             gpsTrackingPortalUrl: this.gpsTrackingPortalUrl().trim() || undefined,
@@ -558,7 +600,8 @@ export class FleetNewUnitDrawerComponent {
       .createUnit({
         plate,
         capacityKg,
-        status: this.status(),
+        capacityTons,
+        motorNumber,
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         serialNumber: this.serialNumber().trim() || undefined,

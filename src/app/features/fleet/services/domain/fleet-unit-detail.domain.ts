@@ -1,4 +1,5 @@
 import { fleetTenureMetaEquals } from '@features/fleet/utils/fleet-tenure-meta-equals';
+import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
 import type { MaintenanceEntry, Unit, UnitFleetMeta } from '@shared/models/logistics.models';
 import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
 
@@ -60,7 +61,9 @@ export class FleetUnitDetailDomain {
         ...(merged.fleetMeta ?? {}),
         maintenanceEntries: [
           ...localMaintEntries,
-          ...(merged.fleetMeta?.maintenanceEntries ?? []),
+          ...(merged.fleetMeta?.maintenanceEntries ?? []).filter(
+            isSubstantiveMaintenanceEntry,
+          ),
         ],
       },
     };

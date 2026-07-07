@@ -9,7 +9,10 @@ import {
   selector: 'app-operators-detail-operation-tab',
   imports: [...OPERATORS_DETAIL_TAB_IMPORTS],
   templateUrl: './operators-detail-operation-tab.component.html',
-  styleUrls: [...OPERATORS_DETAIL_TAB_STYLE_URLS],
+  styleUrls: [
+    './operators-detail-operation-tab.component.scss',
+    ...OPERATORS_DETAIL_TAB_STYLE_URLS,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperatorsDetailOperationTabComponent {

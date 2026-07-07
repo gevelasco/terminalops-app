@@ -10,6 +10,7 @@ import {
 } from 'rxjs';
 import { EquipmentService as EquipmentApiService } from '@services/api/equipment';
 import type { CreateEquipmentPayload } from '@shared/models/api/api-fleet.model';
+import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
 import type { Equipment } from '@shared/models/logistics.models';
 import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-payload';
 import { createRequestGeneration } from '@shared/utils/request-generation';
@@ -102,6 +103,53 @@ export class EquipmentFeatureService {
             return this._equipment().find((e) => e.id === resolvedId) ?? equipment;
           }),
         );
+      }),
+    );
+  }
+
+  deleteEquipment(equipmentId: string): Observable<void> {
+    const requestId = this.requestGen.next();
+    return this.equipmentApi.deleteEquipment(equipmentId).pipe(
+      switchMap(() => this.fetchList()),
+      map((list) => {
+        if (this.canApplyResponse(requestId)) {
+          this.applyList(list, null);
+        }
+      }),
+      map(() => void 0),
+    );
+  }
+
+  setEquipmentMaintenance(
+    equipmentId: string,
+    action: FleetMaintenanceAction,
+  ): Observable<Equipment> {
+    const keepId = equipmentId.trim();
+    const requestId = this.requestGen.next();
+    return this.equipmentApi.postEquipmentMaintenance(keepId, action).pipe(
+      switchMap((saved) =>
+        this.fetchList().pipe(
+          map((list) => {
+            if (this.canApplyResponse(requestId)) {
+              this.applyList(list, keepId);
+            }
+            return saved;
+          }),
+        ),
+      ),
+    );
+  }
+
+  syncEquipmentInsuranceExpenses(equipmentId: string): Observable<Equipment> {
+    const keepId = equipmentId.trim();
+    const requestId = this.requestGen.next();
+    return this.equipmentApi.postEquipmentInsuranceSyncExpenses(keepId).pipe(
+      map((saved) => {
+        const equipment = normalizeEquipmentFromApi(saved);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertEquipmentInList(equipment, keepId);
+        }
+        return equipment;
       }),
     );
   }

@@ -1,0 +1,97 @@
+/**
+ * Listas etiqueta / valor en drawers de solo lectura (flota, maniobras, clientes, etc.).
+ * Misma tipografía y alineación en columna izquierda (etiqueta) y derecha (valor).
+ */
+
+$detail-drawer-field-font-size: 0.8125rem;
+$detail-drawer-field-line-height: 1.45;
+$detail-drawer-field-label-width: 10.75rem;
+
+@mixin detail-drawer-field-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, $detail-drawer-field-label-width) minmax(0, 1fr);
+  gap: 0.35rem 0.85rem;
+  align-items: start;
+  font-size: $detail-drawer-field-font-size;
+  line-height: $detail-drawer-field-line-height;
+}
+
+@mixin detail-drawer-field-label {
+  margin: 0;
+  padding-top: 0.02rem;
+  color: color-mix(in srgb, var(--to-color-text-muted) 88%, var(--to-color-text));
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: 0.01em;
+}
+
+@mixin detail-drawer-field-value {
+  margin: 0;
+  color: var(--to-color-text);
+  font-weight: 400;
+  font-size: inherit;
+  line-height: inherit;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.fleet-unit-detail__dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fleet-unit-detail__row {
+  @include detail-drawer-field-row-grid;
+
+  dt {
+    @include detail-drawer-field-label;
+  }
+
+  dd {
+    @include detail-drawer-field-value;
+  }
+}
+
+.maniobra-detail__dl {
+  @include detail-drawer-field-row-grid;
+  margin: 0;
+
+  dt {
+    @include detail-drawer-field-label;
+  }
+
+  dd {
+    @include detail-drawer-field-value;
+  }
+}
+
+.destination-rates-detail-drawer__dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  > div {
+    @include detail-drawer-field-row-grid;
+  }
+
+  dt {
+    @include detail-drawer-field-label;
+  }
+
+  dd {
+    @include detail-drawer-field-value;
+  }
+}
+
+@media (max-width: 520px) {
+  .fleet-unit-detail__row,
+  .maniobra-detail__dl,
+  .destination-rates-detail-drawer__dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+}

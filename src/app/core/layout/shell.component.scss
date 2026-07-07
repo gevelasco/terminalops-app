@@ -117,9 +117,8 @@
 }
 
 .shell-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
+  position: relative;
+  z-index: 50;
   flex-shrink: 0;
   display: flex;
   flex-direction: row;
@@ -139,7 +138,8 @@
   width: 100%;
   max-width: var(--app-content-max-width, 1680px);
   margin-inline: auto;
-  padding: clamp(0.75rem, 2vw, 1.25rem) clamp(0.75rem, 3vw, 2rem);
+  padding-block: 0 clamp(0.75rem, 2vw, 1.25rem);
+  padding-inline: clamp(0.75rem, 3vw, 2rem);
   box-sizing: border-box;
   min-height: 0;
   overflow-x: hidden;
@@ -192,6 +192,32 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.shell-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shell-nav__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.shell-nav__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--shell-border, #374151) 65%, transparent);
+}
+
+.shell-nav-link--bottom {
+  opacity: 0.95;
 }
 
 .shell-nav-link {

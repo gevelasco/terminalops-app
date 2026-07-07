@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -21,9 +22,13 @@ import { TripsDetailDrawerFacade } from './trips-detail-drawer.facade';
 @Component({
   selector: 'app-trips-detail-drawer',
   standalone: true,
-  providers: [TripsDetailDrawerFacade, DateShortPipe],
+  providers: [
+    TripsDetailDrawerFacade,
+    DateShortPipe,
+  ],
   imports: [
     ToButtonComponent,
+    ToConfirmDialogComponent,
     ToIconComponent,
     ToSegmentControlComponent,
     ToSideDrawerComponent,
@@ -59,6 +64,11 @@ export class TripsDetailDrawerComponent {
   @HostListener('document:keydown', ['$event'])
   onDocKey(ev: KeyboardEvent): void {
     if (ev.key !== 'Escape') {
+      return;
+    }
+    if (this.vm.deleteConfirmOpen()) {
+      ev.preventDefault();
+      this.vm.closeDeleteConfirm();
       return;
     }
     const d = this.cancelDialog()?.nativeElement;

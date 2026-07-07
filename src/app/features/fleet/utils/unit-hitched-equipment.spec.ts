@@ -4,6 +4,8 @@ import {
   equipmentAssignedToUnit,
   equipmentTypeDisplayLabel,
   convoyOverviewHitchPositionLabel,
+  fleetUnitConvoyTableBadges,
+  fleetUnitConvoyTableLabel,
   unitConvoyFromEquipment,
 } from './unit-hitched-equipment';
 
@@ -137,5 +139,16 @@ describe('unit-hitched-equipment', () => {
   it('labels overview hitch slots by index', () => {
     expect(convoyOverviewHitchPositionLabel(0, 2)).toMatch(/1\.er equipo/);
     expect(convoyOverviewHitchPositionLabel(1, 2)).toMatch(/2\.do equipo/);
+  });
+
+  it('derives fleet unit convoy table labels from hitch count', () => {
+    expect(fleetUnitConvoyTableLabel(0)).toBe('Tracto');
+    expect(fleetUnitConvoyTableLabel(1)).toBe('Sencillo');
+    expect(fleetUnitConvoyTableLabel(2)).toBe('Doble articulado');
+    expect(
+      fleetUnitConvoyTableBadges([
+        eq({ id: '1', unitId: 'U', type: 'caja_seca' }),
+      ])[0]?.label,
+    ).toBe('Sencillo');
   });
 });

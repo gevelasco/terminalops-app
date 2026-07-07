@@ -5,9 +5,10 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  gap: 0.15rem;
   height: 2.125rem;
   max-height: 2.125rem;
-  padding: 0 3.1rem 0 0.35rem;
+  padding: 0 0.3rem 0 0.35rem;
   border: 1px solid var(--to-color-border);
   border-radius: var(--to-radius-md);
   background: var(--to-color-surface);
@@ -37,6 +38,7 @@
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .to-clients-multi__chip {
@@ -118,11 +120,14 @@
   }
 }
 
+.to-clients-multi__suffix {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.05rem;
+}
+
 .to-clients-multi__toggle {
-  position: absolute;
-  right: 1.45rem;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -153,12 +158,9 @@
 }
 
 .to-clients-multi__spinner {
-  position: absolute;
-  right: 1.45rem;
-  top: 50%;
+  display: inline-block;
   width: 0.9rem;
   height: 0.9rem;
-  margin-top: -0.45rem;
   border: 2px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
   border-top-color: var(--to-color-primary);
   border-radius: 50%;
@@ -173,10 +175,6 @@
 }
 
 .to-clients-multi__clear {
-  position: absolute;
-  right: 0.3rem;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;

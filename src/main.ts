@@ -11,6 +11,6 @@ applyStoredThemePreset();
 bootstrapApplication(AppComponent, {
   providers: [
     ...appConfig.providers,
-    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    provideHttpClient(withInterceptors([errorInterceptor, authInterceptor])),
   ],
 }).catch((err) => console.error(err));

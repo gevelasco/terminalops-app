@@ -7,7 +7,11 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
+import { ExpensesService } from '@core/services/api/expenses';
 import { ToastService } from '@core/notifications/toast.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
 import {
   boolToYesNo,
@@ -23,6 +27,19 @@ import { clientDeliveryRouteLinkTitle } from '@features/clients/utils/client-del
 import { buildClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
 import { buildClientManeuverVolumeSummary } from '@features/clients/utils/client-maneuver-volume-summary';
 import {
+  clientManeuversPeriodFilterTabs,
+  clientManeuversPeriodRangeLabel,
+  clientManeuversRangeForPreset,
+  type ClientManeuversPeriodPreset,
+} from '@features/clients/utils/client-maneuvers-period-filter';
+import {
+  buildClientManeuverPeriodTotals,
+  buildClientManeuverTableRows,
+  filterClientCompletedManeuversInPeriod,
+} from '@features/clients/utils/client-maneuvers-table.util';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
+import {
   CLIENT_COMMERCIAL_HEALTH_OPTIONS,
   CLIENT_YES_NO_OPTIONS,
   clientCommercialHealthLabel,
@@ -31,28 +48,36 @@ import {
   TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS,
   tripManeuverPaymentMethodLabel,
 } from '@shared/catalogs/trip-client-payment-options';
+import type { Expense } from '@shared/models/logistics.models';
 import type {
   Client,
   ClientCommercialHealth,
   ClientContactPerson,
 } from '@shared/models/client.models';
-import type { Trip } from '@shared/models/logistics.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 
 export type ClientDetailEditSection = 'ident' | 'fiscal' | 'delivery' | 'contacts' | 'pay';
-export type ClientDrawerTab = 'details' | 'balance';
+export type ClientDrawerTab = 'details' | 'balance' | 'maneuvers';
 
 @Injectable()
 export class ClientsDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsFeature = inject(ClientsFeatureService);
+  private readonly operationalTrips = inject(OperationalTripsFeatureService);
+  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
+  private readonly expensesApi = inject(ExpensesService);
   private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
 
   private dismissCallback: (() => void) | null = null;
-  private readonly tripsSignal = signal<readonly Trip[]>([]);
+
+  readonly expensesForBalance = signal<readonly Expense[]>([]);
+
+  readonly tripsLoading = computed(() => this.operationalTrips.loading());
+  readonly clientTrips = computed(() => this.operationalTrips.trips());
 
   readonly client = computed(() => this.clientsFeature.selectedClient()!);
 
@@ -71,9 +96,20 @@ export class ClientsDetailDrawerFacade {
       icon: 'settlement',
       htmlId: 'clients-detail-tab-balance',
     },
+    {
+      id: 'maneuvers',
+      label: 'Maniobras',
+      icon: 'route',
+      htmlId: 'clients-detail-tab-maneuvers',
+    },
   ];
+  readonly maneuversPeriodPreset = signal<ClientManeuversPeriodPreset>('month');
+  readonly maneuversPeriodFilterTabs = clientManeuversPeriodFilterTabs();
   readonly editingSection = signal<ClientDetailEditSection | null>(null);
   readonly saving = signal(false);
+  readonly canWriteCommercial = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
+  );
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
   readonly healthOptions: ToSelectOption[] = CLIENT_COMMERCIAL_HEALTH_OPTIONS;
@@ -97,6 +133,8 @@ export class ClientsDetailDrawerFacade {
   readonly deliverySettlementConsId = signal('');
   readonly deliveryLatitude = signal<number | null>(null);
   readonly deliveryLongitude = signal<number | null>(null);
+  readonly deliveryDestinationRateId = signal<string | null>(null);
+  readonly deliveryIsUnpricedRoute = signal(false);
 
   readonly contacts = signal<ClientContactPerson[]>([]);
 
@@ -115,11 +153,48 @@ export class ClientsDetailDrawerFacade {
   readonly paymentMethodOptions = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
 
   readonly volumeSummary = computed(() =>
-    buildClientManeuverVolumeSummary(this.client().id, this.tripsSignal()),
+    buildClientManeuverVolumeSummary(this.client().id, this.clientTrips()),
   );
 
   readonly balanceSummary = computed(() =>
-    buildClientBalanceSummary(this.client().id, this.tripsSignal()),
+    buildClientBalanceSummary(
+      this.client().id,
+      this.clientTrips(),
+      this.expensesForBalance(),
+    ),
+  );
+
+  readonly maneuversPeriodRangeLabel = computed(() =>
+    clientManeuversPeriodRangeLabel(this.maneuversPeriodPreset()),
+  );
+
+  readonly filteredManeuverTrips = computed(() => {
+    const range = clientManeuversRangeForPreset(this.maneuversPeriodPreset());
+    return filterClientCompletedManeuversInPeriod(
+      this.client().id,
+      this.clientTrips(),
+      range.from,
+      range.to,
+    );
+  });
+
+  readonly maneuverTableRows = computed(() =>
+    buildClientManeuverTableRows(
+      this.filteredManeuverTrips(),
+      (value) => this.balanceMoney(value),
+      this.expensesForBalance(),
+    ),
+  );
+
+  readonly maneuverTablePageSize = computed(() =>
+    Math.max(this.maneuverTableRows().length, 1),
+  );
+
+  readonly maneuverPeriodTotals = computed(() =>
+    buildClientManeuverPeriodTotals(
+      this.filteredManeuverTrips(),
+      this.expensesForBalance(),
+    ),
   );
 
   private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
@@ -129,6 +204,14 @@ export class ClientsDetailDrawerFacade {
   });
 
   constructor() {
+    effect((onCleanup) => {
+      const sub = this.expensesApi
+        .getExpensesList()
+        .pipe(catchError(() => of([])))
+        .subscribe((rows) => this.expensesForBalance.set(rows));
+      onCleanup(() => sub.unsubscribe());
+    });
+
     effect(() => {
       const c = this.clientsFeature.selectedClient();
       if (!c) {
@@ -136,16 +219,25 @@ export class ClientsDetailDrawerFacade {
       }
       const idChanged = this.priorClientId !== c.id;
       this.priorClientId = c.id;
-      this.tripsSignal.set([]);
       this.drawerLoading.set(false);
       if (idChanged) {
         this.drawerTab.set('balance');
+        this.maneuversPeriodPreset.set('month');
         this.editingSection.set(null);
         this.cancelContactForm();
       }
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromClient(c);
       }
+    });
+
+    effect(() => {
+      const c = this.clientsFeature.selectedClient();
+      if (!c) {
+        return;
+      }
+      this.operationalTrips.loadTrips();
+      this.operationConfigsFeature.loadOperationConfigurations();
     });
   }
 
@@ -186,6 +278,10 @@ export class ClientsDetailDrawerFacade {
     this.drawerTab.set(tab);
   }
 
+  onManeuversPeriodSelect(preset: ClientManeuversPeriodPreset): void {
+    this.maneuversPeriodPreset.set(preset);
+  }
+
   healthSummary(): string {
     return clientCommercialHealthLabel(this.client().payment?.commercialHealth);
   }
@@ -200,6 +296,18 @@ export class ClientsDetailDrawerFacade {
       return '—';
     }
     return `${this.balanceMoney(b.margin)} (${b.marginPct}%)`;
+  }
+
+  maneuverMarginLabel(): string {
+    const t = this.maneuverPeriodTotals();
+    if (t.totalPactado <= 0) {
+      return '—';
+    }
+    return `${t.marginPct}%`;
+  }
+
+  maneuverUtilidadLabel(): string {
+    return this.balanceMoney(this.maneuverPeriodTotals().utilidad);
   }
 
   paymentDueBadgeVariant(v: ClientPaymentDueBadgeVariant): ToBadgeVariant {
@@ -290,6 +398,9 @@ export class ClientsDetailDrawerFacade {
   }
 
   startEditSection(section: ClientDetailEditSection): void {
+    if (!this.canWriteCommercial()) {
+      return;
+    }
     this.patchFormFromClient(this.client());
     this.editingSection.set(section);
   }
@@ -300,7 +411,14 @@ export class ClientsDetailDrawerFacade {
     this.cancelContactForm();
   }
 
+  showClientEdit(section: ClientDetailEditSection): boolean {
+    return this.canWriteCommercial() && this.editingSection() !== section;
+  }
+
   openContactForm(): void {
+    if (!this.canWriteCommercial()) {
+      return;
+    }
     this.addingContact.set(true);
   }
 
@@ -394,6 +512,8 @@ export class ClientsDetailDrawerFacade {
       settlementConsId: this.deliverySettlementConsId(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
+      destinationRateId: this.deliveryDestinationRateId(),
+      isUnpricedRoute: this.deliveryIsUnpricedRoute(),
     });
     if (!delivery) {
       this.toast.show('Indica el código postal de entrega.', 'warning');
@@ -507,6 +627,8 @@ export class ClientsDetailDrawerFacade {
     this.deliverySettlementConsId.set(d?.settlementConsId ?? '');
     this.deliveryLatitude.set(d?.latitude ?? null);
     this.deliveryLongitude.set(d?.longitude ?? null);
+    this.deliveryDestinationRateId.set(d?.destinationRateId?.trim() || null);
+    this.deliveryIsUnpricedRoute.set(d?.isUnpricedRoute === true);
     this.contacts.set([...(c.contacts ?? [])].map((row) => ({ ...row })));
     const p = c.payment;
     this.payHasCredit.set(boolToYesNo(p?.hasCredit ?? false));

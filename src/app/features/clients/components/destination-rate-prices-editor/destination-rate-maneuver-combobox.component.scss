@@ -4,6 +4,19 @@
   min-width: 0;
 }
 
+.to-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.to-field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
 .dr-maneuver-combobox--open {
   z-index: 120;
 }
@@ -16,12 +29,14 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  min-height: 2.375rem;
   margin: 0;
-  padding: 0.4rem 0.55rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--to-color-border, #e2e8f0);
   border-radius: var(--to-radius-md, 6px);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: inherit;
+  line-height: 1.25;
   background: var(--to-color-surface, #fff);
   color: var(--to-color-text, #0f172a);
 

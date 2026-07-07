@@ -81,22 +81,12 @@ export function fleetOverviewNextMaintenanceLabel(unit: Unit): string {
   return nextMaintenanceTableDate(unit.fleetMeta) ?? '—';
 }
 
-export function fleetOverviewKmSinceMaintenance(
-  unit: Unit,
-  completedTripKm: number | null | undefined,
-): string {
-  if (completedTripKm == null || !Number.isFinite(completedTripKm)) {
-    const rem = fleetMaintenanceKmRemaining(unit.fleetMeta, completedTripKm);
-    if (rem != null) {
-      return `${Math.round(rem).toLocaleString('es-MX')} km restantes`;
-    }
-    return '—';
+export function fleetOverviewKmSinceMaintenance(unit: Unit): string {
+  const rem = fleetMaintenanceKmRemaining(unit.fleetMeta);
+  if (rem != null) {
+    return `${Math.round(rem).toLocaleString('es-MX')} km restantes`;
   }
-  const rawBase = unit.fleetMeta?.maintenanceTripKmAtLastService;
-  const baseline =
-    typeof rawBase === 'number' && Number.isFinite(rawBase) ? rawBase : 0;
-  const traveled = Math.max(0, completedTripKm - baseline);
-  return `${Math.round(traveled).toLocaleString('es-MX')} km`;
+  return '—';
 }
 
 export function fleetOverviewInsuranceNext(unit: Unit): string {
@@ -105,16 +95,6 @@ export function fleetOverviewInsuranceNext(unit: Unit): string {
 
 export function fleetOverviewVerificationNext(unit: Unit): string {
   return nextVerificationTableDate(unit.fleetMeta) ?? '—';
-}
-
-/** Valor estable (demo) hasta calcular desgaste real. */
-export function fleetOverviewTireStatusApprox(unitId: string): string {
-  const options = ['Bueno', 'Regular', 'Revisar pronto', 'Desgaste alto'];
-  let h = 0;
-  for (const ch of unitId) {
-    h = (h * 31 + ch.charCodeAt(0)) | 0;
-  }
-  return options[Math.abs(h) % options.length] ?? options[0]!;
 }
 
 export function fleetOverviewSortRank(operational: FleetOperationalKey): number {

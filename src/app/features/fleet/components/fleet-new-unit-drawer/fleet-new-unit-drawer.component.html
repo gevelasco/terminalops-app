@@ -45,10 +45,10 @@
         [suggestionsSource]="unitVersionNames()"
         [(versionName)]="trailerVersion"
       />
-      <to-select
+      <to-input
         label="Modelo (año) *"
-        placeholder="Selecciona año"
-        [options]="modelYearOptions"
+        type="text"
+        placeholder="Ej. 2022"
         [(value)]="modelYear"
       />
     </div>
@@ -58,7 +58,20 @@
         placeholder="Ej. 3HSDZSPR5KN123456"
         [(value)]="serialNumber"
       />
+      <to-input
+        label="Número de motor *"
+        placeholder="Ej. 79412345"
+        [(value)]="motorNumber"
+      />
+    </div>
+    <div class="fleet-unit-sec__grid2">
       <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [(value)]="plate" />
+      <to-select
+        label="Modalidad"
+        placeholder="Selecciona modalidad"
+        [options]="serviceModalityOptions"
+        [(value)]="serviceModality"
+      />
     </div>
     <div class="fleet-unit-sec__grid2">
       <to-input
@@ -66,17 +79,12 @@
         placeholder="Ej. Blanco perlado"
         [(value)]="trailerColor"
       />
-      <to-select
-        label="Estado operativo"
-        [options]="statusOptions"
-        [(value)]="status"
+      <to-input
+        label="Nombre o alias"
+        placeholder="Ej. Unidad ruta norte"
+        [(value)]="unitAlias"
       />
     </div>
-    <to-input
-      label="Nombre o alias"
-      placeholder="Ej. Unidad ruta norte"
-      [(value)]="unitAlias"
-    />
   </section>
 
   <section
@@ -195,11 +203,18 @@
         [(value)]="transmissionSpeeds"
       />
     </div>
-    <div class="fleet-unit-sec__grid2">
+    <div class="fleet-unit-sec__grid3 fleet-unit-sec__grid3--always-3">
       <to-input
-        label="Diferencial (Mancuernas)"
+        label="Capacidad *"
         type="number"
-        placeholder="46000"
+        suffix="ton"
+        placeholder="Ej. 30"
+        [(value)]="capacityTons"
+      />
+      <to-input
+        label="Ejes de tracción"
+        type="number"
+        placeholder="Ej. 3"
         [(value)]="grossVehicleWeightLb"
       />
       <to-input
@@ -438,7 +453,7 @@
     </div>
     <div class="fleet-unit-sec__row-flex">
       <to-select
-        label="Forma de pago / renovación"
+        label="Periodicidad"
         [options]="cadenceOptions"
         [(value)]="insurancePaymentCadence"
       />
@@ -450,6 +465,21 @@
         [(value)]="insuranceCost"
       />
     </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-select
+        label="Forma de pago"
+        [options]="insurancePaymentMethodOptions"
+        [(value)]="insurancePaymentMethod"
+      />
+    </div>
+    <label class="fleet-unit-detail__checkbox-row">
+      <input
+        type="checkbox"
+        [checked]="insuranceInvoiceRequired()"
+        (change)="insuranceInvoiceRequired.set($any($event.target).checked)"
+      />
+      Factura fiscal requerida
+    </label>
     @if (insuranceRenewHint() === "soon") {
       <p class="fleet-unit-callout fleet-unit-callout--warn">
         Próximo pago o renovación de póliza en los próximos 30 días.
@@ -504,47 +534,16 @@
     aria-labelledby="fleet-sec-gps"
   >
     <h3 id="fleet-sec-gps" class="fleet-unit-sec__title">GPS y rastreo</h3>
-    <div class="fleet-unit-toggle-row">
-      <span class="fleet-unit-toggle-row__label" id="fleet-gps-on-label">
-        Tiene GPS contratado
-      </span>
-      <button
-        type="button"
-        class="fleet-unit-toggle"
-        [class.fleet-unit-toggle--on]="hasGps()"
-        role="switch"
-        [attr.aria-checked]="hasGps()"
-        aria-labelledby="fleet-gps-on-label"
-        (click)="toggleGpsSwitch()"
-      >
-        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-      </button>
-    </div>
-    @if (hasGps()) {
-      <to-input
-        label="Marca o proveedor"
-        placeholder="Ej. SkyBitz, Motive, CalAmp…"
-        [(value)]="gpsProviderBrand"
-      />
+    <to-input
+      label="Marca o proveedor"
+      placeholder="Ej. SkyBitz, Motive, CalAmp…"
+      [(value)]="gpsProviderBrand"
+    />
       <div class="fleet-unit-sec__row-flex">
         <to-input
           label="Fecha de contratación"
           type="date"
           [(value)]="gpsContractDate"
-        />
-        <to-select
-          label="Forma de pago / renovación"
-          [options]="cadenceOptions"
-          [(value)]="gpsPaymentCadence"
-        />
-      </div>
-      <div class="fleet-unit-sec__row-flex">
-        <to-input
-          label="Precio o cuota"
-          type="text"
-          [groupThousands]="true"
-          placeholder="Ej. 450"
-          [(value)]="gpsPrice"
         />
         <to-input
           label="Portal (ubicación en vivo)"
@@ -553,6 +552,33 @@
           [(value)]="gpsTrackingPortalUrl"
         />
       </div>
+      <div class="fleet-unit-sec__row-flex">
+        <to-select
+          label="Periodicidad"
+          [options]="cadenceOptions"
+          [(value)]="gpsPaymentCadence"
+        />
+        <to-input
+          label="Precio o cuota"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. 450"
+          [(value)]="gpsPrice"
+        />
+        <to-select
+          label="Forma de pago"
+          [options]="insurancePaymentMethodOptions"
+          [(value)]="gpsPaymentMethod"
+        />
+      </div>
+      <label class="fleet-unit-detail__checkbox-row">
+        <input
+          type="checkbox"
+          [checked]="gpsInvoiceRequired()"
+          (change)="gpsInvoiceRequired.set($any($event.target).checked)"
+        />
+        Factura fiscal requerida
+      </label>
       @if (gpsRenewHint() === "soon") {
         <p class="fleet-unit-callout fleet-unit-callout--warn">
           Próximo ciclo de pago o renovación del GPS en los próximos 30 días.
@@ -580,7 +606,6 @@
           <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
         </button>
       </div>
-    }
   </section>
   <div toSideDrawerFooter>
     <to-button type="button" variant="outline" (click)="dismiss.emit()">

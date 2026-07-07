@@ -3,34 +3,43 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   model,
   OnInit,
   signal,
 } from '@angular/core';
+import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { OperatorsDetailDrawerComponent } from '@features/operators/components/operators-detail-drawer/operators-detail-drawer.component';
 import { OperatorsNewDrawerComponent } from '@features/operators/components/operators-new-drawer/operators-new-drawer.component';
+import { OperatorsOverviewComponent } from '@features/operators/components/operators-overview/operators-overview.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
-import { completedManeuverCountsByOperatorId } from '@features/operators/utils/completed-maneuver-counts-by-operator-id';
-import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
-import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
+import {
+  buildOperatorsOverviewCard,
+  operatorOverviewMatchesQuery,
+} from '@features/operators/utils/operators-overview-card';
 import {
   operatorInsuranceKindLabel,
   operatorOperationalStatusLabel,
 } from '@shared/catalogs/operator-form-options';
-import type {
-  Operator,
-  OperatorOperationalStatus,
-  Trip,
-} from '@shared/models/logistics.models';
+import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
+import { compareByOperatorOperationalStatus } from '@shared/utils/operator-operational-status-sort';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
 } from '@shared/ui/to-table/to-table.component';
+
+export type OperatorsPageTab = 'operators' | 'list';
 
 function formatIsoDateEs(iso: string): string {
   const t = iso.trim();
@@ -47,7 +56,7 @@ function formatIsoDateEs(iso: string): string {
 @Component({
   selector: 'app-operators-page',
   standalone: true,
-  providers: [OperatorsFeatureService, OperationalTripsFeatureService],
+  providers: [OperatorsFeatureService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
@@ -55,8 +64,10 @@ function formatIsoDateEs(iso: string): string {
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
+    ToSegmentControlComponent,
     OperatorsNewDrawerComponent,
     OperatorsDetailDrawerComponent,
+    OperatorsOverviewComponent,
   ],
   templateUrl: './operators-page.component.html',
   styleUrl: './operators-page.component.scss',
@@ -64,30 +75,70 @@ function formatIsoDateEs(iso: string): string {
 export class OperatorsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly operatorsFeature = inject(OperatorsFeatureService);
-  private readonly operationalTrips = inject(OperationalTripsFeatureService);
+  private readonly operationalSync = inject(OperationalFleetSyncService);
+  private readonly session = inject(SessionService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.operatorsFeature.dispose();
-      this.operationalTrips.dispose();
+    });
+
+    let operatorsEpochBaseline = this.operationalSync.operatorsMutationEpoch();
+    effect(() => {
+      const epoch = this.operationalSync.operatorsMutationEpoch();
+      if (epoch === operatorsEpochBaseline) {
+        return;
+      }
+      operatorsEpochBaseline = epoch;
+      this.operatorsFeature.refreshOperators();
     });
   }
 
-  readonly loading = computed(
-    () => this.operatorsFeature.loading() || this.operationalTrips.loading(),
-  );
-  readonly completedManeuverCounts = computed(() =>
-    completedManeuverCountsByOperatorId([...this.operationalTrips.trips()]),
-  );
-  readonly rows = computed(() => {
-    const counts = this.completedManeuverCounts();
-    const trips = this.operationalTrips.trips();
-    return this.operatorsFeature
+  readonly pageTab = signal<OperatorsPageTab>('operators');
+  readonly viewSegmentTabs: readonly ToSegmentTab<OperatorsPageTab>[] = [
+    {
+      id: 'operators',
+      label: 'Operadores',
+      icon: 'groups',
+      htmlId: 'operators-tab-operators',
+    },
+    {
+      id: 'list',
+      label: 'Lista',
+      icon: 'list',
+      htmlId: 'operators-tab-list',
+    },
+  ];
+
+  readonly loading = computed(() => this.operatorsFeature.loading());
+  readonly overviewCards = computed(() =>
+    this.operatorsFeature
       .operators()
-      .map((o) => OperatorsPageComponent.mapRow(o, counts, trips));
+      .map((o) => buildOperatorsOverviewCard(o)),
+  );
+
+  readonly displayedOverviewCards = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const all = this.overviewCards();
+    if (!q) {
+      return all;
+    }
+    return all.filter((card) => operatorOverviewMatchesQuery(card, q));
   });
+  readonly hasOperators = computed(
+    () => this.operatorsFeature.operators().length > 0,
+  );
+
+  readonly rows = computed(() =>
+    [...this.operatorsFeature.operators()]
+      .sort(compareByOperatorOperationalStatus)
+      .map((o) => OperatorsPageComponent.mapRow(o)),
+  );
   readonly searchQuery = model('');
   readonly newOperatorOpen = signal(false);
+  readonly canWriteOperators = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.OPERATORS),
+  );
 
   readonly columns: ToTableColumn[] = [
     { key: 'name', label: 'Nombre' },
@@ -113,7 +164,21 @@ export class OperatorsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.operatorsFeature.loadOperators();
-    this.operationalTrips.loadTrips();
+  }
+
+  onPageTabSelect(tab: OperatorsPageTab): void {
+    this.pageTab.set(tab);
+    this.searchQuery.set('');
+    if (tab === 'operators') {
+      this.operatorsFeature.clearSelection();
+    }
+  }
+
+  onOperatorCardClick(operatorId: string): void {
+    if (!operatorId) {
+      return;
+    }
+    this.operatorsFeature.selectOperator(operatorId);
   }
 
   onRowClick(row: Record<string, unknown>): void {
@@ -159,20 +224,15 @@ export class OperatorsPageComponent implements OnInit {
     return haystack.includes(q);
   }
 
-  private static mapRow(
-    o: Operator,
-    maneuverCounts: Map<string, number>,
-    trips: readonly Trip[],
-  ): Record<string, unknown> {
-    const n = maneuverCounts.get(o.id) ?? 0;
+  private static mapRow(o: Operator): Record<string, unknown> {
     return {
       id: o.id,
       name: o.name,
       licenseNumber: o.licenseNumber,
       licenseExpiresOn: formatIsoDateEs(o.licenseExpiresOn),
-      operationalStatus: deriveOperatorOperationalStatus(o, trips),
+      operationalStatus: o.status,
       coverageKind: operatorInsuranceKindLabel(o.insuranceKind),
-      maneuverCount: String(n),
+      maneuverCount: String(o.maneuverCount ?? 0),
     };
   }
 }

@@ -1,5 +1,6 @@
 import { formatRouteKmEsMx } from '@features/trips/utils/maniobra-route-display';
 import {
+  tripActualDepartureIso,
   tripCompletionIso,
   tripDepartureIso,
 } from '@features/trips/utils/trip-schedule-accessors';
@@ -21,12 +22,33 @@ function parseIsoMs(iso: string | null | undefined): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-/** Ventana salida → fin: fechas efectivas (real registrada o plan operativo). */
+/** Ventana salida → fin con las mismas fechas que muestra la card. */
+function resolveTripDisplayWindow(
+  trip: FleetOverviewTripDto,
+): { start: number; end: number } | null {
+  const start = parseIsoMs(tripDepartureIso(trip));
+  const end = parseIsoMs(tripCompletionIso(trip));
+  if (start !== null && end !== null && end > start) {
+    return { start, end };
+  }
+  return null;
+}
+
+/** Ventana de avance: plan operativo hasta completar; reales solo al cerrar. */
 function resolveTripProgressWindow(
   trip: FleetOverviewTripDto,
 ): { start: number; end: number } | null {
-  const start = parseIsoMs(tripDepartureIso(trip) ?? undefined);
-  const end = parseIsoMs(tripCompletionIso(trip) ?? undefined);
+  if (trip.status === 'completed') {
+    const start = parseIsoMs(tripDepartureIso(trip));
+    const end = parseIsoMs(tripCompletionIso(trip));
+    if (start !== null && end !== null && end > start) {
+      return { start, end };
+    }
+    return null;
+  }
+
+  const start = parseIsoMs(trip.plannedDepartureAt);
+  const end = parseIsoMs(trip.plannedCompletionAt);
   if (start !== null && end !== null && end > start) {
     return { start, end };
   }
@@ -54,7 +76,7 @@ function maneuverProgressRatioByHours(
 
 /** Duración aproximada salida → llegada fin (plan o real). */
 export function overviewTripEtaDaysLabel(trip: FleetOverviewTripDto): string {
-  const window = resolveTripProgressWindow(trip);
+  const window = resolveTripDisplayWindow(trip);
   if (!window) {
     return '—';
   }
@@ -105,6 +127,20 @@ export function overviewTripCompletionLine(trip: FleetOverviewTripDto): string {
 export function overviewTripProgress(
   trip: FleetOverviewTripDto,
 ): FleetOverviewTripProgress {
+  if (trip.status === 'scheduled') {
+    return {
+      percent: 0,
+      ariaLabel: 'Maniobra programada; avance 0%',
+    };
+  }
+
+  if (trip.status === 'in_transit' && !tripActualDepartureIso(trip)) {
+    return {
+      percent: 0,
+      ariaLabel: 'Maniobra en curso; avance 0% sin salida real registrada',
+    };
+  }
+
   const window = resolveTripProgressWindow(trip);
   if (!window) {
     return {
@@ -114,13 +150,6 @@ export function overviewTripProgress(
   }
 
   const now = Date.now();
-  if (trip.status === 'scheduled' && now < window.start) {
-    return {
-      percent: 0,
-      ariaLabel: 'Maniobra programada; avance 0% antes de la salida',
-    };
-  }
-
   const ratio = maneuverProgressRatioByHours(window.start, window.end, now);
   const percent = Math.round(ratio * 100);
   return {

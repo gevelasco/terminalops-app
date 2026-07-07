@@ -2,7 +2,9 @@
   display: block;
   position: sticky;
   top: 0;
-  z-index: 25;
+  z-index: 35;
+  padding-top: clamp(0.75rem, 2vw, 1.25rem);
+  background: var(--to-color-bg, #f9f9f9);
 }
 
 .to-page-header {
@@ -16,6 +18,7 @@
   background: var(--to-color-bg, #f9f9f9);
   border-bottom: 1px solid
     color-mix(in srgb, var(--to-color-border) 88%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--to-color-bg) 92%, transparent);
 }
 
 .to-page-header__lead {

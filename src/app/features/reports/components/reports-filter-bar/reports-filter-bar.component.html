@@ -1,8 +1,18 @@
-<div class="reports-toolbar" aria-label="Filtros y secciones de reportes">
-  <section class="reports-toolbar__card reports-toolbar__card--filters">
-    <div class="reports-toolbar__field reports-toolbar__field--period">
-      <span class="reports-toolbar__label" id="reports-period-label">
-        <span class="reports-toolbar__label-icon" aria-hidden="true">
+<div class="reports-shell" aria-label="Filtros y secciones de reportes">
+  <div class="reports-shell__tabs" aria-label="Sección de reporte">
+    <to-segment-control
+      layout="toolbar"
+      ariaLabel="Sección de reporte"
+      [tabs]="tabs()"
+      [activeId]="tab()"
+      (tabSelect)="selectTab($event)"
+    />
+  </div>
+
+  <section class="reports-shell__filters" aria-label="Filtros del reporte">
+    <div class="reports-shell__field reports-shell__field--period">
+      <span class="reports-shell__label" id="reports-period-label">
+        <span class="reports-shell__label-icon" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24">
             <path
               fill="currentColor"
@@ -12,9 +22,9 @@
         </span>
         Periodo
       </span>
-      <div class="reports-toolbar__period-controls">
+      <div class="reports-shell__period-controls">
         <select
-          class="reports-toolbar__control to-field__control"
+          class="reports-shell__control reports-shell__period-select to-field__control"
           aria-labelledby="reports-period-label"
           [ngModel]="filter().preset"
           (ngModelChange)="onPresetChange($event)"
@@ -25,17 +35,17 @@
           }
         </select>
         @if (periodRangeLabel()) {
-          <span class="reports-toolbar__period-badge" role="status">{{
+          <span class="reports-shell__period-badge" role="status">{{
             periodRangeLabel()
           }}</span>
         }
       </div>
     </div>
 
-    <div class="reports-toolbar__clients-group">
-      <div class="reports-toolbar__field reports-toolbar__field--clients">
-        <span class="reports-toolbar__label" id="reports-clients-label">
-          <span class="reports-toolbar__label-icon" aria-hidden="true">
+    <div class="reports-shell__clients-group">
+      <div class="reports-shell__field reports-shell__field--clients">
+        <span class="reports-shell__label" id="reports-clients-label">
+          <span class="reports-shell__label-icon" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -46,18 +56,16 @@
           Cliente
         </span>
         <to-clients-multi-input
-          class="reports-toolbar__control"
+          class="reports-shell__control"
           aria-labelledby="reports-clients-label"
           [clientIds]="filter().clientIds"
           (clientIdsChange)="patch({ clientIds: $event })"
         />
       </div>
 
-      <div
-        class="reports-toolbar__field reports-toolbar__field--payment-methods"
-      >
-        <span class="reports-toolbar__label" id="reports-payment-label">
-          <span class="reports-toolbar__label-icon" aria-hidden="true">
+      <div class="reports-shell__field reports-shell__field--payment-methods">
+        <span class="reports-shell__label" id="reports-payment-label">
+          <span class="reports-shell__label-icon" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -68,25 +76,12 @@
           Forma
         </span>
         <to-payment-methods-multi-input
-          class="reports-toolbar__control"
+          class="reports-shell__control"
           aria-labelledby="reports-payment-label"
           [methods]="filter().clientPaymentMethods"
           (methodsChange)="patch({ clientPaymentMethods: $event })"
         />
       </div>
     </div>
-  </section>
-
-  <section
-    class="reports-toolbar__card reports-toolbar__card--tabs"
-    aria-label="Sección de reporte"
-  >
-    <to-filter-tabs
-      class="reports-toolbar__section-tabs"
-      [tabs]="tabs()"
-      [activeId]="tab()"
-      ariaLabel="Sección de reporte"
-      (tabSelect)="selectTab($event)"
-    />
   </section>
 </div>

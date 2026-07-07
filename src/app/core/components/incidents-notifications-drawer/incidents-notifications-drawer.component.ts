@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
-import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-icon-paths';
+import { CRITICAL_ALERT_ICON_PATHS } from '@shared/constants/critical-alert-icon-paths';
 import type { CriticalAlertKind, IncidentSeverity } from '@shared/models/logistics.models';
 import type { TripIncidentFeedItem } from '@shared/utils/trip-incident-feed';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';

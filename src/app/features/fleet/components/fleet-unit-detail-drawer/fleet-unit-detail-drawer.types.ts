@@ -1,12 +1,13 @@
 import type { Equipment } from '@shared/models/logistics.models';
 
-export type UnitDetailDrawerTab = 'ficha' | 'mant' | 'cob';
+export type { FleetDetailDrawerTab } from '@features/fleet/components/fleet-detail-drawer.types';
 
-/** Contexto de página (maniobra en curso, km) — catálogos vienen de feature services. */
+export type UnitDetailDrawerTab =
+  import('@features/fleet/components/fleet-detail-drawer.types').FleetDetailDrawerTab;
+
+/** Contexto de página (maniobra en curso) — catálogos vienen de feature services. */
 export interface FleetUnitDetailDrawerHostLayout {
   onRoute: boolean;
-  completedManeuverCount: number;
-  completedTripDistanceKm: number | null;
 }
 
 export interface FleetUnitDetailDrawerHostCallbacks {

@@ -61,6 +61,39 @@
   gap: 0.5rem 0.75rem;
 }
 
+.operators-op-pay-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1.5rem;
+}
+
+.operators-op-pay-metrics__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.operators-op-pay-metrics__label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.operators-op-pay-metrics__value {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.operators-op-pay-metrics__value--amount {
+  min-width: 0;
+}
+
 .operators-op-pay-summary__amount {
   font-size: 1.0625rem;
   font-weight: 700;
@@ -133,4 +166,61 @@
 
 :host ::ng-deep .operators-op-pay-table .to-badge {
   vertical-align: middle;
+}
+
+.operators-op-pay-table__action-head,
+.operators-op-pay-table__action-cell {
+  text-align: center;
+}
+
+.operators-op-pay-table__paid {
+  white-space: nowrap;
+  color: var(--to-color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.operators-op-pay-table__confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 35%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--to-color-primary) 8%, transparent);
+  color: var(--to-color-primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.operators-op-pay-table__row--overdue td {
+  background: color-mix(in srgb, var(--to-color-danger, #b91c1c) 4%, transparent);
+}
+
+.operators-op-pay-table__row--paid td {
+  color: color-mix(in srgb, var(--to-color-text) 72%, transparent);
+}
+
+.operators-op-pay-table__section-row th {
+  padding-top: 0.85rem;
+  padding-bottom: 0.35rem;
+  border-bottom: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+  text-align: left;
+}
+
+.operators-op-pay-table__action-empty {
+  color: var(--to-color-text-muted);
 }

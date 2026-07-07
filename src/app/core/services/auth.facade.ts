@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 import { map, Observable, tap } from 'rxjs';
 import type { AuthUser, LoginResponse, SignUpRequest } from '@shared/models/auth.models';
 import { normalizeApiIsoDate } from '@core/utils/api-date';
+import { resolveAllowedModules } from '@shared/utils/access-control';
 import { AuthService } from './api/auth';
 import { LogoutService } from './logout.service';
 import { SessionService } from './state/session';
@@ -68,6 +69,32 @@ export class AuthFacade {
         normalizeApiIsoDate(user.operationalAnalysisChangedAt) ??
         normalizeApiIsoDate(payload.operationalAnalysisChangedAt) ??
         user.operationalAnalysisChangedAt,
+      tripAssistPrefillEnabled:
+        user.tripAssistPrefillEnabled ??
+        user.controlAutomaticRecognition ??
+        payload.tripAssistPrefillEnabled ??
+        payload.controlAutomaticRecognition ??
+        false,
+      tripAssistPrefillChangedAt:
+        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
+        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
+        normalizeApiIsoDate(payload.tripAssistPrefillChangedAt) ??
+        normalizeApiIsoDate(payload.controlAutomaticRecognitionChangedAt) ??
+        user.tripAssistPrefillChangedAt,
+      tripAutoMaintenanceProvisionPercent: (() => {
+        const raw =
+          user.tripAutoMaintenanceProvisionPercent ??
+          payload.tripAutoMaintenanceProvisionPercent;
+        if (raw == null || !Number.isFinite(Number(raw))) {
+          return 5;
+        }
+        const n = Number(raw);
+        return n >= 0 && n <= 100 ? n : 5;
+      })(),
+      allowedModules:
+        user.allowedModules ??
+        payload.allowedModules ??
+        resolveAllowedModules(user.role ?? payload.role),
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ?? payload.maintenanceKmControlEnabled ?? false,
       maintenanceKmIntervalDefault:

@@ -8,6 +8,8 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { ClientsDetailDrawerComponent } from '@features/clients/components/clients-detail-drawer/clients-detail-drawer.component';
 import { ClientsNewDrawerComponent } from '@features/clients/components/clients-new-drawer/clients-new-drawer.component';
 import { DestinationRatesDetailDrawerComponent } from '@features/clients/components/destination-rates-detail-drawer/destination-rates-detail-drawer.component';
@@ -24,12 +26,18 @@ import { OperationConfigurationResolverService } from '@shared/services/operatio
 import { operationConfigRateTableBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
+import {
+  ToSelectComponent,
+  type ToSelectOption,
+} from '@shared/ui/to-select/to-select.component';
 import {
   ToSegmentControlComponent,
   type ToSegmentTab,
@@ -42,6 +50,9 @@ import {
 } from '@shared/ui/to-table/to-table.component';
 
 export type ClientsPageTab = 'clients' | 'destination-rates';
+
+/** Espera tras dejar de escribir antes de filtrar el listado. */
+const CLIENTS_SEARCH_DEBOUNCE_MS = 1000;
 
 function formatRelationshipDateEs(ymd: string | undefined): string {
   const t = (ymd ?? '').trim();
@@ -71,6 +82,7 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
   imports: [
     ToPageHeaderComponent,
     ToInputComponent,
+    ToSelectComponent,
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
@@ -87,32 +99,40 @@ export class ClientsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly clientsFeature = inject(ClientsFeatureService);
   protected readonly ratesFeature = inject(DestinationRatesFeatureService);
-  protected readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
+  private readonly session = inject(SessionService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.clientsFeature.dispose();
       this.ratesFeature.dispose();
-      this.centersFeature.dispose();
       this.operationConfigsFeature.dispose();
     });
+
+    toObservable(this.searchInput)
+      .pipe(
+        debounceTime(CLIENTS_SEARCH_DEBOUNCE_MS),
+        map((q) => q.trim()),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((q) => this.searchQuery.set(q));
   }
 
-  readonly pageTab = signal<ClientsPageTab>('clients');
+  readonly pageTab = signal<ClientsPageTab>('destination-rates');
   readonly viewSegmentTabs: readonly ToSegmentTab<ClientsPageTab>[] = [
-    {
-      id: 'clients',
-      label: 'Clientes',
-      icon: 'client',
-      htmlId: 'clients-tab-clients',
-    },
     {
       id: 'destination-rates',
       label: 'Tarifas',
       icon: 'sell',
       htmlId: 'clients-tab-destination-rates',
+    },
+    {
+      id: 'clients',
+      label: 'Clientes',
+      icon: 'client',
+      htmlId: 'clients-tab-clients',
     },
   ];
 
@@ -131,9 +151,44 @@ export class ClientsPageComponent implements OnInit {
     this.ratesFeature.rates().map((r) => this.mapRateRow(r)),
   );
 
-  readonly searchQuery = model('');
+  readonly searchInput = model('');
+  protected readonly searchQuery = signal('');
+  readonly rateOriginCenterFilter = signal('');
+
+  readonly searchPending = computed(
+    () => this.searchInput().trim() !== this.searchQuery(),
+  );
+
+  readonly originCenterFilterOptions = computed((): ToSelectOption[] => {
+    const seen = new Map<string, string>();
+    for (const rate of this.ratesFeature.rates()) {
+      const id = rate.originOperationalCenterId?.trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+      const label =
+        rate.originOperationalCenterName?.trim() ||
+        rate.originOperationalCenterCode?.trim() ||
+        id;
+      seen.set(id, label);
+    }
+    return [
+      { value: '', label: 'Todos los orígenes' },
+      ...[...seen.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'es'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  });
+
+  readonly hasActiveRateFilters = computed(
+    () =>
+      !!this.searchQuery().trim() || !!this.rateOriginCenterFilter().trim(),
+  );
   readonly newClientOpen = signal(false);
   readonly newRateOpen = signal(false);
+  readonly canWriteCommercial = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
+  );
 
   readonly clientColumns: ToTableColumn[] = [
     { key: 'name', label: 'Cliente' },
@@ -173,7 +228,11 @@ export class ClientsPageComponent implements OnInit {
 
   readonly displayedRateRows = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
-    const all = this.rateRows();
+    const originId = this.rateOriginCenterFilter().trim();
+    let all = this.rateRows();
+    if (originId) {
+      all = all.filter((row) => row['originCenterId'] === originId);
+    }
     if (!q) {
       return all;
     }
@@ -182,23 +241,40 @@ export class ClientsPageComponent implements OnInit {
     );
   });
 
+  readonly hasClientRows = computed(() => this.displayedClientRows().length > 0);
+  readonly hasRateRows = computed(() => this.displayedRateRows().length > 0);
+
+  readonly showClientEmptyHint = computed(
+    () => !this.loading() && !this.hasClientRows(),
+  );
+
+  readonly showRateEmptyHint = computed(
+    () => !this.loading() && !this.hasRateRows(),
+  );
+
   ngOnInit(): void {
-    this.clientsFeature.loadClients();
-    this.centersFeature.loadOperationalCenters();
+    this.ensureDestinationRatesTabLoaded();
   }
 
-  /** Lazy: tarifas + catálogo operativo solo al entrar por primera vez a la tab Tarifas. */
+  /** Lazy: clientes solo al entrar por primera vez a la tab Clientes. */
+  private ensureClientsTabLoaded(): void {
+    this.clientsFeature.loadClients();
+  }
+
+  /** Lazy: tarifas + catálogo operativo al entrar por primera vez a la tab Tarifas. */
   private ensureDestinationRatesTabLoaded(): void {
-    this.centersFeature.loadOperationalCenters();
     this.ratesFeature.loadDestinationRates();
     this.operationConfigsFeature.loadOperationConfigurations();
   }
 
   onPageTabSelect(tab: ClientsPageTab): void {
     this.pageTab.set(tab);
+    this.searchInput.set('');
     this.searchQuery.set('');
+    this.rateOriginCenterFilter.set('');
     if (tab === 'clients') {
       this.ratesFeature.clearSelection();
+      this.ensureClientsTabLoaded();
     } else {
       this.clientsFeature.clearSelection();
       this.ensureDestinationRatesTabLoaded();
@@ -324,6 +400,7 @@ export class ClientsPageComponent implements OnInit {
     }
     return {
       id: r.id,
+      originCenterId: r.originOperationalCenterId,
       originSummary: formatDestinationRateOriginCell(r),
       destinationSummary: formatDestinationRateDestinationCell(r),
       operationTypeBadges,

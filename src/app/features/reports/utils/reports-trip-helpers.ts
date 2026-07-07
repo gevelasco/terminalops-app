@@ -1,6 +1,25 @@
-import type { Trip } from '@shared/models/logistics.models';
+import type { Expense, ExpenseKind, Trip } from '@shared/models/logistics.models';
 import { tripOperationalKm } from '@features/trips/utils/trip-operational-km';
 import { parseMoney } from './reports-money';
+
+/** Gastos automáticos al programar maniobra; si existen en ledger, no usar campos del trip. */
+const TRIP_PROGRAMMED_LEDGER_KINDS: ReadonlySet<ExpenseKind> = new Set([
+  'fuel',
+  'tolls',
+  'operator_payment',
+]);
+
+export function tripLedgerExpenses(
+  tripId: string,
+  expenses: readonly Expense[],
+): Expense[] {
+  const id = tripId.trim();
+  return expenses.filter((e) => e.tripId.trim() === id);
+}
+
+export function ledgerCoversTripProgrammedCosts(ledger: readonly Expense[]): boolean {
+  return ledger.some((e) => TRIP_PROGRAMMED_LEDGER_KINDS.has(e.kind));
+}
 
 /** Monto pactado con el cliente (0 si no aplica cobro). */
 export function tripRevenue(t: Trip): number {
@@ -53,8 +72,31 @@ export function tripOperatorQuota(t: Trip): number {
   return parseMoney(t.operatorQuota);
 }
 
+export function tripPerDiem(t: Trip): number {
+  return parseMoney(t.perDiemAmount);
+}
+
 export function tripDirectCost(t: Trip): number {
-  return tripDiesel(t) + tripCasetas(t) + tripOperatorQuota(t);
+  return tripDiesel(t) + tripCasetas(t) + tripOperatorQuota(t) + tripPerDiem(t);
+}
+
+/** Costo de maniobra sin duplicar ledger vs montos programados del trip. */
+export function tripResolvedDirectCost(
+  trip: Trip,
+  expenses: readonly Expense[] = [],
+): number {
+  const ledger = tripLedgerExpenses(trip.id, expenses);
+  if (ledgerCoversTripProgrammedCosts(ledger)) {
+    return ledger.reduce((sum, expense) => sum + expense.amount, 0);
+  }
+  return tripDirectCost(trip);
+}
+
+export function sumTripResolvedDirectCost(
+  trips: readonly Trip[],
+  expenses: readonly Expense[] = [],
+): number {
+  return trips.reduce((sum, trip) => sum + tripResolvedDirectCost(trip, expenses), 0);
 }
 
 export function tripKm(t: Trip): number {

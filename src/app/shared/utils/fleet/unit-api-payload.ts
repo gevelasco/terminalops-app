@@ -1,5 +1,6 @@
 import type { CreateUnitPayload } from '@shared/models/api/api-fleet.model';
 import type { Unit, UnitFleetMeta } from '@shared/models/logistics.models';
+import { withoutFleetOperationalStatus } from '@shared/utils/fleet/fleet-write-payload-sanitize';
 import { trailerTenureModeOrDefault } from '@shared/utils/fleet/trailer-tenure-mode';
 
 function fleetMetaWithTenureDefault(meta: UnitFleetMeta | undefined): UnitFleetMeta | undefined {
@@ -15,6 +16,8 @@ function fleetMetaWithTenureDefault(meta: UnitFleetMeta | undefined): UnitFleetM
 export type UnitPersistDraft = {
   unit?: Partial<Unit>;
   fleetMeta?: Partial<UnitFleetMeta>;
+  /** Envía solo las claves de `fleetMeta` del borrador (p. ej. confirmar un pago). */
+  sparseFleetMeta?: boolean;
 };
 
 /** Une la unidad en pantalla con un borrador explícito (p. ej. formulario recién editado). */
@@ -30,20 +33,32 @@ export function mergeUnitForWrite(base: Unit, draft?: UnitPersistDraft): Unit {
 
 /** Cuerpo de POST/PATCH de unidad (campos de `units` + `fleetMeta`). */
 export function buildUnitWritePayload(unit: Unit, draft?: UnitPersistDraft): CreateUnitPayload {
-  const merged = mergeUnitForWrite(unit, draft);
-  const fleetMeta =
-    draft?.fleetMeta !== undefined
-      ? fleetMetaWithTenureDefault(draft.fleetMeta as UnitFleetMeta)
-      : fleetMetaWithTenureDefault(merged.fleetMeta);
-
-  return {
-    plate: merged.plate.trim(),
-    capacityKg: merged.capacityKg,
-    status: merged.status,
-    serialNumber: merged.serialNumber?.trim() || undefined,
-    name: merged.name?.trim() || undefined,
-    trailerBrandAbbr: merged.trailerBrandAbbr?.trim() || undefined,
-    trailerYear: merged.trailerYear?.trim() || undefined,
-    fleetMeta,
+  const unitPatch = draft?.unit ?? {};
+  const mergedUnit = {
+    ...unit,
+    ...unitPatch,
   };
+  const fleetMeta = draft?.sparseFleetMeta
+    ? fleetMetaWithTenureDefault(draft.fleetMeta as UnitFleetMeta | undefined)
+    : fleetMetaWithTenureDefault(
+        draft?.fleetMeta
+          ? { ...(unit.fleetMeta ?? {}), ...draft.fleetMeta }
+          : mergedUnit.fleetMeta,
+      );
+
+  return withoutFleetOperationalStatus({
+    plate: mergedUnit.plate.trim(),
+    capacityKg: mergedUnit.capacityKg,
+    isActive: mergedUnit.isActive !== false,
+    serialNumber: mergedUnit.serialNumber?.trim() || undefined,
+    motorNumber: mergedUnit.motorNumber?.trim() || undefined,
+    capacityTons:
+      mergedUnit.capacityTons != null && Number.isFinite(mergedUnit.capacityTons)
+        ? mergedUnit.capacityTons
+        : undefined,
+    name: mergedUnit.name?.trim() || undefined,
+    trailerBrandAbbr: mergedUnit.trailerBrandAbbr?.trim() || undefined,
+    trailerYear: mergedUnit.trailerYear?.trim() || undefined,
+    fleetMeta,
+  }) as CreateUnitPayload;
 }

@@ -1,0 +1,105 @@
+.fleet-insurance-schedule {
+  margin-top: 0;
+}
+
+.fleet-insurance-schedule__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.fleet-insurance-schedule__scroll {
+  overflow-x: auto;
+  margin-top: 0.25rem;
+}
+
+.fleet-insurance-schedule__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th,
+  td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--to-color-border-subtle, #e8eaed);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--to-color-text-muted);
+    white-space: nowrap;
+  }
+}
+
+.fleet-insurance-schedule__cell--center {
+  text-align: center;
+}
+
+.fleet-insurance-schedule__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  background: color-mix(in srgb, var(--to-color-text-muted) 10%, transparent);
+}
+
+.fleet-insurance-schedule__status--paid {
+  color: var(--to-color-success, #15803d);
+  background: color-mix(in srgb, var(--to-color-success, #15803d) 12%, transparent);
+}
+
+.fleet-insurance-schedule__status--due {
+  color: var(--to-color-warning, #b45309);
+  background: color-mix(in srgb, var(--to-color-warning, #b45309) 12%, transparent);
+}
+
+.fleet-insurance-schedule__status--overdue {
+  color: var(--to-color-danger, #b91c1c);
+  background: color-mix(in srgb, var(--to-color-danger, #b91c1c) 12%, transparent);
+}
+
+.fleet-insurance-schedule__paid {
+  white-space: nowrap;
+}
+
+.fleet-insurance-schedule__paid-amount {
+  color: var(--to-color-text-muted);
+}
+
+.fleet-insurance-schedule__confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 35%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--to-color-primary) 8%, transparent);
+  color: var(--to-color-primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.fleet-insurance-schedule__row--overdue td {
+  background: color-mix(in srgb, var(--to-color-danger, #b91c1c) 4%, transparent);
+}
+
+.fleet-insurance-schedule__row--due td {
+  background: color-mix(in srgb, var(--to-color-warning, #b45309) 4%, transparent);
+}

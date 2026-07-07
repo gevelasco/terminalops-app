@@ -8,11 +8,9 @@ import { mapUserMeToProfile, profileToPatchBody } from '@core/utils/user-profile
 import type { ThemeScheme, UserRole } from '@shared/models/auth.models';
 
 const ROLE_JOB_TITLES: Record<UserRole, string> = {
-  superadmin: 'Super administrador',
+  superadmin: 'Propietario',
   admin: 'Administrador',
-  coordinator: 'Coordinador de operaciones',
-  operator: 'Operador',
-  viewer: 'Consulta',
+  staff: 'Staff',
 };
 
 export function profileStorageKey(username: string): string {
@@ -24,7 +22,7 @@ export function profileFromSession(session: SessionService): UserProfile | null 
   if (!username) {
     return null;
   }
-  const role = (session.role() ?? 'coordinator') as UserRole;
+  const role = (session.role() ?? 'staff') as UserRole;
   const employeeRaw =
     session.employeeId()?.trim() ?? session.userId()?.trim() ?? '';
   return {
@@ -33,7 +31,7 @@ export function profileFromSession(session: SessionService): UserProfile | null 
     jobTitle:
       session.jobTitle()?.trim() ||
       ROLE_JOB_TITLES[role] ||
-      ROLE_JOB_TITLES.coordinator,
+      ROLE_JOB_TITLES.staff,
     email: session.email()?.trim() ?? '',
     phone: session.phone()?.trim() ?? '',
     photoDataUrl: session.photoDataUrl()?.trim() ?? '',
@@ -57,7 +55,7 @@ export function defaultUserProfile(username: string, session?: SessionService): 
   return {
     username: u || 'usuario',
     displayName: label,
-    jobTitle: ROLE_JOB_TITLES.coordinator,
+    jobTitle: ROLE_JOB_TITLES.staff,
     email: '',
     phone: '',
     photoDataUrl: '',

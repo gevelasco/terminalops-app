@@ -2,229 +2,316 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   inject,
-  OnInit,
+  model,
   resource,
+  signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, firstValueFrom, of } from 'rxjs';
-import { UnitsService } from '@services/api/units';
-import { labelForUnitId } from '@shared/utils/fleet/unit-label';
+import { firstValueFrom } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { DashboardService } from '@services/api/dashboard';
-import { CRITICAL_ALERT_ICON_PATHS } from '@features/dashboard/critical-alert-icon-paths';
+import { CompaniesService } from '@services/api/companies';
+import { ToastService } from '@core/notifications/toast.service';
+import { SessionService } from '@core/services/state/session';
+import { dashboardChartPrimary } from '@features/dashboard/utils/dashboard-chart-colors';
+import { buildDashboardOperationalFlowOption } from '@features/dashboard/utils/dashboard-operational-flow-option';
+import { buildDashboardTopDestinationsOption } from '@features/dashboard/utils/dashboard-top-destinations-option';
+import { buildDashboardTripActivityOption } from '@features/dashboard/utils/dashboard-trip-activity-option';
+import { buildReportsGeneralOperationMixPieOption } from '@features/reports/utils/charts/general/reports-general-operation-mix-pie-option';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
+import type { TripStatus } from '@shared/models/logistics.models';
+import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
+import { canAccessModule, isAdminRole } from '@shared/utils/access-control';
 import {
-  buildOperationTypeSlicesFromTrips,
-  buildWeeklyCompletedTripsByDay,
-  filterTripsCreatedInCalendarMonth,
-  type OperationTypeSlice,
-  type WeeklyTripPoint,
-} from '@features/reports/utils/dashboard-charts-from-trips';
-import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
-import { TRIP_EVALUATION_PROVIDERS } from '@shared/services/trip-evaluation.providers';
-import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
-import { buildTripStatusSlices } from '@shared/utils/trip-status-slices';
-import {
-  Alert,
-  CriticalAlert,
-  CriticalSeverity,
-  Trip,
-  TripStatus,
-  Unit,
-} from '@shared/models/logistics.models';
-import { DateShortPipe } from '@shared/pipes/date-short.pipe';
-import {
-  ToBadgeComponent,
-  ToBadgeVariant,
-} from '@shared/ui/to-badge/to-badge.component';
-import { ToCardComponent } from '@shared/ui/to-card/to-card.component';
+  maneuverStatusPillClass,
+  maneuverStatusPillLabel,
+} from '@shared/utils/maneuver-status-pill';
+import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
+import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
-import {
-  ToTableColumn,
-  ToTableComponent,
-} from '@shared/ui/to-table/to-table.component';
 
-type DashboardBundle = {
-  kpis: Alert[];
-  critical: CriticalAlert[];
-  maniobras: Trip[];
-  units: Unit[];
-};
+function pluralEs(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
+}
+
+function formatWeekOverWeekPercent(value: number | null | undefined): string {
+  if (value == null) {
+    return '—';
+  }
+  const signed = value > 0 ? `+${value}` : String(value);
+  return `${signed}%`;
+}
 
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [DateShortPipe, ...TRIP_EVALUATION_PROVIDERS],
+  providers: [CurrencyMxPipe],
   imports: [
-    ToCardComponent,
+    ToPageHeaderComponent,
+    ToKpiCardComponent,
+    ToEchartsHostComponent,
     ToSkeletonComponent,
-    ToTableComponent,
-    ToBadgeComponent,
+    ToIconComponent,
+    ToInputComponent,
   ],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
 })
-export class DashboardPageComponent implements OnInit {
-  private readonly dashboard = inject(DashboardService);
-  private readonly unitsApi = inject(UnitsService);
-  private readonly dateShort = inject(DateShortPipe);
+export class DashboardPageComponent {
+  private readonly dashboardApi = inject(DashboardService);
+  private readonly companiesApi = inject(CompaniesService);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
-  private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
-  private readonly tripEvaluation = inject(TripEvaluationService);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly currencyMx = inject(CurrencyMxPipe);
+  private readonly toast = inject(ToastService);
 
-  constructor() {
-    this.destroyRef.onDestroy(() => {
-      this.operationConfigsFeature.dispose();
-    });
-  }
-
-  ngOnInit(): void {
-    this.operationConfigsFeature.loadOperationConfigurations();
-  }
-
-  private readonly dashResource = resource({
-    loader: async (): Promise<DashboardBundle> => {
-      const [kpis, critical, units] = await Promise.all([
-        firstValueFrom(
-          this.dashboard.getAlertsList().pipe(catchError(() => of([] as Alert[]))),
-        ),
-        firstValueFrom(
-          this.dashboard
-            .getCriticalAlertsList()
-            .pipe(catchError(() => of([] as CriticalAlert[]))),
-        ),
-        firstValueFrom(
-          this.unitsApi.getUnitsList().pipe(catchError(() => of([] as Unit[]))),
-        ),
-      ]);
-      return { kpis, critical, maniobras: [] as Trip[], units };
-    },
+  private readonly pageResource = resource({
+    loader: () => firstValueFrom(this.dashboardApi.getPageData()),
   });
 
-  /** Solo skeleton en la carga inicial; recargas no ocultan el tablero. */
+  readonly dieselEditOpen = signal(false);
+  readonly dieselDraft = model('');
+  readonly dieselSaving = signal(false);
+
   readonly loading = computed(
-    () => !this.dashResource.hasValue() && this.dashResource.isLoading(),
+    () => !this.pageResource.hasValue() && this.pageResource.isLoading(),
   );
 
-  readonly alerts = computed(() => this.dashResource.value()?.kpis ?? []);
+  readonly summary = computed(() => this.pageResource.value()?.summary);
+  readonly insights = computed(() => this.pageResource.value()?.insights);
 
-  /** Solo incidentes con prioridad «crítico» (alto/medio/bajo van al panel de notificaciones). */
-  readonly criticalAlerts = computed(() =>
-    (this.dashResource.value()?.critical ?? []).filter((a) => a.severity === 'critical'),
-  );
-  readonly tripRows = computed(() => {
-    const v = this.dashResource.value();
-    return this.mapTripRows(v?.maniobras ?? [], v?.units ?? []);
+  /** Re-lee el azul del sidemenu (`--palette-primary`) al cambiar tema o datos. */
+  readonly chartShellColor = computed(() => {
+    this.session.theme();
+    return dashboardChartPrimary();
   });
 
-  /** Maniobras del mes en curso (por `createdAt`) — mismas que alimentan el resumen mensual. */
-  readonly tripsCreatedThisMonth = computed(() =>
-    filterTripsCreatedInCalendarMonth(
-      this.dashResource.value()?.maniobras ?? [],
-      new Date(),
-    ),
-  );
-
-  readonly tripStatusSlices = computed(() =>
-    buildTripStatusSlices(this.tripsCreatedThisMonth()),
-  );
-
-  readonly weeklyTripVolume = computed<WeeklyTripPoint[]>(() =>
-    buildWeeklyCompletedTripsByDay(this.dashResource.value()?.maniobras ?? []),
-  );
-  readonly operationTypeSlices = computed<OperationTypeSlice[]>(() =>
-    buildOperationTypeSlicesFromTrips(this.tripsCreatedThisMonth(), this.tripEvaluation),
-  );
-
-  readonly criticalIconPaths = CRITICAL_ALERT_ICON_PATHS;
-
-  readonly tripColumns: ToTableColumn[] = [
-    { key: 'code', label: 'Código' },
-    { key: 'route', label: 'Ruta' },
-    { key: 'unitId', label: 'Unidad', cell: 'muted-badge' },
-    { key: 'status', label: 'Estado', cell: 'maniobra-status' },
-    { key: 'createdAt', label: 'Creada' },
-  ];
-
-  onTripRowClick(_row: Record<string, unknown>): void {
-    void this.router.navigate(['/maniobra']);
-  }
-
-  iconPath(kind: CriticalAlert['kind']): string {
-    return this.criticalIconPaths[kind];
-  }
-
-  formatDate(iso: string): string {
-    return this.dateShort.transform(iso) ?? iso;
-  }
-
-  severityLabel(s: CriticalSeverity): string {
-    switch (s) {
-      case 'critical':
-        return 'Crítico';
-      case 'high':
-        return 'Alto';
-      case 'medium':
-        return 'Medio';
-      case 'low':
-        return 'Bajo';
+  readonly showFinancialInsights = computed(() => {
+    const role = this.session.role();
+    if (isAdminRole(role)) {
+      return true;
     }
-  }
+    return canAccessModule(this.session.allowedModules(), APP_MODULE_CODES.EXPENSES);
+  });
 
-  badgeVariant(s: CriticalSeverity): ToBadgeVariant {
-    switch (s) {
-      case 'critical':
-        return 'danger';
-      case 'high':
-        return 'warning';
-      case 'medium':
-        return 'neutral';
-      case 'low':
-        return 'success';
-    }
-  }
+  readonly canEditDiesel = computed(() => isAdminRole(this.session.role()));
 
-  private mapTripRows(trips: Trip[], units: readonly Unit[]): Record<string, unknown>[] {
-    const sorted = [...trips].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime(),
+  readonly dieselSnapshot = computed(() => this.summary()?.diesel ?? null);
+
+  readonly operationalFlowOption = computed(() => {
+    const flow = this.insights()?.operationalFlow ?? [];
+    return buildDashboardOperationalFlowOption(flow, {
+      showExpenses: this.showFinancialInsights(),
+      primaryColor: this.chartShellColor(),
+    });
+  });
+
+  readonly tripActivityOption = computed(() =>
+    buildDashboardTripActivityOption(this.insights()?.tripActivity ?? [], {
+      primaryColor: this.chartShellColor(),
+    }),
+  );
+
+  readonly topDestinationsOption = computed(() =>
+    buildDashboardTopDestinationsOption(this.insights()?.topDestinations ?? [], {
+      primaryColor: this.chartShellColor(),
+    }),
+  );
+
+  readonly operationMixOption = computed(() => {
+    const insights = this.insights();
+    return buildReportsGeneralOperationMixPieOption(
+      insights?.operationMix ?? [],
+      0,
+      { primaryColor: this.chartShellColor() },
     );
-    const latest = sorted.slice(0, 10);
-    return latest.map((t) => ({
-      id: t.id,
-      code: t.maneuverCode,
-      route: formatTripRouteLabel(t.origin, t.destination),
-      unitId: labelForUnitId(t.unitId, units),
-      status: t.status,
-      falseManeuver: t.falseManeuver === true,
-      createdAt: this.formatDate(t.createdAt),
-    }));
-  }
+  });
 
-  weeklyBarHeightPct(value: number): number {
-    const series = this.weeklyTripVolume();
-    const max = Math.max(...series.map((p) => p.value), 1);
-    return Math.round((value / max) * 100);
-  }
+  readonly recentTrips = computed(() => this.insights()?.recentTrips ?? []);
 
-  statusFillClass(status: TripStatus): string {
-    switch (status) {
-      case 'in_transit':
-        return 'dash-chart-bar__fill--transit';
-      case 'scheduled':
-        return 'dash-chart-bar__fill--scheduled';
-      case 'completed':
-        return 'dash-chart-bar__fill--completed';
-      case 'cancelled':
-        return 'dash-chart-bar__fill--cancelled';
+  readonly inTransitValue = computed(() => String(this.summary()?.tripsInTransit ?? 0));
+
+  readonly inTransitValueUnit = computed(() => {
+    const n = this.summary()?.tripsInTransit ?? 0;
+    return pluralEs(n, 'maniobra', 'maniobras');
+  });
+
+  readonly inTransitLegend = computed(() => {
+    const n = this.summary()?.tripsInTransitDestinations ?? 0;
+    return `${n} ${pluralEs(n, 'destino', 'destinos')}`;
+  });
+
+  readonly unitsAvailableValue = computed(() => String(this.summary()?.unitsAvailable ?? 0));
+
+  readonly unitsAvailableValueUnit = computed(() => {
+    const n = this.summary()?.unitsAvailable ?? 0;
+    return pluralEs(n, 'unidad', 'unidades');
+  });
+
+  readonly unitsLegend = computed(() => {
+    const n = this.summary()?.equipmentAvailable ?? 0;
+    return `${n} equipo disponible`;
+  });
+
+  readonly scheduledValue = computed(() => String(this.summary()?.tripsScheduled ?? 0));
+
+  readonly scheduledValueUnit = computed(() => {
+    const n = this.summary()?.tripsScheduled ?? 0;
+    return pluralEs(n, 'maniobra', 'maniobras');
+  });
+
+  readonly scheduledWeekDelta = computed(() => {
+    const pct = formatWeekOverWeekPercent(
+      this.summary()?.tripsScheduledWeekOverWeekPercent,
+    );
+    return `${pct} vs la semana anterior`;
+  });
+
+  readonly scheduledLegend = computed(() => {
+    const at = this.summary()?.nextScheduledDepartureAt;
+    if (!at) {
+      return 'Próxima salida: sin programar';
     }
+    const formatted = new Intl.DateTimeFormat('es-MX', {
+      timeZone: 'America/Mexico_City',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(at));
+    return `Próxima salida: ${formatted}`;
+  });
+
+  readonly dailyResultMeta = computed(() => {
+    const r = this.summary()?.dailyResult;
+    if (!r) {
+      return '';
+    }
+    const mLabel = pluralEs(r.completedTripsCount, 'maniobra', 'maniobras');
+    const gLabel = pluralEs(r.expensesCount, 'gasto', 'gastos');
+    return `${r.completedTripsCount} ${mLabel} · ${r.expensesCount} ${gLabel}`;
+  });
+
+  readonly dailyResultValue = computed(() => {
+    const margin = this.summary()?.dailyResult.margin ?? 0;
+    return this.currencyMx.transform(margin);
+  });
+
+  readonly dailyResultLegend = computed(() => {
+    const r = this.summary()?.dailyResult;
+    if (!r) {
+      return '';
+    }
+    const ing = this.currencyMx.transform(r.revenue);
+    const gas = this.currencyMx.transform(r.expenses);
+    return `Ingresos ${ing} − gastos ${gas}`;
+  });
+
+  readonly dailyResultTone = computed((): 'up' | 'down' | 'neutral' => {
+    const m = this.summary()?.dailyResult.margin ?? 0;
+    if (m > 0) {
+      return 'up';
+    }
+    if (m < 0) {
+      return 'down';
+    }
+    return 'neutral';
+  });
+
+  readonly dieselChip = computed(() => {
+    const diesel = this.dieselSnapshot();
+    if (!diesel?.enabled || diesel.pricePerLiter == null) {
+      return null;
+    }
+    return `${this.formatDieselMoney(diesel.pricePerLiter)}/L`;
+  });
+
+  openDieselEdit(): void {
+    const current = this.dieselSnapshot()?.pricePerLiter;
+    this.dieselDraft.set(
+      current != null && Number.isFinite(current) ? String(current) : '',
+    );
+    this.dieselEditOpen.set(true);
   }
 
-  operationFillClass(tone: OperationTypeSlice['tone']): string {
-    return this.tripEvaluation.chartFillClass(tone, 'dash');
+  cancelDieselEdit(): void {
+    this.dieselEditOpen.set(false);
+    this.dieselDraft.set('');
+  }
+
+  saveDieselPrice(): void {
+    if (this.dieselSaving()) {
+      return;
+    }
+    const companyId = this.session.companyId();
+    if (!companyId) {
+      this.toast.show('No se pudo identificar la empresa.', 'error');
+      return;
+    }
+    const raw = this.dieselDraft().trim().replace(/,/g, '');
+    const price = Number.parseFloat(raw);
+    if (!Number.isFinite(price) || price < 5 || price > 200) {
+      this.toast.show('Indica un precio válido entre 5 y 200 MXN/L.', 'warning');
+      return;
+    }
+
+    this.dieselSaving.set(true);
+    this.companiesApi
+      .updateDieselReferencePrice(companyId, price)
+      .pipe(finalize(() => this.dieselSaving.set(false)))
+      .subscribe({
+        next: () => {
+          this.toast.show('Precio de diésel actualizado.', 'success');
+          this.dieselEditOpen.set(false);
+          this.pageResource.reload();
+        },
+        error: () => {
+          this.toast.show('No se pudo guardar el precio de diésel.', 'error');
+        },
+      });
+  }
+
+  private formatDieselMoney(value: number): string {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+
+  tripStatusClass(status: string, falseManeuver: boolean): string {
+    return maneuverStatusPillClass(status as TripStatus, { falseManeuver });
+  }
+
+  tripStatusLabel(status: string, falseManeuver: boolean): string {
+    return maneuverStatusPillLabel(status as TripStatus, { falseManeuver });
+  }
+
+  tripChargeLabel(charge: string | null): string {
+    if (charge == null || !charge.trim()) {
+      return '—';
+    }
+    const n = Number(String(charge).replace(/,/g, ''));
+    if (!Number.isFinite(n)) {
+      return charge;
+    }
+    return this.currencyMx.transform(n);
+  }
+
+  openRecentTrip(tripId: number): void {
+    if (!tripId) {
+      return;
+    }
+    void this.router.navigate(['/trips'], {
+      queryParams: { tripId: String(tripId) },
+    });
   }
 }

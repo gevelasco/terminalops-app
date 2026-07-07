@@ -7,6 +7,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '@core/notifications/toast.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import {
@@ -36,6 +38,7 @@ export class DestinationRatesDetailDrawerFacade {
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
   private readonly toast = inject(ToastService);
+  private readonly session = inject(SessionService);
 
   private dismissCallback: (() => void) | null = null;
 
@@ -43,6 +46,9 @@ export class DestinationRatesDetailDrawerFacade {
   readonly drawerLoading = signal(true);
   readonly editing = signal(false);
   readonly saving = signal(false);
+  readonly canWriteCommercial = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
+  );
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
   readonly availabilityOptions: ToSelectOption[] = DESTINATION_RATE_AVAILABILITY_OPTIONS;
@@ -114,6 +120,9 @@ export class DestinationRatesDetailDrawerFacade {
   }
 
   startEdit(): void {
+    if (!this.canWriteCommercial()) {
+      return;
+    }
     this.syncFromRate();
     this.editing.set(true);
   }

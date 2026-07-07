@@ -22,6 +22,7 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
   },
   { value: 'operator_payment', label: 'Pago a operador' },
   { value: 'operator_commission', label: 'Comisiones a operador' },
+  { value: 'operational_control', label: 'Control operativo' },
   { value: 'other', label: 'Otro (general)' },
 ];
 

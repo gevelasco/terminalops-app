@@ -5,6 +5,7 @@ import {
 } from '@shared/utils/fleet/equipment-hitch-position';
 import type { OperationConfigurationResolver } from '@shared/services/operation-configuration-resolver.types';
 import type { UnitConvoyDisplay, UnitConvoyKind } from '@shared/utils/operation-configuration-display.utils';
+import { operationConfigBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import { Equipment, TripOperationType } from '@shared/models/logistics.models';
 
 export { equipmentAssignedToUnit, equipmentHitchPositionDisplayLabel };
@@ -68,6 +69,18 @@ export function unitConvoyConfigDisplayLabel(hitchedCount: number): string {
     return 'Sencillo';
   }
   return 'Tracto';
+}
+
+/** Misma regla que `overviewUnitConvoyLabel`, desde equipos enganchados locales. */
+export function fleetUnitConvoyTableLabel(hitchedCount: number): string {
+  return unitConvoyConfigDisplayLabel(hitchedCount);
+}
+
+export function fleetUnitConvoyTableBadges(
+  hitched: readonly Equipment[],
+): readonly { label: string; badgeClass: string }[] {
+  const label = fleetUnitConvoyTableLabel(hitched.length);
+  return [{ label, badgeClass: operationConfigBadgeClass(label) }];
 }
 
 /** Código operativo inferido desde equipos enganchados (sin catálogo remoto). */

@@ -1,4 +1,4 @@
-import { Component, computed, input, model, output, signal } from '@angular/core';
+import { Component, computed, ElementRef, input, model, output, signal, viewChild } from '@angular/core';
 import { ToDerivedWandIconComponent } from '../to-derived-wand-icon/to-derived-wand-icon.component';
 
 @Component({
@@ -60,6 +60,13 @@ export class ToInputComponent {
 
   /** Se emite al perder foco el control (tras formateo miles si aplica). */
   readonly blurNotify = output<void>();
+
+  private readonly controlEl = viewChild<ElementRef<HTMLInputElement>>('controlEl');
+
+  /** Restaura el foco en el `<input>` nativo (p. ej. tras recargar datos del listado). */
+  focus(): void {
+    this.controlEl()?.nativeElement.focus();
+  }
 
   /** Contraseña visible como texto (solo con `passwordToggle`). */
   readonly passwordVisible = signal(false);

@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, finalize, map, of, Subscription, switchMap, type Observable } from 'rxjs';
+import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { TripsService as TripsApiService } from '@services/api/trips';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
 import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
@@ -15,12 +16,14 @@ import { createRequestGeneration } from '@shared/utils/request-generation';
 export class TripsFeatureService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly tripsApi = inject(TripsApiService);
+  private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly requestGen = createRequestGeneration();
 
   private readonly _trips = signal<readonly Trip[]>([]);
   private readonly _selectedTripId = signal<string | null>(null);
   private readonly _fallbackTrip = signal<Trip | null>(null);
   private readonly _loading = signal(false);
+  private readonly _listEpoch = signal(0);
 
   private initialLoadStarted = false;
   private disposed = false;
@@ -41,6 +44,7 @@ export class TripsFeatureService {
     return this._trips().find((t) => t.id === id) ?? this._fallbackTrip();
   });
   readonly loading = this._loading.asReadonly();
+  readonly listEpoch = this._listEpoch.asReadonly();
 
   loadTrips(): void {
     if (this.disposed) {
@@ -106,15 +110,21 @@ export class TripsFeatureService {
         const withoutDuplicate = this._trips().filter((t) => t.id !== created.id);
         // Al crear, no autoabrimos detalle: consistencia con clients.
         this.applyList([created, ...withoutDuplicate], null);
+        this.operationalSync.notifyTripFleetMutation();
         return created;
       }),
     );
   }
 
-  postTripIncident(tripId: string, description: string, postedBy: string): Observable<Trip> {
+  postTripIncident(
+    tripId: string,
+    description: string,
+    postedBy: string,
+    isIncident = false,
+  ): Observable<Trip> {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
-    return this.tripsApi.postTripIncident(tripId, description, postedBy).pipe(
+    return this.tripsApi.postTripIncident(tripId, description, postedBy, isIncident).pipe(
       switchMap((updated) =>
         this.fetchList().pipe(
           map((list) => {
@@ -140,6 +150,7 @@ export class TripsFeatureService {
               return updated;
             }
             this.applyList(list, keepId);
+            this.operationalSync.notifyTripFleetMutation();
             return this._trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
@@ -179,10 +190,31 @@ export class TripsFeatureService {
               return updated;
             }
             this.applyList(list, keepId);
+            this.operationalSync.notifyTripFleetMutation();
             return this._trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
       ),
+    );
+  }
+
+  deleteTrip(tripId: string): Observable<void> {
+    const id = tripId.trim();
+    const requestId = this.requestGen.next();
+    return this.tripsApi.deleteTrip(id).pipe(
+      map(() => {
+        if (!this.canApplyResponse(requestId)) {
+          return;
+        }
+        const selected = this._selectedTripId();
+        const list = this._trips().filter((t) => t.id !== id);
+        this.applyList(list, selected === id ? null : selected);
+        if (selected === id) {
+          this._selectedTripId.set(null);
+          this._fallbackTrip.set(null);
+        }
+        this.operationalSync.notifyTripFleetMutation();
+      }),
     );
   }
 
@@ -227,6 +259,7 @@ export class TripsFeatureService {
 
   private applyList(list: Trip[], selectedId: string | null): void {
     this._trips.set(list);
+    this._listEpoch.update((n) => n + 1);
     if (!selectedId) {
       return;
     }

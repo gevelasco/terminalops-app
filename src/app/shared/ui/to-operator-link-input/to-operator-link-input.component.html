@@ -1,0 +1,60 @@
+<div class="to-trip-input">
+  @if (label()) {
+    <label class="to-trip-input__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+  <div
+    class="to-trip-input__wrap"
+    [class.to-trip-input__wrap--open]="open()"
+  >
+    <input
+      #fieldInput
+      [id]="inputId"
+      class="to-trip-input__control"
+      type="text"
+      [placeholder]="placeholder()"
+      [value]="searchText()"
+      [disabled]="disabled()"
+      [class.to-trip-input__control--with-badge]="selectedRow() && !open() && !loading()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onControlBlur()"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? listId : null"
+    />
+    @if (selectedRow() && !open() && !loading()) {
+      <span class="to-trip-input__selected-badge" aria-hidden="true">
+        <span [class]="statusPillClass(selectedRow()!)">
+          <span class="to-table-pill__dot"></span>
+          <span class="to-table-pill__label">{{ statusPillLabel(selectedRow()!) }}</span>
+        </span>
+      </span>
+    }
+    @if (loading()) {
+      <span class="to-trip-input__spinner" aria-hidden="true"></span>
+    }
+    @if (open() && suggestions().length > 0) {
+      <ul [id]="listId" class="to-trip-input__list" role="listbox">
+        @for (row of suggestions(); track row.id) {
+          <li
+            class="to-trip-input__item to-trip-input__item--fleet"
+            role="option"
+            tabindex="-1"
+            (pointerdown)="onPickPointerDown(row, $event)"
+          >
+            <span class="to-trip-input__item-code">{{ nameLabel(row) }}</span>
+            <span class="to-trip-input__item-badge">
+              <span [class]="statusPillClass(row)">
+                <span class="to-table-pill__dot" aria-hidden="true"></span>
+                <span class="to-table-pill__label">{{ statusPillLabel(row) }}</span>
+              </span>
+            </span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

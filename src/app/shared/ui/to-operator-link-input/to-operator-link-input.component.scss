@@ -1,0 +1,25 @@
+@use '../to-trip-input/to-trip-input.component.scss';
+@use '../../styles/fleet-operational-pill.scss';
+
+.to-trip-input__item--fleet {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.to-trip-input__control--with-badge {
+  padding-right: 7.5rem;
+}
+
+.to-trip-input__selected-badge {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 6.75rem;
+  pointer-events: none;
+
+  .to-table-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

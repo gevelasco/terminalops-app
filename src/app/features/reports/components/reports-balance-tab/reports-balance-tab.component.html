@@ -1,0 +1,137 @@
+@if (loading()) {
+  <to-skeleton [lines]="8" />
+} @else if (summary() && insights()) {
+  <div class="reports-balance-kpis">
+    <to-kpi-card
+      title="Ingreso cobrado"
+      titleIcon="payment"
+      [value]="collectedValue()"
+      [legend]="collectedLegend()"
+    />
+    <to-kpi-card
+      title="Por cobrar"
+      titleIcon="credit"
+      [value]="receivableValue()"
+      [legend]="receivableLegend()"
+    />
+    <to-kpi-card
+      title="Gastos del periodo"
+      titleIcon="wallet"
+      [value]="expensesValue()"
+      [legend]="expensesLegend()"
+    />
+    <to-kpi-card
+      title="Cuentas por pagar"
+      titleIcon="credit"
+      [value]="payableValue()"
+      [legend]="payableLegend()"
+    />
+    <to-kpi-card
+      title="Provisiones"
+      titleIcon="alert"
+      [value]="provisionsValue()"
+      [legend]="provisionsLegend()"
+    />
+    <to-kpi-card
+      title="Resultado de caja"
+      titleIcon="revenue"
+      [value]="cashMarginValue()"
+      [legend]="cashMarginLegend()"
+      [deltaTone]="cashMarginTone()"
+    />
+    <to-kpi-card
+      title="Casetas"
+      titleIcon="route"
+      [value]="tollsSpendValue()"
+      [legend]="tollsSpendLegend()"
+    />
+    <to-kpi-card
+      title="Operadores"
+      titleIcon="operators"
+      [value]="operatorSpendValue()"
+      [legend]="operatorSpendLegend()"
+    />
+  </div>
+
+  <div class="reports-balance-body">
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Movimiento del periodo</h2>
+          <p class="reports-balance-panel__subtitle">
+            Ingreso cobrado, gastos, por cobrar y provisiones · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="compositionOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Cartera por cliente</h2>
+          <p class="reports-balance-panel__subtitle">Saldo por cobrar y próximo vencimiento</p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="creditByClientOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Ingresos por cliente</h2>
+          <p class="reports-balance-panel__subtitle">
+            Mejores clientes por ingreso cobrado · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="incomeByClientOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Utilidad por cliente</h2>
+          <p class="reports-balance-panel__subtitle">
+            Ingreso pactado − costo directo y gastos de maniobra · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="marginByClientOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Utilidad del periodo</h2>
+          <p class="reports-balance-panel__subtitle">
+            Ingreso pactado vs costos de maniobra completadas · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="profitabilityOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Gastos por rubro</h2>
+          <p class="reports-balance-panel__subtitle">{{ periodSubtitle() }}</p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__chart">
+        <to-echarts-host [option]="rubroOption()" />
+      </div>
+    </section>
+  </div>
+}

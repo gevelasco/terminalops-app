@@ -1,16 +1,22 @@
 import type { Operator, Trip, TripIncident } from '@shared/models/logistics.models';
 import { tripIncidentAuthorLabel } from '@shared/utils/trip-incident-feed';
+import {
+  isTripBitacoraIncident,
+  tripBitacoraSorted,
+  tripMarkedIncidentsSorted,
+} from './trip-bitacora';
 
-/** `true` si hay incidentes en lista o marcador histórico (`hasIncident`). */
-export function tripHasIncidents(trip: Pick<Trip, 'hasIncident' | 'incidents'>): boolean {
-  return (trip.incidents?.length ?? 0) > 0 || trip.hasIncident === true;
+/** `true` si la maniobra tiene al menos una entrada de bitácora marcada como incidente. */
+export function tripHasIncidents(trip: Pick<Trip, 'incidents'>): boolean {
+  return (trip.incidents ?? []).some(isTripBitacoraIncident);
 }
 
 export function tripIncidentsSorted(trip: Pick<Trip, 'incidents'>): TripIncident[] {
-  const list = trip.incidents ?? [];
-  return [...list].sort(
-    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
-  );
+  return tripMarkedIncidentsSorted(trip.incidents);
+}
+
+export function tripBitacoraEntriesSorted(trip: Pick<Trip, 'incidents'>): TripIncident[] {
+  return tripBitacoraSorted(trip.incidents);
 }
 
 export function tripIncidentPostedBy(

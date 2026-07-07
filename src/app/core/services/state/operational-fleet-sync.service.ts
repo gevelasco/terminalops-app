@@ -1,0 +1,94 @@
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
+import { catchError, finalize, of, Subscription } from 'rxjs';
+import { TripsService as TripsApiService } from '@services/api/trips';
+import type { Trip } from '@shared/models/logistics.models';
+import { createRequestGeneration } from '@shared/utils/request-generation';
+
+/**
+ * Caché compartida de maniobras + señales de refresco para flota/operadores.
+ * Las mutaciones de maniobra que afectan asignación o estatus operativo deben
+ * llamar `notifyTripFleetMutation()`.
+ */
+@Injectable({ providedIn: 'root' })
+export class OperationalFleetSyncService {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly tripsApi = inject(TripsApiService);
+  private readonly requestGen = createRequestGeneration();
+
+  private readonly _trips = signal<readonly Trip[]>([]);
+  private readonly _tripsLoading = signal(false);
+  private readonly _fleetMutationEpoch = signal(0);
+  private readonly _operatorsMutationEpoch = signal(0);
+
+  private loadStarted = false;
+  private fetchSub: Subscription | null = null;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.dispose());
+  }
+
+  readonly trips = this._trips.asReadonly();
+  readonly tripsLoading = this._tripsLoading.asReadonly();
+  readonly fleetMutationEpoch = this._fleetMutationEpoch.asReadonly();
+  readonly operatorsMutationEpoch = this._operatorsMutationEpoch.asReadonly();
+
+  ensureTripsLoaded(): void {
+    if (this.loadStarted) {
+      return;
+    }
+    this.loadStarted = true;
+    this.runFetch();
+  }
+
+  refreshTrips(): void {
+    this.runFetch();
+  }
+
+  /** Tras crear/cancelar/reasignar maniobra o cambios que muevan estatus de flota. */
+  notifyTripFleetMutation(): void {
+    this._fleetMutationEpoch.update((n) => n + 1);
+    this._operatorsMutationEpoch.update((n) => n + 1);
+    this.refreshTrips();
+  }
+
+  /** Tras mutaciones de gastos que afectan meta de flota (verificación, seguro, GPS). */
+  notifyFleetModuleMutation(): void {
+    this._fleetMutationEpoch.update((n) => n + 1);
+  }
+
+  /** Tras crear/actualizar/eliminar gastos de pago al operador. */
+  notifyOperatorPaymentsMutation(): void {
+    this._operatorsMutationEpoch.update((n) => n + 1);
+  }
+
+  private runFetch(): void {
+    const requestId = this.requestGen.next();
+    this.fetchSub?.unsubscribe();
+    this._tripsLoading.set(true);
+    this.fetchSub = this.tripsApi
+      .getTripsList()
+      .pipe(
+        catchError(() => of([] as Trip[])),
+        finalize(() => {
+          if (this.requestGen.isCurrent(requestId)) {
+            this._tripsLoading.set(false);
+          }
+        }),
+      )
+      .subscribe((list) => {
+        if (!this.requestGen.isCurrent(requestId)) {
+          return;
+        }
+        this._trips.set(list);
+      });
+  }
+
+  private dispose(): void {
+    this.requestGen.invalidate();
+    this.fetchSub?.unsubscribe();
+    this.fetchSub = null;
+    this._trips.set([]);
+    this._tripsLoading.set(false);
+    this.loadStarted = false;
+  }
+}

@@ -14,27 +14,41 @@ import {
   CompaniesService,
   type PatchCompanyOperationalSettings,
 } from '@core/services/api/companies';
-import { UsersService } from '@core/services/api/users';
 import { SessionService } from '@core/services/state/session';
 import { formatOperationalSettingChangedAt } from '@core/services/state/user-preferences';
 import { syncCompanySettingsFromProfile } from '@core/components/profile-drawer/profile-drawer-company-settings.util';
 import {
+  companyMaintenancePolicyModeFromSession,
   MAINTENANCE_DATE_PERIOD_OPTIONS,
+  type CompanyMaintenancePolicyMode,
   type MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
-import { forkJoin, of } from 'rxjs';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 
-type DisableConfirmKind = 'km' | 'date' | 'intelligent' | 'diesel' | 'recognition';
+type DisableConfirmKind =
+  | 'maintenance'
+  | 'intelligent'
+  | 'diesel'
+  | 'prefill';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToButtonComponent, ToIconComponent, ToInputComponent, ToSelectComponent],
+  imports: [
+    ToButtonComponent,
+    ToIconComponent,
+    ToInputComponent,
+    ToSelectComponent,
+    ToSegmentControlComponent,
+  ],
   templateUrl: './profile-drawer-config-tab.component.html',
   styleUrls: [
     '../../../features/fleet/components/fleet-drawer.shared.scss',
@@ -48,20 +62,26 @@ export class ProfileDrawerConfigTabComponent {
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
   private readonly companies = inject(CompaniesService);
-  private readonly usersApi = inject(UsersService);
 
   readonly maintDatePeriodOptions = [...MAINTENANCE_DATE_PERIOD_OPTIONS];
+  readonly maintenancePolicyTabs: readonly ToSegmentTab<CompanyMaintenancePolicyMode>[] =
+    [
+      { id: 'none', label: 'Manual' },
+      { id: 'km', label: 'Por km' },
+      { id: 'date', label: 'Por fechas' },
+    ];
   readonly saving = signal(false);
 
-  readonly draftKmEnabled = model(false);
+  readonly draftMaintenanceMode = model<CompanyMaintenancePolicyMode>('none');
   readonly draftKmInterval = model('');
-  readonly draftDateEnabled = model(false);
   readonly draftDatePeriod = model<MaintenanceDatePeriod>('semiannual');
   readonly draftIntelligentEnabled = model(false);
+  readonly draftMaintenanceProvisionPercent = model('5');
   readonly draftDieselControlEnabled = model(true);
-  readonly draftControlAutomaticRecognition = model(false);
+  readonly draftTripAssistPrefillEnabled = model(false);
 
   readonly pendingDisableKind = signal<DisableConfirmKind | null>(null);
+  private pendingMaintenanceMode = signal<CompanyMaintenancePolicyMode | null>(null);
   private readonly disableConfirmDialog = viewChild<ElementRef<HTMLDialogElement>>(
     'disableConfirmDialog',
   );
@@ -70,18 +90,26 @@ export class ProfileDrawerConfigTabComponent {
     this.loadDraftFromSession();
   }
 
-  kmStatusLabel(): string {
-    return this.controlStatusLabel(
-      this.session.maintenanceKmControlEnabled(),
-      this.session.maintenanceKmControlChangedAt(),
-    );
-  }
-
-  dateStatusLabel(): string {
-    return this.controlStatusLabel(
-      this.session.maintenanceDateControlEnabled(),
-      this.session.maintenanceDateControlChangedAt(),
-    );
+  maintenanceStatusLabel(): string {
+    const mode = companyMaintenancePolicyModeFromSession({
+      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+      maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
+      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+      maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
+    });
+    if (mode === 'km') {
+      return this.controlStatusLabel(
+        true,
+        this.session.maintenanceKmControlChangedAt(),
+      );
+    }
+    if (mode === 'date') {
+      return this.controlStatusLabel(
+        true,
+        this.session.maintenanceDateControlChangedAt(),
+      );
+    }
+    return 'Control manual por unidad';
   }
 
   intelligentStatusLabel(): string {
@@ -98,31 +126,27 @@ export class ProfileDrawerConfigTabComponent {
     );
   }
 
-  suggestionsControlStatusLabel(): string {
+  prefillStatusLabel(): string {
     return this.controlStatusLabel(
-      this.session.controlAutomaticRecognition(),
-      this.session.controlAutomaticRecognitionChangedAt(),
+      this.session.tripAssistPrefillEnabled(),
+      this.session.tripAssistPrefillChangedAt(),
     );
   }
 
-  toggleDraftKm(): void {
-    const next = !this.draftKmEnabled();
-    if (!next && this.draftKmEnabled()) {
-      this.pendingDisableKind.set('km');
+  onMaintenancePolicySelect(mode: CompanyMaintenancePolicyMode): void {
+    if (mode === this.draftMaintenanceMode()) {
+      return;
+    }
+    if (
+      mode === 'none' &&
+      (this.draftMaintenanceMode() === 'km' || this.draftMaintenanceMode() === 'date')
+    ) {
+      this.pendingMaintenanceMode.set('none');
+      this.pendingDisableKind.set('maintenance');
       queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
       return;
     }
-    this.draftKmEnabled.set(next);
-  }
-
-  toggleDraftDate(): void {
-    const next = !this.draftDateEnabled();
-    if (!next && this.draftDateEnabled()) {
-      this.pendingDisableKind.set('date');
-      queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
-      return;
-    }
-    this.draftDateEnabled.set(next);
+    this.draftMaintenanceMode.set(mode);
   }
 
   toggleDraftIntelligent(): void {
@@ -145,34 +169,35 @@ export class ProfileDrawerConfigTabComponent {
     this.draftDieselControlEnabled.set(next);
   }
 
-  toggleDraftControlAutomaticRecognition(): void {
-    const next = !this.draftControlAutomaticRecognition();
-    if (!next && this.draftControlAutomaticRecognition()) {
-      this.pendingDisableKind.set('recognition');
+  toggleDraftTripAssistPrefill(): void {
+    const next = !this.draftTripAssistPrefillEnabled();
+    if (!next && this.draftTripAssistPrefillEnabled()) {
+      this.pendingDisableKind.set('prefill');
       queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
       return;
     }
-    this.draftControlAutomaticRecognition.set(next);
+    this.draftTripAssistPrefillEnabled.set(next);
   }
 
   closeDisableConfirm(): void {
     this.pendingDisableKind.set(null);
+    this.pendingMaintenanceMode.set(null);
     this.disableConfirmDialog()?.nativeElement.close();
   }
 
   confirmDisableControl(): void {
     const kind = this.pendingDisableKind();
-    if (kind === 'km') {
-      this.draftKmEnabled.set(false);
-      this.draftKmInterval.set('');
-    } else if (kind === 'date') {
-      this.draftDateEnabled.set(false);
+    if (kind === 'maintenance') {
+      const mode = this.pendingMaintenanceMode();
+      if (mode) {
+        this.draftMaintenanceMode.set(mode);
+      }
     } else if (kind === 'intelligent') {
       this.draftIntelligentEnabled.set(false);
     } else if (kind === 'diesel') {
       this.draftDieselControlEnabled.set(false);
-    } else if (kind === 'recognition') {
-      this.draftControlAutomaticRecognition.set(false);
+    } else if (kind === 'prefill') {
+      this.draftTripAssistPrefillEnabled.set(false);
     }
     this.closeDisableConfirm();
   }
@@ -191,45 +216,47 @@ export class ProfileDrawerConfigTabComponent {
     }
 
     const patch = this.buildConfigPatch();
-    const userPatch = this.buildUserPreferencePatch();
-    if (!patch && !userPatch) {
+    if (!patch) {
       this.toast.show('No hay cambios en la configuración.', 'warning');
       return;
     }
 
-    const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
-    const kmN = kmRaw === '' ? undefined : Number(kmRaw);
-    if (
-      this.draftKmEnabled() &&
-      (kmN === undefined || !Number.isFinite(kmN) || kmN <= 0)
-    ) {
-      this.toast.show(
-        'Activa el control por km e indica los kilómetros estándar entre servicios.',
-        'warning',
-      );
-      return;
+    if (this.draftMaintenanceMode() === 'km') {
+      const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
+      const kmN = kmRaw === '' ? undefined : Number(kmRaw);
+      if (kmN === undefined || !Number.isFinite(kmN) || kmN <= 0) {
+        this.toast.show(
+          'Indica los kilómetros estándar entre servicios para el control por km.',
+          'warning',
+        );
+        return;
+      }
+    }
+
+    if (this.draftIntelligentEnabled()) {
+      const percentRaw = this.draftMaintenanceProvisionPercent().trim().replace(/,/g, '');
+      const percentN = percentRaw === '' ? undefined : Number(percentRaw);
+      if (
+        percentN === undefined ||
+        !Number.isFinite(percentN) ||
+        percentN < 0 ||
+        percentN > 100
+      ) {
+        this.toast.show(
+          'Indica un porcentaje de provisión de mantenimiento entre 0 y 100.',
+          'warning',
+        );
+        return;
+      }
     }
 
     this.saving.set(true);
-    const company$ = patch
-      ? this.companies.updateOperationalSettings(companyId, patch)
-      : of(null);
-    const user$ = userPatch ? this.usersApi.patchMe(userPatch) : of(null);
-
-    forkJoin({ company: company$, user: user$ })
+    this.companies
+      .updateOperationalSettings(companyId, patch)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ company, user }) => {
-          if (company) {
-            syncCompanySettingsFromProfile(this.session, company);
-          }
-          if (user) {
-            this.session.syncUserPreferenceSettings({
-              controlAutomaticRecognition: user.controlAutomaticRecognition ?? false,
-              controlAutomaticRecognitionChangedAt:
-                user.controlAutomaticRecognitionChangedAt,
-            });
-          }
+        next: (company) => {
+          syncCompanySettingsFromProfile(this.session, company);
           this.loadDraftFromSession();
           this.saving.set(false);
           this.toast.show('Configuración guardada.', 'success');
@@ -242,32 +269,47 @@ export class ProfileDrawerConfigTabComponent {
       });
   }
 
-  private buildUserPreferencePatch(): { controlAutomaticRecognition: boolean } | null {
-    if (
-      this.draftControlAutomaticRecognition() !==
-      this.session.controlAutomaticRecognition()
-    ) {
-      return {
-        controlAutomaticRecognition: this.draftControlAutomaticRecognition(),
-      };
-    }
-    return null;
-  }
-
   private buildConfigPatch(): PatchCompanyOperationalSettings | null {
     const patch: PatchCompanyOperationalSettings = {};
 
+    if (this.draftTripAssistPrefillEnabled() !== this.session.tripAssistPrefillEnabled()) {
+      patch.tripAssistPrefillEnabled = this.draftTripAssistPrefillEnabled();
+    }
     if (this.draftIntelligentEnabled() !== this.session.operationalAnalysisEnabled()) {
       patch.operationalAnalysisEnabled = this.draftIntelligentEnabled();
     }
     if (this.draftDieselControlEnabled() !== this.session.dieselControlEnabled()) {
       patch.dieselControlEnabled = this.draftDieselControlEnabled();
     }
-    if (this.draftKmEnabled() !== this.session.maintenanceKmControlEnabled()) {
-      patch.maintenanceKmControlEnabled = this.draftKmEnabled();
+
+    const savedPercent = this.session.tripAutoMaintenanceProvisionPercent();
+    const percentRaw = this.draftMaintenanceProvisionPercent().trim().replace(/,/g, '');
+    const percentN = percentRaw === '' ? undefined : Number(percentRaw);
+    const draftPercentRounded =
+      percentN != null && Number.isFinite(percentN) ? Math.round(percentN * 100) / 100 : undefined;
+    if (
+      draftPercentRounded != null &&
+      draftPercentRounded !== savedPercent
+    ) {
+      patch.tripAutoMaintenanceProvisionPercent = draftPercentRounded;
     }
-    if (this.draftDateEnabled() !== this.session.maintenanceDateControlEnabled()) {
-      patch.maintenanceDateControlEnabled = this.draftDateEnabled();
+
+    const mode = this.draftMaintenanceMode();
+    const savedMode = companyMaintenancePolicyModeFromSession({
+      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+      maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
+      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+      maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
+    });
+
+    const kmEnabled = mode === 'km';
+    const dateEnabled = mode === 'date';
+
+    if (kmEnabled !== this.session.maintenanceKmControlEnabled()) {
+      patch.maintenanceKmControlEnabled = kmEnabled;
+    }
+    if (dateEnabled !== this.session.maintenanceDateControlEnabled()) {
+      patch.maintenanceDateControlEnabled = dateEnabled;
     }
 
     const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
@@ -280,35 +322,51 @@ export class ProfileDrawerConfigTabComponent {
     const draftKmRounded =
       kmN != null && Number.isFinite(kmN) && kmN > 0 ? Math.round(kmN) : undefined;
 
-    if (this.draftKmEnabled()) {
-      if (draftKmRounded !== savedKmRounded) {
+    if (kmEnabled) {
+      if (draftKmRounded !== savedKmRounded || savedMode !== 'km') {
         patch.maintenanceKmIntervalDefault = draftKmRounded;
       }
-    } else if (patch.maintenanceKmControlEnabled === false) {
+    } else if (patch.maintenanceKmControlEnabled === false || savedMode === 'km') {
       patch.maintenanceKmIntervalDefault = undefined;
     }
 
     const savedPeriod = this.session.maintenanceDatePeriodDefault() ?? 'semiannual';
-    if (this.draftDateEnabled() && this.draftDatePeriod() !== savedPeriod) {
+    if (dateEnabled && this.draftDatePeriod() !== savedPeriod) {
       patch.maintenanceDatePeriodDefault = this.draftDatePeriod();
+    }
+
+    if (
+      !dateEnabled &&
+      (patch.maintenanceDateControlEnabled === false || savedMode === 'date')
+    ) {
+      patch.maintenanceDatePeriodDefault = undefined;
     }
 
     return Object.keys(patch).length > 0 ? patch : null;
   }
 
   private loadDraftFromSession(): void {
-    this.draftKmEnabled.set(this.session.maintenanceKmControlEnabled());
+    const mode = companyMaintenancePolicyModeFromSession({
+      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+      maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
+      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+      maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
+    });
+    this.draftMaintenanceMode.set(mode);
     const km = this.session.maintenanceKmIntervalDefault();
     this.draftKmInterval.set(
       km != null && Number.isFinite(km) && km > 0 ? String(Math.round(km)) : '',
     );
-    this.draftDateEnabled.set(this.session.maintenanceDateControlEnabled());
     this.draftDatePeriod.set(
       this.session.maintenanceDatePeriodDefault() ?? 'semiannual',
     );
     this.draftIntelligentEnabled.set(this.session.operationalAnalysisEnabled());
     this.draftDieselControlEnabled.set(this.session.dieselControlEnabled());
-    this.draftControlAutomaticRecognition.set(this.session.controlAutomaticRecognition());
+    this.draftTripAssistPrefillEnabled.set(this.session.tripAssistPrefillEnabled());
+    const percent = this.session.tripAutoMaintenanceProvisionPercent();
+    this.draftMaintenanceProvisionPercent.set(
+      Number.isFinite(percent) ? String(percent) : '5',
+    );
   }
 
   private controlStatusLabel(enabled: boolean, changedAt: string | null | undefined): string {

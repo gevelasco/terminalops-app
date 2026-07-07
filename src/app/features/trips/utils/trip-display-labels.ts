@@ -1,6 +1,7 @@
-import type { Operator, Trip, Unit } from '@shared/models/logistics.models';
+import type { Equipment, Operator, Trip, Unit } from '@shared/models/logistics.models';
+import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { labelForUnitId } from '@shared/utils/fleet/unit-label';
-import { resourceIdKey } from '@shared/utils/resource-id';
+import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
 /** Primera localidad antes de coma en «Ciudad, Estado». */
 export function primaryLocalityFromCityMunicipality(
@@ -69,6 +70,26 @@ export function tripUnitDisplayCode(
     }
   }
   return id ? 'Sin unidad' : 'Sin unidad';
+}
+
+/** Código operativo del equipo en la posición del convoy (0 = principal), p. ej. `MARCA-AÑO-PLACA`. */
+export function tripEquipmentDisplayAt(
+  trip: Pick<Trip, 'equipment' | 'equipmentIds'>,
+  index: number,
+  equipmentCatalog?: readonly Equipment[],
+): string {
+  const id = resourceIdKey(trip.equipmentIds?.[index]);
+  if (id && equipmentCatalog?.length) {
+    const eq = equipmentCatalog.find((e) => resourceIdsEqual(e.id, id));
+    if (eq) {
+      return formatEquipmentOperationalId(eq);
+    }
+  }
+  const label = trip.equipment?.[index]?.trim();
+  if (label) {
+    return label;
+  }
+  return id || '—';
 }
 
 export function buildOperatorNameLookup(

@@ -1,30 +1,136 @@
-/** Antigüedad legible (es-MX) desde fecha de ingreso ISO `YYYY-MM-DD`. */
-export function companyTenureLabelEs(hireIso: string): string {
+type TenureParts = { years: number; months: number; days: number };
+
+function parseHireDate(hireIso: string): Date | null {
   const t = hireIso.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-    return '—';
+    return null;
   }
-  const hire = new Date(t + 'T12:00:00');
-  if (Number.isNaN(hire.getTime())) {
-    return '—';
-  }
+  const hire = new Date(`${t}T12:00:00`);
+  return Number.isNaN(hire.getTime()) ? null : hire;
+}
+
+function todayAtNoon(): Date {
   const now = new Date();
-  let months =
-    (now.getFullYear() - hire.getFullYear()) * 12 +
-    (now.getMonth() - hire.getMonth());
-  if (now.getDate() < hire.getDate()) {
-    months -= 1;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+}
+
+function tenureParts(hire: Date, today: Date): TenureParts | null {
+  let totalMonths =
+    (today.getFullYear() - hire.getFullYear()) * 12 +
+    (today.getMonth() - hire.getMonth());
+  if (today.getDate() < hire.getDate()) {
+    totalMonths -= 1;
   }
-  if (months < 0) {
+  if (totalMonths < 0) {
+    return null;
+  }
+
+  const anchor = new Date(
+    hire.getFullYear(),
+    hire.getMonth(),
+    hire.getDate(),
+    12,
+    0,
+    0,
+  );
+  anchor.setMonth(anchor.getMonth() + totalMonths);
+
+  const days = Math.max(
+    0,
+    Math.floor((today.getTime() - anchor.getTime()) / 86_400_000),
+  );
+
+  return {
+    years: Math.floor(totalMonths / 12),
+    months: totalMonths % 12,
+    days,
+  };
+}
+
+function spanishUnit(n: number, singular: string, plural: string): string {
+  return `${n.toLocaleString('es-MX')} ${n === 1 ? singular : plural}`;
+}
+
+function joinEsParts(parts: string[]): string {
+  if (parts.length === 0) {
     return '—';
   }
-  const years = Math.floor(months / 12);
-  const mo = months % 12;
-  if (years === 0) {
-    return `${mo} mes${mo === 1 ? '' : 'es'}`;
+  if (parts.length === 1) {
+    return parts[0];
   }
-  if (mo === 0) {
-    return `${years} año${years === 1 ? '' : 's'}`;
+  if (parts.length === 2) {
+    return `${parts[0]} y ${parts[1]}`;
   }
-  return `${years} año${years === 1 ? '' : 's'} y ${mo} mes${mo === 1 ? '' : 'es'}`;
+  return `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`;
+}
+
+/** Días completos desde la fecha de ingreso (ISO `YYYY-MM-DD`). */
+export function companyTenureDays(hireIso: string): number | null {
+  const hire = parseHireDate(hireIso);
+  if (!hire) {
+    return null;
+  }
+  const today = todayAtNoon();
+  const hireDay = new Date(
+    hire.getFullYear(),
+    hire.getMonth(),
+    hire.getDate(),
+    12,
+    0,
+    0,
+  );
+  const diffMs = today.getTime() - hireDay.getTime();
+  const days = Math.floor(diffMs / 86_400_000);
+  return days >= 0 ? days : null;
+}
+
+/** Antigüedad legible (es-MX) desde fecha de ingreso ISO `YYYY-MM-DD`. */
+export function companyTenureLabelEs(hireIso: string): string {
+  const hire = parseHireDate(hireIso);
+  if (!hire) {
+    return '—';
+  }
+  const parts = tenureParts(hire, todayAtNoon());
+  if (!parts) {
+    return '—';
+  }
+  const labels: string[] = [];
+  if (parts.years > 0) {
+    labels.push(spanishUnit(parts.years, 'año', 'años'));
+  }
+  if (parts.months > 0) {
+    labels.push(spanishUnit(parts.months, 'mes', 'meses'));
+  }
+  if (labels.length === 0) {
+    return spanishUnit(0, 'mes', 'meses');
+  }
+  return joinEsParts(labels);
+}
+
+/** Antigüedad con meses y días residuales (es-MX), p. ej. «2 meses y 17 días». */
+export function companyTenureMonthsDaysLabelEs(hireIso: string): string {
+  const hire = parseHireDate(hireIso);
+  if (!hire) {
+    return '—';
+  }
+  const parts = tenureParts(hire, todayAtNoon());
+  if (!parts) {
+    return '—';
+  }
+
+  const labels: string[] = [];
+  if (parts.years > 0) {
+    labels.push(spanishUnit(parts.years, 'año', 'años'));
+  }
+  if (parts.months > 0) {
+    labels.push(spanishUnit(parts.months, 'mes', 'meses'));
+  }
+  if (parts.days > 0) {
+    labels.push(spanishUnit(parts.days, 'día', 'días'));
+  }
+
+  if (labels.length === 0) {
+    return spanishUnit(0, 'día', 'días');
+  }
+  return joinEsParts(labels);
 }

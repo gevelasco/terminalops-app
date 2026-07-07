@@ -31,6 +31,21 @@
   background: color-mix(in srgb, var(--to-color-text-muted) 10%, var(--to-color-surface));
 }
 
+.to-table-pill--operator-incapacitated {
+  color: #9d174d;
+  background: color-mix(in srgb, #f472b6 14%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--operator-leave {
+  color: #0e7490;
+  background: color-mix(in srgb, #06b6d4 14%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--operator-inactive {
+  color: #52525b;
+  background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface, #fff));
+}
+
 :host-context([data-app-scheme='dark']) {
   .to-table-pill--fleet-maneuver {
     color: #93c5fd;
@@ -55,5 +70,20 @@
   .to-table-pill--fleet-scheduled {
     color: #fde047;
     background: color-mix(in srgb, #eab308 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--operator-incapacitated {
+    color: #f9a8d4;
+    background: color-mix(in srgb, #f472b6 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--operator-leave {
+    color: #67e8f9;
+    background: color-mix(in srgb, #06b6d4 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--operator-inactive {
+    color: #d4d4d8;
+    background: color-mix(in srgb, #a1a1aa 18%, var(--to-color-surface));
   }
 }

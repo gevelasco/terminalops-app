@@ -1,0 +1,53 @@
+import type { Signal, WritableSignal } from '@angular/core';
+import type { MaintenanceEntry } from '@shared/models/logistics.models';
+import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
+import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-row';
+
+/** Contrato mínimo compartido por facades de unidad y equipo en la pestaña Mantenimiento. */
+export interface FleetDetailMaintSectionVm {
+  formatYmd(iso: string | undefined): string;
+  meta(): { lastMaintenanceDate?: string; tireCondition?: string } | undefined;
+  editingMaintNextDate(): boolean;
+  badgeRenewalClass(bucket: FleetRenewalBucket): string;
+  maintRenewalBucket(): FleetRenewalBucket;
+  maintNext(): string;
+  maintenanceUsesKm(): boolean;
+  maintenanceUsesDate(): boolean;
+  usesGlobalMaintenancePolicy(): boolean;
+  canEditMaintNextDate(): boolean;
+  canWriteFleet(): boolean;
+  startEditMaintNextDate(): void;
+  saveEditMaintNextDate(): void;
+  cancelEditMaintNextDate(): void;
+  maintKmRenewalBucket(): FleetRenewalBucket;
+  maintenanceKmRemainingDisplay(): string;
+  readonly editMaintNextDate: WritableSignal<string>;
+  readonly today: string;
+  accumulatedOdometerKmLabel(): string;
+  maintenanceKmCounterLabel(): string;
+  addingMaint(): boolean;
+  openNewMaint(): void;
+  readonly detailTabSymbols: { viewBox: string; mant: string };
+  readonly newMaintTypeOptions: ToSelectOption[];
+  readonly newMaintNextModeOptions: ToSelectOption[];
+  readonly newMaintType: WritableSignal<string>;
+  readonly newMaintDate: WritableSignal<string>;
+  readonly newMaintCost: WritableSignal<string>;
+  readonly newMaintPaymentMethod: WritableSignal<string>;
+  readonly newMaintPaymentMethodOptions: ToSelectOption[];
+  readonly newMaintNotes: WritableSignal<string>;
+  readonly newMaintNextMode: WritableSignal<string>;
+  readonly newMaintNextDate: WritableSignal<string>;
+  readonly newMaintNextKmInterval: WritableSignal<string>;
+  readonly newMaintFiles: Signal<readonly File[]>;
+  newMaintMaxDate(): string | undefined;
+  onNewMaintFiles(event: Event): void;
+  removeNewMaintFile(index: number): void;
+  cancelNewMaint(): void;
+  saveNewMaint(): void;
+  maintenanceEntries(): MaintenanceEntry[];
+  trackFileEntry(index: number, file: File): string;
+  trackMaintenanceEntry(index: number, entry: MaintenanceEntry): string;
+  formatTrackingAmount(n: number | undefined): string;
+  formatMaintDateShort(iso: string | undefined): string;
+}

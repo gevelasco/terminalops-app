@@ -31,3 +31,13 @@
   gap: 1rem;
   min-width: 0;
 }
+
+.operators-overview__empty {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}

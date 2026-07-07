@@ -26,6 +26,8 @@ import {
   initialsFromDisplayName,
   UserProfileStore,
 } from '@core/services/state/user-profile';
+import { APP_NAV_ITEMS } from '@shared/models/app-modules.models';
+import { roleDisplayLabel, visibleNavItems } from '@shared/utils/access-control';
 import { UserPreferencesStore } from '@core/services/state/user-preferences';
 
 @Component({
@@ -78,17 +80,7 @@ export class ShellComponent implements OnDestroy {
     if (p?.jobTitle?.trim()) {
       return p.jobTitle.trim();
     }
-    const role = this.session.role();
-    if (role === 'admin') {
-      return 'Administrador';
-    }
-    if (role === 'coordinator') {
-      return 'Coordinador';
-    }
-    if (role === 'viewer') {
-      return 'Consulta';
-    }
-    return 'Operador';
+    return roleDisplayLabel(this.session.role());
   });
 
   readonly email = computed(() => {
@@ -119,15 +111,13 @@ export class ShellComponent implements OnDestroy {
     return '??';
   });
 
-  readonly nav = [
-    { path: '/dashboard', label: 'Dashboard' },
-    { path: '/trips', label: 'Maniobras' },
-    { path: '/fleet', label: 'Flota' },
-    { path: '/operators', label: 'Operadores' },
-    { path: '/clients', label: 'Clientes' },
-    { path: '/expenses', label: 'Gastos' },
-    { path: '/reports', label: 'Reportes' },
-  ] as const;
+  readonly mainNav = computed(() =>
+    visibleNavItems(this.session.allowedModules(), 'main', APP_NAV_ITEMS),
+  );
+
+  readonly bottomNav = computed(() =>
+    visibleNavItems(this.session.allowedModules(), 'bottom', APP_NAV_ITEMS),
+  );
 
   /** Sin prefetch global de maniobras: el badge queda en 0 hasta integrar caché del módulo. */
   readonly notificationCount = computed(() => 0);

@@ -2,12 +2,9 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { fleetRenewalIconClass } from '@features/fleet/utils/fleet-overview-card';
 import {
   overviewAssetAt,
-  overviewPrimaryAsset,
-  overviewSecondaryAsset,
   overviewTrailerVisualAt,
   overviewTripArrivalLine,
   overviewTripDepartureLine,
-  renewalBucketFromOverview,
   SCHEMA_TRACTO,
   type FleetOverviewCardEntry,
 } from '@features/fleet/utils/fleet-overview-view';
@@ -25,11 +22,10 @@ import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'fleet-overview-card-host',
-    '[class.fleet-overview-card-host--readonly]': 'readonly()',
     '[class.fleet-overview-card-host--selectable]': 'tripSelectable()',
     '[attr.role]': 'tripSelectable() ? "button" : null',
     '[attr.tabindex]': 'tripSelectable() ? 0 : null',
-    '(click)': 'onCardActivate($event)',
+    '(click)': 'onCardActivate()',
     '(keydown)': 'onCardKeydown($event)',
   },
   templateUrl: './fleet-overview-card.component.html',
@@ -37,19 +33,26 @@ import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-
 })
 export class FleetOverviewCardComponent {
   readonly entry = input.required<FleetOverviewCardEntry>();
-  readonly readonly = input(false);
   readonly tripSelectable = input(false);
+  /** Resumen unidad/equipo en panel lateral del mapa de maniobras. */
+  readonly showAssignmentSummary = input(false);
+  /** Clic en tracto/equipo del convoy (página Flota). */
+  readonly convoyInteractive = input(false);
+  /** Panel de mantenimiento cuando la unidad está estacionada. */
+  readonly showMaintenanceAside = input(false);
+  /** Pie de tarjeta para unidades disponibles / placeholder. */
+  readonly showIdleFooter = input(false);
+  /** `role="listitem"` dentro del grid de overview. */
+  readonly overviewListItem = input(false);
 
   readonly tripSelect = output<string>();
+  readonly unitActivate = output<FleetOverviewCardEntry>();
+  readonly equipmentActivate = output<number>();
 
   readonly schemaTractoAsset = SCHEMA_TRACTO;
 
-  onCardActivate(event: Event): void {
+  onCardActivate(): void {
     if (!this.tripSelectable()) {
-      return;
-    }
-    const target = event.target;
-    if (target instanceof Element && target.closest('.fleet-overview__hit')) {
       return;
     }
     this.emitTripSelect();
@@ -64,6 +67,64 @@ export class FleetOverviewCardComponent {
     }
     event.preventDefault();
     this.emitTripSelect();
+  }
+
+  onUnitHit(event: Event): void {
+    event.stopPropagation();
+    if (!this.convoyInteractive()) {
+      return;
+    }
+    this.unitActivate.emit(this.entry());
+  }
+
+  onEquipmentHit(event: Event, equipmentId: number): void {
+    event.stopPropagation();
+    if (!this.convoyInteractive()) {
+      return;
+    }
+    this.equipmentActivate.emit(equipmentId);
+  }
+
+  convoyAriaLabel(): string {
+    const entry = this.entry();
+    if (entry.kind === 'standalone-equipment') {
+      return 'Equipo disponible sin tractora';
+    }
+    if (this.isFull(entry)) {
+      return 'Convoy: unidad y dos equipos';
+    }
+    if (entry.hitched.length === 0) {
+      return 'Unidad sin equipos enganchados';
+    }
+    return 'Convoy: unidad y equipo';
+  }
+
+  scheduleAriaLabel(): string {
+    const entry = this.entry();
+    if (entry.panelMode === 'maneuver') {
+      return 'Fechas de la maniobra';
+    }
+    return 'Mantenimiento y cumplimiento del activo';
+  }
+
+  renewalIconClass(bucket: FleetRenewalBucket): string {
+    return fleetRenewalIconClass(bucket);
+  }
+
+  insBucket(): FleetRenewalBucket {
+    return this.entry().compliance?.insBucket ?? 'na';
+  }
+
+  verifBucket(): FleetRenewalBucket {
+    return this.entry().compliance?.verifBucket ?? 'na';
+  }
+
+  insLabel(): string {
+    return this.entry().compliance?.insLabel ?? '—';
+  }
+
+  verifLabel(): string {
+    return this.entry().compliance?.verifLabel ?? '—';
   }
 
   private emitTripSelect(): void {
@@ -110,34 +171,20 @@ export class FleetOverviewCardComponent {
     return overviewAssetAt(entry, index);
   }
 
-  primaryAsset(entry: FleetOverviewCardEntry): string {
-    return overviewPrimaryAsset(entry);
-  }
-
-  secondaryAsset(entry: FleetOverviewCardEntry): string {
-    return overviewSecondaryAsset(entry);
-  }
-
-  renewalIconClass(bucket: FleetRenewalBucket): string {
-    return fleetRenewalIconClass(bucket);
-  }
-
-  maintBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.maintenanceRenewal);
-  }
-
-  insBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.insuranceRenewal);
-  }
-
-  verifBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.inspectionRenewal);
-  }
-
   readonly tripDeparture = overviewTripDepartureLine;
   readonly tripArrival = overviewTripArrivalLine;
   readonly tripCompletion = overviewTripCompletionLine;
   readonly tripEtaDays = overviewTripEtaDaysLabel;
   readonly tripEtaKm = overviewTripEtaKmLabel;
   readonly tripProgress = overviewTripProgress;
+
+  maneuverEquipmentCodes(entry: FleetOverviewCardEntry): string {
+    const codes = entry.hitched
+      .map((h) => h.operationalCode.trim())
+      .filter((code) => code.length > 0);
+    if (codes.length === 0) {
+      return '—';
+    }
+    return codes.join(', ');
+  }
 }

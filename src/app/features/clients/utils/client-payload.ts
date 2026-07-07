@@ -1,4 +1,11 @@
-import type { Client, ClientCommercialHealth, ClientContactPerson, ClientDelivery } from '@shared/models/client.models';
+import type {
+  Client,
+  ClientCommercialHealth,
+  ClientContactPerson,
+  ClientDelivery,
+  ClientPaymentTerms,
+  CreateClientPayload,
+} from '@shared/models/client.models';
 
 export function parseOptionalInt(raw: string): number | undefined {
   const t = raw.trim();
@@ -50,11 +57,14 @@ export function buildClientDeliveryPayload(params: {
   settlementConsId: string;
   latitude: number | null;
   longitude: number | null;
+  destinationRateId?: string | null;
+  isUnpricedRoute?: boolean;
 }): ClientDelivery | undefined {
   const cp = params.postalCode.trim();
   if (!cp) {
     return undefined;
   }
+  const rateId = params.destinationRateId?.trim();
   return {
     postalCode: cp,
     cityMunicipality: params.cityMunicipality.trim() || undefined,
@@ -62,6 +72,8 @@ export function buildClientDeliveryPayload(params: {
     settlementConsId: params.settlementConsId.trim() || undefined,
     latitude: params.latitude ?? undefined,
     longitude: params.longitude ?? undefined,
+    ...(rateId ? { destinationRateId: rateId, isUnpricedRoute: false } : {}),
+    ...(!rateId && params.isUnpricedRoute ? { isUnpricedRoute: true } : {}),
   };
 }
 
@@ -93,4 +105,15 @@ export function formatClientDeliveryCoord(n: number | undefined): string {
     return '—';
   }
   return n.toFixed(6);
+}
+
+/** Cuerpo POST/PATCH: lectura como `paymentTerms`; escritura como `payment`. */
+export function buildClientApiWriteBody(
+  input: Client | CreateClientPayload,
+): Record<string, unknown> {
+  const { payment, maneuverCount: _maneuverCount, ...rest } = input as Client;
+  return {
+    ...rest,
+    ...(payment ? { payment: payment as ClientPaymentTerms } : {}),
+  };
 }

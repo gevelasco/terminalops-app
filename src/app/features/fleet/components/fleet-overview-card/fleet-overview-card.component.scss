@@ -3,11 +3,11 @@
 @use '../../../../shared/styles/fleet-operational-pill.scss';
 @use './fleet-overview-card.styles';
 
-:host(.fleet-overview-card-host--readonly) {
-  .fleet-overview__hit {
-    pointer-events: none;
-    cursor: default;
-  }
+:host(.fleet-overview-card-host) {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  min-width: 0;
 }
 
 :host(.fleet-overview-card-host--selectable) {
@@ -32,18 +32,6 @@
   .fleet-overview__convoy-part {
     filter: brightness(0) invert(1);
     opacity: 0.72;
-  }
-
-  .fleet-overview__incident-hit {
-    color: color-mix(in srgb, var(--to-color-text-muted) 55%, transparent);
-
-    &--active {
-      color: #fb923c;
-    }
-  }
-
-  .fleet-overview__incident-tip-title {
-    color: #fb923c;
   }
 
   .fleet-overview__progress-value {

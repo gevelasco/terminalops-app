@@ -1,0 +1,125 @@
+@if (hasCards()) {
+  <p class="operators-overview__hint">
+    Vista rápida del personal certificado. Haz clic en una tarjeta para abrir
+    el expediente del operador.
+  </p>
+  <div class="operators-overview" role="list" aria-label="Operadores">
+    @for (card of cards(); track card.id) {
+      <article
+        class="operators-overview__card"
+        role="listitem"
+        tabindex="0"
+        [attr.aria-label]="'Ver operador ' + card.name"
+        (click)="onCardClick(card.id)"
+        (keydown)="onCardKeydown($event, card.id)"
+      >
+        <header class="operators-overview__head">
+          <div class="operators-overview__identity">
+            @if (card.photoUrl) {
+              <img
+                class="operators-overview__avatar"
+                [src]="card.photoUrl"
+                [alt]="'Foto de ' + card.name"
+                width="52"
+                height="52"
+                loading="lazy"
+                decoding="async"
+              />
+            } @else {
+              <span
+                class="operators-overview__avatar operators-overview__avatar--initials"
+                aria-hidden="true"
+                >{{ card.photoInitials }}</span
+              >
+            }
+            <div class="operators-overview__title-block">
+              <h3 class="operators-overview__name">{{ card.name }}</h3>
+              <p class="operators-overview__tenure">{{ card.companyTenureLabel }}</p>
+            </div>
+          </div>
+          <span [class]="'operators-overview__status-pill ' + card.statusPillClass">
+            <span class="to-table-pill__dot" aria-hidden="true"></span>
+            <span class="to-table-pill__label">{{ card.statusLabel }}</span>
+          </span>
+        </header>
+
+        <section class="operators-overview__body" aria-label="Resumen del operador">
+          <div class="operators-overview__stats">
+            <div class="operators-overview__stat">
+              <span class="operators-overview__stat-label">No. de licencia</span>
+              <span class="operators-overview__stat-value operators-overview__stat-value--mono">{{
+                card.licenseNumber
+              }}</span>
+            </div>
+            <div class="operators-overview__stat">
+              <span class="operators-overview__stat-label">Vencimiento</span>
+              <span class="operators-overview__stat-value">{{
+                card.licenseExpiresLabel
+              }}</span>
+            </div>
+          </div>
+
+          <div class="operators-overview__maneuver-panel">
+            <div class="operators-overview__maneuver-head">
+              <span class="operators-overview__maneuver-label">Última maniobra</span>
+              @if (card.lastManeuverCode !== "—") {
+                <span class="operators-overview__maneuver-code">{{
+                  card.lastManeuverCode
+                }}</span>
+              }
+            </div>
+            @if (card.lastManeuverCode !== "—") {
+              <p class="operators-overview__maneuver-route">
+                {{ card.lastManeuverRoute }}
+              </p>
+              <p class="operators-overview__maneuver-date">
+                {{ card.lastManeuverDateLabel }}
+              </p>
+            } @else {
+              <p class="operators-overview__maneuver-empty">
+                Sin maniobras registradas
+              </p>
+            }
+          </div>
+        </section>
+
+        <footer class="operators-overview__footer">
+          <div class="operators-overview__footer-line">
+            <div class="operators-overview__footer-group">
+              <span class="operators-overview__footer-label">Próximo pago</span>
+              @if (card.nextPayDueLabel) {
+                <to-badge [variant]="card.nextPayDueVariant ?? 'neutral'">{{
+                  card.nextPayDueLabel
+                }}</to-badge>
+              } @else {
+                <span class="operators-overview__footer-empty">—</span>
+              }
+            </div>
+            <div class="operators-overview__footer-group">
+              <span class="operators-overview__footer-label">A pagar:</span>
+              <span class="operators-overview__footer-value">{{
+                card.owedAmountLabel ?? '—'
+              }}</span>
+            </div>
+          </div>
+          <div class="operators-overview__footer-line">
+            <div class="operators-overview__footer-group">
+              <span class="operators-overview__footer-label">Maniobras</span>
+              <span class="operators-overview__footer-value">{{
+                card.maneuverCountLabel
+              }}</span>
+            </div>
+            <div class="operators-overview__footer-group">
+              <span class="operators-overview__footer-label">Días sin maniobra</span>
+              <span class="operators-overview__footer-value">{{
+                card.daysWithoutManeuverLabel
+              }}</span>
+            </div>
+          </div>
+        </footer>
+      </article>
+    }
+  </div>
+} @else {
+  <p class="operators-overview__empty">Ningún operador coincide con la búsqueda.</p>
+}

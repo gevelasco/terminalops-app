@@ -6,7 +6,7 @@
           <h3 id="operators-dv-ident" class="fleet-unit-sec__title">
             Identificación
           </h3>
-          @if (vm.editingSection() !== "ident") {
+          @if (vm.showOperatorEdit("ident")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -153,7 +153,7 @@
           <h3 id="operators-dv-ec" class="fleet-unit-sec__title">
             Persona de contacto
           </h3>
-          @if (vm.editingSection() !== "contact") {
+          @if (vm.showOperatorEdit("contact")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -253,7 +253,7 @@
           <h3 id="operators-dv-cov-data" class="fleet-unit-sec__title">
             Datos de cobertura y prestaciones
           </h3>
-          @if (vm.editingSection() !== "coverage") {
+          @if (vm.showOperatorEdit("coverage")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"

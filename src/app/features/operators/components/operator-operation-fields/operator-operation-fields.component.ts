@@ -1,6 +1,5 @@
 import { Component, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { OperatorOperationalStatus } from '@shared/models/logistics.models';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import {
   ToSelectComponent,
@@ -16,13 +15,15 @@ import {
 })
 export class OperatorOperationFieldsComponent {
   readonly layout = input<'new' | 'edit'>('new');
-  /** Oculto en detalle (el estado ya va en la cabecera del drawer). */
-  readonly showOperationalStatus = input(true);
-  readonly statusOptions = input.required<ToSelectOption[]>();
   readonly employmentContractOptions =
     input.required<ToSelectOption[]>();
+  readonly paymentScheduleOptions = input.required<ToSelectOption[]>();
+  readonly paymentMethodOptions = input.required<ToSelectOption[]>();
+  readonly visibilityOptions = input<ToSelectOption[]>([]);
 
-  readonly status = model<OperatorOperationalStatus>('available');
   readonly companyHireDate = model('');
   readonly employmentContractType = model('');
+  readonly paymentSchedule = model('maneuver');
+  readonly paymentMethod = model('');
+  readonly visibility = model('');
 }

@@ -1,0 +1,32 @@
+<div class="usuarios-module-permissions">
+  @for (option of rbacModuleOptions; track option.code) {
+    <div class="usuarios-module-permission-row">
+      <div class="usuarios-module-permission-row__head">
+        <span class="usuarios-module-permission-row__icon" aria-hidden="true">
+          <to-icon [name]="staffModuleIcon(option.code)" [size]="16" />
+        </span>
+        <span class="usuarios-module-permission-row__label">{{ option.label }}</span>
+      </div>
+      <div class="usuarios-module-permission-row__checks">
+        <label class="usuarios-module-permission-check">
+          <input
+            type="checkbox"
+            [checked]="permissionState(option.code).read"
+            [disabled]="disabled()"
+            (change)="toggleRead(option.code)"
+          />
+          <span>Lectura</span>
+        </label>
+        <label class="usuarios-module-permission-check">
+          <input
+            type="checkbox"
+            [checked]="permissionState(option.code).write"
+            [disabled]="disabled()"
+            (change)="toggleWrite(option.code)"
+          />
+          <span>Escritura</span>
+        </label>
+      </div>
+    </div>
+  }
+</div>

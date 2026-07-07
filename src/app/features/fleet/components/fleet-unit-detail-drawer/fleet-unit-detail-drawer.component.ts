@@ -7,11 +7,11 @@ import {
   input,
   output,
 } from '@angular/core';
-import { Equipment } from '@shared/models/logistics.models';
+import { FleetDetailDrawerShellComponent } from '@features/fleet/components/fleet-detail-drawer-shell/fleet-detail-drawer-shell.component';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
-import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
-import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
-import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
+import { Equipment } from '@shared/models/logistics.models';
 import { FleetUnitDetailCobTabComponent } from './tabs/fleet-unit-detail-cob-tab.component';
 import { FleetUnitDetailFichaTabComponent } from './tabs/fleet-unit-detail-ficha-tab.component';
 import { FleetUnitDetailMantTabComponent } from './tabs/fleet-unit-detail-mant-tab.component';
@@ -22,28 +22,22 @@ import { FleetUnitDetailDrawerFacade } from './fleet-unit-detail-drawer.facade';
   standalone: true,
   providers: [FleetUnitDetailDrawerFacade],
   imports: [
-    ToSideDrawerComponent,
+    FleetDetailDrawerShellComponent,
+    ToButtonComponent,
+    ToConfirmDialogComponent,
     ToIconComponent,
-    ToSegmentControlComponent,
-    ToStatusPillComponent,
     FleetUnitDetailFichaTabComponent,
     FleetUnitDetailMantTabComponent,
     FleetUnitDetailCobTabComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './fleet-unit-detail-drawer.component.html',
-  styleUrls: [
-    '../fleet-drawer.shared.scss',
-    '../styles/fleet-drawer-unit-sec.shared.scss',
-    './fleet-unit-detail-drawer-panel.scss',
-  ],
+  styleUrls: ['../styles/fleet-detail-drawer-footer.shared.scss'],
 })
 export class FleetUnitDetailDrawerComponent {
   protected readonly vm = inject(FleetUnitDetailDrawerFacade);
 
   readonly onRoute = input(false);
-  readonly completedManeuverCount = input(0);
-  readonly completedTripDistanceKm = input<number | null>(null);
 
   readonly dismiss = output<void>();
   readonly viewHitchedEquipment = output<Equipment>();
@@ -56,11 +50,7 @@ export class FleetUnitDetailDrawerComponent {
     });
 
     effect(() => {
-      this.vm.syncHostLayout({
-        onRoute: this.onRoute(),
-        completedManeuverCount: this.completedManeuverCount(),
-        completedTripDistanceKm: this.completedTripDistanceKm(),
-      });
+      this.vm.syncHostLayout({ onRoute: this.onRoute() });
     });
   }
 

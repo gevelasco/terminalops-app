@@ -16,11 +16,12 @@ import { ToastService } from '@core/notifications/toast.service';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { filesToOperatorDocuments } from '@features/operators/utils/operator-attached-documents';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import {
   OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS,
   OPERATOR_INSURANCE_KIND_OPTIONS,
   OPERATOR_LICENSE_TYPE_OPTIONS,
-  OPERATOR_OPERATIONAL_STATUS_OPTIONS,
+  OPERATOR_PAYMENT_SCHEDULE_OPTIONS,
   OPERATOR_PREMIUM_PERIOD_OPTIONS,
   OPERATOR_RELATIONSHIP_OPTIONS,
 } from '@shared/catalogs/operator-form-options';
@@ -30,12 +31,13 @@ import type {
   OperatorDocumentSlot,
   OperatorInsuranceKind,
   OperatorLicenseType,
-  OperatorOperationalStatus,
+  OperatorPaymentSchedule,
 } from '@shared/models/logistics.models';
 import { OperatorCoverageFieldsComponent } from '../operator-coverage-fields/operator-coverage-fields.component';
 import { OperatorEmergencyContactFieldsComponent } from '../operator-emergency-contact-fields/operator-emergency-contact-fields.component';
 import { OperatorIdentificationFieldsComponent } from '../operator-identification-fields/operator-identification-fields.component';
-import { OperatorOperationFieldsComponent } from '../operator-operation-fields/operator-operation-fields.component';import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { OperatorOperationFieldsComponent } from '../operator-operation-fields/operator-operation-fields.component';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 
@@ -91,7 +93,8 @@ export class OperatorsNewDrawerComponent {
   readonly photoDataUrl = model('');
   readonly companyHireDate = model(todayYmd());
   readonly employmentContractType = model('');
-  readonly status = model<OperatorOperationalStatus>('available');
+  readonly paymentSchedule = model<OperatorPaymentSchedule>('maneuver');
+  readonly paymentMethod = model('');
 
   readonly ecName = model('');
   readonly ecRelationship = model('');
@@ -128,12 +131,13 @@ export class OperatorsNewDrawerComponent {
 
   readonly saving = signal(false);
 
-  readonly statusOptions = OPERATOR_OPERATIONAL_STATUS_OPTIONS;
   readonly licenseTypeOptions = OPERATOR_LICENSE_TYPE_OPTIONS;
   readonly insuranceKindOptions = OPERATOR_INSURANCE_KIND_OPTIONS;
   readonly relationshipOptions = OPERATOR_RELATIONSHIP_OPTIONS;
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
+  readonly paymentScheduleOptions = OPERATOR_PAYMENT_SCHEDULE_OPTIONS;
+  readonly paymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
   constructor() {
     afterNextRender(() => this.drawerLoading.set(false));
@@ -220,7 +224,8 @@ export class OperatorsNewDrawerComponent {
       photoDataUrl: this.photoDataUrl().trim(),
       companyHireDate,
       employmentContractType: this.employmentContractType().trim(),
-      status: this.status(),
+      paymentSchedule: this.paymentSchedule(),
+      paymentMethod: this.paymentMethod().trim() || undefined,
       emergencyContact: {
         name: this.ecName().trim(),
         relationship: this.ecRelationship().trim(),

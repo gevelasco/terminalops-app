@@ -4,7 +4,7 @@
       >
         <div class="fleet-unit-sec__header">
           <h3 id="fleet-udv-ins" class="fleet-unit-sec__title">Seguro</h3>
-          @if (!vm.isEditing("insurance")) {
+          @if (vm.showSectionEdit("insurance")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -36,8 +36,16 @@
               <dd>{{ vm.meta()?.insurancePolicyNumber?.trim() || "—" }}</dd>
             </div>
             <div class="fleet-unit-detail__row">
-              <dt>Forma de pago / renovación</dt>
+              <dt>Periodicidad</dt>
               <dd>{{ vm.meta()?.insurancePaymentCadence?.trim() || "—" }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Forma de pago</dt>
+              <dd>{{ vm.insurancePaymentMethodLabel(vm.meta()?.insurancePaymentMethod) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Factura fiscal</dt>
+              <dd>{{ vm.meta()?.insuranceInvoiceRequired ? "Sí" : "No" }}</dd>
             </div>
             <div class="fleet-unit-detail__row">
               <dt>Fecha de contratación</dt>
@@ -69,20 +77,33 @@
                 [(value)]="vm.editInsContractDate"
               />
             </div>
-            <div class="fleet-unit-sec__edit-grid">
+            <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
               <to-select
-                label="Forma de pago / renovación"
+                label="Periodicidad"
                 [options]="vm.cadenceOptions"
                 [(value)]="vm.editInsCadence"
               />
               <to-input
-                label="Costo por ciclo (opcional)"
+                label="Costo por ciclo"
                 type="text"
                 [groupThousands]="true"
                 placeholder="Ej. 12,500"
                 [(value)]="vm.editInsCost"
               />
+              <to-select
+                label="Forma de pago"
+                [options]="vm.insurancePaymentMethodOptions"
+                [(value)]="vm.editInsPaymentMethod"
+              />
             </div>
+            <label class="fleet-unit-detail__checkbox-row">
+              <input
+                type="checkbox"
+                [checked]="vm.editInsInvoiceRequired()"
+                (change)="vm.editInsInvoiceRequired.set($any($event.target).checked)"
+              />
+              Factura fiscal requerida
+            </label>
             <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
             @if (vm.editPolicyNames().length > 0) {
               <ul class="fleet-unit-files">
@@ -159,7 +180,7 @@
             </div>
           </div>
         }
-        <div class="fleet-unit-detail__badge-block">
+        <div class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--insurance">
           <p class="fleet-unit-detail__badge-label">Contrato y próximo pago</p>
           <div class="fleet-unit-detail__badge-row">
             <span
@@ -173,7 +194,37 @@
               Próx. pago: {{ vm.insNext() }}
             </span>
           </div>
+          @if (
+            !vm.isEditing("insurance") &&
+            vm.isAnnualInsurancePolicy() &&
+            vm.canConfirmInsurancePayment()
+          ) {
+            <div class="fleet-unit-detail__insurance-payment-cta">
+              <p class="fleet-unit-detail__insurance-payment-hint">
+                {{ vm.insurancePaymentConfirmHint() }}
+              </p>
+              <to-button
+                type="button"
+                variant="primary"
+                size="sm"
+                [disabled]="vm.saving()"
+                (click)="vm.confirmInsurancePayment()"
+              >
+                <to-icon name="save" [size]="14" />
+                Registrar pago del ciclo
+              </to-button>
+            </div>
+          }
         </div>
+        @if (!vm.isEditing("insurance") && vm.showInsurancePaymentScheduleTable()) {
+          <app-fleet-insurance-payment-schedule
+            [schedule]="vm.insurancePaymentSchedule()"
+            [saving]="vm.saving()"
+            [formatDate]="vm.formatYmd"
+            [formatAmount]="vm.formatTrackingAmount.bind(vm)"
+            (confirmCycle)="vm.confirmInsurancePaymentCycle($event)"
+          />
+        }
         @if (!vm.isEditing("insurance")) {
           <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
           <p class="fleet-unit-sec__docs-hint">PDF o recibos registrados.</p>

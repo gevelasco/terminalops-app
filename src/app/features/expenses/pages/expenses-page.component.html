@@ -2,7 +2,7 @@
   title="Gastos"
   subtitle="Registro operativo y vínculos con flota y maniobras"
 >
-  @if (!loading()) {
+  @if (!initialLoading() && canWriteExpenses()) {
     <to-button
       type="button"
       variant="primary"
@@ -24,7 +24,7 @@
 @if (newExpenseOpen()) {
   <app-expenses-new-drawer
     (dismiss)="newExpenseOpen.set(false)"
-    (saved)="onExpenseSaved()"
+    (saved)="onExpenseSaved($event)"
   />
 }
 
@@ -33,29 +33,123 @@
     [expense]="exp"
     [tripManeuverByTripId]="tripManeuverByTripId()"
     (dismiss)="onDetailDismiss()"
+    (updated)="onExpenseUpdated($event)"
+    (deleted)="onExpenseDeleted()"
   />
 }
 
-@if (loading()) {
-  <to-skeleton [lines]="5" />
+<div class="expenses-page-toolbar">
+  <to-segment-control
+    layout="toolbar"
+    ariaLabel="Secciones de gastos"
+    [tabs]="viewSegmentTabs"
+    [activeId]="pageTab()"
+    (tabSelect)="onPageTabSelect($event)"
+  />
+</div>
+
+@if (pageTab() === 'calendar') {
+  <app-expenses-calendar-tab
+    class="expenses-calendar-panel"
+    [reloadToken]="calendarReloadToken()"
+    (expenseSelect)="onCalendarExpenseSelect($event)"
+  />
 } @else {
-  <div class="expenses-toolbar">
-    <div class="expenses-toolbar__search">
-      <to-input
-        type="search"
-        prefixIcon="search"
-        ariaLabel="Buscar en el listado de gastos"
-        placeholder="Maniobra, rubro, concepto, monto, fecha, proveedor, unidad, operador…"
-        [(value)]="searchQuery"
-      />
-    </div>
-  </div>
   <div class="expenses-table-block">
-    <to-table
-      [columns]="columns"
-      [rows]="displayedExpenseRows()"
-      [interactiveRows]="true"
-      (rowClick)="onRowClick($event)"
-    />
+    <div class="expenses-toolbar">
+      <div
+        class="expenses-toolbar__search-wrap"
+        (focusin)="onSearchFocusIn()"
+        (focusout)="onSearchFocusOut($event)"
+      >
+        <div class="expenses-toolbar__search">
+          <to-input
+            #searchField
+            type="search"
+            prefixIcon="search"
+            ariaLabel="Buscar en el listado de gastos"
+            placeholder="Rubro, concepto, maniobra, flota…"
+            [(value)]="searchInput"
+          />
+        </div>
+        <span
+          class="expenses-toolbar__search-status"
+          [class.expenses-toolbar__search-status--hidden]="!searchBusy()"
+          aria-live="polite"
+        >
+          Buscando…
+        </span>
+      </div>
+
+      @if (!initialLoading()) {
+        <div class="expenses-toolbar__right">
+          @if (periodRangeLabel()) {
+            <span class="expenses-toolbar__period-badge" role="status">{{
+              periodRangeLabel()
+            }}</span>
+          }
+          <to-filter-tabs
+            [tabs]="periodFilterTabs"
+            [activeId]="periodPreset()"
+            ariaLabel="Filtrar gastos por periodo"
+            (tabSelect)="onPeriodFilterSelect($event)"
+          />
+          <span
+            class="expenses-toolbar__export-wrap"
+            data-tooltip="Exportar CSV"
+          >
+            <to-button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="expenses-toolbar__export"
+              ariaLabel="Exportar CSV"
+              [loading]="exporting()"
+              [disabled]="exporting()"
+              (click)="exportFiltered()"
+            >
+              <to-icon name="download" [size]="18" />
+            </to-button>
+          </span>
+        </div>
+      }
+    </div>
+
+    @if (initialLoading()) {
+      <to-skeleton [lines]="5" />
+    } @else {
+      <p class="expenses-page__hint">
+        Gastos del periodo seleccionado. Clic en una fila para ver detalle o editar.
+      </p>
+
+      <div
+        class="expenses-table-wrap"
+        [class.expenses-table-wrap--loading]="listReloading()"
+        [attr.aria-busy]="listReloading()"
+      >
+        <to-table
+          [columns]="columns"
+          [rows]="tableRows()"
+          [totalItems]="listTotal()"
+          [(pageIndex)]="pageIndex"
+          [(pageSize)]="pageSize"
+          [pageSizeOptions]="pageSizeOptions"
+          [scrollable]="true"
+          [footerRow]="hasExpenseRows() ? footerRow() : null"
+          [interactiveRows]="hasExpenseRows()"
+          (rowClick)="onRowClick($event)"
+        />
+      </div>
+
+      @if (showEmptyHint()) {
+        <p class="expenses-empty-hint">
+          @if (searchQuery().trim() || periodPreset() !== 'month') {
+            Ningún gasto coincide con los filtros actuales.
+          } @else {
+            No hay gastos registrados en este periodo.
+          }
+        </p>
+      }
+    }
   </div>
 }

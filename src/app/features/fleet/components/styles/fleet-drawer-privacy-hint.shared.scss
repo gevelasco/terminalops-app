@@ -1,0 +1,71 @@
+@mixin fleet-drawer-privacy-hint($block) {
+  .#{$block}__privacy-hint {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+    color: color-mix(in srgb, var(--to-color-text-muted) 65%, transparent);
+    cursor: help;
+    pointer-events: auto;
+    position: relative;
+  }
+
+  .#{$block}__privacy-hint::after,
+  .#{$block}__privacy-hint::before {
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 120ms ease, transform 120ms ease;
+    pointer-events: none;
+  }
+
+  .#{$block}__privacy-hint::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 120%;
+    right: 0.6rem;
+    z-index: 10;
+    width: max-content;
+    max-width: min(22rem, 80vw);
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--to-radius-md);
+    background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+    border: 1px solid var(--to-color-border);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+    color: var(--to-color-text);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .#{$block}__privacy-hint::before {
+    content: '';
+    position: absolute;
+    top: calc(120% - 6px);
+    right: 1.15rem;
+    width: 10px;
+    height: 10px;
+    z-index: 11;
+    background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+    border-left: 1px solid var(--to-color-border);
+    border-top: 1px solid var(--to-color-border);
+    transform: rotate(45deg);
+  }
+
+  .#{$block}__privacy-hint:hover::after,
+  .#{$block}__privacy-hint:hover::before,
+  .#{$block}__privacy-hint:focus-visible::after,
+  .#{$block}__privacy-hint:focus-visible::before {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .#{$block}__privacy-hint:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--to-color-primary) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+
+  .#{$block}__privacy-hint:hover {
+    color: color-mix(in srgb, var(--to-color-text-muted) 85%, transparent);
+  }
+}

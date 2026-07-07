@@ -70,8 +70,17 @@
   min-width: 0;
 }
 
-.fleet-unit-sec__grid2 > * {
+.fleet-unit-sec__grid2 > *,
+.fleet-unit-sec__grid3 > * {
   min-width: 0;
+}
+
+.fleet-unit-sec__grid2 to-fleet-brand-combobox,
+.fleet-unit-sec__grid2 to-fleet-version-combobox,
+.fleet-unit-sec__grid3 to-fleet-brand-combobox,
+.fleet-unit-sec__grid3 to-fleet-version-combobox {
+  display: block;
+  width: 100%;
 }
 
 @media (min-width: 480px) {
@@ -95,6 +104,12 @@
   .fleet-unit-sec__grid3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
+  }
+}
+
+@media (min-width: 640px) {
+  .fleet-unit-sec__grid3--always-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

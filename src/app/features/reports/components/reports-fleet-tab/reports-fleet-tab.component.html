@@ -1,0 +1,187 @@
+@if (loading()) {
+  <to-skeleton [lines]="6" />
+} @else if (summary() && insights()) {
+  <div class="reports-fleet-kpis">
+    <to-kpi-card
+      title="Km operativos"
+      titleIcon="route"
+      [value]="operationalKmValue()"
+      [legend]="operationalKmLegend()"
+    />
+    <to-kpi-card
+      title="Diesel"
+      titleIcon="chart-bar"
+      [value]="dieselValue()"
+      [legend]="dieselLegend()"
+    />
+    <to-kpi-card
+      title="Mantenimientos"
+      titleIcon="maintenance"
+      [value]="maintenanceEventsValue()"
+      [valueUnit]="maintenanceEventsUnit()"
+      [legend]="maintenanceEventsLegend()"
+    />
+    <to-kpi-card
+      title="Días sin operar"
+      titleIcon="calendar"
+      [value]="idleDaysValue()"
+      [legend]="idleDaysLegend()"
+    />
+  </div>
+
+  <div class="reports-fleet-body">
+    <section class="reports-fleet-panel">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Estado operativo</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Distribución actual de unidades · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__chart">
+        <to-echarts-host [option]="statusMixOption()" />
+      </div>
+    </section>
+
+    <section class="reports-fleet-panel">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Top unidades</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Más km operativos completados · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__chart">
+        <to-echarts-host [option]="topUnitsOption()" />
+      </div>
+    </section>
+
+    <section class="reports-fleet-panel reports-fleet-panel--wide">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Rentabilidad por unidad</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Ingreso generado − diésel, operador, casetas, mantenimiento y llantas = utilidad real
+            · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__chart reports-fleet-panel__chart--tall">
+        <to-echarts-host [option]="unitProfitabilityOption()" />
+      </div>
+    </section>
+
+    <section class="reports-fleet-panel reports-fleet-panel--wide">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Desgaste de llantas</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Estimado por km y peso de carga · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__table-wrap">
+        @if (hasTireWearRows()) {
+          <table class="reports-fleet-panel__table">
+            <thead>
+              <tr>
+                <th scope="col">Unidad</th>
+                <th scope="col">Maniobras</th>
+                <th scope="col">Km operativos</th>
+                <th scope="col">Peso prom.</th>
+                <th scope="col">Desgaste est.</th>
+                <th scope="col">Vida útil</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of tireWearRows(); track row.unitCode) {
+                <tr>
+                  <td>{{ row.unitCode }}</td>
+                  <td>{{ row.tripCount }}</td>
+                  <td>{{ formatKm(row.operationalKm) }}</td>
+                  <td>{{ formatWeightTons(row.avgWeightTons) }}</td>
+                  <td>{{ formatReportsMoneyMx(row.tireWearMxn) }}</td>
+                  <td>{{ formatPercent(row.tireLifeUsedPercent) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="reports-fleet-panel__empty">
+            Sin maniobras completadas con unidad asignada en el periodo.
+          </p>
+        }
+      </div>
+    </section>
+
+    <section class="reports-fleet-panel reports-fleet-panel--wide">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Cumplimiento y renovaciones</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Unidades ordenadas por urgencia · mantenimiento, verificaciones y seguro
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__table-wrap">
+        @if (hasComplianceUnits()) {
+          <to-table
+            [columns]="complianceColumns"
+            [rows]="complianceTableRows()"
+            trackByKey="id"
+            [pageSize]="0"
+          />
+        } @else {
+          <p class="reports-fleet-panel__empty">Sin unidades activas en flota.</p>
+        }
+      </div>
+    </section>
+
+    <section class="reports-fleet-panel reports-fleet-panel--wide">
+      <header class="reports-fleet-panel__head">
+        <div>
+          <h2 class="reports-fleet-panel__title">Mantenimientos del periodo</h2>
+          <p class="reports-fleet-panel__subtitle">
+            Bitácora registrada · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-fleet-panel__table-wrap">
+        @if (hasMaintenanceEvents()) {
+          <table class="reports-fleet-panel__table">
+            <thead>
+              <tr>
+                <th scope="col">Unidad</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Costo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of maintenanceEvents(); track `${row.assetLabel}-${row.entryDate}-${row.entryType}`) {
+                <tr>
+                  <td>{{ row.assetLabel }}</td>
+                  <td>{{ formatEntryDate(row.entryDate) }}</td>
+                  <td>{{ row.entryType }}</td>
+                  <td>{{ maintenanceStatusLabel(row.status) }}</td>
+                  <td>
+                    @if (row.cost > 0) {
+                      {{ formatReportsMoneyMx(row.cost) }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="reports-fleet-panel__empty">Sin mantenimientos registrados en el periodo.</p>
+        }
+      </div>
+    </section>
+  </div>
+}

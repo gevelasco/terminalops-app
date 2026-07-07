@@ -9,7 +9,10 @@ import {
   selector: 'app-clients-detail-balance-tab',
   imports: [...CLIENTS_DETAIL_TAB_IMPORTS],
   templateUrl: './clients-detail-balance-tab.component.html',
-  styleUrls: [...CLIENTS_DETAIL_TAB_STYLE_URLS],
+  styleUrls: [
+    './clients-detail-balance-tab.component.scss',
+    ...CLIENTS_DETAIL_TAB_STYLE_URLS,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClientsDetailBalanceTabComponent {

@@ -16,10 +16,21 @@
       <ng-content />
     </div>
     <div class="to-confirm-dialog__actions">
-      <to-button type="button" variant="outline" (click)="onCancelClick()">
+      <to-button
+        type="button"
+        variant="outline"
+        [disabled]="confirmLoading()"
+        (click)="onCancelClick()"
+      >
         {{ cancelLabel() }}
       </to-button>
-      <to-button type="button" variant="primary" (click)="onConfirmClick()">
+      <to-button
+        type="button"
+        [variant]="confirmVariant()"
+        [disabled]="confirmDisabled() || confirmLoading()"
+        [loading]="confirmLoading()"
+        (click)="onConfirmClick()"
+      >
         {{ confirmLabel() }}
       </to-button>
     </div>

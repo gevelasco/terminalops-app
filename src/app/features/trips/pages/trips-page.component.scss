@@ -23,12 +23,21 @@
   gap: 1rem;
   min-width: 0;
   min-height: 0;
+
+  &:not(.maniobra-table-block--route) {
+    flex: 1 1 auto;
+  }
 }
 
 .maniobra-table-block--route {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  gap: 0;
+
+  .maniobra-toolbar {
+    margin-bottom: 1rem;
+  }
 
   app-maniobra-route-map {
     flex: 1 1 auto;
@@ -50,10 +59,19 @@
   --toolbar-segment-min-height: var(--maniobra-toolbar-control-height);
 }
 
-.maniobra-toolbar__search {
+.maniobra-toolbar__search-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
   flex: 1 1 12rem;
   min-width: min(100%, 12rem);
   max-width: 24rem;
+}
+
+.maniobra-toolbar__search {
+  flex: 1 1 10rem;
+  min-width: min(100%, 10rem);
   min-height: 0;
 
   to-input {
@@ -72,14 +90,22 @@
   }
 }
 
+.maniobra-toolbar__search-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+  min-width: 4.75rem;
+}
+
+.maniobra-toolbar__search-status--hidden {
+  visibility: hidden;
+}
+
 .maniobra-toolbar__filters {
   margin-left: auto;
   flex-shrink: 1;
   min-width: 0;
-}
-
-.maniobra-toolbar__filters--disabled .maniobra-filters {
-  opacity: 0.55;
 }
 
 .maniobra-empty-hint {
@@ -92,7 +118,34 @@
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
 }
 
+.maniobra-route__hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+}
+
 /* Lista ancha: scroll horizontal sin romper el layout del shell */
-.maniobra-table-wrap ::ng-deep .to-table {
-  min-width: 54rem;
+.maniobra-table-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  transition: opacity 140ms ease;
+
+  &.maniobra-table-wrap--loading {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  to-table {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    --to-table-max-height: calc(100dvh - 15rem);
+  }
+
+  ::ng-deep .to-table {
+    min-width: 54rem;
+  }
 }

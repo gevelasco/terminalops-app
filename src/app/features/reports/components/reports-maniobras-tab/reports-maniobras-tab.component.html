@@ -1,0 +1,238 @@
+@if (loading()) {
+  <to-skeleton [lines]="8" />
+} @else if (summary() && insights()) {
+  <div class="reports-maniobras-kpis">
+    <to-kpi-card
+      title="Completadas"
+      titleIcon="route"
+      [value]="completedValue()"
+      [valueUnit]="completedValueUnit()"
+      [legend]="completedLegend()"
+      [deltaLabel]="completedDelta() ?? undefined"
+      [deltaTone]="completedDeltaTone()"
+    />
+    <to-kpi-card
+      title="En curso"
+      titleIcon="route"
+      [value]="inTransitValue()"
+      [valueUnit]="inTransitValueUnit()"
+      [legend]="inTransitLegend()"
+    />
+    <to-kpi-card
+      title="Programadas"
+      titleIcon="calendar"
+      [value]="scheduledValue()"
+      [valueUnit]="scheduledValueUnit()"
+      [legend]="scheduledLegend()"
+    />
+    <to-kpi-card
+      title="Canceladas"
+      titleIcon="alert"
+      [value]="cancelledValue()"
+      [valueUnit]="cancelledValueUnit()"
+      [legend]="cancelledLegend()"
+    />
+    <to-kpi-card
+      title="Retrasadas"
+      titleIcon="alert"
+      [value]="delayedValue()"
+      [valueUnit]="delayedValueUnit()"
+      [legend]="delayedLegend()"
+    />
+    <to-kpi-card
+      title="Km operativos"
+      titleIcon="route"
+      [value]="operationalKmValue()"
+      [legend]="operationalKmLegend()"
+    />
+    <to-kpi-card
+      title="Duración promedio"
+      titleIcon="calendar"
+      [value]="avgDurationValue()"
+      [legend]="avgDurationLegend()"
+    />
+    <to-kpi-card
+      title="Destinos"
+      titleIcon="target"
+      [value]="destinationsValue()"
+      [valueUnit]="destinationsValueUnit()"
+      [legend]="destinationsLegend()"
+    />
+  </div>
+
+  <div class="reports-maniobras-body">
+    <section class="reports-maniobras-panel reports-maniobras-panel--map">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Mapa de destinos</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Mapa: destinos georreferenciados · Tabla: todas las maniobras del periodo ·
+            {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__map-split">
+        <div class="reports-maniobras-panel__map-chart">
+          <app-reports-maniobras-geo-chart [trips]="geoMapTrips()" />
+        </div>
+        <div class="reports-maniobras-panel__map-table-wrap">
+          @if (geoMapTripsCount() === 0) {
+            <p class="reports-maniobras-panel__map-table-empty">
+              Sin maniobras en el periodo.
+            </p>
+          } @else {
+            <table class="reports-maniobras-panel__map-table">
+              <thead>
+                <tr>
+                  <th scope="col">Código</th>
+                  <th scope="col">Operador</th>
+                  <th scope="col">Cliente</th>
+                  <th scope="col">Días</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (trip of geoMapTrips(); track trip.tripId) {
+                  <tr>
+                    <td>
+                      <span
+                        [class]="maneuverStatusPillClass(trip.status)"
+                        class="reports-maniobras-panel__map-code-pill"
+                        [attr.title]="formatTripStatusLabel(trip.status)"
+                      >
+                        <span class="to-table-pill__dot" aria-hidden="true"></span>
+                        <span class="to-table-pill__label">{{ trip.maneuverCode }}</span>
+                      </span>
+                    </td>
+                    <td>{{ trip.operatorName }}</td>
+                    <td>{{ trip.clientName }}</td>
+                    <td>{{ formatTripDurationDays(trip.durationDays) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel reports-maniobras-panel--incidents">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Rutas con incidencias</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Por destino: cada maniobra con incidentes cuenta 1 (sin importar cuántos registre) ·
+            {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__incidents-body">
+        @if (!hasRecurringIncidentRoutes()) {
+          <p class="reports-maniobras-panel__incidents-empty">
+            No hay maniobras con incidentes en el periodo para los filtros seleccionados.
+          </p>
+        } @else {
+          <table class="reports-maniobras-panel__data-table">
+            <thead>
+              <tr>
+                <th scope="col">Ruta</th>
+                <th scope="col">Inc.</th>
+                <th scope="col">Códigos</th>
+                <th scope="col">Último</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (route of recurringIncidentRoutes(); track route.destination) {
+                <tr>
+                  <td [attr.title]="route.destination">{{ route.destination }}</td>
+                  <td>{{ route.incidentCount }}</td>
+                  <td [attr.title]="formatManeuverCodesLabel(route.maneuverCodes)">
+                    {{ formatManeuverCodesLabel(route.maneuverCodes) }}
+                  </td>
+                  <td>{{ formatIncidentDate(route.lastIncidentAt) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Top operadores</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Maniobras completadas y km operativos · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        <to-echarts-host [option]="operatorsOption()" />
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Top clientes</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Clientes con más maniobras completadas · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        <to-echarts-host [option]="clientsOption()" />
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Top destinos</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Destinos con más maniobras completadas · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        <to-echarts-host [option]="destinationsOption()" />
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Tipo de contenedor</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Maniobras completadas por tipo · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        @if (hasContainerTypeMix()) {
+          <to-echarts-host [option]="containerTypeOption()" />
+        } @else {
+          <p class="reports-maniobras-panel__empty">Sin maniobras completadas en el periodo.</p>
+        }
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Peso de carga</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Promedio en toneladas por tipo de contenedor · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        @if (hasCargoWeight()) {
+          <to-echarts-host [option]="cargoWeightOption()" />
+        } @else {
+          <p class="reports-maniobras-panel__empty">Sin peso de carga registrado en el periodo.</p>
+        }
+      </div>
+    </section>
+  </div>
+}

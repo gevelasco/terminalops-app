@@ -174,6 +174,7 @@ export class ProfileDrawerComponent {
 
   workLocationLine(): string {
     return (
+      this.session.operationalCenterName()?.trim() ||
       this.session.workLocation()?.trim() ||
       this.session.companyName()?.trim() ||
       '—'

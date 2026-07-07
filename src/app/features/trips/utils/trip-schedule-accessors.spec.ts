@@ -41,4 +41,19 @@ describe('trip-schedule-accessors', () => {
     expect(tripArrivalIso(trip)).toBe(trip.arrivedAt);
     expect(tripCompletionIso(trip)).toBe(trip.returnAt);
   });
+
+  it('ignores paired spurious departure and arrival when return differs', () => {
+    const pollutedPair = '2026-07-02T06:05:00.000Z';
+    const trip = {
+      status: 'completed',
+      departureAt: pollutedPair,
+      arrivedAt: pollutedPair,
+      returnAt: '2026-06-21T07:12:00.000Z',
+      ...planned,
+    };
+
+    expect(tripDepartureIso(trip)).toBe(planned.plannedDepartureAt);
+    expect(tripArrivalIso(trip)).toBe(planned.plannedArrivalAt);
+    expect(tripCompletionIso(trip)).toBe(trip.returnAt);
+  });
 });

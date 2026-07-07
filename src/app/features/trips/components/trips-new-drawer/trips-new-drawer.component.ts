@@ -13,15 +13,34 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { formatManeuverEquipmentLabel } from '@features/trips/utils/assignable-fleet-for-maneuver';
+import {
+  formatManeuverEquipmentLabel,
+  resolveUnitHitchedEquipment,
+  unitHitchedEquipment,
+  unitMatchesManeuverOperationCode,
+} from '@features/trips/utils/assignable-fleet-for-maneuver';
+import {
+  fleetComplianceIconsForEquipment,
+  fleetComplianceIconsForUnit,
+} from '@features/fleet/utils/fleet-compliance-icons.util';
+import {
+  gpsExpensesForUnit,
+  insuranceExpensesForEquipment,
+  insuranceExpensesForUnit,
+} from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type { TripClientPaymentMethod } from '@shared/models/logistics.models';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
 import {
   isPlannedScheduleValid,
+  plannedScheduleArrivalOrderIssue,
+  plannedScheduleCompletionDepartureOrderIssue,
+  plannedScheduleCompletionOrderIssue,
   plannedScheduleIsoTriplet,
+  plannedScheduleOrderToastMessage,
 } from '@features/trips/utils/planned-schedule-validation';
 import {
   cityMunicipalityLineFromSettlement,
@@ -44,8 +63,6 @@ import {
 import {
   buildRouteEndpointPrefillResult,
   destinationPrefillFromClient,
-  logPrefillLocation,
-  originPrefillFromSession,
   originPrefillFromOperationalCenter,
   routeEndpointFingerprint,
   type TripRouteEndpointPrefill,
@@ -60,19 +77,20 @@ import {
   TripLoadType,
   Unit,
 } from '@shared/models/logistics.models';
+import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 import { TripsService as TripsApiService } from '@core/services/api/trips';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
-import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
 import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
 import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
-import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import {
+  destinationRateHasClientChargeForOperation,
   destinationRateHasEstimatedTime,
   destinationRateHasRouteCache,
-  findDestinationRateByRoute,
+  resolveManeuverDestinationRate,
   suggestedClientChargeFromDestinationRate,
   suggestedEstimatedTollFromDestinationRate,
   suggestedOperatorPaymentFromDestinationRate,
@@ -105,8 +123,8 @@ import {
   ToSelectOption,
 } from '@shared/ui/to-select/to-select.component';
 import {
-  isTripManeuverPaymentMethod,
-  TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS,
+  isTripClientPaymentMethod,
+  TRIP_CLIENT_PAYMENT_METHOD_OPTIONS,
 } from '@shared/catalogs/trip-client-payment-options';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
@@ -114,7 +132,7 @@ import {
   ToUnitInputComponent,
   type UnitPickedEvent,
 } from '@shared/ui/to-unit-input/to-unit-input.component';
-import { ToEquipmentInputComponent } from '@shared/ui/to-equipment-input/to-equipment-input.component';
+import { ToFleetComplianceIconsComponent } from '@shared/ui/to-fleet-compliance-icons/to-fleet-compliance-icons.component';
 import { CargoDescriptionComboboxComponent } from '@features/trips/components/cargo-description-combobox/cargo-description-combobox.component';
 import type { ClientCargoHistoryItem } from '@shared/models/api/api-trips-cargo-history.model';
 import { combineLatest, EMPTY, of, type Observable } from 'rxjs';
@@ -132,13 +150,6 @@ import {
 @Component({
   selector: 'app-trips-new-drawer',
   standalone: true,
-  providers: [
-    TripsFormCatalogService,
-    DestinationRatesFeatureService,
-    OperationalCentersFeatureService,
-    OperationConfigurationsFeatureService,
-    ...OPERATION_CONFIGURATION_PROVIDERS,
-  ],
   imports: [
     ToSideDrawerComponent,
     FormsModule,
@@ -151,7 +162,7 @@ import {
     ToClientInputComponent,
     ToOperatorInputComponent,
     ToUnitInputComponent,
-    ToEquipmentInputComponent,
+    ToFleetComplianceIconsComponent,
     CargoDescriptionComboboxComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -181,10 +192,8 @@ export class TripsNewDrawerComponent {
   readonly dieselEstimateLoading = signal(false);
   /** Control automático de diesel (config empresa en sesión). */
   readonly dieselControlEnabled = computed(() => this.session.dieselControlEnabled());
-  /** Preferencia de usuario: autollenado inteligente en Nueva Maniobra. */
-  readonly autoRecognitionEnabled = computed(
-    () => this.session.controlAutomaticRecognition(),
-  );
+  /** Preferencia empresa: autollenado en Nueva Maniobra. */
+  readonly autoRecognitionEnabled = computed(() => this.session.tripAssistPrefillEnabled());
   readonly dieselLitersPlaceholder = computed(() =>
     this.dieselControlEnabled()
       ? 'Se estima al tener distancia y configuración'
@@ -202,6 +211,9 @@ export class TripsNewDrawerComponent {
   private lastAutoDieselAmount = '';
   private lastAutoDieselPricePerLiter: number | null = null;
   private applyingDieselEstimate = false;
+  private applyingDieselAmountFromLiters = false;
+  /** Precio MXN/L de la empresa (BD) para mostrar y recalcular monto desde litros. */
+  private readonly dieselPricePerLiter = signal<number | null>(null);
 
   /** Tarifa por destino: bloqueo tras edición manual (cobro, operador o casetas). */
   private readonly destinationRateSuggestionLocked = signal(false);
@@ -214,6 +226,7 @@ export class TripsNewDrawerComponent {
   readonly clientChargeSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
   readonly casetasSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
   readonly destinationRateMatched = signal(false);
+  readonly destinationRateChargeRecognized = signal(false);
   readonly originOperationalCenterId = model('');
   private readonly matchedDestinationRateId = signal<string | null>(null);
   private readonly routeCacheActive = signal(false);
@@ -253,9 +266,89 @@ export class TripsNewDrawerComponent {
 
   /** Copias mutables para inputs con `prefetchMode` (evita NG4 readonly→mutable). */
   readonly pickerClients = computed((): Client[] => [...this.catalog.clients()]);
-  readonly pickerUnits = computed((): Unit[] => [...this.catalog.units()]);
-  readonly pickerOperators = computed((): Operator[] => [...this.catalog.operators()]);
-  readonly pickerEquipment = computed((): Equipment[] => [...this.catalog.equipment()]);
+  readonly pickerUnits = computed((): Unit[] =>
+    this.catalog
+      .units()
+      .filter(
+        (u) =>
+          isFleetResourceActive(u) &&
+          unitHitchedEquipment(u).length > 0 &&
+          unitMatchesManeuverOperationCode(u, this.operationType()),
+      ),
+  );
+
+  readonly selectedUnitMatchesManeuverConfiguration = computed(() => {
+    const uid = this.unitId().trim();
+    if (!uid) {
+      return true;
+    }
+    const unit = this.catalog.units().find((u) => u.id === uid);
+    if (!unit) {
+      return false;
+    }
+    return unitMatchesManeuverOperationCode(unit, this.operationType());
+  });
+  readonly pickerOperators = computed((): Operator[] =>
+    this.catalog.operators().filter((o) => isFleetResourceActive(o)),
+  );
+
+  readonly selectedUnitHitchedEquipment = computed(() => {
+    const id = this.unitId().trim();
+    if (!id) {
+      return [];
+    }
+    const unit = this.catalog.units().find((u) => u.id === id);
+    return resolveUnitHitchedEquipment(unit, this.catalog.equipment());
+  });
+
+  readonly equipmentPrimaryReadonly = computed(() => {
+    const hitched = this.selectedUnitHitchedEquipment();
+    return hitched[0] ? formatManeuverEquipmentLabel(hitched[0]) : '';
+  });
+
+  readonly equipmentSecondaryReadonly = computed(() => {
+    const hitched = this.selectedUnitHitchedEquipment();
+    return hitched[1] ? formatManeuverEquipmentLabel(hitched[1]) : '';
+  });
+
+  readonly selectedUnit = computed(() => {
+    const id = this.unitId().trim();
+    if (!id) {
+      return undefined;
+    }
+    return this.catalog.units().find((u) => u.id === id);
+  });
+
+  readonly selectedUnitComplianceIcons = computed(() => {
+    const unitId = this.unitId().trim();
+    const expenses = this.catalog.fleetCoverageExpenses();
+    return fleetComplianceIconsForUnit(this.selectedUnit(), {
+      insuranceExpenses: insuranceExpensesForUnit(expenses, unitId),
+      gpsExpenses: gpsExpensesForUnit(expenses, unitId),
+    });
+  });
+
+  readonly equipmentPrimaryComplianceIcons = computed(() => {
+    const hitched = this.selectedUnitHitchedEquipment();
+    const equipment = hitched[0];
+    const expenses = this.catalog.fleetCoverageExpenses();
+    return fleetComplianceIconsForEquipment(equipment, {
+      insuranceExpenses: equipment
+        ? insuranceExpensesForEquipment(expenses, equipment.id)
+        : [],
+    });
+  });
+
+  readonly equipmentSecondaryComplianceIcons = computed(() => {
+    const hitched = this.selectedUnitHitchedEquipment();
+    const equipment = hitched[1];
+    const expenses = this.catalog.fleetCoverageExpenses();
+    return fleetComplianceIconsForEquipment(equipment, {
+      insuranceExpenses: equipment
+        ? insuranceExpensesForEquipment(expenses, equipment.id)
+        : [],
+    });
+  });
 
   /** Escaneos / fotos adjuntos (solo en cliente hasta envío al backend). */
   readonly attachedFiles = signal<File[]>([]);
@@ -299,6 +392,7 @@ export class TripsNewDrawerComponent {
   readonly dieselAmount = model('');
   readonly casetasAmount = model('');
   readonly operatorQuota = model('');
+  readonly perDiemAmount = model('');
   readonly clientCharge = model('');
   readonly creditDays = model('');
   readonly requiresInvoice = model(false);
@@ -329,8 +423,6 @@ export class TripsNewDrawerComponent {
    */
   /** Por defecto activo: la mayoría de maniobras llevan cliente y cobro. */
   readonly includeClientBilling = model(true);
-
-  readonly equipmentPlaceholder = 'Buscar equipo enganchado…';
 
   /** Full → dos equipos obligatorios; otras configuraciones → uno (según catálogo). */
   readonly selectedOperationConfig = computed(() =>
@@ -366,13 +458,21 @@ export class TripsNewDrawerComponent {
     { value: 'na', label: 'N/A' },
   ];
 
-  readonly paymentMethodOptions: ToSelectOption[] = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
+  readonly paymentMethodOptions: ToSelectOption[] = TRIP_CLIENT_PAYMENT_METHOD_OPTIONS;
 
   readonly unitPlaceholder = 'Buscar unidad disponible…';
 
   readonly creating = signal(false);
   readonly drawerLoading = computed(() => !this.catalog.ready());
   readonly drawerBusy = computed(() => this.drawerLoading() || this.creating());
+
+  readonly dieselPriceLabel = computed(() => {
+    const price = this.dieselPricePerLiter();
+    if (price == null || !Number.isFinite(price) || price <= 0) {
+      return null;
+    }
+    return `${formatFuelEstimateMoney(price)}/L`;
+  });
 
   /** CP + localidad válidos en origen y destino (listo para OSRM / mensajes de error de par). */
   readonly routePairReady = computed(() => {
@@ -505,12 +605,6 @@ export class TripsNewDrawerComponent {
     this.operationConfigsFeature.loadOperationConfigurations();
     this.catalog.ensureLoaded();
 
-    this.destroyRef.onDestroy(() => {
-      this.destinationRatesFeature.dispose();
-      this.operationalCentersFeature.dispose();
-      this.operationConfigsFeature.dispose();
-    });
-
     this.fuelEstimatePipeline$ = combineLatest([
       toObservable(this.routeKm),
       toObservable(this.operationType),
@@ -619,6 +713,22 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
+      this.operationType();
+      const unitId = this.unitId().trim();
+      if (!unitId || this.selectedUnitMatchesManeuverConfiguration()) {
+        return;
+      }
+      const configName = this.selectedOperationConfig()?.name ?? 'la configuración seleccionada';
+      this.unitId.set('');
+      this.equipmentPrimary.set('');
+      this.equipmentSecondary.set('');
+      this.toast.show(
+        `La unidad ya no coincide con «${configName}». Elige una unidad compatible.`,
+        'warning',
+      );
+    });
+
+    effect(() => {
       const configs = this.operationConfigsFeature.activeConfigurations();
       if (configs.length === 0) {
         return;
@@ -661,16 +771,7 @@ export class TripsNewDrawerComponent {
       this.lastHandledOriginCenterId = centerId;
       this.routeCacheActive.set(false);
       this.matchedDestinationRateId.set(null);
-      const prefill =
-        originPrefillFromOperationalCenter(center) ??
-        originPrefillFromSession({
-          operationalCenterPostalCode: this.session.operationalCenterPostalCode(),
-          operationalCenterCityMunicipality: this.session.operationalCenterCityMunicipality(),
-          operationalCenterLocality: this.session.operationalCenterLocality(),
-          operationalCenterSettlementConsId: this.session.operationalCenterSettlementConsId(),
-          operationalCenterLatitude: this.session.operationalCenterLatitude(),
-          operationalCenterLongitude: this.session.operationalCenterLongitude(),
-        });
+      const prefill = originPrefillFromOperationalCenter(center);
       if (prefill) {
         this.applyRouteEndpointPrefill('origin', prefill);
       }
@@ -712,7 +813,7 @@ export class TripsNewDrawerComponent {
           this.creditDays.set('');
         }
         const preferred = client.payment?.defaultPaymentMethod?.trim();
-        if (preferred && isTripManeuverPaymentMethod(preferred)) {
+        if (preferred && isTripClientPaymentMethod(preferred)) {
           this.paymentMethod.set(preferred);
         }
       }
@@ -769,7 +870,6 @@ export class TripsNewDrawerComponent {
             return EMPTY;
           }
           if (this.shouldSkipExternalNormalization('origin', oCp)) {
-            console.log('[Trips][Prefill][Origin] skip Photon — datos completos en memoria');
             return EMPTY;
           }
           return this.photon
@@ -833,7 +933,6 @@ export class TripsNewDrawerComponent {
             return EMPTY;
           }
           if (this.shouldSkipExternalNormalization('destination', dCp)) {
-            console.log('[Trips][Prefill][Destination] skip Photon — datos completos en memoria');
             return EMPTY;
           }
           return this.photon
@@ -880,10 +979,8 @@ export class TripsNewDrawerComponent {
             return false;
           }
           if (!this.routePairReady()) {
-            console.log('[Trips][OSRM][Skip] Par de ruta incompleto (CP/localidad)');
             return false;
           }
-          this.logRouteEndpointDiagnostics();
           return true;
         }),
         switchMap(([o, d]) => {
@@ -907,7 +1004,7 @@ export class TripsNewDrawerComponent {
       .subscribe();
 
     effect((onCleanup) => {
-      if (!this.session.dieselControlEnabled() || !this.autoRecognitionEnabled()) {
+      if (!this.session.dieselControlEnabled()) {
         this.resetFuelEstimateAutoState();
         return;
       }
@@ -919,14 +1016,51 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
+      const snapshot = this.operationalCentersFeature.dieselReferencePrice();
+      if (!snapshot?.enabled || snapshot.pricePerLiter == null) {
+        return;
+      }
+      this.dieselPricePerLiter.set(snapshot.pricePerLiter);
+      if (this.lastAutoDieselPricePerLiter == null) {
+        this.lastAutoDieselPricePerLiter = snapshot.pricePerLiter;
+      }
+    });
+
+    effect(() => {
+      if (this.applyingDieselEstimate || this.applyingDieselAmountFromLiters) {
+        return;
+      }
+      const price = this.dieselPricePerLiter();
+      if (price == null || !Number.isFinite(price) || price <= 0) {
+        return;
+      }
+      const liters = parseNonNegativeNumber(this.dieselLiters());
+      if (liters == null) {
+        return;
+      }
+      const nextAmount = formatFuelEstimateMoney(liters * price);
+      if (stripGroupedNumberInput(this.dieselAmount()) === stripGroupedNumberInput(nextAmount)) {
+        return;
+      }
+      this.applyingDieselAmountFromLiters = true;
+      this.dieselAmount.set(nextAmount);
+      this.applyingDieselAmountFromLiters = false;
+    });
+
+    effect(() => {
       if (!this.autoRecognitionEnabled()) {
         this.destinationRateMatched.set(false);
+        this.destinationRateChargeRecognized.set(false);
         this.matchedDestinationRateId.set(null);
         this.clearDestinationRateSuggestionUi();
         return;
       }
       const originId = this.originOperationalCenterId().trim();
       const clientId = this.clientId().trim();
+      const client = clientId
+        ? this.catalog.clients().find((c) => c.id === clientId)
+        : undefined;
+      const clientDestinationRateId = client?.delivery?.destinationRateId;
       const cp = normalizeMxPostalCodeDigits(this.destinationCp());
       const destLocality = (() => {
         const key = this.destinationLocalityKey().trim();
@@ -952,10 +1086,11 @@ export class TripsNewDrawerComponent {
       const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
       const rate =
         rateOriginId && cp.length === 5 && destLocality
-          ? findDestinationRateByRoute(rates, {
+          ? resolveManeuverDestinationRate(rates, {
               originOperationalCenterId: rateOriginId,
               destinationPostalCode: cp,
               destinationLocality: destLocality,
+              clientDestinationRateId,
             })
           : undefined;
 
@@ -968,12 +1103,16 @@ export class TripsNewDrawerComponent {
 
       if (!rateOriginId || cp.length !== 5 || !destLocality) {
         this.destinationRateMatched.set(false);
+        this.destinationRateChargeRecognized.set(false);
         this.matchedDestinationRateId.set(null);
         this.clearDestinationRateSuggestionUi();
         return;
       }
 
       this.destinationRateMatched.set(rate != null);
+      this.destinationRateChargeRecognized.set(
+        rate != null && destinationRateHasClientChargeForOperation(rate, op),
+      );
 
       if (!rate) {
         this.matchedDestinationRateId.set(null);
@@ -1008,7 +1147,6 @@ export class TripsNewDrawerComponent {
             return EMPTY;
           }
           if (this.shouldSkipExternalNormalization('origin', cpDigits)) {
-            console.log('[Trips][Prefill][Origin] skip SEPOMEX — datos completos en memoria');
             return EMPTY;
           }
           this.originCompletePrefillFingerprint.set(null);
@@ -1048,7 +1186,6 @@ export class TripsNewDrawerComponent {
             return EMPTY;
           }
           if (this.shouldSkipExternalNormalization('destination', cpDigits)) {
-            console.log('[Trips][Prefill][Destination] skip SEPOMEX — datos completos en memoria');
             return EMPTY;
           }
           this.destinationCompletePrefillFingerprint.set(null);
@@ -1151,28 +1288,6 @@ export class TripsNewDrawerComponent {
     this.routeKm.set(null);
   }
 
-  /** Logs temporales de diagnóstico para prefill + OSRM. */
-  private logRouteEndpointDiagnostics(): void {
-    const oCp = normalizeMxPostalCodeDigits(this.originCp());
-    const dCp = normalizeMxPostalCodeDigits(this.destinationCp());
-    const oCoords = this.originCoords();
-    const dCoords = this.destinationCoords();
-    console.log('[Trips][Route][Origin]', {
-      zipCode: oCp,
-      city: this.originCityLine(),
-      locality: this.originLocalityKey(),
-      latitude: oCoords?.lat ?? null,
-      longitude: oCoords?.lon ?? null,
-    });
-    console.log('[Trips][Route][Destination]', {
-      zipCode: dCp,
-      city: this.destinationCityLine(),
-      locality: this.destinationLocalityKey(),
-      latitude: dCoords?.lat ?? null,
-      longitude: dCoords?.lon ?? null,
-    });
-  }
-
   private applyPendingLocalityAfterSepomex(
     side: 'origin' | 'destination',
     rows: MxPostalSettlement[],
@@ -1261,15 +1376,18 @@ export class TripsNewDrawerComponent {
   private applyDieselEstimate(res: FuelEstimateResponse): void {
     const liters = formatFuelEstimateLiters(res.estimatedLiters);
     const amount = formatFuelEstimateMoney(res.estimatedDieselCost);
+    if (
+      Number.isFinite(res.dieselPricePerLiter) &&
+      res.dieselPricePerLiter > 0
+    ) {
+      this.dieselPricePerLiter.set(res.dieselPricePerLiter);
+      this.lastAutoDieselPricePerLiter = res.dieselPricePerLiter;
+    }
     this.applyingDieselEstimate = true;
     this.dieselLiters.set(liters);
     this.dieselAmount.set(amount);
     this.lastAutoDieselLiters = liters;
     this.lastAutoDieselAmount = amount;
-    this.lastAutoDieselPricePerLiter =
-      Number.isFinite(res.dieselPricePerLiter) && res.dieselPricePerLiter > 0
-        ? res.dieselPricePerLiter
-        : null;
     this.applyingDieselEstimate = false;
   }
 
@@ -1309,8 +1427,6 @@ export class TripsNewDrawerComponent {
     side: 'origin' | 'destination',
     prefill: TripRouteEndpointPrefill,
   ): void {
-    logPrefillLocation(side === 'origin' ? 'Origin' : 'Destination', prefill);
-
     const built = buildRouteEndpointPrefillResult(prefill);
     if (!built) {
       return;
@@ -1405,6 +1521,19 @@ export class TripsNewDrawerComponent {
     return n;
   }
 
+  private parseOptionalNonNegativeNumber(raw: string, fieldLabel: string): number | null {
+    const s = stripGroupedNumberInput(raw);
+    if (s === '') {
+      return 0;
+    }
+    const n = parseNonNegativeNumber(raw);
+    if (n === null) {
+      this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
+      return null;
+    }
+    return n;
+  }
+
   private parseCreditDays(raw: string): number {
     const t = raw.trim();
     if (t === '') {
@@ -1417,17 +1546,21 @@ export class TripsNewDrawerComponent {
     return n;
   }
 
-  private normalizePaymentMethod(v: string): 'cash' | 'transfer' | 'check' {
-    if (v === 'transfer' || v === 'check') {
+  private normalizePaymentMethod(v: string): TripClientPaymentMethod {
+    if (isTripClientPaymentMethod(v)) {
       return v;
     }
     return 'cash';
   }
 
   onUnitPicked(ev: UnitPickedEvent): void {
-    this.operationType.set(ev.operationType);
     this.equipmentPrimary.set(ev.equipmentIds[0] ?? '');
     this.equipmentSecondary.set(ev.equipmentIds[1] ?? '');
+  }
+
+  private unitConfigurationMismatchMessage(): string {
+    const configName = this.selectedOperationConfig()?.name ?? 'la configuración seleccionada';
+    return `Selecciona una unidad con configuración «${configName}».`;
   }
 
   private labelForEquipmentId(id: string): string {
@@ -1435,7 +1568,7 @@ export class TripsNewDrawerComponent {
     if (!v) {
       return '';
     }
-    const row = this.catalog.equipment().find((e) => e.id === v);
+    const row = this.selectedUnitHitchedEquipment().find((e) => e.id === v);
     return row ? formatManeuverEquipmentLabel(row) : v;
   }
 
@@ -1461,6 +1594,45 @@ export class TripsNewDrawerComponent {
     return false;
   }
 
+  private toastIfInvalidOptionalNonNegativeNumber(raw: string, fieldLabel: string): boolean {
+    const s = stripGroupedNumberInput(raw);
+    if (s === '') {
+      return false;
+    }
+    const n = parseNonNegativeNumber(raw);
+    if (n === null) {
+      this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
+      return true;
+    }
+    return false;
+  }
+
+  private sanitizePlannedScheduleAfterDepartureChange(): void {
+    const dep = this.plannedDepartureDateTime().trim();
+    const arr = this.plannedArrivalDateTime().trim();
+    const fin = this.plannedCompletionDateTime().trim();
+    let cleared = false;
+
+    if (arr && plannedScheduleArrivalOrderIssue(dep, arr)) {
+      this.plannedArrivalDateTime.set('');
+      cleared = true;
+    }
+    if (
+      fin &&
+      (plannedScheduleCompletionDepartureOrderIssue(dep, fin) ||
+        plannedScheduleCompletionOrderIssue(arr, fin))
+    ) {
+      this.plannedCompletionDateTime.set('');
+      cleared = true;
+    }
+
+    if (cleared) {
+      this.plannedScheduleSuggestionUi.set('manual');
+      this.lastAutoPlannedArrival = '';
+      this.lastAutoPlannedCompletion = '';
+    }
+  }
+
   private maybeToastPlannedScheduleOrder(): void {
     if (this.plannedScheduleValid()) {
       return;
@@ -1468,11 +1640,16 @@ export class TripsNewDrawerComponent {
     const dep = this.plannedDepartureDateTime().trim();
     const arr = this.plannedArrivalDateTime().trim();
     const fin = this.plannedCompletionDateTime().trim();
+    const message = plannedScheduleOrderToastMessage(dep, arr, fin);
+    if (message) {
+      this.toast.show(message, 'warning');
+      return;
+    }
     if (!dep || !arr || !fin) {
       return;
     }
     this.toast.show(
-      'El plan debe cumplir: salida < llegada cliente < llegada / fin.',
+      'El plan debe cumplir: salida ≤ llegada cliente ≤ llegada / fin.',
       'warning',
     );
   }
@@ -1515,25 +1692,10 @@ export class TripsNewDrawerComponent {
   onUnitBlur(): void {
     if (this.unitId().trim() === '') {
       this.toast.show('Selecciona una unidad.', 'warning');
-    }
-  }
-
-  onEquipmentPrimaryBlur(): void {
-    if (this.equipmentPrimary().trim() === '') {
-      this.toast.show('Selecciona el equipo asignado.', 'warning');
-    }
-  }
-
-  onEquipmentSecondaryBlur(): void {
-    if (!this.usesMultipleEquipmentOperation()) {
       return;
     }
-    const configName = this.selectedOperationConfig()?.name ?? 'esta configuración';
-    if (this.equipmentSecondary().trim() === '') {
-      this.toast.show(
-        `En ${configName} debes elegir dos equipos.`,
-        'warning',
-      );
+    if (!this.selectedUnitMatchesManeuverConfiguration()) {
+      this.toast.show(this.unitConfigurationMismatchMessage(), 'warning');
     }
   }
 
@@ -1554,12 +1716,19 @@ export class TripsNewDrawerComponent {
     if (this.plannedScheduleSuggestionUi() !== 'manual') {
       this.tryApplyPlannedScheduleFromMatchedRate();
     }
+    this.sanitizePlannedScheduleAfterDepartureChange();
     this.maybeToastPlannedScheduleOrder();
   }
 
   onPlannedArrivalBlur(): void {
     this.markPlannedScheduleManualOverrideIfEdited();
+    const dep = this.plannedDepartureDateTime().trim();
     const t = this.plannedArrivalDateTime().trim();
+    const orderIssue = plannedScheduleArrivalOrderIssue(dep, t);
+    if (orderIssue) {
+      this.toast.show(orderIssue, 'warning');
+      return;
+    }
     if (!t) {
       this.toast.show('Indica fecha y hora de llegada al cliente.', 'warning');
       this.maybeToastPlannedScheduleOrder();
@@ -1574,7 +1743,19 @@ export class TripsNewDrawerComponent {
 
   onPlannedCompletionBlur(): void {
     this.markPlannedScheduleManualOverrideIfEdited();
+    const dep = this.plannedDepartureDateTime().trim();
+    const arr = this.plannedArrivalDateTime().trim();
     const t = this.plannedCompletionDateTime().trim();
+    const departureOrderIssue = plannedScheduleCompletionDepartureOrderIssue(dep, t);
+    if (departureOrderIssue) {
+      this.toast.show(departureOrderIssue, 'warning');
+      return;
+    }
+    const orderIssue = plannedScheduleCompletionOrderIssue(arr, t);
+    if (orderIssue) {
+      this.toast.show(orderIssue, 'warning');
+      return;
+    }
     if (!t) {
       this.toast.show('Indica fecha y hora de llegada / fin de maniobra.', 'warning');
       this.maybeToastPlannedScheduleOrder();
@@ -1605,6 +1786,10 @@ export class TripsNewDrawerComponent {
   onOperatorQuotaBlur(): void {
     this.markDestinationRateManualOverrideIfEdited();
     this.toastIfInvalidNonNegativeNumber(this.operatorQuota(), 'Operador');
+  }
+
+  onPerDiemAmountBlur(): void {
+    this.toastIfInvalidOptionalNonNegativeNumber(this.perDiemAmount(), 'Viáticos');
   }
 
   onAssignedOperatorBlur(): void {
@@ -1690,6 +1875,11 @@ export class TripsNewDrawerComponent {
       return;
     }
 
+    if (!this.selectedUnitMatchesManeuverConfiguration()) {
+      this.toast.show(this.unitConfigurationMismatchMessage(), 'warning');
+      return;
+    }
+
     const oprId = this.assignedOperatorId().trim();
     if (!oprId) {
       this.toast.show('Selecciona un operador disponible.', 'warning');
@@ -1704,13 +1894,13 @@ export class TripsNewDrawerComponent {
       if (!eq1 || !eq2) {
         const configName = this.selectedOperationConfig()?.name ?? 'esta configuración';
         this.toast.show(
-          `En ${configName} debes elegir dos equipos.`,
+          `La unidad elegida no tiene la configuración de equipos requerida para ${configName}.`,
           'warning',
         );
         return;
       }
     } else if (!eq1) {
-      this.toast.show('Selecciona el equipo asignado.', 'warning');
+      this.toast.show('La unidad elegida no tiene equipo configurado.', 'warning');
       return;
     }
 
@@ -1741,6 +1931,10 @@ export class TripsNewDrawerComponent {
     }
     const opQuota = this.parseRequiredNonNegativeNumber(this.operatorQuota(), 'Operador');
     if (opQuota === null) {
+      return;
+    }
+    const viaticos = this.parseOptionalNonNegativeNumber(this.perDiemAmount(), 'Viáticos');
+    if (viaticos === null) {
       return;
     }
 
@@ -1780,11 +1974,12 @@ export class TripsNewDrawerComponent {
       approximateWeightTons: this.approximateWeightTons().trim(),
       dieselLiters: String(liters),
       dieselAmount: String(dieselAmt),
-      ...(this.dieselControlEnabled() && this.lastAutoDieselPricePerLiter != null
-        ? { dieselPricePerLiterAtCreation: this.lastAutoDieselPricePerLiter }
+      ...(this.dieselControlEnabled() && this.dieselPricePerLiter() != null
+        ? { dieselPricePerLiterAtCreation: this.dieselPricePerLiter()! }
         : {}),
       casetasAmount: String(casetas),
       operatorQuota: String(opQuota),
+      ...(viaticos > 0 ? { perDiemAmount: String(viaticos) } : {}),
       clientCharge: String(cobro),
       creditDays: includeBilling ? this.parseCreditDays(this.creditDays()) : 0,
       requiresInvoice: includeBilling ? this.requiresInvoice() : false,
@@ -1850,7 +2045,6 @@ export class TripsNewDrawerComponent {
       return;
     }
     const opPay = suggestedOperatorPaymentFromDestinationRate(rate, operationType);
-    const charge = suggestedClientChargeFromDestinationRate(rate, operationType);
     const toll = suggestedEstimatedTollFromDestinationRate(rate, operationType);
 
     this.applyingDestinationRateSuggestion = true;
@@ -1862,12 +2056,13 @@ export class TripsNewDrawerComponent {
       this.operatorQuotaSuggestionUi.set('auto');
     }
 
-    if (includeBilling && charge != null) {
+    if (includeBilling) {
+      const charge = suggestedClientChargeFromDestinationRate(rate, operationType);
       const formatted = formatFuelEstimateMoney(charge);
       this.clientCharge.set(formatted);
       this.lastAutoClientCharge = formatted;
       this.clientChargeSuggestionUi.set('auto');
-    } else if (!includeBilling) {
+    } else {
       this.clientChargeSuggestionUi.set('none');
     }
 
@@ -1921,6 +2116,9 @@ export class TripsNewDrawerComponent {
     this.operatorQuotaSuggestionUi.set('none');
     this.clientChargeSuggestionUi.set('none');
     this.casetasSuggestionUi.set('none');
+    if (this.lastAutoClientCharge !== '') {
+      this.clientCharge.set('');
+    }
     this.lastAutoOperatorQuota = '';
     this.lastAutoClientCharge = '';
     this.lastAutoCasetasAmount = '';

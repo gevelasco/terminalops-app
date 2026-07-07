@@ -55,25 +55,6 @@ export function cityFromCityMunicipalityLine(line: string | undefined): string {
   return parts.length > 0 ? (parts[0] ?? '') : '';
 }
 
-/** Logs temporales del shape persistido antes de aplicar al formulario. */
-export function logPrefillLocation(
-  label: 'Origin' | 'Destination',
-  prefill: TripRouteEndpointPrefill,
-): void {
-  const coords = latLonFromPrefill(prefill.latitude, prefill.longitude);
-  const payload = {
-    postalCode: normalizeMxPostalCodeDigits(prefill.postalCode),
-    city: cityFromCityMunicipalityLine(prefill.cityMunicipality),
-    locality: prefill.locality?.trim() ?? '',
-    state: stateFromCityMunicipalityLine(prefill.cityMunicipality),
-    latitude: coords?.lat ?? null,
-    longitude: coords?.lon ?? null,
-    complete: hasCompleteLocationData(prefill),
-    settlementConsId: prefill.settlementConsId?.trim() ?? '',
-  };
-  console.log(`[Trips][Prefill][${label}]`, payload);
-}
-
 /** Huella estable del extremo en el formulario (detecta edición manual). */
 export function routeEndpointFingerprint(
   cpDigits: string,
@@ -85,32 +66,7 @@ export function routeEndpointFingerprint(
   return `${cpDigits}|${localityKeyValue.trim()}|${lat}|${lon}`;
 }
 
-/** CP de origen desde sesión (centro de operaciones de la empresa). */
-export function originPrefillFromSession(session: {
-  operationalCenterPostalCode: string | null;
-  operationalCenterCityMunicipality: string | null;
-  operationalCenterLocality: string | null;
-  operationalCenterSettlementConsId: string | null;
-  operationalCenterLatitude: number | null;
-  operationalCenterLongitude: number | null;
-}): TripRouteEndpointPrefill | null {
-  const postalCode = normalizeMxPostalCodeDigits(
-    session.operationalCenterPostalCode ?? '',
-  );
-  if (postalCode.length !== 5) {
-    return null;
-  }
-  return {
-    postalCode,
-    settlementConsId: session.operationalCenterSettlementConsId?.trim() || undefined,
-    cityMunicipality: session.operationalCenterCityMunicipality?.trim() || undefined,
-    locality: session.operationalCenterLocality?.trim() || undefined,
-    latitude: session.operationalCenterLatitude,
-    longitude: session.operationalCenterLongitude,
-  };
-}
-
-/** CP de origen desde entidad de centro operativo. */
+/** CP de origen desde entidad de centro operativo (SSOT). */
 export function originPrefillFromOperationalCenter(center: {
   postalCode?: string;
   cityMunicipality?: string;

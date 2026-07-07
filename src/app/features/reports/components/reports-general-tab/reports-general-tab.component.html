@@ -1,0 +1,139 @@
+@if (loading()) {
+  <to-skeleton [lines]="6" />
+} @else if (summary() && insights()) {
+  <div
+    class="reports-general-kpis"
+    [class.reports-general-kpis--three]="!showFinancialInsights()"
+  >
+    <to-kpi-card
+      title="Maniobras completadas"
+      titleIcon="route"
+      [value]="completedValue()"
+      [valueUnit]="completedValueUnit()"
+      [legend]="completedLegend()"
+      [deltaLabel]="completedDelta() ?? undefined"
+    />
+    @if (showFinancialInsights()) {
+      <to-kpi-card
+        title="Cobro del periodo"
+        titleIcon="revenue"
+        [value]="revenueValue()"
+        [legend]="revenueLegend()"
+      />
+      <to-kpi-card
+        title="Gastos del periodo"
+        titleIcon="wallet"
+        [value]="expensesValue()"
+        [legend]="expensesLegend()"
+      />
+      <to-kpi-card
+        title="Resultado del periodo"
+        titleIcon="chart-bar"
+        [value]="marginValue()"
+        [legend]="marginLegend()"
+        [deltaTone]="marginTone()"
+      />
+    } @else {
+      <to-kpi-card
+        title="En curso"
+        titleIcon="route"
+        [value]="inTransitValue()"
+        [valueUnit]="inTransitValueUnit()"
+        [legend]="inTransitLegend()"
+      />
+      <to-kpi-card
+        title="Programadas"
+        titleIcon="calendar"
+        [value]="scheduledValue()"
+        [valueUnit]="scheduledValueUnit()"
+        [legend]="scheduledLegend()"
+      />
+      <to-kpi-card
+        title="Unidades utilizadas"
+        titleIcon="units"
+        [value]="unitsUsedValue()"
+        [valueUnit]="unitsUsedValueUnit()"
+        [legend]="unitsUsedLegend()"
+      />
+    }
+  </div>
+
+  <div class="reports-general-body">
+    <section class="reports-general-panel reports-general-panel--activity">
+      <header class="reports-general-panel__head">
+        <div>
+          <h2 class="reports-general-panel__title">Actividad del periodo</h2>
+          <p class="reports-general-panel__subtitle">
+            Completadas vs en curso vs programadas · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-general-panel__chart">
+        <to-echarts-host [option]="activityChartOption()" />
+      </div>
+    </section>
+
+    <section class="reports-general-panel reports-general-panel--destinations">
+      <header class="reports-general-panel__head">
+        <div>
+          <h2 class="reports-general-panel__title">Top destinos</h2>
+          <p class="reports-general-panel__subtitle">
+            Destinos con más maniobras completadas · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-general-panel__chart">
+        <to-echarts-host [option]="topDestinationsOption()" />
+      </div>
+    </section>
+
+    <div class="reports-general-charts-row">
+      <section class="reports-general-panel reports-general-panel--flow">
+        <header class="reports-general-panel__head">
+          <div>
+            @if (showFinancialInsights()) {
+              <h2 class="reports-general-panel__title">Distribución del periodo</h2>
+              <p class="reports-general-panel__subtitle">
+                Ingresos y gastos por rubro · {{ periodSubtitle() }}
+              </p>
+            } @else {
+              <h2 class="reports-general-panel__title">Ejecución operativa</h2>
+              <p class="reports-general-panel__subtitle">
+                Completadas vs programadas · {{ periodSubtitle() }}
+              </p>
+            }
+          </div>
+        </header>
+        <div class="reports-general-panel__chart">
+          <to-echarts-host [option]="flowChartOption()" />
+        </div>
+      </section>
+
+      <section class="reports-general-panel reports-general-panel--operators">
+        <header class="reports-general-panel__head">
+          <div>
+            <h2 class="reports-general-panel__title">Ranking de operadores</h2>
+            <p class="reports-general-panel__subtitle">
+              Productividad y rendimiento · {{ periodSubtitle() }}
+            </p>
+          </div>
+        </header>
+        <div class="reports-general-panel__chart">
+          <to-echarts-host [option]="operatorsRankingOption()" />
+        </div>
+      </section>
+
+      <section class="reports-general-panel reports-general-panel--mix">
+        <header class="reports-general-panel__head">
+          <div>
+            <h2 class="reports-general-panel__title">Configuración de maniobras</h2>
+            <p class="reports-general-panel__subtitle">{{ periodSubtitle() }}</p>
+          </div>
+        </header>
+        <div class="reports-general-panel__chart">
+          <to-echarts-host [option]="operationMixOption()" />
+        </div>
+      </section>
+    </div>
+  </div>
+}

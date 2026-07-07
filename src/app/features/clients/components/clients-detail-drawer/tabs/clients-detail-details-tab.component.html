@@ -6,7 +6,7 @@
           <h3 id="cli-dv-ident" class="fleet-unit-sec__title">
             Identificación comercial
           </h3>
-          @if (vm.editingSection() !== "ident") {
+          @if (vm.showClientEdit("ident")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -92,7 +92,7 @@
           <h3 id="cli-dv-fiscal" class="fleet-unit-sec__title">
             Datos fiscales y de facturación
           </h3>
-          @if (vm.editingSection() !== "fiscal") {
+          @if (vm.showClientEdit("fiscal")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -183,7 +183,7 @@
       >
         <div class="fleet-unit-sec__header">
           <h3 id="cli-dv-delivery" class="fleet-unit-sec__title">Datos de entrega</h3>
-          @if (vm.editingSection() !== "delivery") {
+          @if (vm.showClientEdit("delivery")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"
@@ -244,6 +244,8 @@
               [(settlementConsId)]="vm.deliverySettlementConsId"
               [(latitude)]="vm.deliveryLatitude"
               [(longitude)]="vm.deliveryLongitude"
+              [(destinationRateId)]="vm.deliveryDestinationRateId"
+              [(isUnpricedRoute)]="vm.deliveryIsUnpricedRoute"
             />
             <div class="fleet-unit-sec__edit-actions">
               <to-button
@@ -282,7 +284,7 @@
             >
               Personas de contacto
             </p>
-            @if (vm.editingSection() === "contacts" && !vm.addingContact()) {
+            @if (vm.canWriteCommercial() && vm.editingSection() === "contacts" && !vm.addingContact()) {
               <to-button
                 type="button"
                 variant="outline"
@@ -307,7 +309,7 @@
                 </span>
               </to-button>
             }
-            @if (vm.editingSection() !== "contacts") {
+            @if (vm.showClientEdit("contacts")) {
               <button
                 type="button"
                 class="fleet-unit-sec__edit-btn"
@@ -483,7 +485,7 @@
           <h3 id="cli-dv-pay" class="fleet-unit-sec__title">
             Condiciones de cobro y crédito
           </h3>
-          @if (vm.editingSection() !== "pay") {
+          @if (vm.showClientEdit("pay")) {
             <button
               type="button"
               class="fleet-unit-sec__edit-btn"

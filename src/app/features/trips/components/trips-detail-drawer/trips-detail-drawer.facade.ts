@@ -9,9 +9,14 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@services/api/expenses';
-import { tripIncidentPostedBy } from '@features/trips/utils/trip-incidents';
+import { EquipmentService } from '@services/api/equipment';
+import {
+  tripBitacoraEntriesSorted,
+  tripIncidentPostedBy,
+} from '@features/trips/utils/trip-incidents';
 import {
   seedActualScheduleDrafts,
   validateActualScheduleBeforeSave,
@@ -29,9 +34,14 @@ import {
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import { snapshotTextOrDash, storedOperationalDistanceKmLabel, storedRouteDistanceKmLabel } from '@features/trips/utils/maniobra-route-display';
-import { tripOperatorDisplayName } from '@features/trips/utils/trip-display-labels';
+import { tripOperatorDisplayName, tripEquipmentDisplayAt } from '@features/trips/utils/trip-display-labels';
+import { tripManeuverPaymentMethodLabel } from '@shared/catalogs/trip-client-payment-options';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { formatDestinationRateRouteSummary } from '@features/clients/utils/destination-rate-payload';
 import {
   Expense,
+  Equipment,
   Trip,
   TripContainerType,
   TripIncident,
@@ -40,6 +50,8 @@ import {
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
+import { isAdminRole } from '@shared/utils/access-control';
 
 export type TripsDetailTab = 'maneuver' | 'tracking' | 'settlement';
 
@@ -62,21 +74,36 @@ export class TripsDetailDrawerFacade {
   private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
   private readonly expensesApi = inject(ExpensesService);
+  private readonly equipmentApi = inject(EquipmentService);
+  private readonly centersFeature = inject(OperationalCentersFeatureService);
+  private readonly destinationRatesFeature = inject(DestinationRatesFeatureService);
   private readonly destroyRef = inject(DestroyRef);
+
+  private readonly equipmentCatalog = signal<readonly Equipment[]>([]);
+  private equipmentCatalogLoadStarted = false;
 
   private dismissCallback: (() => void) | null = null;
   private closeCancelDialogCallback: (() => void) | null = null;
 
   readonly trip = computed(() => this.tripsFeature.selectedTrip()!);
   readonly operatorName = computed(() => tripOperatorDisplayName(this.trip()));
+  readonly canWriteTrips = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.TRIPS),
+  );
+  readonly canPostTripBitacora = computed(() => this.session.canPostTripBitacora());
+  readonly canMarkTripIncident = computed(() => this.session.canMarkTripIncident());
 
   readonly drawerLoading = signal(false);
   readonly expensesForSettlement = signal<readonly Expense[]>([]);
 
-  readonly incidentDraft = signal('');
-  readonly incidentSaving = signal(false);
+  readonly bitacoraDraft = signal('');
+  readonly markAsIncidentDraft = signal(false);
+  readonly bitacoraSaving = signal(false);
   readonly collectSaving = signal(false);
   readonly cancelSubmitting = signal(false);
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteInTransitAck = signal(false);
+  readonly deleteSubmitting = signal(false);
   readonly realDatesEditEnabled = signal(false);
   readonly realDepartureDraft = signal('');
   readonly realArrivalDraft = signal('');
@@ -85,6 +112,14 @@ export class TripsDetailDrawerFacade {
   readonly realDatesSaving = signal(false);
   readonly detailTab = signal<TripsDetailTab>('maneuver');
   readonly showsSettlementTab = computed(() => this.trip().status === 'completed');
+  readonly canDeleteManiobra = computed(() => isAdminRole(this.session.role()));
+  readonly deleteRequiresInTransitAck = computed(
+    () => this.trip().status === 'in_transit',
+  );
+  readonly canConfirmDeleteManiobra = computed(
+    () =>
+      !this.deleteRequiresInTransitAck() || this.deleteInTransitAck(),
+  );
   readonly detailSegmentTabs = computed((): readonly ToSegmentTab<TripsDetailTab>[] => {
     const tabs: ToSegmentTab<TripsDetailTab>[] = [
       {
@@ -113,7 +148,9 @@ export class TripsDetailDrawerFacade {
   readonly settlementSummary = computed(() =>
     buildManiobraSettlementSummary(this.trip(), this.expensesForSettlement()),
   );
-  readonly canEditRealDates = computed(() => this.trip().status === 'in_transit');
+  readonly canEditRealDates = computed(
+    () => this.canWriteTrips() && this.trip().status === 'in_transit',
+  );
   readonly realScheduleDrafts = computed(
     (): ActualScheduleDrafts => ({
       departureAt: this.realDepartureDraft(),
@@ -142,6 +179,9 @@ export class TripsDetailDrawerFacade {
         this.detailTabTripId = t.id;
         this.detailTab.set(defaultDetailTabForTrip(t));
       }
+      this.ensureEquipmentCatalogLoaded();
+      this.centersFeature.loadOperationalCenters();
+      this.destinationRatesFeature.loadDestinationRates();
     });
 
     effect((onCleanup) => {
@@ -192,8 +232,56 @@ export class TripsDetailDrawerFacade {
   }
 
   canCancelManiobra(): boolean {
+    if (!this.canWriteTrips()) {
+      return false;
+    }
     const s = this.trip().status;
     return s === 'scheduled' || s === 'in_transit';
+  }
+
+  openDeleteConfirm(): void {
+    this.deleteInTransitAck.set(false);
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+    this.deleteInTransitAck.set(false);
+  }
+
+  onDeleteInTransitAckChange(ev: Event): void {
+    this.deleteInTransitAck.set((ev.target as HTMLInputElement).checked);
+  }
+
+  confirmDeleteManiobra(): void {
+    if (!this.canConfirmDeleteManiobra()) {
+      return;
+    }
+    this.deleteSubmitting.set(true);
+    const code = this.trip().maneuverCode;
+    this.tripsFeature
+      .deleteTrip(this.trip().id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
+          this.deleteInTransitAck.set(false);
+          this.toast.show(`Maniobra ${code} eliminada del sistema.`, 'success');
+          this.requestDismiss();
+        },
+        error: (err: unknown) => {
+          this.deleteSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo eliminar la maniobra. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
   }
 
   prepareCancelDialog(): void {
@@ -243,12 +331,7 @@ export class TripsDetailDrawerFacade {
         },
         error: (err: unknown) => {
           this.cancelSubmitting.set(false);
-          const detail =
-            err instanceof Error
-              ? err.message.trim()
-              : typeof err === 'string'
-                ? err.trim()
-                : '';
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
           this.toast.show(
             detail || 'No se pudo cancelar la maniobra. Inténtalo de nuevo.',
             'error',
@@ -376,12 +459,42 @@ export class TripsDetailDrawerFacade {
     return code || '—';
   }
 
-  destinationRateIdDisplay(): string {
+  destinationRateDisplay(): string {
     const raw = this.trip().destinationRateId;
     if (raw == null || raw === '') {
       return '';
     }
-    return String(raw).trim();
+    const id = String(raw).trim();
+    const rate = this.destinationRatesFeature.rates().find((r) => r.id === id);
+    if (rate) {
+      const summary = formatDestinationRateRouteSummary(rate);
+      const cp = rate.postalCode.trim();
+      return cp ? `${summary} · CP ${cp}` : summary;
+    }
+    return `Tarifa ${id}`;
+  }
+
+  originOperationalCenterDisplay(): string {
+    const t = this.trip();
+    const id = t.originOperationalCenterId?.trim();
+    if (!id) {
+      return '';
+    }
+    const snapName = t.originOperationalCenterNameSnapshot?.trim();
+    const snapCode = t.originOperationalCenterCodeSnapshot?.trim();
+    if (snapName) {
+      return snapCode ? `${snapName} (${snapCode})` : snapName;
+    }
+    const center = this.centersFeature.centerById(id);
+    if (center) {
+      const name = center.name?.trim();
+      const code = center.code?.trim();
+      if (name && code) {
+        return `${name} (${code})`;
+      }
+      return name || code || id;
+    }
+    return id;
   }
 
   tollCalculationModeLabel(): string {
@@ -555,16 +668,7 @@ export class TripsDetailDrawerFacade {
   }
 
   paymentLabel(method?: Trip['paymentMethod']): string {
-    switch (method) {
-      case 'transfer':
-        return 'Transferencia';
-      case 'check':
-        return 'Cheque';
-      case 'cash':
-        return 'Efectivo';
-      default:
-        return '—';
-    }
+    return tripManeuverPaymentMethodLabel(method);
   }
 
   displayGroupedNumber(raw: string | undefined): string {
@@ -594,20 +698,36 @@ export class TripsDetailDrawerFacade {
     return formatSettlementMxn(amount);
   }
 
+  settlementMarginPctLabel(): string {
+    const pct = this.settlementSummary().marginPct;
+    return pct == null ? '—' : `${pct}%`;
+  }
+
   settlementLineDate(iso: string | null): string {
     return iso ? this.fmt(iso) : '—';
   }
 
   settlementPaymentBadgeClass(): string {
-    switch (this.settlementSummary().paymentStatus) {
+    const summary = this.settlementSummary();
+    const base = 'maniobra-settlement__badge';
+    switch (summary.paymentStatus) {
       case 'paid':
-        return 'maniobra-settlement__badge maniobra-settlement__badge--paid';
+        return `${base} maniobra-settlement__badge--paid`;
       case 'credit_pending':
-        return 'maniobra-settlement__badge maniobra-settlement__badge--credit';
+        switch (summary.creditDueUrgency) {
+          case 'on_track':
+            return `${base} maniobra-settlement__badge--credit-on-track`;
+          case 'due_today':
+            return `${base} maniobra-settlement__badge--credit-due-today`;
+          case 'overdue':
+            return `${base} maniobra-settlement__badge--credit-overdue`;
+          default:
+            return `${base} maniobra-settlement__badge--credit-due-today`;
+        }
       case 'cash_pending':
-        return 'maniobra-settlement__badge maniobra-settlement__badge--pending';
+        return `${base} maniobra-settlement__badge--pending`;
       default:
-        return 'maniobra-settlement__badge maniobra-settlement__badge--neutral';
+        return `${base} maniobra-settlement__badge--neutral`;
     }
   }
 
@@ -620,55 +740,77 @@ export class TripsDetailDrawerFacade {
     return this.trip().requiresInvoice === true ? 'Sí' : 'No';
   }
 
-  equipmentAt(index: number): string {
-    const ids = this.trip().equipmentIds;
-    const id = ids?.[index]?.trim();
-    if (id) {
-      return id;
-    }
-    const list = this.trip().equipment;
-    return list[index]?.trim() ?? '—';
+  creditDaysLabel(): string {
+    const days = Math.max(0, this.trip().creditDays ?? 0);
+    return `${days} días`;
   }
 
-  incidentAuthorLabel(inc: TripIncident): string {
+  equipmentAt(index: number): string {
+    return tripEquipmentDisplayAt(this.trip(), index, this.equipmentCatalog());
+  }
+
+  private ensureEquipmentCatalogLoaded(): void {
+    if (this.equipmentCatalogLoadStarted) {
+      return;
+    }
+    this.equipmentCatalogLoadStarted = true;
+    this.equipmentApi
+      .getEquipmentList()
+      .pipe(
+        catchError(() => of([] as Equipment[])),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((list) => this.equipmentCatalog.set(list));
+  }
+
+  bitacoraAuthorLabel(inc: TripIncident): string {
     return tripIncidentPostedBy(inc, []);
   }
 
-  incidentsSorted(): TripIncident[] {
-    const list = this.trip().incidents ?? [];
-    return [...list].sort(
-      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
-    );
+  bitacoraSorted(): TripIncident[] {
+    return tripBitacoraEntriesSorted(this.trip());
   }
 
-  onIncidentDraftInput(ev: Event): void {
-    this.incidentDraft.set((ev.target as HTMLTextAreaElement).value);
+  onBitacoraDraftInput(ev: Event): void {
+    this.bitacoraDraft.set((ev.target as HTMLTextAreaElement).value);
   }
 
-  registerIncident(): void {
-    const text = this.incidentDraft().trim();
+  onMarkAsIncidentDraftChange(ev: Event): void {
+    this.markAsIncidentDraft.set((ev.target as HTMLInputElement).checked);
+  }
+
+  registerBitacoraEntry(): void {
+    const text = this.bitacoraDraft().trim();
     if (!text) {
-      this.toast.show('Describe brevemente el incidente antes de registrarlo.', 'warning');
+      this.toast.show('Escribe una nota antes de agregarla a la bitácora.', 'warning');
       return;
     }
     const postedBy = this.session.username()?.trim();
     if (!postedBy) {
-      this.toast.show('Inicia sesión para registrar incidentes.', 'warning');
+      this.toast.show('Inicia sesión para registrar entradas en la bitácora.', 'warning');
       return;
     }
-    this.incidentSaving.set(true);
+    const isIncident =
+      this.canMarkTripIncident() && this.markAsIncidentDraft();
+    this.bitacoraSaving.set(true);
     this.tripsFeature
-      .postTripIncident(this.trip().id, text, postedBy)
+      .postTripIncident(this.trip().id, text, postedBy, isIncident)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (updated) => {
-          this.incidentDraft.set('');
-          this.incidentSaving.set(false);
-          this.toast.show('Incidente registrado con la fecha y hora actual.', 'success');
+        next: () => {
+          this.bitacoraDraft.set('');
+          this.markAsIncidentDraft.set(false);
+          this.bitacoraSaving.set(false);
+          this.toast.show(
+            isIncident
+              ? 'Incidente registrado en la bitácora.'
+              : 'Entrada agregada a la bitácora.',
+            'success',
+          );
         },
         error: () => {
-          this.incidentSaving.set(false);
-          this.toast.show('No se pudo registrar el incidente. Inténtalo de nuevo.', 'error');
+          this.bitacoraSaving.set(false);
+          this.toast.show('No se pudo guardar la entrada. Inténtalo de nuevo.', 'error');
         },
       });
   }

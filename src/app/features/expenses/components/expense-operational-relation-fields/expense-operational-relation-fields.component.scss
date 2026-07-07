@@ -1,0 +1,48 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.expense-op-relation__tabs {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 0.15rem;
+}
+
+:host ::ng-deep to-filter-tabs.expense-op-relation__tabs {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+:host ::ng-deep to-filter-tabs.expense-op-relation__tabs .maniobra-filters {
+  width: 100%;
+}
+
+:host ::ng-deep to-filter-tabs.expense-op-relation__tabs .maniobra-filters__tab {
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+}
+
+.expense-op-relation__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.expense-op-relation__read {
+  margin-top: 0;
+}
+
+to-trip-input,
+to-fleet-resource-link-input,
+to-operator-link-input,
+to-select {
+  display: block;
+  width: 100%;
+}

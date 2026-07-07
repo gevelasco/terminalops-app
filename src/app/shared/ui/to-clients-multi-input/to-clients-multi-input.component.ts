@@ -13,8 +13,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ClientsService } from '@services/api/clients';
-import type { Client } from '@shared/models/client.models';
+import {
+  ClientsService,
+  type ClientPickerOption,
+} from '@services/api/clients';
 
 let clientsMultiSeq = 0;
 
@@ -33,6 +35,7 @@ export class ToClientsMultiInputComponent {
   private readonly chipsRow = viewChild<ElementRef<HTMLElement>>('chipsRow');
 
   private resizeObserver: ResizeObserver | null = null;
+  private loadRequested = false;
 
   readonly placeholder = input('Buscar cliente…');
   readonly disabled = input(false);
@@ -43,8 +46,8 @@ export class ToClientsMultiInputComponent {
   readonly inputId = `to-clients-multi-${++clientsMultiSeq}`;
   readonly listId = `${this.inputId}-list`;
 
-  readonly allClients = signal<Client[]>([]);
-  readonly loading = signal(true);
+  readonly allClients = signal<ClientPickerOption[]>([]);
+  readonly loading = signal(false);
   readonly open = signal(false);
   readonly visibleChipCount = signal(0);
 
@@ -78,17 +81,6 @@ export class ToClientsMultiInputComponent {
   });
 
   constructor() {
-    this.clientsApi
-      .getClientsList()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          this.allClients.set(rows);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
-
     afterNextRender(() => {
       const row = this.chipsRow()?.nativeElement;
       if (!row || typeof ResizeObserver === 'undefined') {
@@ -115,15 +107,32 @@ export class ToClientsMultiInputComponent {
     if (this.disabled()) {
       return;
     }
+    this.ensureClientsLoaded();
     this.query.set((ev.target as HTMLInputElement).value);
     this.open.set(true);
   }
 
   onFocus(): void {
-    if (this.disabled() || this.loading()) {
+    if (this.disabled()) {
       return;
     }
+    this.ensureClientsLoaded();
     this.open.set(true);
+  }
+
+  onFieldClick(ev: Event): void {
+    if (this.disabled()) {
+      return;
+    }
+    const target = ev.target as HTMLElement;
+    if (target.closest('.to-clients-multi__chip-remove')) {
+      return;
+    }
+    this.ensureClientsLoaded();
+    this.open.set(true);
+    if (target.tagName !== 'INPUT') {
+      queueMicrotask(() => this.fieldInput()?.nativeElement.focus());
+    }
   }
 
   toggleOpen(ev: Event): void {
@@ -135,12 +144,13 @@ export class ToClientsMultiInputComponent {
     if (this.open()) {
       this.close();
     } else {
+      this.ensureClientsLoaded();
       this.open.set(true);
       queueMicrotask(() => this.fieldInput()?.nativeElement.focus());
     }
   }
 
-  onTogglePointerDown(c: Client, ev: Event): void {
+  onTogglePointerDown(c: ClientPickerOption, ev: Event): void {
     if (this.disabled()) {
       return;
     }
@@ -190,6 +200,24 @@ export class ToClientsMultiInputComponent {
       ev.stopPropagation();
       this.close();
     }
+  }
+
+  private ensureClientsLoaded(): void {
+    if (this.loadRequested || this.allClients().length > 0) {
+      return;
+    }
+    this.loadRequested = true;
+    this.loading.set(true);
+    this.clientsApi
+      .getClientPickerOptions()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => {
+          this.allClients.set(rows);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
   }
 
   private toggleClient(id: string): void {

@@ -88,6 +88,8 @@ export function defaultOperatorShell(
     address: '',
     companyHireDate: '',
     employmentContractType: '',
+    paymentSchedule: 'maneuver',
+    paymentMethod: '',
     insuranceKind: 'none',
     photoDataUrl: '',
     ...rest,

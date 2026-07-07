@@ -1,0 +1,153 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 0;
+}
+
+:host ::ng-deep .reports-fleet-kpis to-kpi-card .to-card__inner {
+  padding: 0.5rem 0.6rem 0.45rem;
+}
+
+:host ::ng-deep .reports-fleet-kpis to-kpi-card .to-kpi-card__value {
+  font-size: clamp(1rem, 1.1vw, 1.22rem);
+}
+
+.reports-fleet-kpis {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reports-fleet-kpis > * {
+  min-width: 0;
+}
+
+.reports-fleet-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding-bottom: 0.35rem;
+}
+
+.reports-fleet-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 220px;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 82%, transparent);
+  border-radius: var(--to-radius-lg, 0.5rem);
+  background: var(--to-color-surface);
+  padding: 0.65rem 0.75rem 0.55rem;
+}
+
+.reports-fleet-panel--wide {
+  grid-column: 1 / -1;
+}
+
+.reports-fleet-panel__head {
+  flex-shrink: 0;
+  margin-bottom: 0.35rem;
+}
+
+.reports-fleet-panel__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+.reports-fleet-panel__subtitle {
+  margin: 0.12rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.reports-fleet-panel__chart {
+  flex: 1 1 auto;
+  min-height: 180px;
+}
+
+.reports-fleet-panel__chart--tall {
+  min-height: 220px;
+}
+
+.reports-fleet-panel__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+:host ::ng-deep .reports-fleet-panel__table-wrap to-table .to-table {
+  font-size: 0.6875rem;
+}
+
+.reports-fleet-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+}
+
+.reports-fleet-panel__table th,
+.reports-fleet-panel__table td {
+  padding: 0.35rem 0.4rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  vertical-align: middle;
+}
+
+.reports-fleet-panel__table th {
+  font-weight: 700;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.reports-fleet-panel__table td {
+  color: var(--to-color-text);
+}
+
+.reports-fleet-panel__empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+}
+
+.reports-fleet-renewal-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.reports-fleet-renewal-pill--due {
+  background: color-mix(in srgb, var(--to-color-danger, #7c2d12) 14%, transparent);
+  color: var(--to-color-danger, #7c2d12);
+}
+
+.reports-fleet-renewal-pill--soon {
+  background: color-mix(in srgb, var(--to-color-warning, #92400e) 14%, transparent);
+  color: var(--to-color-warning, #92400e);
+}
+
+@media (max-width: 1100px) {
+  .reports-fleet-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .reports-fleet-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reports-fleet-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

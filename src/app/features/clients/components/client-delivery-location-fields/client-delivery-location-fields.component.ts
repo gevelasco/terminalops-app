@@ -68,6 +68,8 @@ export class ClientDeliveryLocationFieldsComponent {
   readonly settlementConsId = model('');
   readonly latitude = model<number | null>(null);
   readonly longitude = model<number | null>(null);
+  readonly destinationRateId = model<string | null>(null);
+  readonly isUnpricedRoute = model(false);
 
   readonly settlements = signal<MxPostalSettlement[]>([]);
   readonly cpLoading = signal(false);
@@ -75,7 +77,6 @@ export class ClientDeliveryLocationFieldsComponent {
   private readonly coordsFromDb = signal(false);
 
   readonly routeLinkStatus = signal<ClientDeliveryRouteLinkPreview>('idle');
-  readonly linkedDestinationRateId = signal<string | null>(null);
   readonly suggestedRouteCount = signal(0);
 
   readonly routeLinkTitle = computed(() =>
@@ -221,12 +222,14 @@ export class ClientDeliveryLocationFieldsComponent {
         tap((input) => {
           if (!isClientDeliveryRouteLookupReady(input)) {
             this.routeLinkStatus.set('idle');
-            this.linkedDestinationRateId.set(null);
+            this.destinationRateId.set(null);
+            this.isUnpricedRoute.set(false);
             this.suggestedRouteCount.set(0);
             return;
           }
           this.routeLinkStatus.set('checking');
-          this.linkedDestinationRateId.set(null);
+          this.destinationRateId.set(null);
+          this.isUnpricedRoute.set(false);
         }),
         filter(
           (input): input is { postalCode: string; locality: string; settlementConsId: string } =>
@@ -279,14 +282,22 @@ export class ClientDeliveryLocationFieldsComponent {
 
   private applyRouteLinkPreview(rateId: string | null, matchCount: number): void {
     this.suggestedRouteCount.set(matchCount);
-    this.linkedDestinationRateId.set(rateId);
+    this.destinationRateId.set(rateId);
+    this.isUnpricedRoute.set(
+      !rateId &&
+        isClientDeliveryRouteLookupReady({
+          postalCode: this.postalCode(),
+          locality: this.locality(),
+        }),
+    );
     this.routeLinkStatus.set(rateId ? 'linked' : 'unpriced');
   }
 
   private syncRouteLinkFromSaved(): void {
     const savedRateId = this.savedDestinationRateId()?.trim();
     if (savedRateId) {
-      this.linkedDestinationRateId.set(savedRateId);
+      this.destinationRateId.set(savedRateId);
+      this.isUnpricedRoute.set(false);
       this.routeLinkStatus.set('linked');
       return;
     }
@@ -297,7 +308,8 @@ export class ClientDeliveryLocationFieldsComponent {
       }) &&
       this.savedIsUnpricedRoute()
     ) {
-      this.linkedDestinationRateId.set(null);
+      this.destinationRateId.set(null);
+      this.isUnpricedRoute.set(true);
       this.routeLinkStatus.set('unpriced');
     }
   }
@@ -383,7 +395,8 @@ export class ClientDeliveryLocationFieldsComponent {
     this.coordsFromDb.set(false);
     this.cpEditing.set(false);
     this.routeLinkStatus.set('idle');
-    this.linkedDestinationRateId.set(null);
+    this.destinationRateId.set(null);
+    this.isUnpricedRoute.set(false);
     this.suggestedRouteCount.set(0);
   }
 

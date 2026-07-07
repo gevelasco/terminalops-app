@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
@@ -8,23 +8,113 @@ import type {
   FuelEstimateResponse,
 } from '@shared/models/api/api-trips-fuel.model';
 import type { ClientCargoHistoryResponse } from '@shared/models/api/api-trips-cargo-history.model';
-import type { TripsMapResponse } from '@shared/models/api/api-trips-map.model';
+import type { TripLinkOptionsResponse } from '@shared/models/api/api-trips-link-options.model';
+import { mapApiTripLinkOption } from '@shared/models/api/api-trips-link-options.model';
 import { mapApiTripsMapResponse } from '@shared/models/api/api-trips-map.model';
+import type { TripsMapResponse } from '@shared/models/api/api-trips-map.model';
 import type { Trip } from '@shared/models/logistics.models';
 import { mapApiTrip } from '@shared/data/api-mappers';
+import { buildFleetLinkOptionsQuery } from './fleet-link-options-query';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url';
+
+export interface TripsListParams {
+  page?: number;
+  limit?: number;
+  q?: string;
+  status?: string;
+}
+
+export interface TripsListResponse {
+  items: Trip[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+function normalizeTripsListResponse(
+  res: TripsListResponse | Record<string, unknown>[] | Record<string, unknown>,
+): TripsListResponse {
+  if (Array.isArray(res)) {
+    const items = res.map((row) => mapApiTrip(row as Record<string, unknown>));
+    return {
+      items,
+      total: items.length,
+      page: 1,
+      limit: items.length,
+    };
+  }
+
+  const raw = res as TripsListResponse & { items?: unknown[] };
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((row) =>
+        mapApiTrip(row as unknown as Record<string, unknown>),
+      )
+    : [];
+
+  return {
+    items,
+    total: typeof raw.total === 'number' ? raw.total : items.length,
+    page: typeof raw.page === 'number' ? raw.page : 1,
+    limit: typeof raw.limit === 'number' ? raw.limit : items.length,
+  };
+}
+
+function buildTripsListParams(params?: TripsListParams): HttpParams {
+  let httpParams = new HttpParams();
+  if (!params) {
+    return httpParams;
+  }
+  if (params.page != null) {
+    httpParams = httpParams.set('page', String(params.page));
+  }
+  if (params.limit != null) {
+    httpParams = httpParams.set('limit', String(params.limit));
+  }
+  if (params.q?.trim()) {
+    httpParams = httpParams.set('q', params.q.trim());
+  }
+  if (params.status?.trim()) {
+    httpParams = httpParams.set('status', params.status.trim());
+  }
+  return httpParams;
+}
 
 @Injectable({ providedIn: 'root' })
 export class TripsService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
 
+  /** Listado completo (cachés, formularios). */
   getTripsList(): Observable<Trip[]> {
+    return this.getTripsPage({ limit: 0 }).pipe(map((r) => r.items));
+  }
+
+  getTripsPage(params: TripsListParams): Observable<TripsListResponse> {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http
-      .get<Record<string, unknown>[]>(companyResourceUrl(companyId, 'trips'))
-      .pipe(map((rows) => rows.map((r) => mapApiTrip(r))));
+      .get<TripsListResponse>(companyResourceUrl(companyId, 'trips'), {
+        params: buildTripsListParams(params),
+      })
+      .pipe(map((res) => normalizeTripsListResponse(res)));
+  }
+
+  /** Maniobras ligeras para vincular en formularios (código, estatus, fecha). */
+  getTripLinkOptions(params?: {
+    search?: string;
+    id?: string;
+    limit?: number;
+  }): Observable<TripLinkOptionsResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    const qs = buildFleetLinkOptionsQuery(params);
+    const url = `${companyResourceUrl(companyId, 'trips/link-options')}${qs ? `?${qs}` : ''}`;
+    return this.http.get<Record<string, unknown>>(url).pipe(
+      map((raw) => ({
+        items: Array.isArray(raw['items'])
+          ? (raw['items'] as Record<string, unknown>[]).map(mapApiTripLinkOption)
+          : [],
+      })),
+    );
   }
 
   getTripsMap(): Observable<TripsMapResponse> {
@@ -42,12 +132,8 @@ export class TripsService {
 
   postTrip(payload: CreateTripPayload): Observable<Trip> {
     const companyId = requireCompanyId(this.session.companyId());
-    const body = {
-      ...payload,
-      status: 'scheduled',
-    };
     return this.http
-      .post<Record<string, unknown>>(companyResourceUrl(companyId, 'trips'), body)
+      .post<Record<string, unknown>>(companyResourceUrl(companyId, 'trips'), payload)
       .pipe(map((r) => mapApiTrip(r)));
   }
 
@@ -55,11 +141,13 @@ export class TripsService {
     tripId: string,
     description: string,
     postedBy: string,
+    isIncident = false,
   ): Observable<Trip> {
     return this.http
       .post<Record<string, unknown>>(resourceByIdUrl('trips', tripId, 'incidents'), {
         description,
         postedBy,
+        isIncident,
       })
       .pipe(map((r) => mapApiTrip(r)));
   }
@@ -90,6 +178,14 @@ export class TripsService {
       .pipe(map((r) => mapApiTrip(r)));
   }
 
+  /** Soft delete (solo administrador). */
+  deleteTrip(tripId: string): Observable<{ id: number; deleted: boolean }> {
+    const id = tripId.trim();
+    return this.http
+      .delete<{ id: number; deleted: boolean }>(resourceByIdUrl('trips', id))
+      .pipe(map((res) => res));
+  }
+
   getClientCargoHistory(clientId: string): Observable<ClientCargoHistoryResponse> {
     const companyId = requireCompanyId(this.session.companyId());
     const id = clientId.trim();
@@ -101,17 +197,9 @@ export class TripsService {
   /** Estimación operativa de diesel (heurística en backend). */
   estimateFuelConsumption(payload: FuelEstimateRequest): Observable<FuelEstimateResponse> {
     const companyId = requireCompanyId(this.session.companyId());
-    console.log('[Trips][FuelEstimate][Request]', payload);
-    return this.http
-      .post<FuelEstimateResponse>(
-        companyResourceUrl(companyId, 'trips/fuel-estimate'),
-        payload,
-      )
-      .pipe(
-        map((res) => {
-          console.log('[Trips][FuelEstimate][Response]', res);
-          return res;
-        }),
-      );
+    return this.http.post<FuelEstimateResponse>(
+      companyResourceUrl(companyId, 'trips/fuel-estimate'),
+      payload,
+    );
   }
 }

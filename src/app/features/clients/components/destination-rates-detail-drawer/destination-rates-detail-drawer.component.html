@@ -145,6 +145,7 @@
             Última actualización: {{ vm.lastUpdatedLabel() }}
           </p>
         </div>
+        @if (vm.canWriteCommercial()) {
         <button
           type="button"
           class="fleet-unit-sec__edit-btn"
@@ -153,6 +154,7 @@
         >
           <to-icon name="edit" [size]="14" />
         </button>
+        }
       </div>
 
       <div class="destination-rates-detail-drawer__view-body">

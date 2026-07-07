@@ -8,11 +8,15 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '@core/notifications/toast.service';
-import { ExpensesService } from '@services/api/expenses';
-import { UnitsService } from '@services/api/units';
-import { buildOperatorOperationSummary } from '@features/operators/utils/operator-operation-summary';
-import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
-import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
+import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
+import { OperatorsService as OperatorsApiService } from '@services/api/operators';
+import {
+  mapApiOperatorOperationSummary,
+  EMPTY_OPERATOR_OPERATION_SUMMARY,
+  type OperatorOperationSummary,
+} from '@features/operators/utils/operator-operation-summary';
 import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
 import { companyTenureLabelEs } from '@features/operators/utils/operator-company-tenure';
 import { filesToOperatorDocuments } from '@features/operators/utils/operator-attached-documents';
@@ -24,31 +28,35 @@ import {
   OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS,
   OPERATOR_INSURANCE_KIND_OPTIONS,
   OPERATOR_LICENSE_TYPE_OPTIONS,
-  OPERATOR_OPERATIONAL_STATUS_OPTIONS,
+  OPERATOR_PAYMENT_SCHEDULE_OPTIONS,
   OPERATOR_PREMIUM_PERIOD_OPTIONS,
   OPERATOR_RELATIONSHIP_OPTIONS,
   operatorEmploymentContractLabel,
   operatorInsuranceKindLabel,
   operatorLicenseTypeLabel,
   operatorOperationalStatusLabel,
+  operatorPaymentScheduleLabel,
   operatorRelationshipLabel,
 } from '@shared/catalogs/operator-form-options';
+import { FLEET_RESOURCE_VISIBILITY_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
+import { expensePaymentMethodLabel } from '@features/expenses/utils/expense-row-labels';
+import { fleetResourceActiveLabel } from '@shared/utils/fleet-resource-active';
 import { operatorOperationalStatusMod } from '@shared/utils/operator-operational-pill';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import type {
-  Expense,
   Operator,
   OperatorAttachedDocument,
   OperatorDocumentSlot,
   OperatorInsuranceKind,
   OperatorLicenseType,
   OperatorOperationalStatus,
-  Unit,
+  OperatorPaymentSchedule,
 } from '@shared/models/logistics.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, finalize, of } from 'rxjs';
 
 export type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
 export type OperatorDrawerTab = 'details' | 'operation';
@@ -57,14 +65,16 @@ export type OperatorDrawerTab = 'details' | 'operation';
 export class OperatorsDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly operatorsFeature = inject(OperatorsFeatureService);
-  private readonly operationalTrips = inject(OperationalTripsFeatureService);
-  private readonly expensesApi = inject(ExpensesService);
-  private readonly unitsApi = inject(UnitsService);
+  private readonly operatorsApi = inject(OperatorsApiService);
   private readonly toast = inject(ToastService);
+  private readonly operationalSync = inject(OperationalFleetSyncService);
+  private readonly session = inject(SessionService);
 
   private dismissCallback: (() => void) | null = null;
-  private readonly expensesSignal = signal<readonly Expense[]>([]);
-  private readonly unitsSignal = signal<readonly Unit[]>([]);
+  private readonly operationSummarySignal = signal<OperatorOperationSummary | null>(
+    null,
+  );
+  private operationSummaryCacheKey: string | null = null;
 
   readonly operator = computed(() => this.operatorsFeature.selectedOperator()!);
 
@@ -86,6 +96,10 @@ export class OperatorsDetailDrawerFacade {
   ];
   readonly editingSection = signal<OperatorEditSection | null>(null);
   readonly saving = signal(false);
+  readonly paymentConfirming = signal(false);
+  readonly canWriteOperators = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.OPERATORS),
+  );
 
   readonly editName = signal('');
   readonly editBirthDate = signal('');
@@ -101,7 +115,9 @@ export class OperatorsDetailDrawerFacade {
   readonly editPhotoDataUrl = signal('');
   readonly editCompanyHireDate = signal('');
   readonly editEmploymentContractType = signal('');
-  readonly editStatus = signal<OperatorOperationalStatus>('available');
+  readonly editPaymentSchedule = signal<OperatorPaymentSchedule>('maneuver');
+  readonly editPaymentMethod = signal('');
+  readonly editVisibility = signal<'active' | 'inactive'>('active');
 
   readonly editEcName = signal('');
   readonly editEcRelationship = signal('');
@@ -143,26 +159,25 @@ export class OperatorsDetailDrawerFacade {
     this.editDocuments().filter((d) => d.slot === 'insurance'),
   );
 
-  readonly statusOptions = OPERATOR_OPERATIONAL_STATUS_OPTIONS;
+  readonly visibilityOptions = FLEET_RESOURCE_VISIBILITY_OPTIONS;
+
+  resourceVisibilityLabel(): string {
+    return fleetResourceActiveLabel(this.operator().isActive);
+  }
   readonly licenseTypeOptions = OPERATOR_LICENSE_TYPE_OPTIONS;
   readonly insuranceKindOptions = OPERATOR_INSURANCE_KIND_OPTIONS;
   readonly relationshipOptions = OPERATOR_RELATIONSHIP_OPTIONS;
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
+  readonly paymentScheduleOptions = OPERATOR_PAYMENT_SCHEDULE_OPTIONS;
+  readonly paymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
-  readonly operationTrips = computed(() => this.operationalTrips.trips());
-
-  readonly derivedOperationalStatus = computed(() =>
-    deriveOperatorOperationalStatus(this.operator(), this.operationTrips()),
+  readonly operationSummary = computed(
+    () => this.operationSummarySignal() ?? EMPTY_OPERATOR_OPERATION_SUMMARY,
   );
 
-  readonly operationSummary = computed(() =>
-    buildOperatorOperationSummary(
-      this.operator().id,
-      this.operationTrips(),
-      this.expensesSignal(),
-      this.unitsSignal(),
-    ),
+  readonly derivedOperationalStatus = computed(
+    () => this.operator().status as OperatorOperationalStatus,
   );
 
   private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
@@ -184,6 +199,8 @@ export class OperatorsDetailDrawerFacade {
       if (idChanged) {
         this.drawerTab.set('operation');
         this.editingSection.set(null);
+        this.operationSummarySignal.set(null);
+        this.operationSummaryCacheKey = null;
       }
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromOperator(o);
@@ -192,26 +209,47 @@ export class OperatorsDetailDrawerFacade {
 
     effect((onCleanup) => {
       const o = this.operatorsFeature.selectedOperator();
+      const tab = this.drawerTab();
       if (!o) {
-        this.expensesSignal.set([]);
-        this.unitsSignal.set([]);
+        this.operationSummarySignal.set(null);
+        this.operationSummaryCacheKey = null;
+        this.drawerLoading.set(false);
+        return;
+      }
+      if (tab !== 'operation') {
+        this.drawerLoading.set(false);
+        return;
+      }
+      const cacheKey = o.id;
+      if (
+        this.operationSummaryCacheKey === cacheKey &&
+        this.operationSummarySignal() != null
+      ) {
         this.drawerLoading.set(false);
         return;
       }
       this.drawerLoading.set(true);
-      const sub = forkJoin({
-        expenses: this.expensesApi
-          .getExpensesList()
-          .pipe(catchError(() => of([] as Expense[]))),
-        units: this.unitsApi
-          .getUnitsList()
-          .pipe(catchError(() => of([] as Unit[]))),
-      }).subscribe(({ expenses, units }) => {
-        this.expensesSignal.set(expenses);
-        this.unitsSignal.set(units);
-        this.drawerLoading.set(false);
-      });
+      const sub = this.operatorsApi
+        .getOperatorOperationSummary(o.id)
+        .pipe(catchError(() => of(EMPTY_OPERATOR_OPERATION_SUMMARY)))
+        .subscribe((summary) => {
+          this.operationSummaryCacheKey = cacheKey;
+          this.operationSummarySignal.set(summary);
+          this.syncOperatorListPaymentSummary(o.id, summary);
+          this.drawerLoading.set(false);
+        });
       onCleanup(() => sub.unsubscribe());
+    });
+
+    let operatorsPaymentsEpoch = this.operationalSync.operatorsMutationEpoch();
+    effect(() => {
+      const epoch = this.operationalSync.operatorsMutationEpoch();
+      if (epoch === operatorsPaymentsEpoch) {
+        return;
+      }
+      operatorsPaymentsEpoch = epoch;
+      this.operationSummarySignal.set(null);
+      this.operationSummaryCacheKey = null;
     });
   }
 
@@ -263,6 +301,14 @@ export class OperatorsDetailDrawerFacade {
 
   employmentContractLabel(code: string): string {
     return operatorEmploymentContractLabel(code);
+  }
+
+  paymentScheduleLabel(): string {
+    return operatorPaymentScheduleLabel(this.operator().paymentSchedule);
+  }
+
+  paymentMethodLabel(): string {
+    return expensePaymentMethodLabel(this.operator().paymentMethod);
   }
 
   companyHireDateLabel(): string {
@@ -328,9 +374,15 @@ export class OperatorsDetailDrawerFacade {
     }
     this.cancelSectionEdit();
     this.drawerTab.set(tab);
+    if (tab !== 'operation') {
+      this.drawerLoading.set(false);
+    }
   }
 
   startEditSection(section: OperatorEditSection): void {
+    if (!this.canWriteOperators()) {
+      return;
+    }
     this.patchFormFromOperator(this.operator());
     this.drawerTab.set(section === 'operation' ? 'operation' : 'details');
     this.editingSection.set(section);
@@ -339,6 +391,10 @@ export class OperatorsDetailDrawerFacade {
   cancelSectionEdit(): void {
     this.patchFormFromOperator(this.operator());
     this.editingSection.set(null);
+  }
+
+  showOperatorEdit(section: OperatorEditSection): boolean {
+    return this.canWriteOperators() && this.editingSection() !== section;
   }
 
   onEditDocumentsSelected(ev: Event, slot: OperatorDocumentSlot): void {
@@ -430,9 +486,11 @@ export class OperatorsDetailDrawerFacade {
 
     const updated = mergeOperatorNested({
       ...this.operator(),
-      status: this.editStatus(),
+      isActive: this.editVisibility() === 'active',
       companyHireDate,
       employmentContractType: this.editEmploymentContractType().trim(),
+      paymentSchedule: this.editPaymentSchedule(),
+      paymentMethod: this.editPaymentMethod().trim() || undefined,
       documents: [...this.editDocuments()],
     }) as Operator;
     this.persistOperator(updated);
@@ -513,7 +571,9 @@ export class OperatorsDetailDrawerFacade {
     this.editPhotoDataUrl.set(o.photoDataUrl ?? '');
     this.editCompanyHireDate.set(o.companyHireDate);
     this.editEmploymentContractType.set(o.employmentContractType);
-    this.editStatus.set(o.status);
+    this.editPaymentSchedule.set(o.paymentSchedule ?? 'maneuver');
+    this.editPaymentMethod.set(o.paymentMethod ?? '');
+    this.editVisibility.set(o.isActive === false ? 'inactive' : 'active');
     this.editEcName.set(o.emergencyContact.name);
     this.editEcRelationship.set(o.emergencyContact.relationship);
     this.editEcPhone.set(o.emergencyContact.phone);
@@ -536,5 +596,46 @@ export class OperatorsDetailDrawerFacade {
     this.editPrivDeductible.set(o.privateInsurance.deductibleNotes);
     this.editPrivPlan.set(o.privateInsurance.planSummary);
     this.editDocuments.set([...(o.documents ?? [])]);
+  }
+
+  confirmOperatorPayment(tripId: string): void {
+    const normalizedTripId = tripId.trim();
+    if (!normalizedTripId || this.paymentConfirming() || this.saving()) {
+      return;
+    }
+    const operatorId = this.operator().id;
+    this.paymentConfirming.set(true);
+    this.operatorsApi
+      .confirmOperatorTripPayment(operatorId, normalizedTripId)
+      .pipe(
+        catchError(() => {
+          this.toast.show('No se pudo confirmar el pago al operador.', 'error');
+          return of(null);
+        }),
+        finalize(() => this.paymentConfirming.set(false)),
+      )
+      .subscribe((summary) => {
+        if (!summary) {
+          return;
+        }
+        this.operationSummarySignal.set(summary);
+        this.operationSummaryCacheKey = operatorId;
+        this.syncOperatorListPaymentSummary(operatorId, summary);
+        this.toast.show('Pago registrado en la tabla de gastos.', 'success');
+      });
+  }
+
+  private syncOperatorListPaymentSummary(
+    operatorId: string,
+    summary: OperatorOperationSummary,
+  ): void {
+    this.operatorsFeature.applyOperatorPaymentSummary(operatorId, summary);
+  }
+
+  operatorPaymentPaidLabel(paidAtYmd: string | null): string {
+    if (!paidAtYmd?.trim()) {
+      return '—';
+    }
+    return this.displayIsoDate(paidAtYmd);
   }
 }

@@ -1,44 +1,28 @@
-import {
-  operationalKey,
-  operationalKeyEquipment,
-  type FleetOperationalKey,
-} from '@features/fleet/utils/fleet-unit-table-row';
 import type { Equipment, Unit } from '@shared/models/logistics.models';
+import type { TripStatus } from '@shared/models/logistics.models';
+import { resolveUnitOperationalKey } from '@shared/utils/fleet/fleet-status.resolver';
 
-/** Estado operativo de unidad desde DB (sync backend). */
-export function fleetOperationalKeyFromUnit(unit: Unit): FleetOperationalKey {
-  const s = (unit.status ?? '').trim().toLowerCase();
-  switch (s) {
-    case 'in_use':
-      return 'on_route';
-    case 'scheduled':
-      return 'scheduled';
-    case 'maintenance':
-      return 'maintenance';
-    case 'available':
-      return 'available';
-    default:
-      return operationalKey(unit, false);
-  }
+export function fleetOperationalKeyFromUnit(
+  unit: Unit,
+  activeTripStatus?: TripStatus,
+): ReturnType<typeof resolveUnitOperationalKey> {
+  return resolveUnitOperationalKey({
+    persistedStatus: unit.status,
+    isActive: unit.isActive !== false,
+    activeTripStatus,
+  });
 }
 
-/** Estado operativo de equipo desde DB (sync backend). */
+/** @deprecated Use resolveUnitOperationalKey from fleet-status.resolver. */
 export function fleetOperationalKeyFromEquipment(
   equipment: Equipment,
-): FleetOperationalKey {
-  const s = (equipment.status ?? '').trim().toLowerCase();
-  switch (s) {
-    case 'in_use':
-      return 'on_route';
-    case 'scheduled':
-      return 'scheduled';
-    case 'maintenance':
-      return 'maintenance';
-    case 'available':
-      return 'available';
-    default:
-      return operationalKeyEquipment(equipment, false);
-  }
+  activeTripStatus?: TripStatus,
+): ReturnType<typeof resolveUnitOperationalKey> {
+  return resolveUnitOperationalKey({
+    persistedStatus: equipment.status,
+    isActive: equipment.isActive !== false,
+    activeTripStatus,
+  });
 }
 
 export function fleetUnitIsOnRoute(unit: Unit | null | undefined): boolean {

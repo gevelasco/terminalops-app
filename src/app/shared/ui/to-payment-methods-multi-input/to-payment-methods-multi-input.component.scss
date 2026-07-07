@@ -5,9 +5,10 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  gap: 0.15rem;
   height: 2.125rem;
   max-height: 2.125rem;
-  padding: 0 3.1rem 0 0.35rem;
+  padding: 0 0.3rem 0 0.35rem;
   border: 1px solid var(--to-color-border);
   border-radius: var(--to-radius-md);
   background: var(--to-color-surface);
@@ -37,6 +38,7 @@
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .to-payment-methods-multi__placeholder {
@@ -94,11 +96,14 @@
   }
 }
 
+.to-payment-methods-multi__suffix {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.05rem;
+}
+
 .to-payment-methods-multi__toggle {
-  position: absolute;
-  right: 1.45rem;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -129,10 +134,6 @@
 }
 
 .to-payment-methods-multi__clear {
-  position: absolute;
-  right: 0.3rem;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;

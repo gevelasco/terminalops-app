@@ -69,6 +69,18 @@
   }
 }
 
+.fleet-unit-sec__edit-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fleet-unit-sec__edit-actions {
   display: flex;
   justify-content: flex-end;
@@ -185,34 +197,6 @@
   font-weight: 500;
   color: var(--to-color-text-muted);
   line-height: 1.35;
-}
-
-.fleet-unit-detail__dl {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.fleet-unit-detail__row {
-  display: grid;
-  grid-template-columns: minmax(0, 11rem) 1fr;
-  gap: 0.5rem 0.75rem;
-  align-items: baseline;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-
-  dt {
-    margin: 0;
-    color: var(--to-color-text-muted);
-    font-weight: 600;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--to-color-text);
-    word-break: break-word;
-  }
 }
 
 .fleet-unit-detail__mono {

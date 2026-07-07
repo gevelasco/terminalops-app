@@ -1,6 +1,7 @@
 <to-side-drawer
   titleId="clients-detail-title"
   wide
+  panelClass="clients-detail-drawer__panel"
   headerClass="fleet-unit-detail__header"
   bodyClass="fleet-unit-body fleet-unit-detail"
   [loading]="vm.drawerLoading()"
@@ -23,6 +24,7 @@
 
   <to-segment-control
     layout="drawer"
+    hostClass="clients-detail-drawer__segments"
     ariaLabel="Secciones del cliente"
     [tabs]="vm.drawerSegmentTabs"
     [activeId]="vm.drawerTab()"
@@ -35,6 +37,9 @@
     }
     @case ('balance') {
       <app-clients-detail-balance-tab />
+    }
+    @case ('maneuvers') {
+      <app-clients-detail-maneuvers-tab />
     }
   }
 </to-side-drawer>

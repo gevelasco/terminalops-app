@@ -34,8 +34,8 @@
       Enganche a unidad tractora
     </h3>
     <p class="fleet-unit-sec__hint">
-      Solo se listan tractoras disponibles, no en curso, sin enganche o en
-      configuración sencillo (un equipo).
+      Solo se listan unidades disponibles, sin enganche o en
+      configuración sencillo.
     </p>
     <to-fleet-unit-input
       label="Unidad tractora (opcional)"
@@ -69,14 +69,20 @@
         [suggestionsSource]="equipmentBrandNames()"
         [(brandName)]="brandName"
       />
-      <to-select
+      <to-input
         label="Modelo (año) *"
-        placeholder="Selecciona año"
-        [options]="modelYearOptions"
+        type="text"
+        placeholder="Ej. 2022"
         [(value)]="modelYear"
       />
     </div>
     <div class="fleet-unit-sec__grid2">
+      <to-select
+        label="Tipo de equipo *"
+        placeholder="Ej. Caja seca, plataforma…"
+        [options]="operationTypeOptions"
+        [(value)]="operationTypeCode"
+      />
       <to-fleet-version-combobox
         label="Versión"
         placeholder="Escribe o selecciona"
@@ -84,38 +90,27 @@
         [suggestionsSource]="equipmentVersionNames()"
         [(versionName)]="trailerVersion"
       />
-      <to-select
-        label="Tipo de equipo / caja *"
-        placeholder="Ej. Caja seca, plataforma…"
-        [options]="operationTypeOptions"
-        [(value)]="operationTypeCode"
-      />
     </div>
     <div class="fleet-unit-sec__grid2">
       <to-input
-        label="Número de serie / inventario *"
+        label="Número de serie *"
         placeholder="Ej. CHS-882-A"
         [(value)]="serialNumber"
       />
       <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [(value)]="plate" />
     </div>
     <div class="fleet-unit-sec__grid2">
-      <to-select
-        label="Estado operativo *"
-        [options]="statusOptions"
-        [(value)]="status"
-      />
       <to-input
         label="Color"
         placeholder="Ej. Blanco perlado"
         [(value)]="trailerColor"
       />
+      <to-input
+        label="Nombre o alias"
+        placeholder="Ej. Chasis principal"
+        [(value)]="name"
+      />
     </div>
-    <to-input
-      label="Nombre o alias (opcional)"
-      placeholder="Ej. Chasis principal"
-      [(value)]="name"
-    />
   </section>
 
   <section
@@ -219,30 +214,27 @@
     aria-labelledby="fleet-eq-new-tech"
   >
     <h3 id="fleet-eq-new-tech" class="fleet-unit-sec__title">Ficha técnica</h3>
-    <to-input
-      label="Capacidad (toneladas)"
-      type="text"
-      placeholder="Ej. 32.5"
-      [(value)]="equipmentCapacityTons"
-    />
-    <div class="fleet-unit-sec__row-flex">
+    <div class="fleet-unit-sec__grid2">
+      @if (containerSlotFieldApplies()) {
+        <to-select
+          [label]="containerSlotFieldLabel()"
+          [options]="containerSlotOptionsForType()"
+          [(value)]="equipmentContainerSlot"
+        />
+      }
       <to-input
-        label="Número de ejes"
-        type="number"
-        placeholder="Ej. 3"
-        [(value)]="equipmentAxleCount"
-      />
-      <to-input
-        label="Número de llantas"
-        type="number"
-        placeholder="Ej. 12"
-        [(value)]="equipmentTireCount"
+        label="Capacidad *"
+        type="text"
+        suffix="ton"
+        placeholder="Ej. 32.5"
+        [(value)]="equipmentCapacityTons"
       />
     </div>
-    <to-select
-      label="Configuración contenedor / plazas"
-      [options]="containerSlotOptions"
-      [(value)]="equipmentContainerSlot"
+    <to-input
+      label="Número de ejes"
+      type="number"
+      placeholder="Ej. 3"
+      [(value)]="equipmentAxleCount"
     />
   </section>
 
@@ -419,7 +411,7 @@
     </div>
     <div class="fleet-unit-sec__row-flex">
       <to-select
-        label="Forma de pago / renovación"
+        label="Periodicidad"
         [options]="cadenceOptions"
         [(value)]="insurancePaymentCadence"
       />
@@ -431,6 +423,21 @@
         [(value)]="insuranceCost"
       />
     </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-select
+        label="Forma de pago"
+        [options]="insurancePaymentMethodOptions"
+        [(value)]="insurancePaymentMethod"
+      />
+    </div>
+    <label class="fleet-unit-detail__checkbox-row">
+      <input
+        type="checkbox"
+        [checked]="insuranceInvoiceRequired()"
+        (change)="insuranceInvoiceRequired.set($any($event.target).checked)"
+      />
+      Factura fiscal requerida
+    </label>
     @if (insuranceRenewHint() === "soon") {
       <p class="fleet-unit-callout fleet-unit-callout--warn">
         Próximo pago o renovación de póliza en los próximos 30 días.

@@ -1,5 +1,5 @@
 <to-page-header title="Operadores" subtitle="Personal certificado">
-  @if (!loading()) {
+  @if (!loading() && canWriteOperators()) {
   <to-button
     type="button"
     variant="primary"
@@ -37,22 +37,54 @@
   <to-skeleton [lines]="4" />
 } @else {
   <div class="operators-toolbar">
-    <div class="operators-toolbar__search">
-      <to-input
-        type="search"
-        prefixIcon="search"
-        ariaLabel="Buscar en el listado de operadores"
-        placeholder="Nombre, licencia, vigencia, estado, cobertura, id…"
-        [(value)]="searchQuery"
+    <to-segment-control
+      layout="toolbar"
+      ariaLabel="Secciones de operadores"
+      [tabs]="viewSegmentTabs"
+      [activeId]="pageTab()"
+      (tabSelect)="onPageTabSelect($event)"
+    />
+
+    @if (pageTab() === "list") {
+      <div class="operators-toolbar__search">
+        <to-input
+          type="search"
+          prefixIcon="search"
+          ariaLabel="Buscar en el listado de operadores"
+          placeholder="Nombre, licencia, vigencia, estado, cobertura, id…"
+          [(value)]="searchQuery"
+        />
+      </div>
+    } @else {
+      <div class="operators-toolbar__search">
+        <to-input
+          type="search"
+          prefixIcon="search"
+          ariaLabel="Buscar en la vista de operadores"
+          placeholder="Nombre, licencia, estatus, última maniobra…"
+          [(value)]="searchQuery"
+        />
+      </div>
+    }
+  </div>
+
+  @if (pageTab() === "operators") {
+    @if (!hasOperators()) {
+      <p class="operators-overview__empty">No hay operadores registrados.</p>
+    } @else {
+      <app-operators-overview
+        [cards]="displayedOverviewCards()"
+        (cardSelect)="onOperatorCardClick($event)"
+      />
+    }
+  } @else {
+    <div class="operators-table-block">
+      <to-table
+        [columns]="columns"
+        [rows]="displayedOperatorRows()"
+        [interactiveRows]="true"
+        (rowClick)="onRowClick($event)"
       />
     </div>
-  </div>
-  <div class="operators-table-block">
-    <to-table
-      [columns]="columns"
-      [rows]="displayedOperatorRows()"
-      [interactiveRows]="true"
-      (rowClick)="onRowClick($event)"
-    />
-  </div>
+  }
 }

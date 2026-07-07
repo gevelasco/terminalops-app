@@ -1,0 +1,153 @@
+<div class="expenses-calendar-layout">
+  <aside class="expenses-calendar-sidebar" aria-label="Calendario y marcadores">
+    <section class="expenses-cal-card expenses-cal-card--calendar" aria-labelledby="expenses-cal-title">
+      <header class="expenses-cal-card__header">
+        <h2 id="expenses-cal-title" class="expenses-cal-card__title">{{ monthTitle() }}</h2>
+        <div class="expenses-cal-card__nav">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="expenses-cal-card__nav-btn"
+            ariaLabel="Mes anterior"
+            (click)="prevMonth()"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+            </svg>
+          </to-button>
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="expenses-cal-card__nav-btn"
+            ariaLabel="Mes siguiente"
+            (click)="nextMonth()"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="m10 6-1.41 1.41L13.17 12l-4.58 4.59L10 18l6-6z" />
+            </svg>
+          </to-button>
+        </div>
+      </header>
+
+      <div class="expenses-cal-grid" role="grid" aria-label="Calendario mensual">
+        <div class="expenses-cal-grid__weekdays" role="row">
+          @for (label of weekdayLabels; track label) {
+            <span class="expenses-cal-grid__weekday" role="columnheader">{{ label }}</span>
+          }
+        </div>
+        @for (week of calendarWeeks(); track week.days[0].ymd) {
+          <div class="expenses-cal-grid__week" role="row">
+            @for (cell of week.days; track cell.ymd) {
+              <button
+                type="button"
+                [class]="dayClasses(cell.ymd, cell.inMonth)"
+                role="gridcell"
+                [attr.aria-label]="dayAriaLabel(cell.day, cell.inMonth, cell.ymd)"
+                [attr.aria-pressed]="isRangeEndpoint(cell.ymd)"
+                (click)="onDayClick(cell.ymd)"
+              >
+                {{ cell.day }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="expenses-cal-period">
+        <div class="expenses-cal-range" role="status" aria-live="polite">
+          <p class="expenses-cal-range__label">Periodo seleccionado</p>
+          <p class="expenses-cal-range__value">{{ rangeLabel() }}</p>
+        </div>
+
+        @if (showPeriodSummary()) {
+          <div class="expenses-cal-summary" role="group" aria-label="Resumen del periodo">
+            <article class="expenses-cal-summary__card">
+              <p class="expenses-cal-summary__label">Gastado</p>
+              @if (listLoading()) {
+                <p class="expenses-cal-summary__value expenses-cal-summary__value--loading">—</p>
+              } @else {
+                <p class="expenses-cal-summary__value">{{ periodSummary().spent }}</p>
+              }
+            </article>
+            <article class="expenses-cal-summary__card expenses-cal-summary__card--scheduled">
+              <p class="expenses-cal-summary__label">Programado</p>
+              @if (listLoading()) {
+                <p class="expenses-cal-summary__value expenses-cal-summary__value--loading">—</p>
+              } @else {
+                <p class="expenses-cal-summary__value">{{ periodSummary().scheduled }}</p>
+              }
+            </article>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="expenses-cal-card expenses-cal-card--markers" aria-labelledby="expenses-cal-markers-title">
+      <h2 id="expenses-cal-markers-title" class="expenses-cal-card__title">Gastos</h2>
+      <ul class="expenses-cal-markers">
+        @for (marker of markers(); track marker.label) {
+          <li class="expenses-cal-marker">
+            <div class="expenses-cal-marker__head">
+              <span class="expenses-cal-marker__label">{{ marker.label }}</span>
+              <span class="expenses-cal-marker__value">{{ marker.value }}</span>
+            </div>
+            <div
+              class="expenses-cal-marker__track"
+              role="presentation"
+              [class.expenses-cal-marker__track--primary]="marker.tone === 'primary'"
+              [class.expenses-cal-marker__track--accent]="marker.tone === 'accent'"
+              [class.expenses-cal-marker__track--muted]="marker.tone === 'muted'"
+            >
+              <span
+                class="expenses-cal-marker__fill"
+                [style.width.%]="marker.pct"
+              ></span>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  </aside>
+
+  <section class="expenses-calendar-main" aria-labelledby="expenses-cal-list-title">
+    <header class="expenses-calendar-main__header">
+      <h2 id="expenses-cal-list-title" class="expenses-calendar-main__title">
+        Gastos del periodo
+      </h2>
+    </header>
+
+    @if (awaitingRangeEnd()) {
+      <p class="expenses-calendar-main__hint">
+        Selecciona la fecha final del rango en el calendario.
+      </p>
+    } @else if (listLoading()) {
+      <to-skeleton [lines]="6" />
+    } @else if (!hasEntries()) {
+      <p class="expenses-calendar-main__empty">
+        No hay gastos ni obligaciones en este periodo.
+      </p>
+    } @else {
+      <div
+        class="expenses-calendar-main__table-wrap"
+        [class.expenses-calendar-main__table-wrap--loading]="listReloading()"
+        [attr.aria-busy]="listReloading()"
+      >
+        <to-table
+          class="expenses-calendar-main__table"
+          [columns]="columns"
+          [rows]="tableRows()"
+          [totalItems]="entryCount()"
+          [(pageIndex)]="pageIndex"
+          [(pageSize)]="pageSize"
+          [pageSizeOptions]="pageSizeOptions"
+          [footerRow]="hasEntries() ? footerRow() : null"
+          [interactiveRows]="hasExpenseRows()"
+          [scrollable]="true"
+          (rowClick)="onRowClick($event)"
+        />
+      </div>
+    }
+  </section>
+</div>

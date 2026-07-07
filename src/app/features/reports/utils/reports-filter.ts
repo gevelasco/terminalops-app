@@ -20,7 +20,6 @@ export function defaultReportsFilter(now = new Date()): ReportsFilter {
     to: range.to,
     clientPaymentMethods: [],
     clientIds: [],
-    unitId: '',
   };
 }
 
@@ -65,10 +64,7 @@ export function previousPeriodRange(from: string, to: string): { from: string; t
   if (!a || !b) {
     return { from, to };
   }
-  const days = Math.max(
-    1,
-    Math.round((b.getTime() - a.getTime()) / 86400000) + 1,
-  );
+  const days = Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
   const prevEnd = new Date(a);
   prevEnd.setDate(prevEnd.getDate() - 1);
   const prevStart = new Date(prevEnd);
@@ -83,17 +79,4 @@ export function isoDayInRange(iso: string | undefined | null, from: string, to: 
   }
   const day = d.length >= 10 ? d.slice(0, 10) : d;
   return day >= from && day <= to;
-}
-
-export function tripCreatedDay(t: { createdAt: string }): string {
-  const iso = t.createdAt?.trim() ?? '';
-  return iso.length >= 10 ? iso.slice(0, 10) : iso;
-}
-
-/** @deprecated Use tripCreatedDay */
-export const tripProgrammedDay = tripCreatedDay;
-
-export function expenseDay(e: { incurredAt: string }): string {
-  const iso = e.incurredAt?.trim() ?? '';
-  return iso.length >= 10 ? iso.slice(0, 10) : iso;
 }

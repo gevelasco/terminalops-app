@@ -7,7 +7,7 @@ import {
   output,
   viewChild,
 } from '@angular/core';
-import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToButtonComponent, type ToButtonVariant } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
 
@@ -29,6 +29,9 @@ export class ToConfirmDialogComponent {
   readonly title = input.required<string>();
   readonly cancelLabel = input('Cancelar');
   readonly confirmLabel = input('Confirmar');
+  readonly confirmDisabled = input(false);
+  readonly confirmLoading = input(false);
+  readonly confirmVariant = input<ToButtonVariant>('primary');
 
   readonly cancel = output<void>();
   readonly confirm = output<void>();

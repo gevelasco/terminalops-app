@@ -1,0 +1,80 @@
+:host {
+  display: inline-flex;
+}
+
+.to-fleet-compliance-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.to-fleet-compliance-icons__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+}
+
+.to-fleet-compliance-icons__tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  min-width: 9rem;
+  max-width: min(18rem, 72vw);
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+  background: var(--to-color-surface);
+  color: var(--to-color-text);
+  box-shadow:
+    0 4px 6px rgba(15, 23, 42, 0.07),
+    0 12px 28px rgba(15, 23, 42, 0.12);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease;
+}
+
+.to-fleet-compliance-icons__item:hover .to-fleet-compliance-icons__tooltip,
+.to-fleet-compliance-icons__item:focus-within .to-fleet-compliance-icons__tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.to-table-fleet-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  opacity: 0.45;
+
+  svg {
+    display: block;
+  }
+
+  &--muted {
+    opacity: 0.42;
+    color: #94a3b8;
+  }
+
+  &--soon {
+    opacity: 1;
+    color: #a16207;
+  }
+
+  &--due {
+    opacity: 1;
+    color: #9a3412;
+  }
+}

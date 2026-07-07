@@ -50,11 +50,16 @@ export function expenseManeuverCode(
   if (!tid) {
     return '—';
   }
-  return tripManeuverByTripId?.get(tid)?.trim() || tid;
+  const fromExpense = e.tripManeuverCode?.trim();
+  if (fromExpense) {
+    return fromExpense;
+  }
+  return tripManeuverByTripId?.get(tid)?.trim() || '—';
 }
 
 /**
  * Unidad, equipo u operador según rubro (detalle y búsqueda; no sustituye maniobra).
+ * Solo IDs crudos — usar `expenseFleetRelationLabel` para mostrar en UI.
  */
 export function expenseFleetRelationCode(e: Expense): string {
   switch (e.kind) {
@@ -98,10 +103,28 @@ export function expenseFleetRelationCode(e: Expense): string {
 
 /** Texto legible para detalle de flota (verificación incluye tipo). */
 export function expenseFleetRelationDetail(e: Expense): string {
+  return expenseFleetRelationLabel(e);
+}
+
+/** Etiqueta legible de vínculo operativo; proviene de `fleetRelationLabel` en API. */
+export function expenseFleetRelationLabel(e: Expense): string {
+  const fromApi = e.fleetRelationLabel?.trim();
+  if (fromApi) {
+    return fromApi;
+  }
+
   const code = expenseFleetRelationCode(e);
+  if (code === '—') {
+    return '—';
+  }
   if (e.kind === 'verification' && e.verificationScope) {
     const v = verificationLabel(e.verificationScope);
-    return code !== '—' && v ? `${code} · ${v}` : code;
+    return v ? `${code} · ${v}` : code;
   }
   return code;
 }
+
+export {
+  expenseConceptLabel,
+  expenseRubroLabelForExpense,
+} from '@features/expenses/utils/expense-rubro.util';

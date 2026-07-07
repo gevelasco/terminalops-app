@@ -92,6 +92,8 @@ export class ClientsNewDrawerComponent {
   readonly deliverySettlementConsId = model('');
   readonly deliveryLatitude = model<number | null>(null);
   readonly deliveryLongitude = model<number | null>(null);
+  readonly deliveryDestinationRateId = model<string | null>(null);
+  readonly deliveryIsUnpricedRoute = model(false);
 
   readonly showContactForm = signal(false);
   readonly contactName = model('');
@@ -124,6 +126,8 @@ export class ClientsNewDrawerComponent {
     this.deliverySettlementConsId.set('');
     this.deliveryLatitude.set(null);
     this.deliveryLongitude.set(null);
+    this.deliveryDestinationRateId.set(null);
+    this.deliveryIsUnpricedRoute.set(false);
     this.showDeliveryForm.set(false);
   }
 
@@ -198,6 +202,8 @@ export class ClientsNewDrawerComponent {
               settlementConsId: this.deliverySettlementConsId(),
               latitude: this.deliveryLatitude(),
               longitude: this.deliveryLongitude(),
+              destinationRateId: this.deliveryDestinationRateId(),
+              isUnpricedRoute: this.deliveryIsUnpricedRoute(),
             }),
           }
         : {}),

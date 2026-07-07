@@ -45,6 +45,18 @@ export class TripsMapService {
     this.refresh();
   }
 
+  /** Reanuda el mapa tras cerrar un drawer (overlay); fuerza refresh si ya había cargado. */
+  resumeAfterOverlay(): void {
+    if (this.disposed) {
+      return;
+    }
+    if (!this.initialLoadStarted) {
+      this.load();
+      return;
+    }
+    this.refresh({ silent: true });
+  }
+
   refresh(options?: { silent?: boolean }): void {
     if (this.disposed) {
       return;

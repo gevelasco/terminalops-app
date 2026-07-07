@@ -2,12 +2,11 @@
   titleId="expenses-new-drawer-title"
   wide
   formMode
-  [loading]="drawerLoading()"
-  skeletonVariant="form"
   bodyClass="fleet-unit-body"
   (dismiss)="dismiss.emit()"
   (formSubmit)="submit()"
 >
+  @if (!isEditing()) {
   <h2 toSideDrawerHeader id="expenses-new-drawer-title" class="to-side-drawer__title">
     <svg
       class="to-side-drawer__title-icon"
@@ -23,6 +22,23 @@
     </svg>
     Nuevo gasto
   </h2>
+  } @else {
+  <h2 toSideDrawerHeader id="expenses-new-drawer-title" class="to-side-drawer__title">
+    <svg
+      class="to-side-drawer__title-icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+      />
+    </svg>
+    Editar gasto
+  </h2>
+  }
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
@@ -30,20 +46,33 @@
   >
     <h3 id="exp-new-sec-class" class="fleet-unit-sec__title">Clasificación</h3>
     <p class="fleet-unit-sec__docs-hint">
-      El rubro clasifica el gasto (combustible, casetas, mantenimiento, operador,
-      general…). La maniobra se vincula aparte y aplica a cualquier rubro.
+      El rubro indica el tipo de gasto (maniobra, mantenimiento, reparación,
+      seguros, GPS, administración, verificaciones, gasto general u otro). El concepto
+      detalla qué fue (casetas,
+      diésel, mecánico…). En maniobra —incluido pago al operador— vincula la
+      maniobra en la sección siguiente.
     </p>
     <div class="fleet-unit-sec__grid2">
       <to-select
-        label="Rubro del gasto *"
-        [options]="kindOptions"
-        [(value)]="kind"
+        label="Rubro *"
+        [options]="rubroOptions"
+        [value]="rubro()"
+        (valueChange)="setRubro($event)"
       />
-      <to-input
-        label="Concepto / categoría *"
-        placeholder="Ej. Casetas, Póliza anual, Suscripción GPS"
-        [(value)]="category"
-      />
+      @if (isCustomConcept()) {
+        <to-input
+          label="Concepto *"
+          placeholder="Ej. Herramienta, Limpieza, Ajuste de frenos"
+          [(value)]="category"
+        />
+      } @else {
+        <to-select
+          label="Concepto *"
+          [options]="conceptOptions()"
+          [value]="conceptId()"
+          (valueChange)="setConcept($event)"
+        />
+      }
     </div>
     <to-textarea
       label="Descripción"
@@ -58,116 +87,18 @@
     aria-labelledby="exp-new-sec-rel"
   >
     <h3 id="exp-new-sec-rel" class="fleet-unit-sec__title">Relación operativa</h3>
-    <p class="fleet-unit-sec__docs-hint">
-      Opcional: busca por código, ruta o cliente para agrupar el gasto con una
-      maniobra (combustible, casetas, comisión, etc.).
-    </p>
-    <to-trip-input label="Maniobra" [(tripId)]="tripId" />
-    @if (kind() === "maintenance") {
-      <p class="fleet-unit-sec__docs-hint">
-        Indica si el mantenimiento fue a la unidad tractora o al equipo (dolly
-        incluido) para enlazarlo con el registro de flota.
-      </p>
-      <to-select
-        label="Aplicó a *"
-        [options]="maintenanceTargetOptions"
-        [(value)]="maintenanceTarget"
-      />
-      @if (maintenanceTarget() === "unit") {
-        <to-select
-          label="Unidad *"
-          [options]="unitOptions()"
-          [(value)]="relatedUnitId"
-        />
-      } @else {
-        <to-select
-          label="Equipo *"
-          [options]="equipmentOptions()"
-          [(value)]="relatedEquipmentId"
-        />
-      }
-    } @else if (kind() === "insurance") {
-      <p class="fleet-unit-sec__docs-hint">
-        La póliza aplica a una unidad o a un equipo; elige un solo activo
-        asegurado.
-      </p>
-      <to-select
-        label="Póliza sobre *"
-        [options]="insuranceTargetOptions"
-        [(value)]="insuranceTarget"
-      />
-      @if (insuranceTarget() === "unit") {
-        <to-select
-          label="Unidad *"
-          [options]="unitOptions()"
-          [(value)]="relatedUnitId"
-        />
-      } @else {
-        <to-select
-          label="Equipo *"
-          [options]="equipmentOptions()"
-          [(value)]="relatedEquipmentId"
-        />
-      }
-    } @else if (kind() === "gps") {
-      <p class="fleet-unit-sec__docs-hint">
-        El servicio de GPS o telemetría se asocia a la unidad tractora.
-      </p>
-      <to-select
-        label="Unidad *"
-        [options]="unitOptions()"
-        [(value)]="relatedUnitId"
-      />
-    } @else if (kind() === "verification") {
-      <p class="fleet-unit-sec__docs-hint">
-        Verificaciones físico-mecánica, de emisiones o doble articulado (SPP),
-        alineadas con el registro de la unidad.
-      </p>
-      <div class="fleet-unit-sec__grid2">
-        <to-select
-          label="Unidad *"
-          [options]="unitOptions()"
-          [(value)]="relatedUnitId"
-        />
-        <to-select
-          label="Tipo de verificación *"
-          [options]="verificationScopeOptions"
-          [(value)]="verificationScope"
-        />
-      </div>
-    } @else if (isEquipmentOnlyKind(kind())) {
-      <p class="fleet-unit-sec__docs-hint">
-        Vincula el gasto al equipo correspondiente.
-      </p>
-      <to-select
-        label="Equipo *"
-        [options]="equipmentOptions()"
-        [(value)]="relatedEquipmentId"
-      />
-    } @else if (isUnitOnlyAssetKind(kind())) {
-      <p class="fleet-unit-sec__docs-hint">
-        Vincula el gasto a la unidad tractora correspondiente.
-      </p>
-      <to-select
-        label="Unidad *"
-        [options]="unitOptions()"
-        [(value)]="relatedUnitId"
-      />
-    } @else if (isOperatorKind(kind())) {
-      <p class="fleet-unit-sec__docs-hint">
-        Selecciona el operador al que corresponde el pago o la comisión.
-      </p>
-      <to-select
-        label="Operador *"
-        [options]="operatorOptions()"
-        [(value)]="relatedOperatorId"
-      />
-    } @else {
-      <p class="fleet-unit-sec__docs-hint">
-        Sin vínculo obligatorio a maniobra o flota. Usa el concepto y la
-        descripción para dejar constancia.
-      </p>
-    }
+    <app-expense-operational-relation-fields
+      mode="edit"
+      [rubro]="rubro()"
+      [kind]="kind()"
+      [expense]="editingExpense()"
+      [(relationTab)]="relationTab"
+      [(tripId)]="tripId"
+      [(relatedUnitId)]="relatedUnitId"
+      [(relatedEquipmentId)]="relatedEquipmentId"
+      [(relatedOperatorId)]="relatedOperatorId"
+      [(verificationScope)]="verificationScope"
+    />
   </section>
 
   <section
@@ -221,6 +152,8 @@
       <to-button type="button" variant="outline" (click)="dismiss.emit()">
         Cancelar
       </to-button>
-      <to-button type="submit" variant="primary"> Guardar gasto </to-button>
+      <to-button type="submit" variant="primary">
+        {{ isEditing() ? 'Guardar cambios' : 'Guardar gasto' }}
+      </to-button>
     </div>
 </to-side-drawer>

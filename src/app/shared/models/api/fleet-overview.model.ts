@@ -29,6 +29,8 @@ export interface FleetOverviewEquipmentDto {
 export interface FleetOverviewHitchedEquipmentDto {
   equipmentId: number;
   operationalCode: string;
+  /** Nombre o alias interno (campo `name` en alta). */
+  alias?: string;
   equipmentType: string;
   hitchPosition?: 'lead' | 'rear';
   status: FleetOverviewAssetStatus;
@@ -73,6 +75,8 @@ export interface FleetOverviewConfigurationDto {
 export interface FleetOverviewItemDto {
   unitId: number;
   unitName: string;
+  /** Nombre o alias interno de la unidad (campo `name` en alta). */
+  unitAlias?: string;
   unitPlate: string;
   equipment: FleetOverviewEquipmentDto;
   hitchedEquipment: FleetOverviewHitchedEquipmentDto[];
@@ -88,6 +92,8 @@ export interface FleetOverviewEquipmentRowDto {
   unitId: number | null;
   unitName: string | null;
   operationalCode: string;
+  /** Nombre o alias interno (campo `name` en alta). */
+  alias?: string;
   brand: string;
   model: string;
   plate: string;

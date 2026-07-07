@@ -6,6 +6,7 @@
     class="to-payment-methods-multi__chips"
     role="list"
     aria-label="Formas de cobro seleccionadas"
+    (click)="onFieldClick($event)"
   >
     @for (opt of selectedOptions(); track opt.value) {
       <span class="to-payment-methods-multi__chip" role="listitem">
@@ -26,29 +27,31 @@
     }
   </div>
 
-  <button
-    type="button"
-    class="to-payment-methods-multi__toggle"
-    [attr.aria-label]="open() ? 'Cerrar formas de cobro' : 'Abrir formas de cobro'"
-    [attr.aria-expanded]="open()"
-    [disabled]="disabled()"
-    (click)="toggleOpen($event)"
-  >
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
-    </svg>
-  </button>
-
-  @if (selectedOptions().length > 0 && !disabled()) {
+  <div class="to-payment-methods-multi__suffix">
     <button
       type="button"
-      class="to-payment-methods-multi__clear"
-      aria-label="Quitar todas las formas de cobro"
-      (click)="clearAll($event)"
+      class="to-payment-methods-multi__toggle"
+      [attr.aria-label]="open() ? 'Cerrar formas de cobro' : 'Abrir formas de cobro'"
+      [attr.aria-expanded]="open()"
+      [disabled]="disabled()"
+      (click)="toggleOpen($event)"
     >
-      ×
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
+      </svg>
     </button>
-  }
+
+    @if (selectedOptions().length > 0 && !disabled()) {
+      <button
+        type="button"
+        class="to-payment-methods-multi__clear"
+        aria-label="Quitar todas las formas de cobro"
+        (click)="clearAll($event)"
+      >
+        ×
+      </button>
+    }
+  </div>
 
   @if (open()) {
     <ul

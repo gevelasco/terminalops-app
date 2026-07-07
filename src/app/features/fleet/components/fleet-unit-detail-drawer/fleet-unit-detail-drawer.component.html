@@ -1,35 +1,15 @@
-<to-side-drawer
+<app-fleet-detail-drawer-shell
   titleId="fleet-unit-detail-title"
-  wide
-  headerClass="fleet-unit-detail__header"
-  bodyClass="fleet-unit-body fleet-unit-detail"
+  titleIcon="unit"
+  [titleText]="vm.trailerOperationalId()"
+  [statusBanner]="vm.statusBanner()"
   [loading]="vm.drawerLoading()"
-  skeletonVariant="detail"
+  segmentAriaLabel="Secciones del detalle de unidad"
+  [tabs]="vm.detailSegmentTabs"
+  [activeTab]="vm.detailTab()"
   (dismiss)="vm.requestDismiss()"
+  (tabSelect)="vm.selectDetailTab($event)"
 >
-  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
-    <h2
-      id="fleet-unit-detail-title"
-      class="to-side-drawer__title fleet-unit-detail__title"
-    >
-      <to-icon class="to-side-drawer__title-icon" name="unit" [size]="22" />
-      <span class="fleet-unit-detail__title-id">{{ vm.trailerOperationalId() }}</span>
-    </h2>
-    <to-status-pill
-      [label]="vm.statusBanner().label"
-      [sub]="vm.statusBanner().sub"
-      [modClass]="vm.statusBanner().mod"
-    />
-  </div>
-
-  <to-segment-control
-    layout="drawer"
-    ariaLabel="Secciones del detalle de unidad"
-    [tabs]="vm.detailSegmentTabs"
-    [activeId]="vm.detailTab()"
-    (tabSelect)="vm.selectDetailTab($event)"
-  />
-
   @switch (vm.detailTab()) {
     @case ('ficha') {
       <app-fleet-unit-detail-ficha-tab />
@@ -41,4 +21,66 @@
       <app-fleet-unit-detail-cob-tab />
     }
   }
-</to-side-drawer>
+
+  <ng-container fleetDetailDrawerFooter>
+    <div class="maniobra-detail__footer-start">
+      @if (vm.showsMaintenanceAction()) {
+        <button
+          type="button"
+          class="maniobra-detail__maintenance-btn"
+          [disabled]="vm.maintenanceSubmitting()"
+          (click)="vm.submitMaintenanceAction()"
+        >
+          <to-icon name="maintenance" [size]="16" />
+          {{ vm.maintenanceActionLabel() }}
+        </button>
+      }
+      @if (vm.canDeleteUnit()) {
+        <span
+          class="fleet-detail-drawer__delete-wrap"
+          [class.fleet-detail-drawer__delete-wrap--hint]="vm.deleteBlockedByRoute()"
+          [attr.data-tooltip]="
+            vm.deleteBlockedByRoute() ? vm.deleteBlockedTooltip() : null
+          "
+          [attr.tabindex]="vm.deleteBlockedByRoute() ? 0 : null"
+        >
+          <button
+            type="button"
+            class="maniobra-detail__delete-maniobra-btn"
+            [disabled]="vm.deleteBlockedByRoute() || vm.deleteSubmitting()"
+            (click)="vm.openDeleteConfirm()"
+          >
+            <to-icon name="delete" [size]="16" />
+            Eliminar unidad
+          </button>
+        </span>
+      }
+    </div>
+    <to-button type="button" variant="outline" (click)="vm.requestDismiss()">
+      Cerrar
+    </to-button>
+  </ng-container>
+</app-fleet-detail-drawer-shell>
+
+<to-confirm-dialog
+  titleId="fleet-unit-delete-title"
+  icon="warning"
+  title="Eliminar unidad"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar unidad"
+  confirmVariant="primary"
+  [open]="vm.deleteConfirmOpen()"
+  [confirmLoading]="vm.deleteSubmitting()"
+  [confirmDisabled]="vm.deleteSubmitting()"
+  (cancel)="vm.closeDeleteConfirm()"
+  (confirm)="vm.confirmDeleteUnit()"
+>
+  <p class="maniobra-detail__delete-copy">
+    Estás a punto de dar de baja la unidad
+    <strong>{{ vm.trailerOperationalId() }}</strong>.
+  </p>
+  <p class="maniobra-detail__delete-copy">
+    Dejará de aparecer en listados, asignaciones y operación diaria. Los registros
+    históricos se conservan en el sistema.
+  </p>
+</to-confirm-dialog>

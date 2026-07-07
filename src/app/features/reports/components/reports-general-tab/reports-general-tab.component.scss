@@ -1,0 +1,149 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  gap: 0.55rem;
+}
+
+:host ::ng-deep .reports-general-kpis to-kpi-card .to-card__inner {
+  padding: 0.5rem 0.6rem 0.45rem;
+}
+
+:host ::ng-deep .reports-general-kpis to-kpi-card .to-card__eyebrow {
+  margin-bottom: 0.28rem;
+}
+
+:host ::ng-deep .reports-general-kpis to-kpi-card .to-kpi-card__value {
+  font-size: clamp(1.05rem, 1.2vw, 1.28rem);
+}
+
+.reports-general-kpis {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.reports-general-kpis > * {
+  min-width: 0;
+}
+
+.reports-general-kpis--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 75%;
+  margin-inline: auto;
+}
+
+.reports-general-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.reports-general-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 82%, transparent);
+  border-radius: var(--to-radius-lg, 0.5rem);
+  background: var(--to-color-surface);
+  padding: 0.65rem 0.75rem 0.55rem;
+}
+
+.reports-general-panel--activity {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.reports-general-panel--destinations {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.reports-general-charts-row {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.reports-general-charts-row > .reports-general-panel {
+  min-height: 0;
+}
+
+.reports-general-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-bottom: 0.35rem;
+}
+
+.reports-general-panel__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+.reports-general-panel__subtitle {
+  margin: 0.12rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.reports-general-panel__chart {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  :host {
+    overflow-y: auto;
+  }
+
+  .reports-general-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reports-general-kpis--three {
+    width: 100%;
+  }
+
+  .reports-general-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    overflow-y: visible;
+  }
+
+  .reports-general-panel--activity,
+  .reports-general-panel--destinations {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .reports-general-charts-row {
+    grid-column: 1;
+    grid-row: auto;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .reports-general-kpis {
+    grid-template-columns: 1fr;
+  }
+}

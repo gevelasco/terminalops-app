@@ -47,12 +47,6 @@ const FORBIDDEN_ROUTE_IN_AGGREGATION = [
     dirs: ['features/reports'],
     message: 'Reportes deben usar tripOperationalKm / tripKm(), no trip.routeDistanceKm.',
   },
-  {
-    id: 'fleet-stats-no-route-sum',
-    re: /\bt\.routeDistanceKm\b|\btrip\.routeDistanceKm\b/,
-    dirs: ['features/fleet/utils/unit-completed-trip-stats.ts'],
-    message: 'Estadísticas de flota deben sumar operationalDistanceKm vía tripOperationalKm.',
-  },
 ];
 
 const REQUIRED_SNIPPETS = [

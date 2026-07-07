@@ -54,6 +54,7 @@ export class OperationalCenterSelectComponent {
   });
 
   constructor() {
+    this.centersFeature.loadOperationalCenters();
     effect(() => {
       const list = this.centersFeature.centers();
       const current = this.selectedCenterId().trim();

@@ -36,25 +36,17 @@
             tabindex="-1"
             (pointerdown)="onPickPointerDown(tr, $event)"
           >
-            <span class="to-trip-input__item-main">{{ tripListLabel(tr) }}</span>
-            <span class="to-trip-input__item-meta">
+            <span class="to-trip-input__item-code">{{ tripCodeLabel(tr) }}</span>
+            <span class="to-trip-input__item-badge">
               <span [class]="tripStatusPillClass(tr)">
                 <span class="to-table-pill__dot" aria-hidden="true"></span>
                 <span class="to-table-pill__label">{{ tripStatusPillLabel(tr) }}</span>
               </span>
             </span>
+            <span class="to-trip-input__item-date">{{ tripDateLabel(tr) }}</span>
           </li>
         }
       </ul>
     }
   </div>
-  @if (selectedTrip(); as tr) {
-    <div class="to-trip-input__status" aria-live="polite">
-      <span class="to-trip-input__status-label">Estado</span>
-      <span [class]="tripStatusPillClass(tr)">
-        <span class="to-table-pill__dot" aria-hidden="true"></span>
-        <span class="to-table-pill__label">{{ tripStatusPillLabel(tr) }}</span>
-      </span>
-    </div>
-  }
 </div>

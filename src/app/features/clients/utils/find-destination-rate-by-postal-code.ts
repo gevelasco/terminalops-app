@@ -34,6 +34,63 @@ export function findDestinationRateByRoute(
   );
 }
 
+function destinationRouteMatchesRate(
+  rate: DestinationRate,
+  params: {
+    originOperationalCenterId: string;
+    destinationPostalCode: string;
+    destinationLocality: string;
+  },
+): boolean {
+  const originId = params.originOperationalCenterId.trim();
+  const cp = normalizeMxPostalCodeDigits(params.destinationPostalCode);
+  const locality = params.destinationLocality.trim().toLowerCase();
+  if (!originId || cp.length !== 5 || !locality) {
+    return false;
+  }
+  return (
+    rate.active &&
+    rate.originOperationalCenterId === originId &&
+    rate.postalCode === cp &&
+    rate.locality.trim().toLowerCase() === locality
+  );
+}
+
+/**
+ * Tarifa aplicable al crear maniobra: ruta operativa + tarifa vinculada a la entrega del cliente.
+ */
+export function resolveManeuverDestinationRate(
+  rates: readonly DestinationRate[],
+  params: {
+    originOperationalCenterId: string;
+    destinationPostalCode: string;
+    destinationLocality: string;
+    clientDestinationRateId?: string | null;
+  },
+): DestinationRate | null {
+  const routeParams = {
+    originOperationalCenterId: params.originOperationalCenterId,
+    destinationPostalCode: params.destinationPostalCode,
+    destinationLocality: params.destinationLocality,
+  };
+  const routeMatch = findDestinationRateByRoute(rates, routeParams);
+  const linkedId = params.clientDestinationRateId?.trim();
+  if (!linkedId) {
+    return routeMatch;
+  }
+
+  const linkedRate = rates.find((r) => r.id === linkedId && r.active) ?? null;
+  if (!linkedRate) {
+    return routeMatch;
+  }
+
+  if (!destinationRouteMatchesRate(linkedRate, routeParams)) {
+    return null;
+  }
+
+  return linkedRate;
+}
+
 /** @deprecated Usar findDestinationRateByRoute */
 export function findDestinationRateByPostalCode(
   rates: readonly DestinationRate[],
@@ -61,18 +118,23 @@ export function findDestinationRatePriceByOperationCode(
   );
 }
 
+/** Cobro sugerido: 0 si la tarifa no define precio para el tipo de maniobra. */
 export function suggestedClientChargeFromDestinationRate(
   rate: DestinationRate,
   operationConfigurationCode: string,
-): number | null {
+): number {
   const price = findDestinationRatePriceByOperationCode(
     rate,
     operationConfigurationCode,
   );
-  if (!price || price.clientCharge <= 0) {
-    return null;
-  }
-  return price.clientCharge;
+  return price?.clientCharge ?? 0;
+}
+
+export function destinationRateHasClientChargeForOperation(
+  rate: DestinationRate,
+  operationConfigurationCode: string,
+): boolean {
+  return findDestinationRatePriceByOperationCode(rate, operationConfigurationCode) != null;
 }
 
 export function suggestedOperatorPaymentFromDestinationRate(

@@ -14,8 +14,6 @@ export function operatorOperationalPillClass(
       return `${base} ${base}--fleet-scheduled`;
     case 'maintenance':
       return `${base} ${base}--fleet-maintenance`;
-    case 'on_route':
-      return `${base} ${base}--fleet-maneuver`;
     case 'incapacitated':
       return `${base} ${base}--operator-incapacitated`;
     case 'leave':
@@ -35,7 +33,6 @@ export function operatorOperationalStatusMod(
     case 'available':
       return 'fleet-unit-detail__status--available';
     case 'in_use':
-    case 'on_route':
       return 'fleet-unit-detail__status--route';
     case 'scheduled':
       return 'fleet-unit-detail__status--scheduled';

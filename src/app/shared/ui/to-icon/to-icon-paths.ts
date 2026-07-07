@@ -1,6 +1,7 @@
 /** Material-style SVG paths (`viewBox="0 0 24 24"`). */
 import {
   MATERIAL_SYMBOL_DELIVERY_TRUCK_SPEED,
+  MATERIAL_SYMBOL_ENTERPRISE,
   MATERIAL_SYMBOL_MAP_SEARCH,
   MATERIAL_SYMBOL_RV_HOOKUP,
   MATERIAL_SYMBOL_VIEWBOX,
@@ -38,13 +39,30 @@ export const TO_ICON_PATHS = {
   unit: MATERIAL_SYMBOL_DELIVERY_TRUCK_SPEED,
   person:
     'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+  groups:
+    'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
   client:
     'M12 2c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-2.31C18.16 18.67 21 15.17 21 11c0-4.97-4.03-9-9-9zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z',
+  /** Módulo Comercial (Material Symbols enterprise). */
+  enterprise: MATERIAL_SYMBOL_ENTERPRISE,
   tracking: 'M9 3 5 6.99h3V14h2V6.99h3L9 3zm6 12.01V10h-2v6.01H10l4 3.99 4-3.99h-3z',
   settlement:
     'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z',
   document:
     'M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+  download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
+  /** Día actual resaltado (filtros de periodo). */
+  periodToday:
+    'M19 3h-1V2h-2v1H8V2H6v1H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z',
+  /** Vista semanal (filtros de periodo). */
+  periodWeek:
+    'M17 10H7v2h10v-2zm0 4H7v2h10v-2zM14 6H7v2h7V6zm5-1.99V20c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h3.17c.24-.58.74-1 1.33-1H10c-.55 0-1 .45-1 1v2H5v13h14V6h-4V4c0-.55.45-1 1-1h2c.59 0 1.08.42 1.33 1H19c1.1 0 2 .9 2 2z',
+  /** Rango de fechas (semestre / periodos largos). */
+  periodRange:
+    'M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z',
+  /** Año / evento en calendario. */
+  periodYear:
+    'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2z',
   updates:
     'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
   themeLight:
@@ -54,6 +72,7 @@ export const TO_ICON_PATHS = {
   info: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
   edit:
     'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+  delete: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
   /** Etiqueta de precio (Material `sell` / `local_offer`). */
   sell:
     'm21.41 11.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z',
@@ -66,6 +85,7 @@ export const TO_ICON_VIEWBOX: Partial<Record<ToIconFillName, string>> = {
   equipment: MATERIAL_SYMBOL_VIEWBOX,
   unit: MATERIAL_SYMBOL_VIEWBOX,
   mapSearch: MATERIAL_SYMBOL_VIEWBOX,
+  enterprise: MATERIAL_SYMBOL_VIEWBOX,
 };
 
 /** Paths con trazo (legibles a 14–16px en botones). */

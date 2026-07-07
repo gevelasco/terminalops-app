@@ -1,0 +1,140 @@
+.clients-maneuvers-tab__toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-left: auto;
+}
+
+.clients-maneuvers-tab__sections {
+  gap: 0.85rem;
+}
+
+.clients-maneuvers-tab__list {
+  padding: 0.75rem 0.7rem;
+}
+
+.clients-maneuvers-tab__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.clients-maneuvers-tab__period-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.clients-maneuvers-tab__table-wrap {
+  min-width: 0;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table-wrap {
+  overflow-x: hidden;
+  border-radius: var(--to-radius-md);
+  box-shadow: none;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th,
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td {
+  padding: 0.3rem 0.35rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th {
+  font-size: 0.5625rem;
+  letter-spacing: 0.05em;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:first-child {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(1),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(1) {
+  width: 15%;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(2),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(2) {
+  width: 12%;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(3),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(3) {
+  width: 22%;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(4),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(4) {
+  width: 14%;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(5),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(5),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(6),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(6) {
+  width: 13%;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table th:nth-child(7),
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table td:nth-child(7) {
+  width: 11%;
+  padding-inline: 0.2rem;
+}
+
+:host ::ng-deep .clients-maneuvers-tab__table-wrap .to-table .to-table-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.08rem 0.3rem;
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+}
+
+.clients-maneuvers-tab__totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.75rem;
+}
+
+.clients-maneuvers-tab__totals-utilidad {
+  grid-column: 1 / -1;
+  padding-top: 0.3rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 65%, transparent);
+}
+
+.clients-maneuvers-tab__totals-utilidad dd {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.clients-maneuvers-tab__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+}

@@ -2,46 +2,84 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
+  effect,
   inject,
   model,
   resource,
   signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
-import { catchError, firstValueFrom, of } from 'rxjs';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { catchError, finalize, firstValueFrom, of } from 'rxjs';
+import { ToastService } from '@core/notifications/toast.service';
+import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
+import { ExpensesCalendarTabComponent } from '@features/expenses/components/expenses-calendar-tab/expenses-calendar-tab.component';
 import { ExpensesDetailDrawerComponent } from '@features/expenses/components/expenses-detail-drawer/expenses-detail-drawer.component';
 import { ExpensesNewDrawerComponent } from '@features/expenses/components/expenses-new-drawer/expenses-new-drawer.component';
-import { ExpensesService } from '@services/api/expenses';
+import { ExpensesService, type ExpensesListParams, type ExpensesListResponse } from '@services/api/expenses';
 import {
-  expenseFleetRelationCode,
-  expenseKindLabel,
+  expenseConceptLabel,
+  expenseFleetRelationLabel,
   expenseManeuverCode,
   expensePaymentMethodLabel,
+  expenseRubroLabelForExpense,
 } from '@features/expenses/utils/expense-row-labels';
+import {
+  buildExpensesCsv,
+  downloadExpensesCsv,
+} from '@features/expenses/utils/expenses-export-csv';
+import {
+  type ExpensesPeriodPreset,
+  expensesPeriodFilterTabs,
+  expensesPeriodRangeLabel,
+  expensesRangeForPreset,
+} from '@features/expenses/utils/expenses-period-filter';
 import { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
-import { DateShortPipe } from '@shared/pipes/date-short.pipe';
+import { formatExpenseIncurredDateDisplay } from '@features/expenses/utils/expenses-form.util';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
 } from '@shared/ui/to-table/to-table.component';
 
+import {
+  debouncedTrimmedSearchQuery,
+  EXPENSES_SEARCH_DEBOUNCE_MS,
+} from '@features/expenses/utils/expenses-search-query.util';
+
+export type ExpensesPageTab = 'calendar' | 'list';
+
 @Component({
   selector: 'app-expenses-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [CurrencyMxPipe, DateShortPipe],
+  providers: [CurrencyMxPipe],
   imports: [
     ToPageHeaderComponent,
     ToButtonComponent,
+    ToIconComponent,
     ToInputComponent,
+    ToFilterTabsComponent,
+    ToSegmentControlComponent,
     ToTableComponent,
     ToSkeletonComponent,
     ExpensesNewDrawerComponent,
     ExpensesDetailDrawerComponent,
+    ExpensesCalendarTabComponent,
   ],
   templateUrl: './expenses-page.component.html',
   styleUrl: './expenses-page.component.scss',
@@ -49,57 +87,237 @@ import {
 export class ExpensesPageComponent {
   private readonly expensesApi = inject(ExpensesService);
   private readonly currencyMx = inject(CurrencyMxPipe);
-  private readonly dateShort = inject(DateShortPipe);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly toast = inject(ToastService);
+  private readonly operationalFleetSync = inject(OperationalFleetSyncService);
+  private readonly session = inject(SessionService);
+  private readonly searchField = viewChild<ToInputComponent>('searchField');
+  private readonly searchKeepFocus = signal(false);
 
-  private readonly listResource = resource({
-    loader: async (): Promise<Expense[]> =>
+  readonly pageTab = signal<ExpensesPageTab>('calendar');
+  readonly viewSegmentTabs: readonly ToSegmentTab<ExpensesPageTab>[] = [
+    {
+      id: 'calendar',
+      label: 'Calendario',
+      icon: 'calendar',
+      htmlId: 'expenses-tab-calendar',
+    },
+    {
+      id: 'list',
+      label: 'Lista',
+      icon: 'list',
+      htmlId: 'expenses-tab-list',
+    },
+  ];
+
+  readonly periodPreset = signal<ExpensesPeriodPreset>('month');
+  readonly pageIndex = model(0);
+  readonly pageSize = model(15);
+  readonly searchInput = model('');
+  readonly searchQuery = signal('');
+
+  readonly pageSizeOptions = [10, 15, 25, 50, 100] as const;
+  readonly periodFilterTabs = expensesPeriodFilterTabs();
+  readonly exporting = signal(false);
+
+  readonly periodRangeLabel = computed(() =>
+    expensesPeriodRangeLabel(this.periodPreset()),
+  );
+
+  readonly searchPending = computed(
+    () => this.searchInput().trim() !== this.searchQuery(),
+  );
+
+  readonly listReloading = computed(
+    () => this.listResource.isLoading() && this.listResource.hasValue(),
+  );
+
+  readonly searchBusy = computed(
+    () => this.searchPending() || this.listReloading(),
+  );
+
+  readonly listParams = computed(() => {
+    const range = expensesRangeForPreset(this.periodPreset());
+    return {
+      page: this.pageIndex() + 1,
+      limit: this.pageSize(),
+      ...(range ? { from: range.from, to: range.to } : {}),
+      ...(this.searchQuery() ? { q: this.searchQuery() } : {}),
+    };
+  });
+
+  readonly exportParams = computed((): ExpensesListParams => {
+    const { page: _page, limit: _limit, ...rest } = this.listParams();
+    return { ...rest, limit: 0 };
+  });
+
+  private readonly listResource = resource<
+    ExpensesListResponse,
+    ExpensesListParams
+  >({
+    request: () => this.listParams(),
+    loader: async ({ request }): Promise<ExpensesListResponse> =>
       firstValueFrom(
-        this.expensesApi.getExpensesList().pipe(catchError(() => of([] as Expense[]))),
+        this.expensesApi.getExpensesPage(request).pipe(
+          catchError(() =>
+            of({
+              items: [] as Expense[],
+              total: 0,
+              page: request.page ?? 1,
+              limit: request.limit ?? 15,
+              totalAmount: 0,
+            } satisfies ExpensesListResponse),
+          ),
+        ),
       ),
   });
 
-  readonly loading = computed(
+  constructor() {
+    debouncedTrimmedSearchQuery(
+      toObservable(this.searchInput),
+      EXPENSES_SEARCH_DEBOUNCE_MS,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((q) => this.searchQuery.set(q));
+
+    effect(() => {
+      this.periodPreset();
+      this.searchQuery();
+      this.pageSize();
+      untracked(() => this.pageIndex.set(0));
+    });
+
+    effect(() => {
+      const loading = this.listResource.isLoading();
+      this.listResource.value();
+      if (loading || !this.searchKeepFocus()) {
+        return;
+      }
+      untracked(() => {
+        queueMicrotask(() => this.searchField()?.focus());
+      });
+    });
+  }
+
+  readonly initialLoading = computed(
     () => !this.listResource.hasValue() && this.listResource.isLoading(),
   );
-  readonly expenses = computed(() => this.listResource.value() ?? []);
-  readonly rows = computed(() => {
-    const list = this.listResource.value();
-    if (!list) {
-      return [] as Record<string, unknown>[];
-    }
-    return list.map((e) => this.mapExpenseRow(e));
-  });
-  readonly searchQuery = model('');
-  readonly tripManeuverByTripId = computed(
-    () => new Map<string, string>() as ReadonlyMap<string, string>,
+
+  readonly loading = computed(
+    () => this.initialLoading(),
   );
+  readonly listTotal = computed(() => this.listResource.value()?.total ?? 0);
+  readonly expenses = computed(() => this.listResource.value()?.items ?? []);
+  readonly hasExpenseRows = computed(() => this.tableRows().length > 0);
+  readonly showEmptyHint = computed(
+    () =>
+      !this.initialLoading() &&
+      this.listResource.hasValue() &&
+      !this.hasExpenseRows(),
+  );
+
+  onSearchFocusIn(): void {
+    this.searchKeepFocus.set(true);
+  }
+
+  onSearchFocusOut(ev: FocusEvent): void {
+    const related = ev.relatedTarget;
+    const host = ev.currentTarget;
+    if (related instanceof Node && host instanceof Node && host.contains(related)) {
+      return;
+    }
+    this.searchKeepFocus.set(false);
+  }
+
+  readonly tableRows = computed(() =>
+    this.expenses().map((e) => this.mapExpenseRow(e)),
+  );
+  readonly tripManeuverByTripId = computed(() => {
+    const map = new Map<string, string>();
+    for (const e of this.expenses()) {
+      const code = e.tripManeuverCode?.trim();
+      const tid = e.tripId?.trim();
+      if (tid && code) {
+        map.set(tid, code);
+      }
+    }
+    return map as ReadonlyMap<string, string>;
+  });
+
   readonly newExpenseOpen = signal(false);
   readonly detailExpense = signal<Expense | null>(null);
+  readonly calendarReloadToken = signal(0);
+  readonly canWriteExpenses = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.EXPENSES),
+  );
 
   readonly columns: ToTableColumn[] = [
-    { key: 'kindLabel', label: 'Rubro' },
-    { key: 'maneuver', label: 'Maniobra', cell: 'muted-badge' },
+    { key: 'rubroLabel', label: 'Rubro' },
     { key: 'category', label: 'Concepto' },
+    { key: 'maneuver', label: 'Maniobra', cell: 'muted-badge' },
+    { key: 'fleetRelation', label: 'Flota / operador', cell: 'muted-badge' },
     { key: 'amount', label: 'Monto' },
+    { key: 'paymentMethod', label: 'Método de pago' },
     { key: 'incurredAt', label: 'Fecha' },
+    { key: 'invoiceStatus', label: 'Factura', cell: 'expense-invoice-icon' },
   ];
 
-  readonly displayedExpenseRows = computed(() => {
-    const q = this.searchQuery().trim().toLowerCase();
-    const all = this.rows();
-    if (!q) {
-      return all;
-    }
-    return all.filter((row) => ExpensesPageComponent.rowMatchesQuery(row, q));
+  readonly footerRow = computed(() => {
+    const raw = this.listResource.value()?.totalAmount ?? 0;
+    const amount =
+      typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, '')) || 0;
+    const count = this.listTotal();
+    const countLabel =
+      count === 1 ? '1 gasto' : `${count.toLocaleString('es-MX')} gastos`;
+    return {
+      rubroLabel: 'Total',
+      maneuver: '',
+      category: countLabel,
+      fleetRelation: '',
+      amount: this.currencyMx.transform(amount, 'MXN'),
+      paymentMethod: '',
+      incurredAt: '',
+      invoiceStatus: '',
+    };
   });
 
   reloadExpenses(): void {
     void this.listResource.reload();
   }
 
-  onExpenseSaved(): void {
+  onPeriodFilterSelect(preset: ExpensesPeriodPreset): void {
+    this.periodPreset.set(preset);
+  }
+
+  onPageTabSelect(tab: ExpensesPageTab): void {
+    this.pageTab.set(tab);
+  }
+
+  onCalendarExpenseSelect(expense: Expense): void {
+    this.detailExpense.set(expense);
+  }
+
+  private bumpCalendarReload(): void {
+    this.calendarReloadToken.update((n) => n + 1);
+  }
+
+  onExpenseSaved(expense?: Expense): void {
     this.newExpenseOpen.set(false);
+    this.detailExpense.set(null);
     this.reloadExpenses();
+    this.bumpCalendarReload();
+    if (expense && this.expenseAffectsOperatorPayments(expense)) {
+      this.operationalFleetSync.notifyOperatorPaymentsMutation();
+    }
+  }
+
+  onExpenseUpdated(expense: Expense): void {
+    this.detailExpense.set(expense);
+    this.reloadExpenses();
+    this.bumpCalendarReload();
+    if (this.expenseAffectsOperatorPayments(expense)) {
+      this.operationalFleetSync.notifyOperatorPaymentsMutation();
+    }
   }
 
   onRowClick(row: Record<string, unknown>): void {
@@ -117,55 +335,79 @@ export class ExpensesPageComponent {
     this.detailExpense.set(null);
   }
 
-  private static rowMatchesQuery(
-    row: Record<string, unknown>,
-    q: string,
-  ): boolean {
-    const haystack = [
-      row['id'],
-      row['kindLabel'],
-      row['relation'],
-      row['category'],
-      row['amount'],
-      row['incurredAt'],
-      row['_searchBlob'],
-    ]
-      .map((v) => String(v ?? '').toLowerCase())
-      .join(' ');
-    return haystack.includes(q);
+  onExpenseDeleted(): void {
+    const deleted = this.detailExpense();
+    this.detailExpense.set(null);
+    this.reloadExpenses();
+    this.bumpCalendarReload();
+    if (deleted && this.expenseAffectsFleetMeta(deleted)) {
+      this.operationalFleetSync.notifyFleetModuleMutation();
+    }
+    if (deleted && this.expenseAffectsOperatorPayments(deleted)) {
+      this.operationalFleetSync.notifyOperatorPaymentsMutation();
+    }
+  }
+
+  private expenseAffectsFleetMeta(expense: Expense): boolean {
+    return (
+      (expense.kind === 'verification' ||
+        expense.kind === 'insurance' ||
+        expense.kind === 'gps') &&
+      (!!expense.relatedUnitId || !!expense.relatedEquipmentId)
+    );
+  }
+
+  private expenseAffectsOperatorPayments(expense: Expense): boolean {
+    return (
+      (expense.kind === 'operator_payment' ||
+        expense.kind === 'operator_commission') &&
+      !!expense.tripId?.trim()
+    );
+  }
+
+  exportFiltered(): void {
+    if (this.exporting()) {
+      return;
+    }
+    this.exporting.set(true);
+    const params = this.exportParams();
+    void firstValueFrom(
+      this.expensesApi.getExpensesPage(params).pipe(
+        catchError(() => {
+          this.toast.show('No se pudo exportar el listado.', 'error');
+          return of(null);
+        }),
+        finalize(() => this.exporting.set(false)),
+      ),
+    ).then((res) => {
+      if (!res) {
+        return;
+      }
+      if (res.items.length === 0) {
+        this.toast.show('No hay gastos para exportar con los filtros actuales.', 'warning');
+        return;
+      }
+      const range = expensesRangeForPreset(this.periodPreset());
+      const suffix = range ? `${range.from}_${range.to}` : 'todo';
+      const csv = buildExpensesCsv(res.items, this.tripManeuverByTripId());
+      downloadExpensesCsv(csv, `gastos_${suffix}.csv`);
+      this.toast.show(`Exportados ${res.items.length} gastos.`, 'success');
+    });
   }
 
   private mapExpenseRow(e: Expense): Record<string, unknown> {
-    const maneuver = expenseManeuverCode(e);
-    const fleetRelation = expenseFleetRelationCode(e);
-    const searchBlob = [
-      e.description,
-      e.vendor,
-      e.kind,
-      expenseKindLabel(e.kind),
-      e.tripId,
-      maneuver,
-      fleetRelation,
-      e.relatedUnitId,
-      e.relatedEquipmentId,
-      e.relatedOperatorId,
-      e.paymentMethod,
-      expensePaymentMethodLabel(e.paymentMethod),
-      e.currency,
-      String(e.amount),
-    ]
-      .map((x) => (x == null ? '' : String(x).trim()))
-      .filter((s) => s.length > 0)
-      .join(' ');
+    const maneuver = expenseManeuverCode(e, this.tripManeuverByTripId());
+    const fleetRelation = expenseFleetRelationLabel(e);
     return {
       id: e.id,
-      kindLabel: expenseKindLabel(e.kind),
+      rubroLabel: expenseRubroLabelForExpense(e),
+      category: expenseConceptLabel(e),
       maneuver,
       fleetRelation,
-      category: e.category,
       amount: this.currencyMx.transform(e.amount, e.currency),
-      incurredAt: this.dateShort.transform(e.incurredAt),
-      _searchBlob: searchBlob,
+      paymentMethod: expensePaymentMethodLabel(e.paymentMethod),
+      incurredAt: formatExpenseIncurredDateDisplay(e.incurredAt, e.incurredDate),
+      invoiceStatus: e.invoiceRequired === true ? 'required' : 'not-required',
     };
   }
 }

@@ -24,6 +24,7 @@ export const CLIENTS_DETAIL_TAB_IMPORTS = [
 ] as const;
 
 export const CLIENTS_DETAIL_TAB_STYLE_URLS = [
+  '../clients-detail-tab.shared.scss',
   '../../../../fleet/components/fleet-drawer.shared.scss',
   '../../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
   '../../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',

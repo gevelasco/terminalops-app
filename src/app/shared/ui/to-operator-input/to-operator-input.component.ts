@@ -21,6 +21,7 @@ import {
   OperatorOperationalStatus,
 } from '@shared/models/logistics.models';
 import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
+import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 
 /** Puede asignarse a maniobra si no está ya en una activa. */
 const PICKABLE_OPERATOR_STATUSES: OperatorOperationalStatus[] = [
@@ -44,7 +45,10 @@ function pickAvailableOperators(
     }
   }
   const avail = operators.filter(
-    (o) => PICKABLE_OPERATOR_STATUSES.includes(o.status) && !busy.has(o.id),
+    (o) =>
+      isFleetResourceActive(o) &&
+      PICKABLE_OPERATOR_STATUSES.includes(o.status) &&
+      !busy.has(o.id),
   );
   avail.sort((a, b) => a.name.localeCompare(b.name));
   return avail;

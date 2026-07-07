@@ -40,6 +40,20 @@ export function parseFleetPositiveKm(raw: string): number | 'invalid' {
   return n;
 }
 
+/** Valor obligatorio compuesto solo de dígitos (p. ej. año modelo). */
+export function parseFleetRequiredDigits(
+  raw: string,
+): string | 'invalid' | 'empty' {
+  const t = raw.trim();
+  if (t === '') {
+    return 'empty';
+  }
+  if (!/^\d+$/.test(t)) {
+    return 'invalid';
+  }
+  return t;
+}
+
 export function parseFleetOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
   const t = raw.trim();
   if (t === '') {

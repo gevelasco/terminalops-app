@@ -15,6 +15,8 @@ export class ToKpiCardComponent {
   readonly title = input.required<string>();
   readonly titleIcon = input<KpiTitleIcon>();
   readonly value = input.required<string>();
+  /** Etiqueta junto al número (ej. «maniobras») en tipografía secundaria. */
+  readonly valueUnit = input<string>();
   readonly legend = input<string>();
   readonly deltaLabel = input<string>();
   readonly deltaTone = input<ToKpiCardDeltaTone>();

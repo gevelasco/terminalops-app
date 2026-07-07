@@ -1,37 +1,26 @@
-import {
-  operationalKey,
-  operationalKeyEquipment,
-  type FleetOperationalKey,
-} from '@features/fleet/utils/fleet-unit-table-row';
 import { activeTripForUnit } from '@features/fleet/utils/fleet-overview-card';
 import type {
   Equipment,
   Operator,
-  OperatorOperationalStatus,
   Trip,
   TripStatus,
   Unit,
 } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
+import type { FleetOperationalKey } from '@features/fleet/utils/fleet-unit-table-row';
+import {
+  resolveOperatorOperationalStatus as resolveOperatorStatus,
+  resolveUnitOperationalKey,
+  TRIP_FLEET_ACTIVE_STATUSES,
+} from '@shared/utils/fleet/fleet-status.resolver';
 
-/** Maniobras que impactan el estado operativo visible en Flota / Operadores. */
-export const TRIP_ACTIVE_OPERATIONAL_STATUSES: readonly TripStatus[] = [
-  'scheduled',
-  'in_transit',
-];
-
-const OPERATOR_PROTECTED_STATUSES = new Set<OperatorOperationalStatus>([
-  'maintenance',
-  'leave',
-  'inactive',
-  'incapacitated',
-]);
+export { TRIP_FLEET_ACTIVE_STATUSES as TRIP_ACTIVE_OPERATIONAL_STATUSES };
 
 function isActiveOperationalTrip(t: Trip): boolean {
-  return TRIP_ACTIVE_OPERATIONAL_STATUSES.includes(t.status);
+  return TRIP_FLEET_ACTIVE_STATUSES.includes(t.status);
 }
 
-/** Unidades con maniobra `in_transit` (legacy `onRoute` en tablas de Flota). */
+/** Unidades con maniobra `in_transit`. */
 export function unitsInTransitIds(trips: readonly Trip[]): Set<string> {
   const ids = new Set<string>();
   for (const t of trips) {
@@ -94,59 +83,41 @@ export function activeTripForEquipment(
   return scheduled[0] ?? null;
 }
 
-/** Estado operativo de unidad: trips activos primero; luego fallback DB. */
 export function deriveUnitFleetOperationalKey(
   unit: Unit,
   trips: readonly Trip[],
 ): FleetOperationalKey {
-  if ((unit.status ?? '').trim().toLowerCase() === 'maintenance') {
-    return 'maintenance';
-  }
   const active = activeTripForUnit(unit.id, trips);
-  if (active?.status === 'in_transit') {
-    return 'on_route';
-  }
-  if (active?.status === 'scheduled') {
-    return 'scheduled';
-  }
-  return operationalKey(unit, false);
+  return resolveUnitOperationalKey({
+    persistedStatus: unit.status,
+    isActive: unit.isActive !== false,
+    activeTripStatus: active?.status,
+  });
 }
 
-/** Estado operativo de equipo: `trip_equipment` o unidad asignada; luego fallback DB. */
 export function deriveEquipmentFleetOperationalKey(
   equipment: Equipment,
   trips: readonly Trip[],
 ): FleetOperationalKey {
-  if ((equipment.status ?? '').trim().toLowerCase() === 'maintenance') {
-    return 'maintenance';
-  }
   let active = activeTripForEquipment(equipment.id, trips);
   if (!active && equipment.unitId) {
     active = activeTripForUnit(equipment.unitId, trips);
   }
-  if (active?.status === 'in_transit') {
-    return 'in_use';
-  }
-  if (active?.status === 'scheduled') {
-    return 'scheduled';
-  }
-  return operationalKeyEquipment(equipment, false);
+  return resolveUnitOperationalKey({
+    persistedStatus: equipment.status,
+    isActive: equipment.isActive !== false,
+    activeTripStatus: active?.status,
+  });
 }
 
-/** Estado operativo de operador: trips activos primero; respeta estados protegidos en DB. */
 export function deriveOperatorOperationalStatus(
   operator: Operator,
   trips: readonly Trip[],
-): OperatorOperationalStatus {
-  if (OPERATOR_PROTECTED_STATUSES.has(operator.status)) {
-    return operator.status;
-  }
+): Operator['status'] {
   const active = activeTripForOperator(operator.id, trips);
-  if (active?.status === 'in_transit') {
-    return 'on_route';
-  }
-  if (active?.status === 'scheduled') {
-    return 'scheduled';
-  }
-  return operator.status;
+  return resolveOperatorStatus({
+    status: operator.status,
+    isActive: operator.isActive !== false,
+    activeTripStatus: active?.status,
+  });
 }

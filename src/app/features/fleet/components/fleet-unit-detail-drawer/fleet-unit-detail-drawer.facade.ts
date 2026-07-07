@@ -7,15 +7,16 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
+import { catchError, of, switchMap } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { ExpensesService } from '@core/services/api/expenses';
 import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import {
   companyMaintenancePolicyFromSession,
-  maintenanceDatePeriodLabel,
 } from '@shared/models/company-operational-settings.models';
 import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-payload';
 import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
@@ -24,7 +25,34 @@ import {
   trackMaintenanceEntry,
   trackStringEntry,
 } from '@features/fleet/utils/list-trackers';
+import {
+  canConfirmInsurancePayment,
+  insurancePaymentConfirmHint,
+  nextInsurancePaymentDate,
+} from '@features/fleet/utils/fleet-insurance-payment.util';
+import {
+  buildInsurancePaymentSchedule,
+  insurancePolicyYearBounds,
+  isAnnualInsuranceCadence,
+  showInsurancePaymentSchedule,
+} from '@features/fleet/utils/fleet-insurance-schedule.util';
+import {
+  buildGpsPaymentSchedule,
+  gpsServiceYearBounds,
+  isAnnualGpsCadence,
+  showGpsPaymentSchedule,
+} from '@features/fleet/utils/fleet-gps-schedule.util';
+import {
+  canConfirmGpsPayment,
+  gpsFleetFormHasContent,
+  gpsFleetMetaIsActive,
+  gpsPaymentConfirmHint,
+  nextGpsPaymentDate,
+} from '@features/fleet/utils/fleet-gps-payment.util';
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
+import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
+import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
+import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
 import { fleetBrandDisplayName } from '@shared/utils/fleet/fleet-brand-display';
@@ -42,7 +70,7 @@ import {
   nextInsuranceTableDate,
   nextMaintenanceDueIso,
   nextMaintenanceTableDate,
-  renewalBucket,
+  complianceRenewalBucket,
 } from '@app/features/fleet/utils/fleet-unit-table-row';
 import {
   fleetDrawerTodayIso,
@@ -50,6 +78,7 @@ import {
   parseFleetOptionalAmount,
   parseFleetOptionalPositiveInt,
   parseFleetPositiveKm,
+  parseFleetRequiredDigits,
   registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
@@ -80,23 +109,32 @@ import {
 } from '@app/features/fleet/utils/unit-hitched-equipment';
 import {
   Equipment,
+  Expense,
   MaintenanceEntry,
-  MaintenanceEntryStatus,
   TrailerTenureMode,
   Unit,
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
 import {
-  buildFleetModelYearSelectOptions,
   FLEET_PAYMENT_CADENCE_OPTIONS,
+  FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
-  FLEET_UNIT_STATUS_OPTIONS,
+  FLEET_RESOURCE_VISIBILITY_OPTIONS,
   FLEET_MAINT_SCHEDULE_NEXT_MODE_OPTIONS,
-  FLEET_MAINTENANCE_ENTRY_STATUS_OPTIONS,
   FLEET_MAINTENANCE_TYPE_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
+import { expensePaymentMethodLabel } from '@features/expenses/utils/expense-row-labels';
+import { isAdminRole } from '@shared/utils/access-control';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
+import { FLEET_DELETE_ON_ROUTE_TOOLTIP } from '@features/fleet/utils/fleet-resource-delete';
+import {
+  fleetMaintenanceAction,
+  fleetMaintenanceActionLabel,
+} from '@features/fleet/utils/fleet-maintenance-toggle';
+import { fleetResourceActiveLabel } from '@shared/utils/fleet-resource-active';
 import { FleetUnitDetailDomain } from '@features/fleet/services/domain/fleet-unit-detail.domain';
 import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
 import type {
@@ -105,6 +143,7 @@ import type {
   UnitDetailDrawerTab,
   UnitEditingSection,
 } from '@features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer.types';
+import type { FleetPersistOptions } from '@features/fleet/components/fleet-detail-drawer.types';
 
 export type {
   FleetUnitDetailDrawerHostCallbacks,
@@ -114,6 +153,12 @@ export type {
 
 const VERIF_MO = 6;
 
+/** Guardados de coberturas / verificaciones: PATCH + upsert en memoria; sin refetch masivo de flota. */
+const COB_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
+  skipListRefresh: true,
+  skipFleetRefresh: true,
+};
+
 @Injectable()
 export class FleetUnitDetailDrawerFacade {
   readonly toast = inject(ToastService);
@@ -122,6 +167,7 @@ export class FleetUnitDetailDrawerFacade {
   private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
   private readonly fleetFeature = inject(FleetFeatureService);
+  private readonly expensesApi = inject(ExpensesService);
   private readonly domain = inject(FleetUnitDetailDomain);
   private readonly opResolver = FLEET_OPERATION_RESOLVER;
 
@@ -130,15 +176,11 @@ export class FleetUnitDetailDrawerFacade {
 
   private readonly unitSource = signal<Unit | null>(null);
   private readonly onRouteSource = signal(false);
-  private readonly completedManeuverCountSource = signal(0);
-  private readonly completedTripDistanceKmSource = signal<number | null>(null);
   private readonly hitchedEquipmentSource = signal<Equipment[]>([]);
   private readonly equipmentCatalogSource = signal<Equipment[]>([]);
 
   readonly unit = computed(() => this.unitSource()!);
   readonly onRoute = computed(() => this.onRouteSource());
-  readonly completedManeuverCount = computed(() => this.completedManeuverCountSource());
-  readonly completedTripDistanceKm = computed(() => this.completedTripDistanceKmSource());
   readonly hitchedEquipment = computed(() => this.hitchedEquipmentSource());
   readonly equipmentCatalog = computed(() => this.equipmentCatalogSource());
 
@@ -152,6 +194,34 @@ export class FleetUnitDetailDrawerFacade {
 
   readonly drawerLoading = signal(false);
   readonly saving = signal(false);
+  private readonly insurancePaymentExpenses = signal<Expense[]>([]);
+  private insurancePaymentExpensesLoadId = 0;
+  private readonly gpsPaymentExpenses = signal<Expense[]>([]);
+  private gpsPaymentExpensesLoadId = 0;
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteSubmitting = signal(false);
+  readonly maintenanceSubmitting = signal(false);
+
+  readonly canDeleteUnit = computed(() => isAdminRole(this.session.role()));
+  readonly canWriteFleet = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.FLEET),
+  );
+  readonly deleteBlockedByRoute = computed(() => this.onRoute());
+  readonly deleteBlockedTooltip = () => FLEET_DELETE_ON_ROUTE_TOOLTIP;
+
+  readonly maintenanceAction = computed(() =>
+    fleetMaintenanceAction({
+      status: this.effUnit().status,
+      onRoute: this.onRoute(),
+      isActive: this.effUnit().isActive,
+    }),
+  );
+
+  readonly showsMaintenanceAction = computed(() => this.maintenanceAction() != null);
+
+  readonly maintenanceActionLabel = computed(() =>
+    fleetMaintenanceActionLabel(this.maintenanceAction()),
+  );
 
   readonly companyMaintPolicy = computed(() =>
     companyMaintenancePolicyFromSession({
@@ -168,6 +238,36 @@ export class FleetUnitDetailDrawerFacade {
 
   readonly companyDateMaintControlActive = computed(
     () => this.companyMaintPolicy().dateControlEnabled,
+  );
+
+  readonly showInsurancePaymentScheduleTable = computed(() =>
+    showInsurancePaymentSchedule(this.meta()?.insurancePaymentCadence),
+  );
+
+  readonly isAnnualInsurancePolicy = computed(() =>
+    isAnnualInsuranceCadence(this.meta()?.insurancePaymentCadence),
+  );
+
+  readonly insurancePaymentSchedule = computed(() =>
+    buildInsurancePaymentSchedule({
+      meta: this.meta(),
+      expenses: this.insurancePaymentExpenses(),
+      today: new Date(this.today),
+    }),
+  );
+
+  readonly showGpsPaymentScheduleTable = computed(() => showGpsPaymentSchedule(this.meta()));
+
+  readonly isAnnualGpsPolicy = computed(() =>
+    isAnnualGpsCadence(this.meta()?.gpsPaymentCadence),
+  );
+
+  readonly gpsPaymentSchedule = computed(() =>
+    buildGpsPaymentSchedule({
+      meta: this.meta(),
+      expenses: this.gpsPaymentExpenses(),
+      today: new Date(this.today),
+    }),
   );
 
   readonly unitOverride = signal<Partial<Unit>>({});
@@ -188,18 +288,6 @@ export class FleetUnitDetailDrawerFacade {
   readonly editingSection = signal<UnitEditingSection>(null);
   readonly detailTab = signal<UnitDetailDrawerTab>('mant');
 
-  companyMaintPolicyHint(): string {
-    const p = this.companyMaintPolicy();
-    const parts: string[] = [];
-    if (p.kmControlEnabled && p.kmIntervalDefault != null) {
-      parts.push(`Km (empresa): cada ${p.kmIntervalDefault.toLocaleString('es-MX')} km`);
-    }
-    if (p.dateControlEnabled && p.datePeriod) {
-      parts.push(`Fechas (empresa): ${maintenanceDatePeriodLabel(p.datePeriod)}`);
-    }
-    return parts.join(' · ');
-  }
-
   bindHostCallbacks(callbacks: FleetUnitDetailDrawerHostCallbacks): void {
     this.dismissCallback = callbacks.dismiss;
     this.viewHitchedEquipmentCallback = callbacks.viewHitchedEquipment;
@@ -217,6 +305,8 @@ export class FleetUnitDetailDrawerFacade {
       this.unitSource.set(resolved);
       this.unitOverride.set({});
       this.metaOverride.set({});
+      this.insurancePaymentExpenses.set([]);
+      this.gpsPaymentExpenses.set([]);
       this.editingSection.set(null);
       this.drawerLoading.set(false);
       if (prevUnitId) {
@@ -225,7 +315,28 @@ export class FleetUnitDetailDrawerFacade {
       return;
     }
 
-    this.applyHostUnitSnapshotWhenRicher(unit);
+    this.syncHostUnitFromFeatureList(nextUnitId);
+  }
+
+  private syncHostUnitFromFeatureList(unitId: string): void {
+    if (this.editingSection() !== null || this.verifEntryKind() !== null) {
+      const incoming = this.unitsFeature.selectedUnit();
+      if (incoming) {
+        this.applyHostUnitSnapshotWhenRicher(incoming);
+      }
+      return;
+    }
+    const resolved = this.unitsFeature.units().find((u) => u.id === unitId);
+    const current = this.unitSource();
+    if (!resolved || !current) {
+      return;
+    }
+    const resolvedMeta = JSON.stringify(resolved.fleetMeta ?? {});
+    const currentMeta = JSON.stringify(current.fleetMeta ?? {});
+    if (resolvedMeta !== currentMeta) {
+      this.unitSource.set(resolved);
+      this.metaOverride.set({});
+    }
   }
 
   private syncCatalogFromFeature(): void {
@@ -256,8 +367,6 @@ export class FleetUnitDetailDrawerFacade {
 
   syncHostLayout(layout: FleetUnitDetailDrawerHostLayout): void {
     this.onRouteSource.set(layout.onRoute);
-    this.completedManeuverCountSource.set(layout.completedManeuverCount);
-    this.completedTripDistanceKmSource.set(layout.completedTripDistanceKm);
     this.syncCatalogFromFeature();
     if (layout.onRoute && this.editingSection() === 'hitch') {
       this.cancelEditHitchAdd();
@@ -310,6 +419,84 @@ export class FleetUnitDetailDrawerFacade {
     this.dismissCallback?.();
   }
 
+  openDeleteConfirm(): void {
+    if (!this.canDeleteUnit() || this.deleteBlockedByRoute() || this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDeleteUnit(): void {
+    if (!this.canDeleteUnit() || this.deleteBlockedByRoute() || this.deleteSubmitting()) {
+      return;
+    }
+    const unit = this.effUnit();
+    const label = this.trailerOperationalId();
+    this.deleteSubmitting.set(true);
+    this.unitsFeature
+      .deleteUnit(unit.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
+          this.fleetFeature.refreshFleetModule();
+          this.toast.show(`Unidad ${label} dada de baja.`, 'success');
+          this.requestDismiss();
+        },
+        error: (err: unknown) => {
+          this.deleteSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo eliminar la unidad. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
+  }
+
+  submitMaintenanceAction(): void {
+    const action = this.maintenanceAction();
+    if (!action || this.maintenanceSubmitting()) {
+      return;
+    }
+    const unit = this.effUnit();
+    const label = this.trailerOperationalId();
+    this.maintenanceSubmitting.set(true);
+    this.unitsFeature
+      .setUnitMaintenance(unit.id, action)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (saved) => {
+          this.maintenanceSubmitting.set(false);
+          this.unitSource.set(saved);
+          this.unitOverride.set({});
+          this.fleetFeature.refreshFleetModule();
+          this.toast.show(
+            action === 'start'
+              ? `Unidad ${label} en mantenimiento; no estará disponible para maniobras.`
+              : `Unidad ${label} disponible de nuevo para operación.`,
+            'success',
+          );
+        },
+        error: (err: unknown) => {
+          this.maintenanceSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo actualizar el estado de mantenimiento.',
+            'error',
+          );
+        },
+      });
+  }
+
   requestViewHitchedEquipment(equipment: Equipment): void {
     this.viewHitchedEquipmentCallback?.(equipment);
   }
@@ -322,14 +509,22 @@ export class FleetUnitDetailDrawerFacade {
     return this.editingSection() === section;
   }
 
-  persistCurrentUnit(successMessage: string, draft?: UnitPersistDraft): void {
+  showSectionEdit(section: NonNullable<UnitEditingSection>): boolean {
+    return this.canWriteFleet() && !this.isEditing(section);
+  }
+
+  persistCurrentUnit(
+    successMessage: string,
+    draft?: UnitPersistDraft,
+    options?: FleetPersistOptions,
+  ): void {
     if (this.saving()) {
       return;
     }
     const unitToSend = this.domain.unitForPersist(this.effUnit(), this.localMaintEntries(), draft);
     this.saving.set(true);
     this.unitsFeature
-      .updateUnit(unitToSend, draft)
+      .updateUnit(unitToSend, draft, { skipListRefresh: options?.skipListRefresh })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (saved) => {
@@ -339,9 +534,12 @@ export class FleetUnitDetailDrawerFacade {
           this.metaOverride.set({});
           this.localMaintEntries.set([]);
           this.syncCatalogFromFeature();
-          this.fleetFeature.refreshFleetModule();
+          if (!options?.skipFleetRefresh) {
+            this.fleetFeature.refreshFleetModule();
+          }
           this.toast.show(successMessage, 'success');
           this.editingSection.set(null);
+          options?.onSuccess?.();
         },
         error: () => {
           this.saving.set(false);
@@ -582,7 +780,14 @@ export class FleetUnitDetailDrawerFacade {
 
 
   readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
+  readonly insurancePaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS.filter(
+    (o) => o.value !== '',
+  );
   readonly today = fleetDrawerTodayIso();
+
+  insurancePaymentMethodLabel(code?: string): string {
+    return expensePaymentMethodLabel(code);
+  }
 
   /** Verificación cuyo registro inline está abierto. */
   readonly verifEntryKind = signal<'phys' | 'emis' | 'double' | null>(null);
@@ -638,13 +843,19 @@ export class FleetUnitDetailDrawerFacade {
     }
     this.metaOverride.update((prev) => ({ ...prev, ...patch }));
     this.cancelVerifEntry();
-    this.persistCurrentUnit('Verificación registrada.', { fleetMeta: patch });
+    this.persistCurrentUnit(
+      'Verificación registrada.',
+      { fleetMeta: patch },
+      COB_SECTION_PERSIST_OPTIONS,
+    );
   }
   // -- Seguro: form signals --
   readonly editInsCarrierName = signal('');
   readonly editInsPolicyNumber = signal('');
   readonly editInsContractDate = signal('');
   readonly editInsCadence = signal('');
+  readonly editInsPaymentMethod = signal('');
+  readonly editInsInvoiceRequired = signal(false);
   readonly editInsCost = signal('');
   /** Póliza y comprobantes (copia editable al abrir seguro). */
   readonly editPolicyNames = signal<string[]>([]);
@@ -665,6 +876,8 @@ export class FleetUnitDetailDrawerFacade {
         m.insurancePaymentCadence?.trim() ||
         '',
     );
+    this.editInsPaymentMethod.set(m.insurancePaymentMethod?.trim() || '');
+    this.editInsInvoiceRequired.set(m.insuranceInvoiceRequired === true);
     this.editInsCost.set(m.insuranceCost != null ? String(m.insuranceCost) : '');
     this.editPolicyNames.set([...(m.documentPolicyNames ?? [])]);
     this.editingSection.set('insurance');
@@ -748,19 +961,25 @@ export class FleetUnitDetailDrawerFacade {
       insurancePolicyNumber: this.editInsPolicyNumber().trim() || undefined,
       insuranceContractDate: this.editInsContractDate().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
+      insurancePaymentMethod: this.editInsPaymentMethod().trim() || undefined,
+      insuranceInvoiceRequired: this.editInsInvoiceRequired(),
       insuranceCost: cost === undefined ? undefined : cost,
       documentPolicyNames,
     };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
     this.editPolicyNewFiles.set([]);
-    this.persistCurrentUnit('Seguro actualizado.', { fleetMeta: fleetMetaDraft });
+    this.persistCurrentUnit(
+      'Seguro actualizado.',
+      { fleetMeta: fleetMetaDraft },
+      COB_SECTION_PERSIST_OPTIONS,
+    );
   }
 
   // -- GPS: form signals --
-  readonly editGpsHas = signal(false);
   readonly editGpsBrand = signal('');
   readonly editGpsContractDate = signal('');
   readonly editGpsCadence = signal('annual');
+  readonly editGpsPaymentMethod = signal('');
+  readonly editGpsInvoiceRequired = signal(false);
   readonly editGpsPrice = signal('');
   readonly editGpsPortal = signal('');
   readonly editGpsEndorse = signal(false);
@@ -769,7 +988,6 @@ export class FleetUnitDetailDrawerFacade {
     this.requestFocusDetailTab('cob');
     this.clearStagedDocUploads();
     const m = this.meta() ?? {};
-    this.editGpsHas.set(m.hasGps === true);
     this.editGpsBrand.set(m.gpsProviderBrand?.trim() || '');
     this.editGpsContractDate.set(m.gpsContractDate ?? '');
     const cadRaw = m.gpsPaymentCadence?.trim() || '';
@@ -778,14 +996,12 @@ export class FleetUnitDetailDrawerFacade {
         (this.cadenceOptions.some((o) => o.value === cadRaw) ? cadRaw : '') ||
         'annual',
     );
+    this.editGpsPaymentMethod.set(m.gpsPaymentMethod?.trim() || '');
+    this.editGpsInvoiceRequired.set(m.gpsInvoiceRequired === true);
     this.editGpsPrice.set(m.gpsPrice != null ? String(m.gpsPrice) : '');
     this.editGpsPortal.set(m.gpsTrackingPortalUrl?.trim() || '');
     this.editGpsEndorse.set(m.gpsCoveredByInsuranceEndorsement === true);
     this.editingSection.set('gps');
-  }
-
-  toggleEditGpsHas(): void {
-    this.editGpsHas.set(!this.editGpsHas());
   }
 
   toggleEditGpsEndorse(): void {
@@ -793,18 +1009,30 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   saveEditGps(): void {
-    if (!this.editGpsHas()) {
+    const hasContent = gpsFleetFormHasContent({
+      brand: this.editGpsBrand(),
+      contractDate: this.editGpsContractDate(),
+      price: this.editGpsPrice(),
+      portal: this.editGpsPortal(),
+    });
+    if (!hasContent) {
       const fleetMetaDraft: Partial<UnitFleetMeta> = {
         hasGps: false,
         gpsProviderBrand: undefined,
         gpsPrice: undefined,
         gpsPaymentCadence: undefined,
         gpsContractDate: undefined,
+        gpsLastPaymentDate: undefined,
+        gpsPaymentMethod: undefined,
+        gpsInvoiceRequired: undefined,
         gpsTrackingPortalUrl: undefined,
         gpsCoveredByInsuranceEndorsement: undefined,
       };
-      this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-      this.persistCurrentUnit('GPS actualizado.', { fleetMeta: fleetMetaDraft });
+      this.persistCurrentUnit(
+        'GPS actualizado.',
+        { fleetMeta: fleetMetaDraft },
+        COB_SECTION_PERSIST_OPTIONS,
+      );
       return;
     }
     const price = parseFleetOptionalAmount(this.editGpsPrice());
@@ -821,19 +1049,24 @@ export class FleetUnitDetailDrawerFacade {
       gpsProviderBrand: this.editGpsBrand().trim() || undefined,
       gpsContractDate: this.editGpsContractDate().trim() || undefined,
       gpsPaymentCadence: cadenceLabel,
+      gpsPaymentMethod: this.editGpsPaymentMethod().trim() || undefined,
+      gpsInvoiceRequired: this.editGpsInvoiceRequired(),
       gpsPrice: price === undefined ? undefined : price,
       gpsTrackingPortalUrl: this.editGpsPortal().trim() || undefined,
       gpsCoveredByInsuranceEndorsement: this.editGpsEndorse() ? true : undefined,
     };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.persistCurrentUnit('GPS actualizado.', { fleetMeta: fleetMetaDraft });
+    this.persistCurrentUnit(
+      'GPS actualizado.',
+      { fleetMeta: fleetMetaDraft },
+      COB_SECTION_PERSIST_OPTIONS,
+    );
   }
 
-  /** Estado del formulario inline. */
+  /** Formulario inline de mantenimiento concluido (historial + gasto). */
   readonly addingMaint = signal(false);
-  readonly newMaintStatus = signal<MaintenanceEntryStatus>('concluido');
   readonly newMaintType = signal('servicio_completo');
   readonly newMaintCost = signal('');
+  readonly newMaintPaymentMethod = signal('');
   readonly newMaintDate = signal('');
   readonly newMaintNotes = signal('');
   readonly newMaintFiles = signal<File[]>([]);
@@ -848,16 +1081,10 @@ export class FleetUnitDetailDrawerFacade {
   readonly editingMaintKmInterval = signal(false);
   readonly editMaintKmIntervalStr = signal('');
 
-  readonly newMaintStatusOptions = FLEET_MAINTENANCE_ENTRY_STATUS_OPTIONS;
-
   readonly newMaintTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
+  readonly newMaintPaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
-  readonly newMaintMinDate = computed(() =>
-    this.newMaintStatus() === 'programado' ? this.today : undefined,
-  );
-  readonly newMaintMaxDate = computed(() =>
-    this.newMaintStatus() === 'concluido' ? this.today : undefined,
-  );
+  readonly newMaintMaxDate = computed(() => this.today);
   private maintTypeLabel(value: string): string {
     return (
       this.newMaintTypeOptions.find((o) => o.value === value)?.label ?? value
@@ -865,6 +1092,9 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   openNewMaint(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     this.cancelMaintScheduleEdits();
     this.requestFocusDetailTab('mant');
     this.resetNewMaintForm();
@@ -877,33 +1107,15 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   resetNewMaintForm(): void {
-    this.newMaintStatus.set('concluido');
     this.newMaintType.set('servicio_completo');
     this.newMaintCost.set('');
+    this.newMaintPaymentMethod.set('');
     this.newMaintDate.set('');
     this.newMaintNotes.set('');
     this.newMaintFiles.set([]);
     this.newMaintNextMode.set('tiempo');
     this.newMaintNextDate.set('');
     this.newMaintNextKmInterval.set('');
-  }
-
-  /** Cambia el estado y limpia la fecha si quedó fuera del rango permitido. */
-  onNewMaintStatusChange(): void {
-    if (this.newMaintStatus() === 'programado') {
-      this.newMaintNextDate.set('');
-      this.newMaintNextKmInterval.set('');
-    }
-    const date = this.newMaintDate().trim();
-    if (!date) {
-      return;
-    }
-    if (this.newMaintStatus() === 'programado' && date < this.today) {
-      this.newMaintDate.set('');
-    }
-    if (this.newMaintStatus() === 'concluido' && date > this.today) {
-      this.newMaintDate.set('');
-    }
   }
 
   onNewMaintFiles(ev: Event): void {
@@ -926,37 +1138,26 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('La fecha es obligatoria.', 'warning');
       return;
     }
-    if (this.newMaintStatus() === 'programado' && date < this.today) {
+    if (date > this.today) {
       this.toast.show(
-        'Un mantenimiento programado debe tener fecha futura.',
-        'warning',
-      );
-      return;
-    }
-    if (this.newMaintStatus() === 'concluido' && date > this.today) {
-      this.toast.show(
-        'Un mantenimiento concluido no puede tener fecha futura.',
+        'La fecha del servicio no puede ser futura.',
         'warning',
       );
       return;
     }
     const cost = parseFleetOptionalAmount(this.newMaintCost());
-    if (cost === 'invalid') {
+    if (cost === 'invalid' || cost === undefined || cost <= 0) {
       this.toast.show(
-        'El costo debe ser un número válido (≥ 0) o dejarse vacío.',
+        'El costo es obligatorio y debe ser mayor a cero.',
         'warning',
       );
       return;
     }
 
-    const status = this.newMaintStatus();
-    const scheduleNext = status === 'concluido';
     const hasScheduleTiempo =
-      scheduleNext &&
       this.newMaintNextMode() === 'tiempo' &&
       this.newMaintNextDate().trim() !== '';
     const hasScheduleKm =
-      scheduleNext &&
       this.newMaintNextMode() === 'km' &&
       this.newMaintNextKmInterval().trim() !== '';
 
@@ -981,72 +1182,40 @@ export class FleetUnitDetailDrawerFacade {
       }
     }
 
-    const tripKmNow = this.completedTripDistanceKm();
-    const metaPatch: Partial<UnitFleetMeta> = {};
+    const metaPatch: Partial<UnitFleetMeta> = {
+      lastMaintenanceDate: date,
+      lastMaintenanceType: this.maintTypeLabel(this.newMaintType()),
+      lastMaintenanceCost: cost,
+      lastMaintenanceNotes: this.newMaintNotes().trim() || undefined,
+    };
 
-    if (status === 'programado') {
-      metaPatch.maintenanceNextDateOverride = date;
-      metaPatch.maintenanceAlertByKm = false;
-    } else if (hasScheduleTiempo) {
+    if (hasScheduleTiempo) {
       metaPatch.maintenanceNextDateOverride = this.newMaintNextDate().trim();
-      metaPatch.maintenanceAlertByKm = false;
-      metaPatch.maintenanceKmInterval = undefined;
-      metaPatch.maintenanceTripKmAtLastService = undefined;
-      metaPatch.maintenanceKmRemaining = null;
-    } else if (hasScheduleKm) {
-      const km = parseFleetPositiveKm(this.newMaintNextKmInterval());
-      if (km === 'invalid') {
-        return;
-      }
-      metaPatch.maintenanceKmInterval = km;
-      metaPatch.maintenanceTripKmAtLastService = tripKmNow ?? 0;
-      metaPatch.maintenanceAlertByKm = true;
+    } else {
       metaPatch.maintenanceNextDateOverride = undefined;
-      metaPatch.maintenanceKmRemaining = null;
-    } else if (status === 'concluido') {
-      metaPatch.maintenanceNextDateOverride = undefined;
-      if (this.meta()?.maintenanceAlertByKm === true) {
-        metaPatch.maintenanceTripKmAtLastService = tripKmNow ?? 0;
-      }
     }
 
-    if (status === 'concluido') {
-      metaPatch.lastMaintenanceDate = date;
-      metaPatch.lastMaintenanceType = this.maintTypeLabel(this.newMaintType());
-      if (cost !== undefined) {
-        metaPatch.lastMaintenanceCost = cost;
-      }
-      const notes = this.newMaintNotes().trim();
-      metaPatch.lastMaintenanceNotes = notes || undefined;
+    if (this.companyKmMaintControlActive()) {
+      metaPatch.maintenanceKmCounter = 0;
     }
 
-    if (Object.keys(metaPatch).length > 0) {
-      this.metaOverride.update((p) => ({ ...p, ...metaPatch }));
-    }
+    this.metaOverride.update((p) => ({ ...p, ...metaPatch }));
 
     const docs = this.newMaintFiles().map((f) => f.name);
+    const paymentMethod = this.newMaintPaymentMethod().trim() || undefined;
     const entry: MaintenanceEntry = {
       date,
       type: this.maintTypeLabel(this.newMaintType()),
-      cost: cost === undefined ? undefined : cost,
+      cost,
       notes: this.newMaintNotes().trim() || undefined,
+      paymentMethod,
       documentNames: docs.length > 0 ? docs : undefined,
-      status: this.newMaintStatus(),
+      status: 'concluido',
     };
     this.localMaintEntries.update((prev) => [...prev, entry]);
     this.addingMaint.set(false);
     this.resetNewMaintForm();
     this.persistCurrentUnit('Mantenimiento agregado.', { fleetMeta: metaPatch });
-  }
-
-  statusBadgeLabel(s: MaintenanceEntryStatus | undefined): string {
-    if (s === 'programado') {
-      return 'Programado';
-    }
-    if (s === 'concluido') {
-      return 'Concluido';
-    }
-    return '';
   }
 
 
@@ -1056,16 +1225,22 @@ export class FleetUnitDetailDrawerFacade {
   readonly editVersion = signal('');
   readonly editPlate = signal('');
   readonly editColor = signal('');
-  readonly editStatus = signal('available');
+  readonly editServiceModality = signal('');
+  readonly editVisibility = signal<'active' | 'inactive'>('active');
   readonly editSerial = signal('');
+  readonly editMotorNumber = signal('');
   readonly editAlias = signal('');
 
   readonly unitBrandNames = this.fleetFeature.unitBrandNames;
   readonly editUnitVersionNames = computed(() =>
     this.fleetFeature.versionNamesFor('UNIT', this.editBrand()),
   );
-  readonly modelYearOptions = buildFleetModelYearSelectOptions();
-  readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
+  readonly visibilityOptions = FLEET_RESOURCE_VISIBILITY_OPTIONS;
+  readonly serviceModalityOptions = FLEET_SERVICE_MODALITY_OPTIONS;
+
+  resourceVisibilityLabel(): string {
+    return fleetResourceActiveLabel(this.effUnit().isActive);
+  }
 
   startEditId(): void {
     this.fleetFeature.ensureFleetCatalogLoaded();
@@ -1079,8 +1254,14 @@ export class FleetUnitDetailDrawerFacade {
     this.editVersion.set(m.trailerVersion?.trim() || '');
     this.editPlate.set(u.plate ?? '');
     this.editColor.set(m.trailerColor?.trim() || '');
-    this.editStatus.set((u.status || 'available').trim());
+    this.editServiceModality.set(
+      fleetValueFromLabel(this.serviceModalityOptions, m.serviceModality) ||
+        m.serviceModality?.trim() ||
+        '',
+    );
+    this.editVisibility.set(u.isActive === false ? 'inactive' : 'active');
     this.editSerial.set(u.serialNumber?.trim() || '');
+    this.editMotorNumber.set(u.motorNumber?.trim() || '');
     this.editAlias.set(u.name?.trim() || '');
     this.editingSection.set('id');
   }
@@ -1095,19 +1276,34 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('Marca es obligatoria.', 'warning');
       return;
     }
+    const yearParsed = parseFleetRequiredDigits(this.editYear());
+    if (yearParsed === 'empty') {
+      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+      return;
+    }
+    if (yearParsed === 'invalid') {
+      this.toast.show('Modelo (año) debe contener solo números.', 'warning');
+      return;
+    }
     const brandAbbr = deriveFleetBrandAbbr(brandName);
     const unitDraft: Partial<Unit> = {
       plate,
-      status: this.editStatus(),
+      isActive: this.editVisibility() === 'active',
       trailerBrandAbbr: brandAbbr || undefined,
-      trailerYear: this.editYear().trim() || undefined,
+      trailerYear: yearParsed,
       serialNumber: this.editSerial().trim() || undefined,
+      motorNumber: this.editMotorNumber().trim() || undefined,
       name: this.editAlias().trim() || undefined,
     };
     const fleetMetaDraft: Partial<UnitFleetMeta> = {
       trailerBrandName: brandName,
       trailerVersion: this.editVersion().trim() || undefined,
       trailerColor: this.editColor().trim() || undefined,
+      serviceModality:
+        this.serviceModalityOptions.find((o) => o.value === this.editServiceModality())
+          ?.label ||
+        this.editServiceModality().trim() ||
+        undefined,
     };
     this.unitOverride.update((prev) => ({ ...prev, ...unitDraft }));
     this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
@@ -1248,24 +1444,23 @@ export class FleetUnitDetailDrawerFacade {
   readonly editTransmissionType = signal('');
   readonly editTransmissionSpeeds = signal('');
   readonly editGvwrLb = signal('');
+  readonly editCapacityTons = signal('');
   readonly editOdometerKm = signal('');
 
   readonly transmissionOptions = FLEET_TRANSMISSION_TYPE_OPTIONS;
 
   readonly speedOptions = FLEET_TRANSMISSION_SPEED_OPTIONS;
 
-  /** Capacidad derivada del GVWR mientras se edita (kg). */
-  readonly editCapacityPreviewKg = computed<number | null>(() => {
-    const raw = this.editGvwrLb().trim().replace(/,/g, '');
-    if (!raw) {
-      return null;
+  capacityTonsDisplay(): string {
+    const u = this.effUnit();
+    if (u.capacityTons != null && Number.isFinite(u.capacityTons)) {
+      return `${u.capacityTons} t`;
     }
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) {
-      return null;
+    if (u.capacityKg > 0) {
+      return `${u.capacityKg / 1000} t`;
     }
-    return Math.round(n * 0.45359237);
-  });
+    return '—';
+  }
 
   startEditCap(): void {
     this.focusDetailTab('ficha');
@@ -1282,22 +1477,38 @@ export class FleetUnitDetailDrawerFacade {
         '',
     );
     this.editGvwrLb.set(m.grossVehicleWeightLb?.trim() || '');
+    const u = this.effUnit();
+    this.editCapacityTons.set(
+      u.capacityTons != null && Number.isFinite(u.capacityTons)
+        ? String(u.capacityTons)
+        : u.capacityKg > 0
+          ? String(u.capacityKg / 1000)
+          : '',
+    );
     this.editOdometerKm.set(m.odometerKm?.trim() || '');
     this.editingSection.set('cap');
   }
 
   saveEditCap(): void {
+    const tonsRaw = this.editCapacityTons().trim().replace(/,/g, '');
+    if (!tonsRaw) {
+      this.toast.show('Indica la capacidad en toneladas.', 'warning');
+      return;
+    }
+    const capacityTons = Number(tonsRaw);
+    if (!Number.isFinite(capacityTons) || capacityTons <= 0) {
+      this.toast.show('La capacidad en toneladas no es válida.', 'warning');
+      return;
+    }
+    const capacityKg = Math.round(capacityTons * 1000);
     const lbRaw = this.editGvwrLb().trim().replace(/,/g, '');
-    if (!lbRaw) {
-      this.toast.show('Indica el peso bruto (GVWR) en libras.', 'warning');
-      return;
+    if (lbRaw) {
+      const lb = Number(lbRaw);
+      if (!Number.isFinite(lb) || lb <= 0 || !Number.isInteger(lb)) {
+        this.toast.show('Ejes de tracción debe ser un número entero válido.', 'warning');
+        return;
+      }
     }
-    const lb = Number(lbRaw);
-    if (!Number.isFinite(lb) || lb <= 0) {
-      this.toast.show('GVWR en libras no es válido.', 'warning');
-      return;
-    }
-    const capacityKg = Math.round(lb * 0.45359237);
     const transLabel =
       this.transmissionOptions.find((o) => o.value === this.editTransmissionType())
         ?.label ||
@@ -1307,7 +1518,7 @@ export class FleetUnitDetailDrawerFacade {
       this.speedOptions.find((o) => o.value === this.editTransmissionSpeeds())?.label ||
       this.editTransmissionSpeeds().trim() ||
       undefined;
-    this.unitOverride.update((prev) => ({ ...prev, capacityKg }));
+    this.unitOverride.update((prev) => ({ ...prev, capacityKg, capacityTons }));
     this.metaOverride.update((prev) => ({
       ...prev,
       transmissionType: transLabel,
@@ -1315,7 +1526,9 @@ export class FleetUnitDetailDrawerFacade {
       grossVehicleWeightLb: lbRaw || undefined,
       odometerKm: this.editOdometerKm().trim() || undefined,
     }));
-    this.persistCurrentUnit('Tren motriz y capacidad actualizados.');
+    this.persistCurrentUnit('Tren motriz y capacidad actualizados.', {
+      unit: { capacityKg, capacityTons },
+    });
   }
 
   markReady(): void {
@@ -1351,16 +1564,31 @@ export class FleetUnitDetailDrawerFacade {
     });
   }
 
-  /** Suma de km en maniobras completadas (rutas con distancia registrada). */
-  completedTripDistanceKmLabel(): string {
-    const v = this.completedTripDistanceKm();
-    if (v == null || !Number.isFinite(v) || v <= 0) {
-      return '—';
-    }
-    return `${new Intl.NumberFormat('es-MX', {
-      maximumFractionDigits: 1,
-      minimumFractionDigits: 0,
-    }).format(v)} km`;
+  /** Kilometraje acumulado de la unidad (solo lectura en UI). */
+  accumulatedOdometerKmLabel(): string {
+    return formatFleetStoredKmLabel(this.meta()?.odometerKm);
+  }
+
+  maintenanceKmCounterLabel(): string {
+    return formatMaintenanceKmCounterLabel(this.meta());
+  }
+
+  maintenanceUsesKm(): boolean {
+    return this.companyKmMaintControlActive();
+  }
+
+  maintenanceUsesDate(): boolean {
+    return (
+      this.companyDateMaintControlActive() && !this.companyKmMaintControlActive()
+    );
+  }
+
+  usesGlobalMaintenancePolicy(): boolean {
+    return this.maintenanceUsesKm() || this.maintenanceUsesDate();
+  }
+
+  canEditMaintNextDate(): boolean {
+    return this.canWriteFleet() && !this.companyDateMaintControlActive();
   }
 
   statusBanner(): { label: string; sub?: string; mod: string } {
@@ -1446,44 +1674,8 @@ export class FleetUnitDetailDrawerFacade {
     return nextMaintenanceTableDate(this.meta(), this.companyMaintPolicy()) ?? '—';
   }
 
-  /** `true` = alerta por km; `false`/ausente = por tiempo (calendario). */
-  maintenanceAlertUsesKm(): boolean {
-    if (this.companyKmMaintControlActive()) {
-      return true;
-    }
-    return this.meta()?.maintenanceAlertByKm === true;
-  }
-
-  canToggleMaintenanceAlertMode(): boolean {
-    return !this.companyKmMaintControlActive();
-  }
-
-  canEditMaintNextDate(): boolean {
-    return !this.companyDateMaintControlActive();
-  }
-
-  toggleMaintenanceAlertMode(): void {
-    const next = !this.maintenanceAlertUsesKm();
-    const fleetMetaDraft: Partial<UnitFleetMeta> = { maintenanceAlertByKm: next };
-    this.metaOverride.update((p) => ({ ...p, ...fleetMetaDraft }));
-    this.persistCurrentUnit(
-      next
-        ? 'Alerta de mantenimiento por kilómetros activada.'
-        : 'Alerta de mantenimiento por calendario activada.',
-      { fleetMeta: fleetMetaDraft },
-    );
-  }
-
-  /**
-   * Texto del badge de kms hasta próximo mantenimiento.
-   * Con `maintenanceKmInterval` y km de maniobras se calcula; si no, valor explícito en meta.
-   */
   maintenanceKmRemainingDisplay(): string {
-    const raw = fleetMaintenanceKmRemaining(
-      this.meta(),
-      this.completedTripDistanceKm(),
-      this.companyMaintPolicy(),
-    );
+    const raw = fleetMaintenanceKmRemaining(this.meta(), this.companyMaintPolicy());
     if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
       return `${new Intl.NumberFormat('es-MX', {
         maximumFractionDigits: 0,
@@ -1493,11 +1685,7 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   maintKmRenewalBucket(): FleetRenewalBucket {
-    const v = fleetMaintenanceKmRemaining(
-      this.meta(),
-      this.completedTripDistanceKm(),
-      this.companyMaintPolicy(),
-    );
+    const v = fleetMaintenanceKmRemaining(this.meta(), this.companyMaintPolicy());
     if (v == null) {
       return 'na';
     }
@@ -1573,29 +1761,217 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   saveEditMaintKmInterval(): void {
-    const n = parseFleetPositiveKm(this.editMaintKmIntervalStr());
-    if (n === 'invalid') {
-      this.toast.show(
-        'Indica un intervalo en kilómetros mayor a cero (ej. 1000 o 1500).',
-        'warning',
-      );
-      return;
-    }
-    const fleetMetaDraft: Partial<UnitFleetMeta> = {
-      maintenanceKmInterval: n,
-      maintenanceKmRemaining: null,
-    };
-    this.metaOverride.update((p) => ({ ...p, ...fleetMetaDraft }));
+    this.toast.show(
+      'El intervalo por kilómetros está definido en Configuración operativa.',
+      'info',
+    );
     this.cancelEditMaintKmInterval();
-    this.persistCurrentUnit('Intervalo por kilómetros actualizado.', { fleetMeta: fleetMetaDraft });
   }
 
   insNext(): string {
     return nextInsuranceTableDate(this.meta()) ?? '—';
   }
 
+  canConfirmInsurancePayment(): boolean {
+    return canConfirmInsurancePayment(this.meta());
+  }
+
+  insurancePaymentConfirmHint(): string {
+    return insurancePaymentConfirmHint(this.meta());
+  }
+
+  confirmInsurancePayment(): void {
+    if (!this.canConfirmInsurancePayment()) {
+      return;
+    }
+    const scheduleRow = this.insurancePaymentSchedule().find((row) => row.canConfirm);
+    if (scheduleRow) {
+      this.confirmInsurancePaymentCycle(scheduleRow.dueDate);
+      return;
+    }
+    const next = nextInsurancePaymentDate(this.meta());
+    if (!next) {
+      return;
+    }
+    const y = next.getFullYear();
+    const m = String(next.getMonth() + 1).padStart(2, '0');
+    const day = String(next.getDate()).padStart(2, '0');
+    this.confirmInsurancePaymentCycle(`${y}-${m}-${day}`);
+  }
+
+  confirmInsurancePaymentCycle(dueDate: string): void {
+    if (this.saving()) {
+      return;
+    }
+    const normalizedDueDate = dueDate.trim();
+    if (!normalizedDueDate) {
+      return;
+    }
+    const scheduleRow = this.insurancePaymentSchedule().find(
+      (row) => row.dueDate === normalizedDueDate,
+    );
+    if (scheduleRow && !scheduleRow.canConfirm) {
+      return;
+    }
+    const cost = this.meta()?.insuranceCost;
+    if (cost == null || !Number.isFinite(cost) || cost <= 0) {
+      this.toast.show(
+        'Registra el costo por ciclo del seguro antes de confirmar el pago.',
+        'warning',
+      );
+      return;
+    }
+    const patch: Partial<UnitFleetMeta> = {
+      insuranceLastPaymentDate: normalizedDueDate,
+    };
+    this.persistCurrentUnit(
+      'Pago de póliza registrado.',
+      { fleetMeta: patch, sparseFleetMeta: true },
+      {
+        ...COB_SECTION_PERSIST_OPTIONS,
+        onSuccess: () => this.reloadInsurancePaymentExpenses(),
+      },
+    );
+  }
+
+  private reloadInsurancePaymentExpenses(): void {
+    const unit = this.unitSource();
+    const unitId = unit?.id;
+    const meta = unit?.fleetMeta;
+    if (!unitId || !showInsurancePaymentSchedule(meta?.insurancePaymentCadence)) {
+      this.insurancePaymentExpenses.set([]);
+      return;
+    }
+    const bounds = insurancePolicyYearBounds(meta, new Date(this.today));
+    if (!bounds) {
+      this.insurancePaymentExpenses.set([]);
+      return;
+    }
+    const requestId = ++this.insurancePaymentExpensesLoadId;
+    this.expensesApi
+      .getExpensesPage({
+        from: bounds.from,
+        to: bounds.to,
+        kind: 'insurance',
+        relatedUnitId: unitId,
+        limit: 0,
+      })
+      .pipe(
+        catchError(() =>
+          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((res) => {
+        if (requestId !== this.insurancePaymentExpensesLoadId) {
+          return;
+        }
+        this.insurancePaymentExpenses.set(res.items);
+      });
+  }
+
   gpsNext(): string {
     return nextGpsTableDate(this.meta()) ?? '—';
+  }
+
+  canConfirmGpsPayment(): boolean {
+    return canConfirmGpsPayment(this.meta());
+  }
+
+  gpsPaymentConfirmHint(): string {
+    return gpsPaymentConfirmHint(this.meta());
+  }
+
+  confirmGpsPayment(): void {
+    if (!this.canConfirmGpsPayment()) {
+      return;
+    }
+    const scheduleRow = this.gpsPaymentSchedule().find((row) => row.canConfirm);
+    if (scheduleRow) {
+      this.confirmGpsPaymentCycle(scheduleRow.dueDate);
+      return;
+    }
+    const next = nextGpsPaymentDate(this.meta());
+    if (!next) {
+      return;
+    }
+    const y = next.getFullYear();
+    const m = String(next.getMonth() + 1).padStart(2, '0');
+    const day = String(next.getDate()).padStart(2, '0');
+    this.confirmGpsPaymentCycle(`${y}-${m}-${day}`);
+  }
+
+  confirmGpsPaymentCycle(dueDate: string): void {
+    if (this.saving()) {
+      return;
+    }
+    const normalizedDueDate = dueDate.trim();
+    if (!normalizedDueDate) {
+      return;
+    }
+    const scheduleRow = this.gpsPaymentSchedule().find(
+      (row) => row.dueDate === normalizedDueDate,
+    );
+    if (scheduleRow && !scheduleRow.canConfirm) {
+      return;
+    }
+    const price = this.meta()?.gpsPrice;
+    if (price == null || !Number.isFinite(price) || price <= 0) {
+      this.toast.show(
+        'Registra el precio o cuota del GPS antes de confirmar el pago.',
+        'warning',
+      );
+      return;
+    }
+    const patch: Partial<UnitFleetMeta> = {
+      gpsLastPaymentDate: normalizedDueDate,
+    };
+    if (gpsFleetMetaIsActive(this.meta())) {
+      patch.hasGps = true;
+    }
+    this.persistCurrentUnit(
+      'Pago de GPS registrado.',
+      { fleetMeta: patch, sparseFleetMeta: true },
+      {
+        ...COB_SECTION_PERSIST_OPTIONS,
+        onSuccess: () => this.reloadGpsPaymentExpenses(),
+      },
+    );
+  }
+
+  private reloadGpsPaymentExpenses(): void {
+    const unit = this.unitSource();
+    const unitId = unit?.id;
+    const meta = unit?.fleetMeta;
+    if (!unitId || !showGpsPaymentSchedule(meta)) {
+      this.gpsPaymentExpenses.set([]);
+      return;
+    }
+    const bounds = gpsServiceYearBounds(meta, new Date(this.today));
+    if (!bounds) {
+      this.gpsPaymentExpenses.set([]);
+      return;
+    }
+    const requestId = ++this.gpsPaymentExpensesLoadId;
+    this.expensesApi
+      .getExpensesPage({
+        from: bounds.from,
+        to: bounds.to,
+        kind: 'gps',
+        relatedUnitId: unitId,
+        limit: 0,
+      })
+      .pipe(
+        catchError(() =>
+          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+        ),
+      )
+      .subscribe((res) => {
+        if (requestId !== this.gpsPaymentExpensesLoadId) {
+          return;
+        }
+        this.gpsPaymentExpenses.set(res.items);
+      });
   }
 
   trackingPortalHref(raw: string | undefined): string {
@@ -1620,7 +1996,7 @@ export class FleetUnitDetailDrawerFacade {
     const local = this.localMaintEntries();
     let base: MaintenanceEntry[] = [];
     if (m) {
-      const explicit = m.maintenanceEntries ?? [];
+      const explicit = (m.maintenanceEntries ?? []).filter(isSubstantiveMaintenanceEntry);
       if (explicit.length > 0) {
         base = explicit;
       } else {
@@ -1631,19 +2007,12 @@ export class FleetUnitDetailDrawerFacade {
           notes: m.lastMaintenanceNotes,
           documentNames: m.documentMaintenanceNames,
         };
-        const hasData = !!(
-          fallback.date ||
-          fallback.type ||
-          fallback.cost !== undefined ||
-          fallback.notes ||
-          (fallback.documentNames && fallback.documentNames.length > 0)
-        );
-        if (hasData) {
+        if (isSubstantiveMaintenanceEntry(fallback)) {
           base = [fallback];
         }
       }
     }
-    return [...base, ...local].sort((a, b) =>
+    return [...base, ...local].filter(isSubstantiveMaintenanceEntry).sort((a, b) =>
       (b.date ?? '').localeCompare(a.date ?? ''),
     );
   }
@@ -1683,7 +2052,7 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   renewalBucketFor(iso: string | undefined): FleetRenewalBucket {
-    return renewalBucket(iso, VERIF_MO);
+    return complianceRenewalBucket(iso, VERIF_MO);
   }
 
   /** Costo, precio o cantidad asociada (verificación, seguro, etc.) en formato es-MX. */
@@ -1698,11 +2067,7 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   maintRenewalBucket(): FleetRenewalBucket {
-    return fleetMaintenanceRenewal(
-      this.meta(),
-      this.completedTripDistanceKm(),
-      this.companyMaintPolicy(),
-    );
+    return fleetMaintenanceRenewal(this.meta(), this.companyMaintPolicy());
   }
 
   insRenewalBucket(): FleetRenewalBucket {
@@ -1727,6 +2092,78 @@ export class FleetUnitDetailDrawerFacade {
       this.equipmentFeature.equipment();
       this.bindHostUnit(unit);
       this.syncCatalogFromFeature();
+    });
+
+    effect(() => {
+      const unit = this.unitSource();
+      const unitId = unit?.id;
+      const meta = unit?.fleetMeta;
+      if (!unitId || !showInsurancePaymentSchedule(meta?.insurancePaymentCadence)) {
+        this.insurancePaymentExpenses.set([]);
+        return;
+      }
+      const bounds = insurancePolicyYearBounds(meta, new Date(this.today));
+      if (!bounds) {
+        this.insurancePaymentExpenses.set([]);
+        return;
+      }
+      const requestId = ++this.insurancePaymentExpensesLoadId;
+      const sub = this.expensesApi
+        .getExpensesPage({
+          from: bounds.from,
+          to: bounds.to,
+          kind: 'insurance',
+          relatedUnitId: unitId,
+          limit: 0,
+        })
+        .pipe(
+          catchError(() =>
+            of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+          ),
+        )
+        .subscribe((res) => {
+          if (requestId !== this.insurancePaymentExpensesLoadId) {
+            return;
+          }
+          this.insurancePaymentExpenses.set(res.items);
+        });
+      return () => sub.unsubscribe();
+    });
+
+    effect(() => {
+      const unit = this.unitSource();
+      const unitId = unit?.id;
+      const meta = unit?.fleetMeta;
+      if (!unitId || !showGpsPaymentSchedule(meta)) {
+        this.gpsPaymentExpenses.set([]);
+        return;
+      }
+      const bounds = gpsServiceYearBounds(meta, new Date(this.today));
+      if (!bounds) {
+        this.gpsPaymentExpenses.set([]);
+        return;
+      }
+      const requestId = ++this.gpsPaymentExpensesLoadId;
+      const sub = this.expensesApi
+        .getExpensesPage({
+          from: bounds.from,
+          to: bounds.to,
+          kind: 'gps',
+          relatedUnitId: unitId,
+          limit: 0,
+        })
+        .pipe(
+          catchError(() =>
+            of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+          ),
+        )
+        .subscribe((res) => {
+          if (requestId !== this.gpsPaymentExpensesLoadId) {
+            return;
+          }
+          this.gpsPaymentExpenses.set(res.items);
+        });
+      return () => sub.unsubscribe();
     });
 
     registerFleetHitchSlotSync({

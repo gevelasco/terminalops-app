@@ -10,7 +10,12 @@ import {
 } from 'rxjs';
 import { OperatorsService as OperatorsApiService } from '@services/api/operators';
 import type { Operator } from '@shared/models/logistics.models';
+import {
+  operatorListPaymentFieldsFromSummary,
+  type OperatorOperationSummary,
+} from '@features/operators/utils/operator-operation-summary';
 import { createRequestGeneration } from '@shared/utils/request-generation';
+import { sortOperatorsByOperationalStatus } from '@shared/utils/operator-operational-status-sort';
 
 /**
  * Fuente única de verdad del feature Operadores (lista en memoria + selección).
@@ -72,6 +77,21 @@ export class OperatorsFeatureService {
 
   clearSelection(): void {
     this._selectedOperatorId.set(null);
+  }
+
+  applyOperatorPaymentSummary(
+    operatorId: string,
+    summary: Pick<
+      OperatorOperationSummary,
+      'owedAmount' | 'nextPayDueYmd' | 'nextPayDueBadgeVariant'
+    >,
+  ): void {
+    const paymentFields = operatorListPaymentFieldsFromSummary(summary);
+    this._operators.update((list) =>
+      list.map((operator) =>
+        operator.id === operatorId ? { ...operator, ...paymentFields } : operator,
+      ),
+    );
   }
 
   updateOperator(operator: Operator): Observable<Operator> {
@@ -148,7 +168,7 @@ export class OperatorsFeatureService {
   }
 
   private applyList(list: Operator[], selectedId: string | null): void {
-    this._operators.set(list);
+    this._operators.set(sortOperatorsByOperationalStatus(list));
     if (!selectedId) {
       return;
     }

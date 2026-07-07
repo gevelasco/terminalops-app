@@ -1,4 +1,8 @@
-import type { TripContainerType, TripLoadType } from '@shared/models/logistics.models';
+import type {
+  TripClientPaymentMethod,
+  TripContainerType,
+  TripLoadType,
+} from '@shared/models/logistics.models';
 
 /**
  * Cuerpo del formulario «Nueva maniobra».
@@ -21,10 +25,12 @@ export interface CreateTripPayload {
   dieselPricePerLiterAtCreation?: number;
   casetasAmount: string;
   operatorQuota: string;
+  /** Viáticos del operador; omitir o 0 si no aplica. */
+  perDiemAmount?: string;
   clientCharge: string;
   creditDays: number;
   requiresInvoice: boolean;
-  paymentMethod: 'cash' | 'transfer' | 'check';
+  paymentMethod: TripClientPaymentMethod;
   operatorId: string;
   unitId: string;
   clientName?: string;

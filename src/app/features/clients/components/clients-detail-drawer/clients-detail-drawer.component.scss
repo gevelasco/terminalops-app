@@ -1,3 +1,12 @@
+:host ::ng-deep .clients-detail-drawer__panel.to-side-drawer__panel--wide {
+  width: min(42rem, 100vw);
+}
+
+:host ::ng-deep .clients-detail-drawer__segments {
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
 .clients-balance-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

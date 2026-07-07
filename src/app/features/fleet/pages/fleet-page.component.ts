@@ -3,11 +3,16 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   model,
   OnInit,
   signal,
 } from '@angular/core';
+import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
+import { SessionService } from '@core/services/state/session';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
+import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-overview-card/fleet-overview-card.component';
 import { FleetEquipmentDetailDrawerComponent } from '@features/fleet/components/fleet-equipment-detail-drawer/fleet-equipment-detail-drawer.component';
 import { FleetNewEquipmentDrawerComponent } from '@features/fleet/components/fleet-new-equipment-drawer/fleet-new-equipment-drawer.component';
 import { FleetNewUnitDrawerComponent } from '@features/fleet/components/fleet-new-unit-drawer/fleet-new-unit-drawer.component';
@@ -17,18 +22,19 @@ import { FleetCatalogFeatureService } from '@features/fleet/services/fleet-catal
 import { FleetOverviewFeatureService } from '@features/fleet/services/fleet-overview.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
-import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
 import {
-  fleetOperationalKeyFromEquipment,
-  fleetOperationalKeyFromUnit,
-} from '@features/fleet/utils/fleet-operational-status';
+  buildOverviewEquipmentOperationalMap,
+  buildOverviewUnitOperationalMap,
+} from '@features/fleet/utils/fleet-overview-view';
 import {
   buildFleetEquipmentTableRow,
   buildFleetUnitTableRow,
+  operationalKey,
+  operationalKeyEquipment,
 } from '@features/fleet/utils/fleet-unit-table-row';
 import {
   equipmentAssignedToUnit,
-  unitConvoyFromEquipment,
+  fleetUnitConvoyTableLabel,
 } from '@features/fleet/utils/unit-hitched-equipment';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { labelForUnitId } from '@shared/utils/fleet/unit-label';
@@ -37,28 +43,13 @@ import {
   overviewCardEntryFromDto,
   overviewCardEntryFromEquipmentRow,
   overviewMatchesStatusFilter,
-  overviewPrimaryAsset,
-  overviewSecondaryAsset,
-  overviewAssetAt,
-  overviewTrailerVisualAt,
   overviewSortRank,
-  overviewTripArrivalLine,
-  overviewTripDepartureLine,
-  renewalBucketFromOverview,
-  SCHEMA_TRACTO,
+  attachOverviewCompliance,
   type FleetOverviewCardEntry,
 } from '@features/fleet/utils/fleet-overview-view';
 import {
-  overviewTripCompletionLine,
-  overviewTripEtaDaysLabel,
-  overviewTripEtaKmLabel,
-  overviewTripProgress,
-} from '@features/fleet/utils/fleet-overview-trip-metrics';
-import { fleetRenewalIconClass } from '@features/fleet/utils/fleet-overview-card';
-import {
   fleetOperationalKeyLabel,
   type FleetOperationalKey,
-  type FleetRenewalBucket,
 } from '@features/fleet/utils/fleet-unit-table-row';
 import type { Unit } from '@shared/models/logistics.models';
 import {
@@ -108,6 +99,7 @@ export type FleetOverviewStatusFilter = Exclude<
     FleetNewEquipmentDrawerComponent,
     FleetUnitDetailDrawerComponent,
     FleetEquipmentDetailDrawerComponent,
+    FleetOverviewCardComponent,
   ],
   templateUrl: './fleet-page.component.html',
   styleUrl: './fleet-page.component.scss',
@@ -115,10 +107,22 @@ export type FleetOverviewStatusFilter = Exclude<
 export class FleetPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly fleet = inject(FleetFeatureService);
+  private readonly operationalSync = inject(OperationalFleetSyncService);
+  private readonly session = inject(SessionService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.fleet.dispose();
+    });
+
+    let fleetEpochBaseline = this.operationalSync.fleetMutationEpoch();
+    effect(() => {
+      const epoch = this.operationalSync.fleetMutationEpoch();
+      if (epoch === fleetEpochBaseline) {
+        return;
+      }
+      fleetEpochBaseline = epoch;
+      this.fleet.refreshFleetModule();
     });
   }
 
@@ -133,8 +137,6 @@ export class FleetPageComponent implements OnInit {
       htmlId: 'fleet-tab-equipment',
     },
   ];
-
-  readonly schemaTractoAsset = SCHEMA_TRACTO;
 
   readonly overviewStatusFilter = signal<FleetOverviewStatusFilter>('all');
 
@@ -161,8 +163,19 @@ export class FleetPageComponent implements OnInit {
     this.fleet.loadFleetModule();
   }
 
+  private readonly unitOperationalMap = computed(() =>
+    buildOverviewUnitOperationalMap(this.fleet.overviewItems()),
+  );
+
+  private readonly equipmentOperationalMap = computed(() =>
+    buildOverviewEquipmentOperationalMap(this.fleet.overviewEquipmentRows()),
+  );
+
   readonly newUnitOpen = signal(false);
   readonly newEquipmentOpen = signal(false);
+  readonly canWriteFleet = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.FLEET),
+  );
 
   readonly detailUnitOnRoute = signal(false);
   readonly detailEquipmentOnRoute = signal(false);
@@ -177,13 +190,11 @@ export class FleetPageComponent implements OnInit {
     const equipment = this.equipmentList();
     const rowOpts = (u: Unit) => {
       const hitched = equipmentAssignedToUnit(equipment, u.id);
-      const operational = fleetOperationalKeyFromUnit(u);
+      const operational = this.unitOperationalKey(u);
       return {
         onRoute: operational === 'on_route',
         operationalOverride: operational,
-        completedTripKm: null,
         hitchedEquipment: hitched,
-        resolver: FLEET_OPERATION_RESOLVER,
       };
     };
     const filtered = q
@@ -194,10 +205,7 @@ export class FleetPageComponent implements OnInit {
             row['fleetBrand'],
             row['fleetModel'],
             row['fleetPlate'],
-            FLEET_OPERATION_RESOLVER.resolveLabel({
-              code: String(row['fleetConfig'] ?? ''),
-            }),
-            unitConvoyFromEquipment(hitched, FLEET_OPERATION_RESOLVER).label,
+            fleetUnitConvoyTableLabel(hitched.length),
             u.id,
             u.status,
             u.serialNumber,
@@ -219,13 +227,12 @@ export class FleetPageComponent implements OnInit {
     const units = this.unitList();
     return list
       .map((e) => {
-        const operational = fleetOperationalKeyFromEquipment(e);
+        const operational = this.equipmentOperationalKey(e);
         return {
           e,
           row: buildFleetEquipmentTableRow(e, {
-            onRoute: operational === 'on_route' || operational === 'in_use',
+            onRoute: operational === 'on_route',
             operationalOverride: operational,
-            completedTripKm: null,
           }),
         };
       })
@@ -268,11 +275,15 @@ export class FleetPageComponent implements OnInit {
     const status = this.overviewStatusFilter();
     const q = this.searchQuery().trim().toLowerCase();
 
-    const unitEntries = this.fleet.overviewItems().map((item) => overviewCardEntryFromDto(item));
+    const unitEntries = this.fleet
+      .overviewItems()
+      .map((item) => overviewCardEntryFromDto(item))
+      .map((entry) => attachOverviewCompliance(entry, this.unitList(), this.equipmentList()));
     const standaloneEntries = this.fleet
       .overviewEquipmentRows()
       .map((row) => overviewCardEntryFromEquipmentRow(row))
-      .filter((entry): entry is FleetOverviewCardEntry => entry != null);
+      .filter((entry): entry is FleetOverviewCardEntry => entry != null)
+      .map((entry) => attachOverviewCompliance(entry, this.unitList(), this.equipmentList()));
 
     return [...unitEntries, ...standaloneEntries]
       .filter((entry) => {
@@ -328,9 +339,9 @@ export class FleetPageComponent implements OnInit {
     },
     { key: 'fleetIns', label: 'Seguro', cell: 'fleet-insurance-icon' },
     {
-      key: 'fleetConfig',
+      key: 'fleetConfigBadges',
       label: 'Configuración',
-      cell: 'operation-type',
+      cell: 'operation-type-badges',
     },
   ];
 
@@ -366,88 +377,21 @@ export class FleetPageComponent implements OnInit {
     this.overviewStatusFilter.set(value);
   }
 
-  overviewIsFullForEntry(entry: FleetOverviewCardEntry): boolean {
-    return entry.isFullConvoy;
-  }
-
-  overviewUsesPlataformaForEntry(entry: FleetOverviewCardEntry): boolean {
-    return entry.usesPlataforma;
-  }
-
-  overviewUsesPlataformaAt(entry: FleetOverviewCardEntry, index: number): boolean {
-    return overviewTrailerVisualAt(entry, index) === 'plataforma';
-  }
-
-  overviewUsesCajaSecaForEntry(entry: FleetOverviewCardEntry): boolean {
-    return entry.usesCajaSeca;
-  }
-
-  overviewUsesCajaSecaAt(entry: FleetOverviewCardEntry, index: number): boolean {
-    return overviewTrailerVisualAt(entry, index) === 'caja_seca';
-  }
-
-  overviewTrailerAltForEntry(entry: FleetOverviewCardEntry, position: 'primary' | 'secondary'): string {
-    const index = position === 'primary' ? 0 : 1;
-    const visual = overviewTrailerVisualAt(entry, index);
-    if (visual === 'plataforma') {
-      return position === 'primary' ? 'Plataforma (primer equipo)' : 'Plataforma (segundo equipo)';
-    }
-    if (visual === 'caja_seca') {
-      return position === 'primary' ? 'Caja seca (primer equipo)' : 'Caja seca (segundo equipo)';
-    }
-    return position === 'primary' ? 'Equipo (delantero)' : 'Equipo (trasero)';
-  }
-
-  overviewPrimaryAssetForEntry(entry: FleetOverviewCardEntry): string {
-    return overviewPrimaryAsset(entry);
-  }
-
-  overviewSecondaryAssetForEntry(entry: FleetOverviewCardEntry): string {
-    return overviewSecondaryAsset(entry);
-  }
-
-  overviewAssetAtForEntry(entry: FleetOverviewCardEntry, index: number): string {
-    return overviewAssetAt(entry, index);
-  }
-
-  overviewRenewalIconClass(bucket: unknown): string {
-    return fleetRenewalIconClass(bucket as FleetRenewalBucket);
-  }
-
-  overviewMaintBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.maintenanceRenewal);
-  }
-
-  overviewInsBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.insuranceRenewal);
-  }
-
-  overviewVerifBucket(entry: FleetOverviewCardEntry): FleetRenewalBucket {
-    return renewalBucketFromOverview(entry.maintenance?.inspectionRenewal);
-  }
-
-  overviewTripDeparture = overviewTripDepartureLine;
-  overviewTripArrival = overviewTripArrivalLine;
-  overviewTripCompletion = overviewTripCompletionLine;
-  overviewTripEtaDays = overviewTripEtaDaysLabel;
-  overviewTripEtaKm = overviewTripEtaKmLabel;
-  overviewTripProgress = overviewTripProgress;
-
-  onOverviewUnitClick(event: Event, entry: FleetOverviewCardEntry): void {
-    event.stopPropagation();
+  onOverviewUnitActivate(entry: FleetOverviewCardEntry): void {
     this.detailUnitOnRoute.set(entry.operational === 'on_route');
     this.fleet.selectUnit(entry.unitId);
   }
 
-  onOverviewEquipmentClick(event: Event, equipmentId: number): void {
-    event.stopPropagation();
+  onOverviewEquipmentActivate(equipmentId: number): void {
     this.openOverviewEquipment(equipmentId);
   }
 
   private openOverviewEquipment(equipmentId: number): void {
     this.detailUnitOnRoute.set(false);
     const e = this.equipmentList().find((x) => x.id === String(equipmentId));
-    this.detailEquipmentOnRoute.set(e ? this.equipmentDrawerOnRoute(e) : false);
+    this.detailEquipmentOnRoute.set(
+      e ? this.equipmentOperationalKey(e) === 'on_route' : false,
+    );
     this.fleet.selectEquipment(String(equipmentId));
   }
 
@@ -464,8 +408,9 @@ export class FleetPageComponent implements OnInit {
       return;
     }
     const unit = this.unitList().find((u) => u.id === id);
-    const operational = unit ? fleetOperationalKeyFromUnit(unit) : null;
-    this.detailUnitOnRoute.set(operational === 'on_route');
+    this.detailUnitOnRoute.set(
+      unit ? this.unitOperationalKey(unit) === 'on_route' : false,
+    );
     this.fleet.selectUnit(id);
   }
 
@@ -478,7 +423,9 @@ export class FleetPageComponent implements OnInit {
     this.fleet.clearUnitSelection();
     this.detailUnitOnRoute.set(false);
     this.tab.set('equipment');
-    this.detailEquipmentOnRoute.set(this.equipmentDrawerOnRoute(equipment));
+    this.detailEquipmentOnRoute.set(
+      this.equipmentOperationalKey(equipment) === 'on_route',
+    );
     this.fleet.selectEquipment(equipment.id);
   }
 
@@ -491,13 +438,8 @@ export class FleetPageComponent implements OnInit {
     if (!e) {
       return;
     }
-    this.detailEquipmentOnRoute.set(this.equipmentDrawerOnRoute(e));
+    this.detailEquipmentOnRoute.set(this.equipmentOperationalKey(e) === 'on_route');
     this.fleet.selectEquipment(id);
-  }
-
-  private equipmentDrawerOnRoute(equipment: Equipment): boolean {
-    const operational = fleetOperationalKeyFromEquipment(equipment);
-    return operational === 'in_use' || operational === 'on_route';
   }
 
   onEquipmentDetailDismiss(): void {
@@ -509,12 +451,22 @@ export class FleetPageComponent implements OnInit {
     this.fleet.clearEquipmentSelection();
     this.detailEquipmentOnRoute.set(false);
     this.tab.set('units');
-    const operational = fleetOperationalKeyFromUnit(unit);
-    this.detailUnitOnRoute.set(operational === 'on_route');
+    this.detailUnitOnRoute.set(this.unitOperationalKey(unit) === 'on_route');
     this.fleet.selectUnit(unit.id);
   }
 
   onFleetDataChanged(): void {
     this.fleet.refreshFleetModule();
+  }
+
+  private unitOperationalKey(unit: Unit): FleetOperationalKey {
+    return this.unitOperationalMap().get(unit.id) ?? operationalKey(unit, false);
+  }
+
+  private equipmentOperationalKey(equipment: Equipment): FleetOperationalKey {
+    return (
+      this.equipmentOperationalMap().get(equipment.id) ??
+      operationalKeyEquipment(equipment, false)
+    );
   }
 }

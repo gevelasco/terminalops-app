@@ -8,6 +8,9 @@ export function syncCompanySettingsFromProfile(
   session.syncCompanyOperationalSettings({
     operationalAnalysisEnabled: result.operationalAnalysisEnabled,
     operationalAnalysisChangedAt: result.operationalAnalysisChangedAt,
+    tripAssistPrefillEnabled: result.tripAssistPrefillEnabled,
+    tripAssistPrefillChangedAt: result.tripAssistPrefillChangedAt,
+    tripAutoMaintenanceProvisionPercent: result.tripAutoMaintenanceProvisionPercent,
     dieselControlEnabled: result.dieselControlEnabled,
     dieselControlChangedAt: result.dieselControlChangedAt,
     maintenanceKmControlEnabled: result.maintenanceKmControlEnabled,

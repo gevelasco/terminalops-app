@@ -1,6 +1,9 @@
 /** Periodo estándar para próximo mantenimiento por calendario (empresa). */
 export type MaintenanceDatePeriod = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
+/** Modo de política de mantenimiento a nivel empresa (excluyentes). */
+export type CompanyMaintenancePolicyMode = 'none' | 'km' | 'date';
+
 export interface CompanyMaintenancePolicy {
   kmControlEnabled: boolean;
   kmIntervalDefault: number | null;
@@ -21,6 +24,9 @@ export interface CompanyOperationalCenter {
 export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
+  tripAssistPrefillEnabled: boolean;
+  tripAssistPrefillChangedAt?: string;
+  tripAutoMaintenanceProvisionPercent: number;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
@@ -47,6 +53,22 @@ export function maintenanceDatePeriodLabel(
   return (
     MAINTENANCE_DATE_PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? '—'
   );
+}
+
+export function companyMaintenancePolicyModeFromSession(input: {
+  maintenanceKmControlEnabled?: boolean;
+  maintenanceKmIntervalDefault?: number | null;
+  maintenanceDateControlEnabled?: boolean;
+  maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
+}): CompanyMaintenancePolicyMode {
+  const policy = companyMaintenancePolicyFromSession(input);
+  if (policy.kmControlEnabled) {
+    return 'km';
+  }
+  if (policy.dateControlEnabled) {
+    return 'date';
+  }
+  return 'none';
 }
 
 export function companyMaintenancePolicyFromSession(input: {

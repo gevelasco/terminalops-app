@@ -1,8 +1,8 @@
 <to-page-header
-  title="Clientes"
-  subtitle="Catálogo comercial y tarifas por destino"
+  title="Comercial"
+  subtitle="Tarifas por ruta y catálogo de clientes"
 >
-  @if (pageTab() === "clients" && !loading()) {
+  @if (pageTab() === "clients" && !loading() && canWriteCommercial()) {
     <to-button
       type="button"
       variant="primary"
@@ -18,7 +18,7 @@
       </span>
       Nuevo cliente
     </to-button>
-  } @else if (pageTab() === "destination-rates" && !loading()) {
+  } @else if (pageTab() === "destination-rates" && !loading() && canWriteCommercial()) {
     <to-button type="button" variant="primary" (click)="newRateOpen.set(true)">
       <span class="clients-page-header__btn-icon" aria-hidden="true">
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -67,51 +67,100 @@
 @if (loading()) {
   <to-skeleton [lines]="4" />
 } @else {
-  <div class="clients-toolbar">
-    <to-segment-control
-      layout="toolbar"
-      ariaLabel="Secciones de clientes"
-      [tabs]="viewSegmentTabs"
-      [activeId]="pageTab()"
-      (tabSelect)="onPageTabSelect($event)"
-    />
-
-    <div class="clients-toolbar__search">
-      <to-input
-        type="search"
-        prefixIcon="search"
-        [ariaLabel]="
-          pageTab() === 'clients'
-            ? 'Buscar en el listado de clientes'
-            : 'Buscar tarifas por destino'
-        "
-        [placeholder]="
-          pageTab() === 'clients'
-            ? 'Nombre, RFC, estatus, maniobras, id…'
-            : 'CP, localidad, ciudad, tarifas…'
-        "
-        [(value)]="searchQuery"
+  <div class="clients-table-block">
+    <div class="clients-toolbar">
+      <to-segment-control
+        layout="toolbar"
+        ariaLabel="Secciones comerciales"
+        [tabs]="viewSegmentTabs"
+        [activeId]="pageTab()"
+        (tabSelect)="onPageTabSelect($event)"
       />
+
+      <div class="clients-toolbar__filters">
+        <div class="clients-toolbar__search-wrap">
+          <div class="clients-toolbar__search">
+            <to-input
+              type="search"
+              prefixIcon="search"
+              [ariaLabel]="
+                pageTab() === 'clients'
+                  ? 'Buscar en el listado de clientes'
+                  : 'Buscar tarifas por destino'
+              "
+              [placeholder]="
+                pageTab() === 'clients'
+                  ? 'Nombre, RFC, estatus, maniobras, id…'
+                  : 'CP, localidad, ciudad, tarifas…'
+              "
+              [(value)]="searchInput"
+            />
+          </div>
+          @if (searchPending()) {
+            <span class="clients-toolbar__search-status" aria-live="polite">
+              Buscando…
+            </span>
+          }
+        </div>
+
+        @if (pageTab() === 'destination-rates') {
+          <div class="clients-toolbar__origin-filter">
+            <to-select
+              [options]="originCenterFilterOptions()"
+              [value]="rateOriginCenterFilter()"
+              (valueChange)="rateOriginCenterFilter.set($event)"
+            />
+          </div>
+        }
+      </div>
     </div>
+
+    @if (pageTab() === 'clients') {
+      <p class="clients-page__hint">
+        Catálogo de clientes. Clic en una fila para ver ficha, balance o editar.
+      </p>
+    } @else {
+      <p class="clients-page__hint">
+        Tarifas por origen y destino. Clic en una fila para ver detalle o editar.
+      </p>
+    }
+
+    @if (pageTab() === 'clients') {
+      @if (hasClientRows()) {
+        <to-table
+          [columns]="clientColumns"
+          [rows]="displayedClientRows()"
+          [interactiveRows]="true"
+          (rowClick)="onClientRowClick($event)"
+        />
+      }
+      @if (showClientEmptyHint()) {
+        <p class="clients-empty-hint">
+          @if (searchQuery().trim()) {
+            Ningún cliente coincide con la búsqueda.
+          } @else {
+            No hay clientes registrados.
+          }
+        </p>
+      }
+    } @else {
+      @if (hasRateRows()) {
+        <to-table
+          [columns]="rateColumns"
+          [rows]="displayedRateRows()"
+          [interactiveRows]="true"
+          (rowClick)="onRateRowClick($event)"
+        />
+      }
+      @if (showRateEmptyHint()) {
+        <p class="clients-empty-hint">
+          @if (hasActiveRateFilters()) {
+            Ninguna tarifa coincide con los filtros actuales.
+          } @else {
+            No hay tarifas registradas.
+          }
+        </p>
+      }
+    }
   </div>
-
-  @if (pageTab() === "clients") {
-    <div class="clients-table-block">
-      <to-table
-        [columns]="clientColumns"
-        [rows]="displayedClientRows()"
-        [interactiveRows]="true"
-        (rowClick)="onClientRowClick($event)"
-      />
-    </div>
-  } @else {
-    <div class="clients-table-block">
-      <to-table
-        [columns]="rateColumns"
-        [rows]="displayedRateRows()"
-        [interactiveRows]="true"
-        (rowClick)="onRateRowClick($event)"
-      />
-    </div>
-  }
 }

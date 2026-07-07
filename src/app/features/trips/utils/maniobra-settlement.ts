@@ -1,5 +1,6 @@
 import { tripDueDate } from '@features/reports/utils/reports-credit-receivable-charts';
 import { formatMxn } from '@features/reports/utils/reports-money';
+import { localYmd } from '@shared/utils/local-ymd';
 import {
   isTripBillableForReporting,
   isTripClientCollected,
@@ -8,7 +9,14 @@ import {
   tripOperatorQuota,
   tripRevenue,
 } from '@features/reports/utils/reports-trip-helpers';
-import type { Expense, Trip } from '@shared/models/logistics.models';
+import type { Expense, ExpenseKind, Trip } from '@shared/models/logistics.models';
+
+/** Gastos automáticos al programar; si ya están en ledger, no duplicar desde campos del trip. */
+const TRIP_PROGRAMMED_EXPENSE_KINDS = {
+  diesel: 'fuel',
+  tolls: 'tolls',
+  operator: 'operator_payment',
+} as const satisfies Record<string, ExpenseKind>;
 
 export type ManiobraSettlementLineSource = 'trip' | 'ledger';
 
@@ -27,6 +35,9 @@ export type ManiobraPaymentStatus =
   | 'credit_pending'
   | 'cash_pending';
 
+/** Urgencia del plazo de crédito respecto a hoy (solo `credit_pending`). */
+export type CreditDueUrgency = 'on_track' | 'due_today' | 'overdue' | 'unknown';
+
 export interface ManiobraSettlementSummary {
   hasBilling: boolean;
   charged: number;
@@ -38,6 +49,7 @@ export interface ManiobraSettlementSummary {
   paymentStatusLabel: string;
   paymentDetail: string;
   dueDateLabel: string | null;
+  creditDueUrgency: CreditDueUrgency;
   collectedAtLabel: string | null;
 }
 
@@ -57,11 +69,30 @@ function formatLongDate(iso: string | null | undefined): string | null {
   }).format(d);
 }
 
+export function resolveCreditDueUrgency(
+  due: Date | null,
+  asOf: Date = new Date(),
+): CreditDueUrgency {
+  if (!due) {
+    return 'unknown';
+  }
+  const dueYmd = localYmd(due);
+  const todayYmd = localYmd(asOf);
+  if (dueYmd < todayYmd) {
+    return 'overdue';
+  }
+  if (dueYmd === todayYmd) {
+    return 'due_today';
+  }
+  return 'on_track';
+}
+
 function pushTripCostLine(
   lines: ManiobraSettlementLine[],
   id: string,
   label: string,
   amount: number,
+  detail = 'Costo operativo programado',
 ): void {
   if (amount <= 0) {
     return;
@@ -69,13 +100,130 @@ function pushTripCostLine(
   lines.push({
     id,
     label,
-    detail: 'Costo operativo programado',
+    detail,
     amount,
     incurredAt: null,
     source: 'trip',
   });
 }
 
+function parseTripDieselLiters(raw?: string | null): number | null {
+  if (raw == null || !String(raw).trim()) {
+    return null;
+  }
+  const liters = Number(String(raw).replace(/\s/g, '').replace(/,/g, ''));
+  return Number.isFinite(liters) && liters > 0 ? liters : null;
+}
+
+function formatDieselLitersLabel(liters: number): string {
+  return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 }).format(liters)} L`;
+}
+
+function tripManeuverRef(trip: Trip): string {
+  return trip.maneuverCode?.trim() || trip.id;
+}
+
+function formatFuelSettlementDetail(trip: Trip): string {
+  const ref = tripManeuverRef(trip);
+  const liters = parseTripDieselLiters(trip.dieselLiters);
+  if (liters != null) {
+    return `Diesel ${formatDieselLitersLabel(liters)} — maniobra ${ref}`;
+  }
+  return `Diesel — maniobra ${ref}`;
+}
+
+function parsePercentFromText(text: string): number | null {
+  const match = text.match(/(\d+(?:[.,]\d+)?)\s*%/);
+  if (!match?.[1]) {
+    return null;
+  }
+  const pct = Number(match[1].replace(',', '.'));
+  return Number.isFinite(pct) && pct > 0 ? pct : null;
+}
+
+function formatPercentLabel(pct: number): string {
+  const rounded = Math.round(pct * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function resolveOperationalControlPercent(
+  trip: Trip,
+  expense: Expense,
+  charged: number,
+): number | null {
+  const fromDescription = expense.description
+    ? parsePercentFromText(expense.description)
+    : null;
+  if (fromDescription != null) {
+    return fromDescription;
+  }
+  if (charged > 0 && expense.amount > 0) {
+    return Math.round((expense.amount / charged) * 1000) / 10;
+  }
+  return null;
+}
+
+function formatOperationalControlSettlementDetail(
+  trip: Trip,
+  expense: Expense,
+  charged: number,
+): string {
+  const ref = tripManeuverRef(trip);
+  const pct = resolveOperationalControlPercent(trip, expense, charged);
+  if (pct != null) {
+    return `Control operativo ${formatPercentLabel(pct)}% — maniobra ${ref}`;
+  }
+  return `Control operativo — maniobra ${ref}`;
+}
+
+function settlementExpenseDetail(
+  trip: Trip,
+  expense: Expense,
+  charged: number,
+): string {
+  const fallback =
+    expense.description?.trim() || expense.vendor?.trim() || 'Registro en gastos';
+  if (expense.kind === 'fuel') {
+    return formatFuelSettlementDetail(trip);
+  }
+  if (expense.kind === 'operational_control') {
+    return formatOperationalControlSettlementDetail(trip, expense, charged);
+  }
+  return fallback;
+}
+
+function formatCreditCollectionDaysRemaining(
+  due: Date | null,
+  asOf: Date = new Date(),
+): string {
+  if (!due) {
+    return 'Plazo de cobro por confirmar';
+  }
+  const dueYmd = localYmd(due);
+  const todayYmd = localYmd(asOf);
+  const dueDate = new Date(`${dueYmd}T12:00:00`);
+  const today = new Date(`${todayYmd}T12:00:00`);
+  const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    const overdue = Math.abs(diffDays);
+    return overdue === 1 ? 'Venció hace 1 día' : `Venció hace ${overdue} días`;
+  }
+  if (diffDays === 0) {
+    return 'Vence hoy';
+  }
+  if (diffDays === 1) {
+    return '1 día restante';
+  }
+  return `${diffDays} días restantes`;
+}
+
+function ledgerHasTripProgrammedKind(
+  ledger: readonly Expense[],
+  kind: ExpenseKind,
+): boolean {
+  return ledger.some((e) => e.kind === kind);
+}
 export function buildManiobraSettlementSummary(
   trip: Trip,
   expenses: readonly Expense[],
@@ -84,20 +232,34 @@ export function buildManiobraSettlementSummary(
   const charged = tripRevenue(trip);
   const lines: ManiobraSettlementLine[] = [];
 
-  pushTripCostLine(lines, 'trip-diesel', 'Diesel', tripDiesel(trip));
-  pushTripCostLine(lines, 'trip-tolls', 'Casetas', tripCasetas(trip));
-  pushTripCostLine(lines, 'trip-operator', 'Cuota operador', tripOperatorQuota(trip));
-
   const ledger = expenses
     .filter((e) => e.tripId.trim() === trip.id)
     .slice()
     .sort((a, b) => a.incurredAt.localeCompare(b.incurredAt));
 
+  if (!ledgerHasTripProgrammedKind(ledger, TRIP_PROGRAMMED_EXPENSE_KINDS.diesel)) {
+    pushTripCostLine(
+      lines,
+      'trip-diesel',
+      'Diesel',
+      tripDiesel(trip),
+      formatFuelSettlementDetail(trip),
+    );
+  }
+  if (!ledgerHasTripProgrammedKind(ledger, TRIP_PROGRAMMED_EXPENSE_KINDS.tolls)) {
+    pushTripCostLine(lines, 'trip-tolls', 'Casetas', tripCasetas(trip));
+  }
+  if (
+    !ledgerHasTripProgrammedKind(ledger, TRIP_PROGRAMMED_EXPENSE_KINDS.operator)
+  ) {
+    pushTripCostLine(lines, 'trip-operator', 'Cuota operador', tripOperatorQuota(trip));
+  }
+
   for (const e of ledger) {
     lines.push({
       id: e.id,
       label: e.category.trim() || 'Gasto',
-      detail: e.description?.trim() || e.vendor?.trim() || 'Registro en gastos',
+      detail: settlementExpenseDetail(trip, e, charged),
       amount: e.amount,
       incurredAt: e.incurredAt,
       source: 'ledger',
@@ -126,6 +288,7 @@ export function buildManiobraSettlementSummary(
       paymentDetail:
         'Maniobra interna o sin monto pactado; no aplica seguimiento de cobro.',
       dueDateLabel: null,
+      creditDueUrgency: 'unknown',
       collectedAtLabel: null,
     };
   }
@@ -144,6 +307,7 @@ export function buildManiobraSettlementSummary(
         ? `Cobro confirmado el ${collectedAtLabel}.`
         : 'Cobro confirmado al cliente.',
       dueDateLabel: null,
+      creditDueUrgency: 'unknown',
       collectedAtLabel,
     };
   }
@@ -159,10 +323,9 @@ export function buildManiobraSettlementSummary(
       lines,
       paymentStatus: 'credit_pending',
       paymentStatusLabel: 'A crédito',
-      paymentDetail: dueDateLabel
-        ? `Plazo de ${creditDays} días; vence el ${dueDateLabel}.`
-        : `Plazo de ${creditDays} días; fecha de vencimiento por confirmar.`,
+      paymentDetail: formatCreditCollectionDaysRemaining(due),
       dueDateLabel,
+      creditDueUrgency: resolveCreditDueUrgency(due),
       collectedAtLabel: null,
     };
   }
@@ -179,6 +342,7 @@ export function buildManiobraSettlementSummary(
     paymentDetail:
       'Contado sin crédito; el cobro aún no se ha confirmado en sistema.',
     dueDateLabel: null,
+    creditDueUrgency: 'unknown',
     collectedAtLabel: null,
   };
 }

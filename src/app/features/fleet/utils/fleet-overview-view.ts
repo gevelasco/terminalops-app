@@ -11,16 +11,25 @@ import type {
   FleetOverviewOperationalStatus,
   FleetOverviewRenewalStatus,
 } from '@shared/models/api/fleet-overview.model';
+import type { Equipment, Unit } from '@shared/models/logistics.models';
+import {
+  overviewOperationalKey,
+  operationalKeyIsEnCurso,
+  overviewOperationalStatusToFleetStatus,
+} from '@shared/utils/fleet/fleet-status.resolver';
 import {
   fleetOperationalKeyLabel,
   fleetOperationalPillClass,
+  fleetComplianceFromEquipment,
+  fleetComplianceFromUnitMeta,
+  type FleetComplianceSummary,
   type FleetOperationalKey,
   type FleetRenewalBucket,
 } from '@features/fleet/utils/fleet-unit-table-row';
 import { operationConfigBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import {
   equipmentTypeDisplayLabelFromRaw,
-  unitConvoyConfigDisplayLabel,
+  fleetUnitConvoyTableLabel,
 } from '@features/fleet/utils/unit-hitched-equipment';
 import {
   convoyTrailerVisualFromType,
@@ -36,6 +45,7 @@ export type FleetOverviewCardEntry = {
   kind: FleetOverviewCardKind;
   unitId: string;
   unitName: string;
+  unitAlias: string;
   unitPlate: string;
   operational: FleetOperationalKey;
   panelMode: 'maneuver' | 'parked';
@@ -49,6 +59,8 @@ export type FleetOverviewCardEntry = {
   usesCajaSeca: boolean;
   trailerVisual: ConvoyTrailerVisual;
   daysWithoutManeuver?: number;
+  /** Seguro y verificaciones desde fleetMeta local (misma lógica que drawer y tablas). */
+  compliance?: FleetComplianceSummary;
 };
 
 /** Mapas autoritativos desde GET /fleet/overview (incluye maniobras activas). */
@@ -72,20 +84,7 @@ export function buildOverviewEquipmentOperationalMap(
   return map;
 }
 
-export function overviewOperationalKey(
-  status: FleetOverviewOperationalStatus,
-): FleetOperationalKey {
-  switch (status) {
-    case 'in_transit':
-      return 'on_route';
-    case 'scheduled':
-      return 'scheduled';
-    case 'maintenance':
-      return 'maintenance';
-    default:
-      return 'available';
-  }
-}
+export { overviewOperationalKey } from '@shared/utils/fleet/fleet-status.resolver';
 
 export function renewalBucketFromOverview(
   value: FleetOverviewRenewalStatus | undefined,
@@ -96,6 +95,31 @@ export function renewalBucketFromOverview(
   return 'na';
 }
 
+/** Enriquece tarjetas de overview con cumplimiento calculado en cliente (fuente única con drawer). */
+export function attachOverviewCompliance(
+  entry: FleetOverviewCardEntry,
+  units: readonly Unit[],
+  equipment: readonly Equipment[],
+): FleetOverviewCardEntry {
+  if (entry.kind === 'standalone-equipment') {
+    const equipmentId = entry.hitched[0]?.equipmentId;
+    if (equipmentId == null) {
+      return entry;
+    }
+    const e = equipment.find((row) => row.id === String(equipmentId));
+    if (!e) {
+      return entry;
+    }
+    return { ...entry, compliance: fleetComplianceFromEquipment(e) };
+  }
+
+  const unit = units.find((row) => row.id === entry.unitId);
+  if (!unit) {
+    return entry;
+  }
+  return { ...entry, compliance: fleetComplianceFromUnitMeta(unit.fleetMeta) };
+}
+
 function isPlanaType(type: string): boolean {
   const v = type.trim().toLowerCase();
   return v === 'plataforma' || v.includes('plana') || v.includes('flatbed');
@@ -104,8 +128,8 @@ function isPlanaType(type: string): boolean {
 function overviewAssetStatusFromOperational(
   status: FleetOverviewOperationalStatus,
 ): FleetOverviewAssetStatus {
-  switch (status) {
-    case 'in_transit':
+  switch (overviewOperationalStatusToFleetStatus(status)) {
+    case 'in_use':
       return 'in_use';
     case 'scheduled':
       return 'scheduled';
@@ -118,10 +142,10 @@ function overviewAssetStatusFromOperational(
 
 /** Etiqueta de convoy en overview según enganches (no config operativa de maniobra). */
 export function overviewUnitConvoyLabel(item: FleetOverviewItemDto): string {
-  if (item.hitchedEquipment.length >= 2 || item.equipment.type === 'full') {
+  if (item.equipment.type === 'full' && item.hitchedEquipment.length < 2) {
     return 'Doble articulado';
   }
-  return unitConvoyConfigDisplayLabel(item.hitchedEquipment.length);
+  return fleetUnitConvoyTableLabel(item.hitchedEquipment.length);
 }
 
 export function overviewCardEntryFromDto(item: FleetOverviewItemDto): FleetOverviewCardEntry {
@@ -138,28 +162,16 @@ export function overviewCardEntryFromDto(item: FleetOverviewItemDto): FleetOverv
   const usesPlataforma = trailerVisual === 'plataforma';
   const usesCajaSeca = trailerVisual === 'caja_seca';
 
-  let statusPill: { className: string; label: string };
-  if (trip?.status === 'scheduled') {
-    statusPill = {
-      className: fleetOperationalPillClass('scheduled'),
-      label: fleetOperationalKeyLabel('scheduled'),
-    };
-  } else if (trip?.status === 'in_transit' || operational === 'on_route') {
-    statusPill = {
-      className: fleetOperationalPillClass('on_route'),
-      label: fleetOperationalKeyLabel('on_route'),
-    };
-  } else {
-    statusPill = {
-      className: fleetOperationalPillClass(operational),
-      label: fleetOperationalKeyLabel(operational),
-    };
-  }
+  const statusPill = {
+    className: fleetOperationalPillClass(operational),
+    label: fleetOperationalKeyLabel(operational),
+  };
 
   return {
     kind: 'unit',
     unitId: String(item.unitId),
     unitName: item.unitName,
+    unitAlias: item.unitAlias?.trim() || '',
     unitPlate: item.unitPlate,
     operational,
     panelMode,
@@ -193,6 +205,7 @@ export function overviewCardEntryFromEquipmentRow(
     {
       equipmentId: row.equipmentId,
       operationalCode: row.operationalCode,
+      alias: row.alias,
       equipmentType: row.equipmentType,
       status: overviewAssetStatusFromOperational(row.operationalStatus),
     },
@@ -206,6 +219,7 @@ export function overviewCardEntryFromEquipmentRow(
     kind: 'standalone-equipment',
     unitId: `eq-${row.equipmentId}`,
     unitName: row.operationalCode,
+    unitAlias: row.alias?.trim() || '',
     unitPlate: row.plate,
     operational,
     panelMode: 'parked',
@@ -265,7 +279,7 @@ export type FleetOverviewConvoySortKind =
 
 /** Maniobra activa en tránsito (pill «En curso»). */
 export function overviewIsEnCurso(entry: FleetOverviewCardEntry): boolean {
-  return entry.trip?.status === 'in_transit' || entry.operational === 'on_route';
+  return operationalKeyIsEnCurso(entry.operational);
 }
 
 /** Tipo de convoy para ordenar dentro de cada bloque operativo. */
@@ -305,10 +319,10 @@ export function overviewMatchesStatusFilter(
     return true;
   }
   if (filter === 'on_route') {
-    return entry.trip?.status === 'in_transit' || entry.operational === 'on_route';
+    return operationalKeyIsEnCurso(entry.operational);
   }
   if (filter === 'scheduled') {
-    return entry.trip?.status === 'scheduled' || entry.operational === 'scheduled';
+    return entry.operational === 'scheduled';
   }
   return entry.operational === filter;
 }

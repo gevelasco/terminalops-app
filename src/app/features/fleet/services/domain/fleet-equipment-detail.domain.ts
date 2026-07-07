@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { fleetTenureMetaEquals } from '@features/fleet/utils/fleet-tenure-meta-equals';
+import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
 import type { Equipment, EquipmentFleetMeta, MaintenanceEntry } from '@shared/models/logistics.models';
 import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-payload';
 
@@ -58,7 +59,9 @@ export class FleetEquipmentDetailDomain {
         ...(merged.fleetMeta ?? {}),
         maintenanceEntries: [
           ...localMaintEntries,
-          ...(merged.fleetMeta?.maintenanceEntries ?? []),
+          ...(merged.fleetMeta?.maintenanceEntries ?? []).filter(
+            isSubstantiveMaintenanceEntry,
+          ),
         ],
       },
     };

@@ -1,12 +1,13 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { OperationalCentersService as OperationalCentersApi } from '@core/services/api/operational-centers';
+import type { DashboardDieselSnapshot } from '@shared/models/api/api-dashboard-summary.model';
 import type { OperationalCenter } from '@shared/models/operational-center.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 import { finalize, tap, type Subscription } from 'rxjs';
 
 /**
  * Catálogo de centros operativos en memoria (signals).
- * GET /companies/{companyId}/operational-centers — una sola vez por visita a `/clients`.
+ * GET /companies/{companyId}/operational-centers — lazy al montar un selector o ficha que lo requiera.
  */
 @Injectable()
 export class OperationalCentersFeatureService {
@@ -15,6 +16,9 @@ export class OperationalCentersFeatureService {
   private readonly requestGen = createRequestGeneration();
 
   private readonly _centers = signal<readonly OperationalCenter[]>([]);
+  private readonly _dieselReferencePrice = signal<DashboardDieselSnapshot | null>(
+    null,
+  );
   private readonly _loading = signal(false);
 
   private initialLoadStarted = false;
@@ -22,6 +26,7 @@ export class OperationalCentersFeatureService {
   private fetchSub: Subscription | null = null;
 
   readonly centers = this._centers.asReadonly();
+  readonly dieselReferencePrice = this._dieselReferencePrice.asReadonly();
   readonly loading = this._loading.asReadonly();
 
   readonly defaultCenter = computed(() => {
@@ -65,6 +70,7 @@ export class OperationalCentersFeatureService {
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._centers.set([]);
+    this._dieselReferencePrice.set(null);
     this._loading.set(false);
     this.requestGen.invalidate();
   }
@@ -76,9 +82,10 @@ export class OperationalCentersFeatureService {
     this.fetchSub = this.api
       .getOperationalCentersList()
       .pipe(
-        tap((list) => {
+        tap((res) => {
           if (this.requestGen.isCurrent(requestId)) {
-            this._centers.set(list);
+            this._centers.set(res.centers);
+            this._dieselReferencePrice.set(res.dieselReferencePrice);
           }
         }),
         finalize(() => {
@@ -91,6 +98,7 @@ export class OperationalCentersFeatureService {
         error: () => {
           if (this.requestGen.isCurrent(requestId)) {
             this._centers.set([]);
+            this._dieselReferencePrice.set(null);
           }
         },
       });

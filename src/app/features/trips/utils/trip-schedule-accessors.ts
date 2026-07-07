@@ -25,6 +25,16 @@ function hasSpuriousActualScheduleCluster(trip: TripScheduleRecord): boolean {
   return values.every((value) => sameScheduleInstant(value, first));
 }
 
+/** Salida y llegada cliente no pueden compartir el mismo instante. */
+function hasPairedSpuriousDepartureArrival(trip: TripScheduleRecord): boolean {
+  const departure = trip.departureAt?.trim();
+  const arrival = trip.arrivedAt?.trim();
+  if (!departure || !arrival) {
+    return false;
+  }
+  return sameScheduleInstant(departure, arrival);
+}
+
 /** Fecha real persistida y válida; null si aún no hay ejecución registrada. */
 function exposedActualIso(
   trip: TripScheduleRecord,
@@ -38,6 +48,12 @@ function exposedActualIso(
     return null;
   }
   if (hasSpuriousActualScheduleCluster(trip)) {
+    return null;
+  }
+  if (
+    (field === 'departureAt' || field === 'arrivedAt') &&
+    hasPairedSpuriousDepartureArrival(trip)
+  ) {
     return null;
   }
   if (trip.createdAt?.trim() && sameScheduleInstant(raw, trip.createdAt)) {
@@ -79,6 +95,13 @@ export function tripCompletionIso(
     trip.plannedCompletionAt?.trim() ??
     null
   );
+}
+
+/** Salida real persistida y válida (sin fallback al plan). */
+export function tripActualDepartureIso(
+  trip: TripScheduleRecord | Pick<Trip, 'departureAt' | 'status' | 'createdAt'>,
+): string | null {
+  return exposedActualIso(trip, 'departureAt');
 }
 
 export { hasSpuriousActualScheduleCluster };

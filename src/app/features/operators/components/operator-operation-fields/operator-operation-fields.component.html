@@ -1,34 +1,70 @@
 @let isNew = layout() === "new";
 
-<div
-  class="operator-operation-fields__row"
-  [class.operator-operation-fields__row--new]="isNew"
-  [class.operator-operation-fields__row--edit]="!isNew"
->
-  @if (showOperationalStatus()) {
-    <to-select
-      label="Estado operativo *"
-      [placeholder]="isNew ? 'Selecciona' : ''"
-      [options]="statusOptions()"
-      [(value)]="status"
+@if (isNew) {
+  <div
+    class="operator-operation-fields__row operator-operation-fields__row--new"
+  >
+    <to-input
+      label="Fecha de ingreso a la empresa"
+      type="date"
+      placeholder="Hoy (por default)"
+      [(value)]="companyHireDate"
     />
-  }
-  <to-input
-    label="Fecha de ingreso a la empresa"
-    type="date"
-    [placeholder]="isNew ? 'Hoy (por default)' : ''"
-    [(value)]="companyHireDate"
-  />
-</div>
-<div
-  class="operator-operation-fields__row"
-  [class.operator-operation-fields__row--new]="isNew"
-  [class.operator-operation-fields__row--edit]="!isNew"
->
-  <to-select
-    label="Tipo de contratación"
-    [placeholder]="isNew ? 'Selecciona' : ''"
-    [options]="employmentContractOptions()"
-    [(value)]="employmentContractType"
-  />
-</div>
+    <to-select
+      label="Tipo de contratación"
+      placeholder="Selecciona"
+      [options]="employmentContractOptions()"
+      [(value)]="employmentContractType"
+    />
+    <to-select
+      label="Método de cobro"
+      placeholder="Selecciona"
+      [options]="paymentScheduleOptions()"
+      [(value)]="paymentSchedule"
+    />
+    <to-select
+      label="Método de pago"
+      placeholder="Selecciona"
+      [options]="paymentMethodOptions()"
+      [(value)]="paymentMethod"
+    />
+  </div>
+} @else {
+  <div
+    class="operator-operation-fields__row operator-operation-fields__row--edit"
+  >
+    <to-input
+      label="Fecha de ingreso a la empresa"
+      type="date"
+      [(value)]="companyHireDate"
+    />
+    <to-select
+      label="Tipo de contratación"
+      [options]="employmentContractOptions()"
+      [(value)]="employmentContractType"
+    />
+  </div>
+  <div
+    class="operator-operation-fields__row operator-operation-fields__row--edit"
+  >
+    <to-select
+      label="Método de cobro"
+      [options]="paymentScheduleOptions()"
+      [(value)]="paymentSchedule"
+    />
+    <to-select
+      label="Método de pago"
+      [options]="paymentMethodOptions()"
+      [(value)]="paymentMethod"
+    />
+  </div>
+  <div
+    class="operator-operation-fields__row operator-operation-fields__row--edit"
+  >
+    <to-select
+      label="Registro"
+      [options]="visibilityOptions()"
+      [(value)]="visibility"
+    />
+  </div>
+}

@@ -197,6 +197,10 @@
   margin: 0 0 0.75rem;
 }
 
+.fleet-unit-detail__badge-block--insurance {
+  margin-bottom: 0.25rem;
+}
+
 .fleet-unit-detail__badge-block--verif {
   margin: 0 0 0.3rem;
 }
@@ -408,4 +412,23 @@
   &:hover {
     text-decoration-thickness: 2px;
   }
+}
+
+.fleet-unit-detail__insurance-payment-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 28%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--to-color-primary) 6%, transparent);
+}
+
+.fleet-unit-detail__insurance-payment-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
 }

@@ -12,6 +12,17 @@ function isPublicAuthUrl(url: string): boolean {
   return url.includes('/auth/login') || url.includes('/auth/refresh');
 }
 
+function unauthorizedStatus(error: unknown): number | null {
+  if (error instanceof HttpErrorResponse) {
+    return error.status;
+  }
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status: unknown }).status;
+    return typeof status === 'number' ? status : null;
+  }
+  return null;
+}
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(SessionService);
   const authService = inject(AuthService);
@@ -29,7 +40,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: unknown) => {
-      if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
+      if (unauthorizedStatus(error) !== 401) {
         return throwError(() => error);
       }
       if (isPublicAuthUrl(req.url)) {

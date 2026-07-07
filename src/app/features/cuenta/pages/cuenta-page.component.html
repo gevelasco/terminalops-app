@@ -1,0 +1,29 @@
+<to-page-header
+  title="Cuenta"
+  subtitle="Licencia, plan y facturación de tu empresa."
+/>
+
+@if (account.isLoading()) {
+  <to-skeleton height="8rem" />
+} @else if (accountData()) {
+  <section class="cuenta-card">
+    <h2 class="cuenta-card__title">{{ accountData()!.name }}</h2>
+    <dl class="cuenta-card__grid">
+      <div>
+        <dt>Estado de licencia</dt>
+        <dd>{{ accountData()!.subscriptionStatus }}</dd>
+      </div>
+      <div>
+        <dt>Plan</dt>
+        <dd>{{ accountData()!.subscriptionPlan || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Vigencia</dt>
+        <dd>{{ accountData()!.subscriptionEndsAt || 'Sin fecha de vencimiento' }}</dd>
+      </div>
+    </dl>
+    <p class="cuenta-card__note">
+      La gestión de pagos y facturación estará disponible en próximas versiones.
+    </p>
+  </section>
+}

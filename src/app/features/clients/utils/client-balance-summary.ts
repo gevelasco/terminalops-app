@@ -1,19 +1,17 @@
-import type { Trip, TripStatus } from '@shared/models/logistics.models';
-import {
-  tripDueDate,
-} from '@features/reports/utils/reports-credit-receivable-charts';
+import { tripDueDate } from '@features/reports/utils/reports-credit-receivable-charts';
 import { localYmd } from '@features/reports/utils/reports-filter';
 import {
   isTripBillableForReporting,
   isTripClientCollected,
-  sumTripDirectCost,
   sumTripCollectedRevenue,
   sumTripCreditReceivable,
+  sumTripResolvedDirectCost,
   sumTripRevenue,
   tripCreditReceivable,
   tripKm,
   tripRevenue,
 } from '@features/reports/utils/reports-trip-helpers';
+import type { Expense, Trip, TripStatus } from '@shared/models/logistics.models';
 
 export type ClientPaymentDueBadgeVariant = 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -148,6 +146,7 @@ function countByStatus(trips: readonly Trip[]): ClientManeuverStatusCounts {
 export function buildClientBalanceSummary(
   clientId: string,
   trips: readonly Trip[],
+  expenses: readonly Expense[] = [],
   asOf: Date = new Date(),
 ): ClientBalanceSummary {
   const subset = trips.filter((t) => tripMatchesClient(t, clientId));
@@ -158,7 +157,7 @@ export function buildClientBalanceSummary(
   const collected = sumTripCollectedRevenue(billable);
   const receivable = sumTripCreditReceivable(billable);
   const totalRevenue = sumTripRevenue(billable);
-  const directCost = sumTripDirectCost(billable);
+  const directCost = sumTripResolvedDirectCost(billable, expenses);
   const margin = totalRevenue - directCost;
   const marginPct =
     totalRevenue > 0 ? Math.round((margin / totalRevenue) * 100) : 0;

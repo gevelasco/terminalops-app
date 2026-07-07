@@ -1,197 +1,202 @@
-@if (loading()) {
-  <to-skeleton [lines]="4" />
-} @else {
-  <div class="dash-layout">
-    <div class="dash-grid">
-      @for (a of alerts(); track a.id) {
-        <to-card [title]="a.title" [titleIcon]="a.titleIcon">
-          <div class="to-card-metric dash-kpi">
-            <span class="dash-kpi__value">{{ a.message }}</span>
-            @if (a.legend) {
-              <span class="dash-kpi__unit">{{ a.legend }}</span>
-            }
-          </div>
-        </to-card>
+<to-page-header
+  title="Dashboard"
+  subtitle="Resumen operativo del día"
+  class="dashboard-header"
+>
+  @if (!loading() && showFinancialInsights() && dieselSnapshot()?.enabled) {
+    <div class="dashboard-diesel" aria-label="Precio referencia de diesel">
+      @if (!dieselEditOpen()) {
+        <span class="dashboard-diesel__label">Diesel referencia</span>
+        @if (dieselChip(); as label) {
+          <span class="dashboard-diesel__value">{{ label }}</span>
+        }
+        @if (canEditDiesel()) {
+          <button
+            type="button"
+            class="dashboard-diesel__edit"
+            aria-label="Editar precio de diesel"
+            (click)="openDieselEdit()"
+          >
+            <to-icon name="edit" [size]="14" />
+          </button>
+        }
+      } @else {
+        <div class="dashboard-diesel__form">
+          <span class="dashboard-diesel__suggested">Sugerido (promedio nacional)</span>
+          <to-input
+            id="dashboard-diesel-price"
+            class="dashboard-diesel__input"
+            type="text"
+            ariaLabel="Precio de diesel por litro"
+            placeholder="Ej. 27.15"
+            [(value)]="dieselDraft"
+          />
+          <button
+            type="button"
+            class="dashboard-diesel__save"
+            aria-label="Guardar precio de diesel"
+            [disabled]="dieselSaving()"
+            (click)="saveDieselPrice()"
+          >
+            <to-icon name="save" [size]="14" />
+          </button>
+          <button
+            type="button"
+            class="dashboard-diesel__cancel"
+            [disabled]="dieselSaving()"
+            (click)="cancelDieselEdit()"
+          >
+            Cancelar
+          </button>
+        </div>
       }
     </div>
+  }
+</to-page-header>
 
-    <div class="dash-split dash-split--panel-cards">
-      <div class="dash-split__alerts dash-panel-card">
-        <to-card title="Alertas críticas">
-          <div class="dash-critical-scroll">
-            @if (criticalAlerts().length === 0) {
-              <p class="dash-critical__empty">
-                No hay alertas en estado crítico en este momento.
-              </p>
-            }
-            @for (c of criticalAlerts(); track c.id) {
-              <article class="dash-critical-card">
-                <div class="dash-critical-card__icon-wrap" aria-hidden="true">
-                  <svg
-                    width="22"
-                    height="22"
-                    class="dash-critical-card__icon"
-                    viewBox="0 0 24 24"
-                  >
-                    <path fill="currentColor" [attr.d]="iconPath(c.kind)" />
-                  </svg>
-                </div>
-                <div class="dash-critical-card__body">
-                  <h3 class="dash-critical-card__title">{{ c.title }}</h3>
-                  <ul class="dash-critical-card__meta">
-                    <li>
-                      <span class="dash-critical-card__meta-label"
-                        >Maniobra</span
-                      >
-                      <span class="dash-critical-card__meta-value">{{
-                        c.maneuverCode
-                      }}</span>
-                    </li>
-                    <li>
-                      <span class="dash-critical-card__meta-label"
-                        >Cliente</span
-                      >
-                      <span class="dash-critical-card__meta-value">{{
-                        c.clientName
-                      }}</span>
-                    </li>
-                    <li>
-                      <span class="dash-critical-card__meta-label">Ruta</span>
-                      <span class="dash-critical-card__meta-value">{{
-                        c.routeLabel
-                      }}</span>
-                    </li>
-                    <li>
-                      <span class="dash-critical-card__meta-label"
-                        >Reportó</span
-                      >
-                      <span class="dash-critical-card__meta-value">{{
-                        c.authorLabel
-                      }}</span>
-                    </li>
-                  </ul>
-                  <footer class="dash-critical-card__footer">
-                    <time
-                      class="dash-critical-card__date"
-                      [attr.datetime]="c.detectedAt"
-                      >{{ formatDate(c.detectedAt) }}</time
-                    >
-                    <to-badge [variant]="badgeVariant(c.severity)">{{
-                      severityLabel(c.severity)
-                    }}</to-badge>
-                  </footer>
-                </div>
-              </article>
-            }
+@if (loading()) {
+  <to-skeleton [lines]="6" />
+} @else if (summary() && insights()) {
+  <div
+    class="dashboard-kpis"
+    [class.dashboard-kpis--three]="!showFinancialInsights()"
+  >
+    <to-kpi-card
+      title="En curso"
+      titleIcon="route"
+      [value]="inTransitValue()"
+      [valueUnit]="inTransitValueUnit()"
+      [legend]="inTransitLegend()"
+    />
+    <to-kpi-card
+      title="Unidades disponibles"
+      titleIcon="units"
+      [value]="unitsAvailableValue()"
+      [valueUnit]="unitsAvailableValueUnit()"
+      [legend]="unitsLegend()"
+    />
+    <to-kpi-card
+      title="Maniobras Programadas"
+      titleIcon="calendar"
+      [value]="scheduledValue()"
+      [valueUnit]="scheduledValueUnit()"
+      [legend]="scheduledWeekDelta()"
+      [deltaLabel]="scheduledLegend()"
+    />
+    @if (showFinancialInsights()) {
+      <to-kpi-card
+        title="Balance del día"
+        titleIcon="wallet"
+        [value]="dailyResultValue()"
+        [legend]="dailyResultLegend()"
+        [deltaLabel]="dailyResultMeta()"
+        [deltaTone]="dailyResultTone()"
+      />
+    }
+  </div>
+
+  <div class="dashboard-body">
+    <section class="dashboard-panel dashboard-panel--flow">
+      @if (showFinancialInsights()) {
+        <header class="dashboard-panel__head">
+          <div>
+            <h2 class="dashboard-panel__title">Flujo operativo</h2>
+            <p class="dashboard-panel__subtitle">Ingresos vs gastos · últimos 30 días</p>
           </div>
-        </to-card>
-      </div>
-
-      <div class="dash-split__maniobra dash-panel-card">
-        <to-card title="Últimas 10 maniobras" titleIcon="maniobras">
-          <div class="dash-maniobra__table-scroll-x">
-            <to-table
-              [columns]="tripColumns"
-              [rows]="tripRows()"
-              [pageSize]="0"
-              [interactiveRows]="true"
-              (rowClick)="onTripRowClick($event)"
-            />
-          </div>
-        </to-card>
-      </div>
-    </div>
-
-    <section class="dash-charts" aria-labelledby="dash-charts-heading">
-      <h2 id="dash-charts-heading" class="dash-charts__heading">
-        <svg
-          class="dash-charts__heading-icon"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            fill="currentColor"
-            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7v-7zm4-5h2v12h-2V5zm4 7h2v5h-2v-5z"
-          />
-        </svg>
-        Resumen operativo
-      </h2>
-      <div class="dash-charts__grid">
-        <div class="dash-chart-pane">
-          <to-card title="Resumen de Maniobras Mensual">
-            <div class="dash-chart-stack">
-              <div class="dash-chart-bar">
-                @for (row of tripStatusSlices(); track row.status) {
-                  <div class="dash-chart-bar__row">
-                    <span class="dash-chart-bar__label">{{ row.label }}</span>
-                    <div class="dash-chart-bar__track">
-                      <div
-                        [class]="
-                          'dash-chart-bar__fill ' + statusFillClass(row.status)
-                        "
-                        [style.width.%]="row.pct"
-                      ></div>
-                    </div>
-                    <span class="dash-chart-bar__meta">
-                      {{ row.count }}
-                      <span class="dash-chart-bar__pct">({{ row.pct }}%)</span>
-                    </span>
-                  </div>
-                }
-              </div>
-
-              <div class="dash-chart-divider" role="presentation"></div>
-
-              <p class="dash-chart-inline-head">Tipo de operación</p>
-              <div class="dash-chart-bar dash-chart-bar--sub">
-                @for (row of operationTypeSlices(); track row.label) {
-                  <div class="dash-chart-bar__row">
-                    <span class="dash-chart-bar__label">{{ row.label }}</span>
-                    <div class="dash-chart-bar__track">
-                      <div
-                        [class]="
-                          'dash-chart-bar__fill ' + operationFillClass(row.tone)
-                        "
-                        [style.width.%]="row.pct"
-                      ></div>
-                    </div>
-                    <span class="dash-chart-bar__meta">
-                      {{ row.count }}
-                      <span class="dash-chart-bar__pct">({{ row.pct }}%)</span>
-                    </span>
-                  </div>
-                }
-              </div>
-            </div>
-          </to-card>
+        </header>
+        <div class="dashboard-panel__chart">
+          <to-echarts-host [option]="operationalFlowOption()" />
         </div>
+      } @else {
+        <header class="dashboard-panel__head">
+          <div>
+            <h2 class="dashboard-panel__title">Actividad de maniobras</h2>
+            <p class="dashboard-panel__subtitle">
+              Completadas vs en curso vs programadas · últimos 30 días
+            </p>
+          </div>
+        </header>
+        <div class="dashboard-panel__chart">
+          <to-echarts-host [option]="tripActivityOption()" />
+        </div>
+      }
+    </section>
 
-        <div class="dash-chart-pane dash-chart-pane--weekly">
-          <to-card title="Volumen semanal">
-            <div class="dash-chart-weekly">
-              <div
-                class="dash-chart-col"
-                role="img"
-                aria-label="Gráfica de barras semanal"
+    <section class="dashboard-panel dashboard-panel--destinations">
+      <header class="dashboard-panel__head">
+        <div>
+          <h2 class="dashboard-panel__title">Top destinos</h2>
+          <p class="dashboard-panel__subtitle">Últimos 30 días</p>
+        </div>
+      </header>
+      <div class="dashboard-panel__chart">
+        <to-echarts-host [option]="topDestinationsOption()" />
+      </div>
+    </section>
+
+    <section class="dashboard-panel dashboard-panel--recent">
+      <header class="dashboard-panel__head">
+        <div>
+          <h2 class="dashboard-panel__title">Maniobras recientes</h2>
+        </div>
+      </header>
+      <div class="dashboard-recent-table-wrap">
+        <table class="dashboard-recent-table">
+          <thead>
+            <tr>
+              <th scope="col">Estado</th>
+              <th scope="col">Operador</th>
+              <th scope="col">Destino</th>
+              @if (showFinancialInsights()) {
+                <th scope="col" class="dashboard-recent-table__num">Ingreso</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (trip of recentTrips(); track trip.id) {
+              <tr
+                class="dashboard-recent-table__row"
+                tabindex="0"
+                role="button"
+                (click)="openRecentTrip(trip.id)"
+                (keydown.enter)="openRecentTrip(trip.id)"
+                (keydown.space)="$event.preventDefault(); openRecentTrip(trip.id)"
               >
-                @for (p of weeklyTripVolume(); track p.day) {
-                  <div class="dash-chart-col__cell">
-                    <span class="dash-chart-col__value">{{ p.value }}</span>
-                    <div class="dash-chart-col__track">
-                      <div
-                        class="dash-chart-col__bar"
-                        [style.height.%]="weeklyBarHeightPct(p.value)"
-                      ></div>
-                    </div>
-                    <span class="dash-chart-col__day">{{ p.day }}</span>
-                  </div>
+                <td>
+                  <span [class]="tripStatusClass(trip.status, trip.falseManeuver)">
+                    <span class="to-table-pill__dot" aria-hidden="true"></span>
+                    <span class="to-table-pill__label">
+                      {{ tripStatusLabel(trip.status, trip.falseManeuver) }}
+                    </span>
+                  </span>
+                </td>
+                <td>{{ trip.operatorName }}</td>
+                <td>{{ trip.destination }}</td>
+                @if (showFinancialInsights()) {
+                  <td class="dashboard-recent-table__num">
+                    {{ tripChargeLabel(trip.clientCharge) }}
+                  </td>
                 }
-              </div>
-            </div>
-          </to-card>
+              </tr>
+            } @empty {
+              <tr>
+                <td [attr.colspan]="showFinancialInsights() ? 4 : 3" class="dashboard-recent-table__empty">Sin maniobras recientes</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="dashboard-panel dashboard-panel--mix">
+      <header class="dashboard-panel__head">
+        <div>
+          <h2 class="dashboard-panel__title">Configuración de maniobras</h2>
+          <p class="dashboard-panel__subtitle">Todas las maniobras en los últimos 30 días</p>
         </div>
+      </header>
+      <div class="dashboard-panel__chart">
+        <to-echarts-host [option]="operationMixOption()" />
       </div>
     </section>
   </div>

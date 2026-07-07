@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   HostListener,
   inject,
   input,
@@ -13,10 +14,20 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EQUIPMENT_CONTAINER_SLOT_OPTIONS, EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import {
+  coerceContainerSlotForOperationType,
+  containerSlotFieldApplies,
+  containerSlotFieldLabel,
+  containerSlotLabelForKey,
+  containerSlotSelectOptionsForOperationType,
+} from '@shared/utils/fleet/equipment-container-slot-options.util';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { FleetHitchValidationBlockComponent } from '@features/fleet/components/fleet-hitch-validation-block/fleet-hitch-validation-block.component';
-import { registerFleetHitchSlotSync } from '@app/features/fleet/utils/fleet-drawer-form.utils';
+import {
+  parseFleetRequiredDigits,
+  registerFleetHitchSlotSync,
+} from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
 import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
@@ -41,13 +52,12 @@ import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abb
 import { registerFleetVersionResetOnBrandChange } from '@shared/utils/fleet/fleet-brand-version-link';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import {
-  buildFleetModelYearSelectOptions,
   FLEET_MAINTENANCE_TYPE_OPTIONS,
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_TIRE_CONDITION_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
-  FLEET_UNIT_STATUS_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 
 function parseYmd(s: string): Date | null {
   const t = s.trim();
@@ -198,6 +208,23 @@ export class FleetNewEquipmentDrawerComponent {
       unitId: () => this.unitId(),
       isSecondTrailer: this.isSecondTrailer,
     });
+    const containerSlotCoercion = effect(
+      () => {
+        const typeCode = this.operationTypeCode().trim();
+        if (!typeCode) {
+          return;
+        }
+        const next = coerceContainerSlotForOperationType(
+          typeCode,
+          this.equipmentContainerSlot(),
+        );
+        if (this.equipmentContainerSlot() !== next) {
+          this.equipmentContainerSlot.set(next);
+        }
+      },
+      { allowSignalWrites: true },
+    );
+    this.destroyRef.onDestroy(() => containerSlotCoercion.destroy());
   }
 
   readonly brandName = model('');
@@ -206,7 +233,6 @@ export class FleetNewEquipmentDrawerComponent {
   readonly operationTypeCode = model('');
   readonly plate = model('');
   readonly trailerColor = model('');
-  readonly status = model('available');
   readonly name = model('');
   readonly serialNumber = model('');
 
@@ -219,12 +245,13 @@ export class FleetNewEquipmentDrawerComponent {
 
   readonly equipmentCapacityTons = model('');
   readonly equipmentAxleCount = model('');
-  readonly equipmentTireCount = model('');
   readonly equipmentContainerSlot = model('na');
 
   readonly insuranceCarrierName = model('');
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
+  readonly insurancePaymentMethod = model('transfer');
+  readonly insuranceInvoiceRequired = model(false);
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
 
@@ -249,17 +276,24 @@ export class FleetNewEquipmentDrawerComponent {
     this.fleetFeature.versionNamesFor('EQUIPMENT', this.brandName()),
   );
   readonly operationTypeOptions = EQUIPMENT_OPERATION_TYPE_OPTIONS;
-  readonly containerSlotOptions = EQUIPMENT_CONTAINER_SLOT_OPTIONS;
-
-  readonly modelYearOptions = buildFleetModelYearSelectOptions();
+  readonly containerSlotOptionsForType = computed(() =>
+    containerSlotSelectOptionsForOperationType(this.operationTypeCode()),
+  );
+  readonly containerSlotFieldApplies = computed(() =>
+    containerSlotFieldApplies(this.operationTypeCode()),
+  );
+  readonly containerSlotFieldLabel = computed(() =>
+    containerSlotFieldLabel(this.operationTypeCode()),
+  );
 
   readonly maintenanceTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
   readonly tireOptions = FLEET_TIRE_CONDITION_OPTIONS;
 
   readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
-
-  readonly statusOptions = FLEET_UNIT_STATUS_OPTIONS;
+  readonly insurancePaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS.filter(
+    (o) => o.value !== '',
+  );
 
   readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
 
@@ -329,7 +363,6 @@ export class FleetNewEquipmentDrawerComponent {
     const docs = this.filesMaintenance().map((f) => f.name);
     const hasData = !!(
       date ||
-      (typeLabel && typeLabel.trim()) ||
       cost !== undefined ||
       notes ||
       docs.length > 0
@@ -381,18 +414,29 @@ export class FleetNewEquipmentDrawerComponent {
   submit(): void {
     const uid = this.unitId().trim();
     const brandName = this.brandName().trim();
-    const year = this.modelYear().trim();
+    const yearRaw = this.modelYear().trim();
     const opType = this.operationTypeCode().trim();
     const plate = this.plate().trim();
     const serial = this.serialNumber().trim();
 
-    if (!brandName || !year || !opType || !plate || !serial) {
+    if (!brandName || !opType || !plate || !serial) {
       this.toast.show(
-        'Marca, año modelo, tipo de unidad, placa y número de serie son obligatorios.',
+        'Marca, tipo de equipo, placa y número de serie son obligatorios.',
         'warning',
       );
       return;
     }
+
+    const yearParsed = parseFleetRequiredDigits(yearRaw);
+    if (yearParsed === 'empty') {
+      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+      return;
+    }
+    if (yearParsed === 'invalid') {
+      this.toast.show('Modelo (año) debe contener solo números.', 'warning');
+      return;
+    }
+    const year = yearParsed;
 
     if (uid) {
       if (this.hitchUnitOnRoute()) {
@@ -416,16 +460,14 @@ export class FleetNewEquipmentDrawerComponent {
     const insCost = parseOptionalAmount(this.insuranceCost());
     const physCost = parseOptionalAmount(this.verificationPhysMechCost());
     const axles = parseOptionalPositiveInt(this.equipmentAxleCount());
-    const tires = parseOptionalPositiveInt(this.equipmentTireCount());
     if (
       maintCost === 'invalid' ||
       insCost === 'invalid' ||
       physCost === 'invalid' ||
-      axles === 'invalid' ||
-      tires === 'invalid'
+      axles === 'invalid'
     ) {
       this.toast.show(
-        'Revisa montos, número de ejes o número de llantas (entero ≥ 1 o vacío).',
+        'Revisa montos o número de ejes (entero ≥ 1 o vacío).',
         'warning',
       );
       return;
@@ -474,9 +516,9 @@ export class FleetNewEquipmentDrawerComponent {
     const cadenceLabel =
       this.cadenceOptions.find((o) => o.value === this.insurancePaymentCadence())?.label ??
       this.insurancePaymentCadence();
-    const slotLabel =
-      this.containerSlotOptions.find((o) => o.value === this.equipmentContainerSlot())?.label ??
-      this.equipmentContainerSlot();
+    const slotLabel = this.containerSlotFieldApplies()
+      ? containerSlotLabelForKey(this.equipmentContainerSlot())
+      : undefined;
 
     const meta: EquipmentFleetMeta = {
       trailerBrandName: this.brandLabel(brandName),
@@ -490,7 +532,6 @@ export class FleetNewEquipmentDrawerComponent {
       trailerManagementOwnerPayout,
       equipmentCapacityTons: this.equipmentCapacityTons().trim() || undefined,
       equipmentAxleCount: axles === undefined ? undefined : axles,
-      equipmentTireCount: tires === undefined ? undefined : tires,
       equipmentContainerSlotConfig: slotLabel,
       lastMaintenanceDate: this.lastMaintenanceDate().trim() || undefined,
       lastMaintenanceType: maintTypeLabel,
@@ -504,6 +545,8 @@ export class FleetNewEquipmentDrawerComponent {
       insuranceCarrierName: this.insuranceCarrierName().trim() || undefined,
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
+      insurancePaymentMethod: this.insurancePaymentMethod().trim() || undefined,
+      insuranceInvoiceRequired: this.insuranceInvoiceRequired(),
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
       documentMaintenanceNames: this.filesMaintenance().map((f) => f.name),
@@ -533,7 +576,6 @@ export class FleetNewEquipmentDrawerComponent {
         lastServiceDate: lastSvc,
         plate,
         type: this.operationTypeLabel(opType),
-        status: this.status(),
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         fleetMeta: meta,

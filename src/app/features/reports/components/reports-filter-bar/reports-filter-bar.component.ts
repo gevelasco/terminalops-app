@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@features/fleet/utils/fleet-unit-detail-tab-symbols';
-import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
-import type { ToFilterTab } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
+import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToClientsMultiInputComponent } from '@shared/ui/to-clients-multi-input/to-clients-multi-input.component';
 import { ToPaymentMethodsMultiInputComponent } from '@shared/ui/to-payment-methods-multi-input/to-payment-methods-multi-input.component';
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
@@ -11,16 +9,15 @@ import type {
   ReportsPeriodPreset,
   ReportsTabId,
 } from '../../models/reports-view.models';
+import type { ReportsToolbarTab } from '../../reports.constants';
 import { parseYmd, rangeForPreset } from '../../utils/reports-filter';
-
-export type ReportsToolbarTab = ToFilterTab<ReportsTabId>;
 
 @Component({
   selector: 'app-reports-filter-bar',
   standalone: true,
   imports: [
     FormsModule,
-    ToFilterTabsComponent,
+    ToSegmentControlComponent,
     ToClientsMultiInputComponent,
     ToPaymentMethodsMultiInputComponent,
   ],
@@ -29,8 +26,6 @@ export type ReportsToolbarTab = ToFilterTab<ReportsTabId>;
   styleUrl: './reports-filter-bar.component.scss',
 })
 export class ReportsFilterBarComponent {
-  readonly fleetTabSymbols = FLEET_UNIT_DETAIL_TAB_SYMBOLS;
-
   readonly filter = model.required<ReportsFilter>();
   readonly tab = model.required<ReportsTabId>();
   readonly tabs = input<ReportsToolbarTab[]>([]);

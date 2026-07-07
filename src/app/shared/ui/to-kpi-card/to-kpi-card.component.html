@@ -1,6 +1,11 @@
 <to-card [title]="title()" [titleIcon]="titleIcon()">
   <div class="to-kpi-card__metric">
-    <span class="to-kpi-card__value">{{ value() }}</span>
+    <span class="to-kpi-card__value-row">
+      <span class="to-kpi-card__value">{{ value() }}</span>
+      @if (valueUnit()) {
+        <span class="to-kpi-card__value-unit">{{ valueUnit() }}</span>
+      }
+    </span>
     @if (legend()) {
       <span class="to-kpi-card__legend">{{ legend() }}</span>
     }

@@ -51,62 +51,54 @@
         <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
           <dt>Registrada</dt>
           <dd>{{ vm.fmt(vm.trip().createdAt) }}</dd>
+          <dt>Salida planeada</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedDepartureAt) }}</dd>
+          @if (vm.showRealScheduleField('departureAt')) {
+            <dt class="maniobra-detail__schedule-real-label">Salida real</dt>
+            <dd class="maniobra-detail__schedule-real-value">{{
+              vm.plannedScheduleDisplay(vm.trip().departureAt)
+            }}</dd>
+          }
+          <dt>Llegada cliente planeada</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedArrivalAt) }}</dd>
+          @if (vm.showRealScheduleField('arrivedAt')) {
+            <dt class="maniobra-detail__schedule-real-label">Llegada cliente real</dt>
+            <dd class="maniobra-detail__schedule-real-value">{{
+              vm.plannedScheduleDisplay(vm.trip().arrivedAt)
+            }}</dd>
+          }
+          <dt>Fin planeado</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedCompletionAt) }}</dd>
+          @if (vm.showRealScheduleField('returnAt')) {
+            <dt class="maniobra-detail__schedule-real-label">Fin real</dt>
+            <dd class="maniobra-detail__schedule-real-value">{{
+              vm.plannedScheduleDisplay(vm.trip().returnAt)
+            }}</dd>
+          }
         </dl>
 
-        <div class="maniobra-detail__schedule-block">
-          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
-            <dt>Salida planeada</dt>
-            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedDepartureAt) }}</dd>
-            @if (vm.showRealScheduleField('departureAt')) {
-              <dt class="maniobra-detail__schedule-real-label">Salida real</dt>
-              <dd class="maniobra-detail__schedule-real-value">{{
-                vm.plannedScheduleDisplay(vm.trip().departureAt)
-              }}</dd>
-            }
-          </dl>
-          @if (vm.canEditRealScheduleField('departureAt')) {
+        @if (vm.canEditRealScheduleField('departureAt')) {
+          <div class="maniobra-detail__schedule-input">
             <to-input
               label="Salida real"
               type="datetime-local"
               [value]="vm.realDepartureDraft()"
               (valueChange)="vm.realDepartureDraft.set($event)"
             />
-          }
-        </div>
-
-        <div class="maniobra-detail__schedule-block">
-          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
-            <dt>Llegada cliente planeada</dt>
-            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedArrivalAt) }}</dd>
-            @if (vm.showRealScheduleField('arrivedAt')) {
-              <dt class="maniobra-detail__schedule-real-label">Llegada cliente real</dt>
-              <dd class="maniobra-detail__schedule-real-value">{{
-                vm.plannedScheduleDisplay(vm.trip().arrivedAt)
-              }}</dd>
-            }
-          </dl>
-          @if (vm.canEditRealScheduleField('arrivedAt')) {
+          </div>
+        }
+        @if (vm.canEditRealScheduleField('arrivedAt')) {
+          <div class="maniobra-detail__schedule-input">
             <to-input
               label="Llegada cliente real"
               type="datetime-local"
               [value]="vm.realArrivalDraft()"
               (valueChange)="vm.realArrivalDraft.set($event)"
             />
-          }
-        </div>
-
-        <div class="maniobra-detail__schedule-block">
-          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
-            <dt>Fin planeado</dt>
-            <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedCompletionAt) }}</dd>
-            @if (vm.showRealScheduleField('returnAt')) {
-              <dt class="maniobra-detail__schedule-real-label">Fin real</dt>
-              <dd class="maniobra-detail__schedule-real-value">{{
-                vm.plannedScheduleDisplay(vm.trip().returnAt)
-              }}</dd>
-            }
-          </dl>
-          @if (vm.canEditRealScheduleField('returnAt')) {
+          </div>
+        }
+        @if (vm.canEditRealScheduleField('returnAt')) {
+          <div class="maniobra-detail__schedule-input">
             <to-input
               label="Fin real"
               type="datetime-local"
@@ -114,8 +106,8 @@
               [value]="vm.realCompletionDraft()"
               (valueChange)="vm.realCompletionDraft.set($event)"
             />
-          }
-        </div>
+          </div>
+        }
 
         @if (vm.realDatesEditEnabled()) {
           <div class="maniobra-detail__schedule-justification">
@@ -165,9 +157,9 @@
 
       <section
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
-        aria-labelledby="maniobra-detail-inc"
+        aria-labelledby="maniobra-detail-bitacora"
       >
-        <h3 id="maniobra-detail-inc" class="maniobra-drawer__section-title">
+        <h3 id="maniobra-detail-bitacora" class="maniobra-drawer__section-title">
           <svg
             class="maniobra-drawer__section-icon"
             width="18"
@@ -177,10 +169,10 @@
           >
             <path
               fill="currentColor"
-              d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+              d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
             />
           </svg>
-          Incidentes
+          Bitácora
         </h3>
         @if ((vm.trip().incidents?.length ?? 0) === 0 && vm.trip().hasIncident) {
           <p class="maniobra-detail__muted-block">
@@ -188,58 +180,79 @@
             migrados).
           </p>
         }
-        @if (vm.incidentsSorted().length > 0) {
+        @if (vm.bitacoraSorted().length > 0) {
           <ul
             class="maniobra-detail__incident-list"
-            aria-label="Incidentes registrados"
+            aria-label="Entradas de bitácora"
           >
-            @for (inc of vm.incidentsSorted(); track inc.id) {
-              <li class="maniobra-detail__incident-item">
+            @for (entry of vm.bitacoraSorted(); track entry.id) {
+              <li
+                class="maniobra-detail__incident-item"
+                [class.maniobra-detail__incident-item--marked]="entry.isIncident"
+              >
                 <div class="maniobra-detail__incident-head">
-                  <span class="maniobra-detail__incident-author">{{
-                    vm.incidentAuthorLabel(inc)
-                  }}</span>
+                  <div class="maniobra-detail__bitacora-head-main">
+                    <span class="maniobra-detail__incident-author">{{
+                      vm.bitacoraAuthorLabel(entry)
+                    }}</span>
+                    @if (entry.isIncident) {
+                      <span class="maniobra-detail__bitacora-incident-badge">Incidente</span>
+                    }
+                  </div>
                   <time
                     class="maniobra-detail__incident-date"
-                    [attr.datetime]="inc.occurredAt"
-                    >{{ vm.fmt(inc.occurredAt) }}</time
+                    [attr.datetime]="entry.occurredAt"
+                    >{{ vm.fmt(entry.occurredAt) }}</time
                   >
                 </div>
                 <p class="maniobra-detail__incident-desc">
-                  {{ inc.description }}
+                  {{ entry.description }}
                 </p>
               </li>
             }
           </ul>
-        } @else if (!vm.trip().hasIncident) {
+        } @else {
           <p class="maniobra-detail__muted-block">
-            Aún no hay incidentes registrados.
+            Aún no hay entradas en la bitácora.
           </p>
         }
         <div class="maniobra-detail__incident-add">
-          <label
-            class="maniobra-detail__incident-label"
-            for="maniobra-incident-draft"
-            >Registrar Incidente</label
-          >
-          <textarea
-            id="maniobra-incident-draft"
-            class="maniobra-detail__incident-textarea"
-            rows="2"
-            [value]="vm.incidentDraft()"
-            (input)="vm.onIncidentDraftInput($event)"
-            placeholder="Describe lo sucedido…"
-            [disabled]="vm.incidentSaving()"
-          ></textarea>
-          <to-button
-            type="button"
-            variant="primary"
-            [disabled]="vm.incidentSaving()"
-            (click)="vm.registerIncident()"
-          >
-            <to-icon name="warning" [size]="16" />
-            Registrar Incidente
-          </to-button>
+          @if (vm.canPostTripBitacora()) {
+            <label
+              class="maniobra-detail__incident-label"
+              for="maniobra-bitacora-draft"
+              >Agregar entrada</label
+            >
+            <textarea
+              id="maniobra-bitacora-draft"
+              class="maniobra-detail__incident-textarea"
+              rows="2"
+              [value]="vm.bitacoraDraft()"
+              (input)="vm.onBitacoraDraftInput($event)"
+              placeholder="Nota operativa, contexto o novedad…"
+              [disabled]="vm.bitacoraSaving()"
+            ></textarea>
+            <label class="maniobra-detail__bitacora-incident-check">
+              @if (vm.canMarkTripIncident()) {
+                <input
+                  type="checkbox"
+                  [checked]="vm.markAsIncidentDraft()"
+                  (change)="vm.onMarkAsIncidentDraftChange($event)"
+                  [disabled]="vm.bitacoraSaving()"
+                />
+                <span>Marcar como incidente</span>
+              }
+            </label>
+            <to-button
+              type="button"
+              variant="primary"
+              [disabled]="vm.bitacoraSaving()"
+              (click)="vm.registerBitacoraEntry()"
+            >
+              <to-icon name="updates" [size]="16" />
+              Agregar a bitácora
+            </to-button>
+          }
         </div>
       </section>
 </div>

@@ -1,0 +1,38 @@
+<to-side-drawer
+  [titleId]="titleId()"
+  wide
+  headerClass="fleet-unit-detail__header"
+  bodyClass="fleet-unit-body fleet-unit-detail"
+  [loading]="loading()"
+  skeletonVariant="detail"
+  (dismiss)="dismiss.emit()"
+>
+  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+    <h2
+      [id]="titleId()"
+      class="to-side-drawer__title fleet-unit-detail__title"
+    >
+      <to-icon class="to-side-drawer__title-icon" [name]="titleIcon()" [size]="22" />
+      <span class="fleet-unit-detail__title-id">{{ titleText() }}</span>
+    </h2>
+    <to-status-pill
+      [label]="statusBanner().label"
+      [sub]="statusBanner().sub"
+      [modClass]="statusBanner().mod"
+    />
+  </div>
+
+  <to-segment-control
+    layout="drawer"
+    [ariaLabel]="segmentAriaLabel()"
+    [tabs]="tabs()"
+    [activeId]="activeTab()"
+    (tabSelect)="tabSelect.emit($event)"
+  />
+
+  <ng-content />
+
+  <footer toSideDrawerFooter class="maniobra-drawer__footer maniobra-detail__footer">
+    <ng-content select="[fleetDetailDrawerFooter]" />
+  </footer>
+</to-side-drawer>

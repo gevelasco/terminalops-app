@@ -48,6 +48,13 @@
   );
 }
 
+.to-segment-control--toolbar .to-segment-control__btn {
+  flex: 0 1 auto;
+  min-width: auto;
+  padding: 0.5rem 0.95rem;
+  white-space: nowrap;
+}
+
 .to-segment-control--fill {
   max-width: none;
   width: 100%;

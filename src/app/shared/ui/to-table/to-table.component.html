@@ -1,9 +1,12 @@
-<div class="to-table-wrap">
+<div
+  class="to-table-wrap"
+  [class.to-table-wrap--scrollable]="scrollable()"
+>
   <table class="to-table">
     <thead>
       <tr>
         @for (col of columns(); track col.key) {
-          <th scope="col">{{ col.label }}</th>
+          <th scope="col" [class.to-table-th--nowrap]="col.cell === 'nowrap'">{{ col.label }}</th>
         }
       </tr>
     </thead>
@@ -23,8 +26,9 @@
           @for (col of columns(); track col.key) {
             <td
               [class.to-table-incident-cell]="col.cell === 'incident-dot'"
+              [class.to-table-td--nowrap]="col.cell === 'nowrap'"
               [class.to-table-td--center]="tdCentered(col.cell)"
-              [class.to-table-td--fleet-tip-host]="isFleetIconCell(col.cell)"
+              [class.to-table-td--fleet-tip-host]="isFleetIconCell(col.cell) && fleetIconTooltips()"
             >
               @if (col.cell === 'maniobra-status') {
                 <span [class]="maniobraStatusPillClass(row[col.key], row)">
@@ -107,7 +111,7 @@
               ) {
                 <div
                   class="to-table-fleet-icon-stack"
-                  [attr.title]="fleetIconAccessibleSummary(row, col.key)"
+                  [attr.title]="fleetIconTooltips() ? fleetIconAccessibleSummary(row, col.key) : null"
                   [attr.aria-label]="fleetIconAccessibleSummary(row, col.key)"
                 >
                   <span class="to-table-fleet-icon-stack__icon">
@@ -148,20 +152,90 @@
                   <span class="to-table-fleet-icon-stack__next">{{
                     fleetIconNextCell(row, col.key)
                   }}</span>
-                  <div
-                    class="to-table-fleet-stack-tooltip"
-                    role="tooltip"
-                    (click)="$event.stopPropagation()"
-                    (mousedown)="$event.stopPropagation()"
-                  >
-                    <span class="to-table-fleet-stack-tooltip__sev">{{
-                      fleetIconNextTitle(row, col.key)
-                    }}</span>
-                    <span class="to-table-fleet-stack-tooltip__detail">{{
-                      fleetIconTooltip(row, col.key)
-                    }}</span>
-                  </div>
+                  @if (fleetIconTooltips()) {
+                    <div
+                      class="to-table-fleet-stack-tooltip"
+                      role="tooltip"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                    >
+                      <span class="to-table-fleet-stack-tooltip__sev">{{
+                        fleetIconNextTitle(row, col.key)
+                      }}</span>
+                      <span class="to-table-fleet-stack-tooltip__detail">{{
+                        fleetIconTooltip(row, col.key)
+                      }}</span>
+                    </div>
+                  }
                 </div>
+              } @else if (col.cell === 'module-access-icons') {
+                <div class="to-table-module-icons" role="list" aria-label="Módulos con acceso">
+                  @for (item of moduleAccessIcons(row, col.key); track item.label) {
+                    <span
+                      class="module-access-icon"
+                      [class.module-access-icon--on]="item.active"
+                      role="listitem"
+                      [attr.title]="item.label + (item.active ? '' : ' (sin acceso)')"
+                      [attr.aria-label]="item.label + (item.active ? ': con acceso' : ': sin acceso')"
+                    >
+                      <to-icon [name]="moduleAccessIconName(item.icon)" [size]="16" />
+                    </span>
+                  }
+                </div>
+              } @else if (col.cell === 'user-role-pill') {
+                <span [class]="userRolePillClass(row[col.key])">
+                  <to-icon [name]="userRolePillIcon(row[col.key])" [size]="13" aria-hidden="true" />
+                  <span class="to-table-pill__label">{{ userRolePillLabel(row[col.key]) }}</span>
+                </span>
+              } @else if (col.cell === 'user-status-pill') {
+                <span [class]="userStatusPillClass(row[col.key])">
+                  <span class="to-table-pill__dot" aria-hidden="true"></span>
+                  <span class="to-table-pill__label">{{ userStatusPillLabel(row[col.key]) }}</span>
+                </span>
+              } @else if (col.cell === 'trip-collected-icon') {
+                @if (row[col.key] === 'collected') {
+                  <span
+                    class="to-table-trip-collected to-table-trip-collected--done"
+                    role="img"
+                    aria-label="Cobrada"
+                    title="Cobrada"
+                  >
+                    <to-icon name="settlement" [size]="18" />
+                  </span>
+                } @else if (row[col.key] === 'pending') {
+                  <span
+                    class="to-table-trip-collected to-table-trip-collected--pending"
+                    role="img"
+                    aria-label="Pendiente de cobro"
+                    title="Pendiente de cobro"
+                  >
+                    <to-icon name="settlement" [size]="18" />
+                  </span>
+                } @else {
+                  —
+                }
+              } @else if (col.cell === 'expense-invoice-icon') {
+                @if (row[col.key] === 'required') {
+                  <span
+                    class="to-table-expense-invoice to-table-expense-invoice--required"
+                    role="img"
+                    aria-label="Factura fiscal requerida"
+                    title="Factura fiscal requerida"
+                  >
+                    <to-icon name="document" [size]="18" />
+                  </span>
+                } @else {
+                  <span
+                    class="to-table-expense-invoice to-table-expense-invoice--not-required"
+                    role="img"
+                    aria-label="Factura fiscal no requerida"
+                    title="Factura fiscal no requerida"
+                  >
+                    <to-icon name="document" [size]="18" />
+                  </span>
+                }
+              } @else if (col.cell === 'nowrap') {
+                <span class="to-table-cell-nowrap">{{ cellValue(row, col.key) }}</span>
               } @else {
                 {{ cellValue(row, col.key) }}
               }
@@ -170,8 +244,17 @@
         </tr>
       }
     </tbody>
+    @if (footerRow(); as footer) {
+      <tfoot>
+        <tr class="to-table__row--footer">
+          @for (col of columns(); track col.key) {
+            <td>{{ cellValue(footer, col.key) }}</td>
+          }
+        </tr>
+      </tfoot>
+    }
   </table>
-  @if (showPagination()) {
+  @if (showPagination() || showPageSizeSelect()) {
     @if (paginationRange(); as r) {
         <div
           class="to-table-pagination"
@@ -182,6 +265,21 @@
             {{ r.from }}–{{ r.to }} de {{ r.total }}
           </span>
           <div class="to-table-pagination__controls">
+            @if (showPageSizeSelect()) {
+              <label class="to-table-pagination__size">
+                <span class="to-table-pagination__size-label">Filas</span>
+                <select
+                  class="to-table-pagination__size-select"
+                  [ngModel]="pageSize()"
+                  (ngModelChange)="onPageSizeModelChange($event)"
+                >
+                  @for (opt of pageSizeOptions()!; track opt) {
+                    <option [ngValue]="opt">{{ opt }}</option>
+                  }
+                </select>
+              </label>
+            }
+            @if (showPagination()) {
             <button
               type="button"
               class="to-table-pagination__btn"
@@ -201,8 +299,26 @@
             >
               Siguiente
             </button>
+            }
           </div>
         </div>
       }
+    } @else if (showPageSizeSelect()) {
+      <div class="to-table-pagination" role="navigation" aria-label="Paginación de la tabla">
+        <div class="to-table-pagination__controls">
+          <label class="to-table-pagination__size">
+            <span class="to-table-pagination__size-label">Filas</span>
+            <select
+              class="to-table-pagination__size-select"
+              [ngModel]="pageSize()"
+              (ngModelChange)="onPageSizeModelChange($event)"
+            >
+              @for (opt of pageSizeOptions()!; track opt) {
+                <option [ngValue]="opt">{{ opt }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
     }
 </div>

@@ -24,25 +24,17 @@
             <dt>Cliente</dt>
             <dd>{{ vm.trip().clientName || '—' }}</dd>
           }
-          <dt>CP de Origen</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().originPostalCode) }}</dd>
-          <dt>Ciudad / municipio origen</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().originCityMunicipality) }}</dd>
-          <dt>Localidad origen</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().originLocality) }}</dd>
+          @if (vm.originOperationalCenterDisplay()) {
+            <dt>Centro operativo</dt>
+            <dd>{{ vm.originOperationalCenterDisplay() }}</dd>
+          }
           <dt>Origen</dt>
-          <dd>{{ vm.trip().origin }}</dd>
-          <dt>CP Destino</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().destinationPostalCode) }}</dd>
-          <dt>Ciudad / municipio Destino</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().destinationCityMunicipality) }}</dd>
-          <dt>Localidad Destino</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().destinationLocality) }}</dd>
+          <dd>{{ vm.trip().origin || '—' }}</dd>
           <dt>Destino</dt>
-          <dd>{{ vm.trip().destination }}</dd>
+          <dd>{{ vm.trip().destination || '—' }}</dd>
           <dt>Distancia de ruta (ida)</dt>
           <dd>{{ vm.routeDistanceDisplay() }}</dd>
-          <dt>Distancia operativa (snapshot)</dt>
+          <dt>Distancia operativa</dt>
           <dd>{{ vm.operationalDistanceDisplay() }}</dd>
           <dt>Tipo de maniobra</dt>
           <dd>{{ vm.maneuverKindDisplay() }}</dd>
@@ -64,9 +56,9 @@
             <dt>Regreso / fin real</dt>
             <dd>{{ vm.fmt(vm.trip().returnAt) }}</dd>
           }
-          @if (vm.destinationRateIdDisplay()) {
+          @if (vm.destinationRateDisplay()) {
             <dt>Tarifa de destino</dt>
-            <dd>ID {{ vm.destinationRateIdDisplay() }}</dd>
+            <dd>{{ vm.destinationRateDisplay() }}</dd>
           }
         </dl>
       </section>
@@ -146,6 +138,7 @@
         </dl>
       </section>
 
+      @if (!vm.showsSettlementTab()) {
       <!-- Costos operativos -->
       <section
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
@@ -186,6 +179,8 @@
           </dd>
           <dt>Operador</dt>
           <dd>{{ vm.displayMoney(vm.trip().operatorQuota) }}</dd>
+          <dt>Viáticos</dt>
+          <dd>{{ vm.displayMoney(vm.trip().perDiemAmount) }}</dd>
         </dl>
       </section>
 
@@ -265,6 +260,7 @@
           }
         }
       </section>
+      }
 
       <!-- Documentos -->
       <section

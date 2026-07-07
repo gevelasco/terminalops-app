@@ -1,0 +1,68 @@
+@if (visibleSchedule().length > 0) {
+  <div class="fleet-insurance-schedule">
+    <p class="fleet-insurance-schedule__title">Calendario de pagos</p>
+    <div class="fleet-insurance-schedule__scroll">
+      <table class="fleet-insurance-schedule__table">
+        <thead>
+          <tr>
+            <th scope="col">Ciclo</th>
+            <th scope="col">Vencimiento</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Pagado</th>
+            <th scope="col" class="fleet-insurance-schedule__cell--center">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of visibleSchedule(); track row.dueDate) {
+            <tr
+              [class.fleet-insurance-schedule__row--paid]="row.status === 'paid'"
+              [class.fleet-insurance-schedule__row--due]="row.status === 'due'"
+              [class.fleet-insurance-schedule__row--overdue]="row.status === 'overdue'"
+            >
+              <td>{{ row.label }}</td>
+              <td>{{ formatDate()(row.dueDate) }}</td>
+              <td>
+                <span
+                  class="fleet-insurance-schedule__status"
+                  [class.fleet-insurance-schedule__status--paid]="row.status === 'paid'"
+                  [class.fleet-insurance-schedule__status--due]="row.status === 'due'"
+                  [class.fleet-insurance-schedule__status--overdue]="row.status === 'overdue'"
+                >
+                  {{ statusLabel(row.status) }}
+                </span>
+              </td>
+              <td>
+                @if (row.status === 'paid') {
+                  <span class="fleet-insurance-schedule__paid">
+                    {{ formatDate()(row.paidDate) }}
+                    @if (row.paidAmount != null) {
+                      <span class="fleet-insurance-schedule__paid-amount">
+                        · {{ formatAmount()(row.paidAmount) }}
+                      </span>
+                    }
+                  </span>
+                } @else {
+                  —
+                }
+              </td>
+              <td class="fleet-insurance-schedule__cell--center">
+                @if (row.canConfirm) {
+                  <button
+                    type="button"
+                    class="fleet-insurance-schedule__confirm"
+                    [disabled]="saving()"
+                    title="Confirmar pago"
+                    [attr.aria-label]="'Confirmar pago del ' + row.label"
+                    (click)="onConfirm(row.dueDate)"
+                  >
+                    <to-icon name="checkCircle" [size]="16" />
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

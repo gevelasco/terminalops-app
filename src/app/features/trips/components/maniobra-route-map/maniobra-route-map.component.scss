@@ -10,7 +10,7 @@
 
 .maniobra-route-map {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 1fr) clamp(16rem, 28vw, 26rem);
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 0.65rem;
   width: 100%;
@@ -132,6 +132,12 @@
   gap: 0.55rem;
   padding: 0;
   align-content: start;
+  justify-items: stretch;
+
+  app-fleet-overview-card {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .maniobra-route-map__canvas {

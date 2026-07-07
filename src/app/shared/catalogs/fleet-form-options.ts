@@ -1,5 +1,11 @@
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
+/** Soft delete lógico: recurso visible y asignable en operación. */
+export const FLEET_RESOURCE_VISIBILITY_OPTIONS: ToSelectOption[] = [
+  { value: 'active', label: 'Activo' },
+  { value: 'inactive', label: 'Inactivo' },
+];
+
 /** Estado operativo de unidad o equipo (alta / edición en Flota). */
 export const FLEET_UNIT_STATUS_OPTIONS: ToSelectOption[] = [
   { value: 'available', label: 'Disponible' },
@@ -18,7 +24,6 @@ export const FLEET_TRAILER_TENURE_OPTIONS: ToSelectOption[] = [
 
 /** Cadencia de pago (seguro, GPS, rentas). */
 export const FLEET_PAYMENT_CADENCE_OPTIONS: ToSelectOption[] = [
-  { value: 'weekly', label: 'Semanal' },
   { value: 'monthly', label: 'Mensual' },
   { value: 'quarterly', label: 'Trimestral' },
   { value: 'annual', label: 'Anual' },
@@ -33,12 +38,6 @@ export const FLEET_MAINTENANCE_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'accesorios', label: 'Accesorios' },
   { value: 'cambio_llantas', label: 'Cambio de llantas' },
   { value: 'otro', label: 'Otro' },
-];
-
-/** Estado de una línea de mantenimiento al dar de alta. */
-export const FLEET_MAINTENANCE_ENTRY_STATUS_OPTIONS: ToSelectOption[] = [
-  { value: 'concluido', label: 'Concluido' },
-  { value: 'programado', label: 'Programado' },
 ];
 
 /** Cómo programar el siguiente mantenimiento al registrar uno nuevo. */
@@ -57,6 +56,17 @@ export const FLEET_TIRE_CONDITION_OPTIONS: ToSelectOption[] = [
   { value: 'fair', label: 'Regular (2–4 mm, planear cambio)' },
   { value: 'low', label: 'Baja (cerca del mínimo legal)' },
   { value: 'critical', label: 'Crítica (fuera de servicio / cambio inmediato)' },
+];
+
+/**
+ * Modalidad de autotransporte federal de carga (México, RDAFYSA arts. 39–41).
+ * Carga general vs. subtipos de carga especializada.
+ */
+export const FLEET_SERVICE_MODALITY_OPTIONS: ToSelectOption[] = [
+  { value: 'carga_general', label: 'Carga general' },
+  { value: 'materiales_peligrosos', label: 'Materiales y residuos peligrosos' },
+  { value: 'voluminosos_gran_peso', label: 'Objetos voluminosos o de gran peso' },
+  { value: 'fondos_valores', label: 'Fondos y valores' },
 ];
 
 /** Tipo de transmisión (unidad tractora). */
@@ -111,11 +121,16 @@ export const EQUIPMENT_OPERATION_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'otro', label: 'Otro' },
 ];
 
-/** Configuración de vanos / contenedor (ISO o fijo). */
+/** Configuración de vanos ISO, chasis o longitud en pies según tipo de equipo. */
 export const EQUIPMENT_CONTAINER_SLOT_OPTIONS: ToSelectOption[] = [
   { value: 'na', label: 'No aplica' },
-  { value: 'fixed', label: 'Chasis fijo / cerrado' },
+  { value: 'fixed', label: 'Chasis fijo' },
   { value: 'iso_40', label: "40′ (un contenedor)" },
   { value: 'iso_20', label: "20′ (un contenedor)" },
   { value: 'iso_20_20', label: "20′ + 20′ (dos contenedores)" },
+  { value: 'ft_53', label: '53 pies' },
+  { value: 'ft_48', label: '48 pies' },
+  { value: 'ft_46', label: '46 pies' },
+  { value: 'ft_42', label: '42 pies' },
+  { value: 'ft_40', label: '40 pies' },
 ];

@@ -1,4 +1,4 @@
-export type UserRole = 'superadmin' | 'admin' | 'coordinator' | 'operator' | 'viewer';
+export type UserRole = 'superadmin' | 'admin' | 'staff';
 
 export type ThemeScheme = 'light' | 'dark';
 
@@ -13,6 +13,8 @@ export interface AuthUser {
   jobTitle?: string;
   photoDataUrl?: string;
   role: UserRole;
+  allowedModules?: string[];
+  moduleGrants?: import('@shared/models/app-modules.models').StaffModuleGrant[];
   companyId: string;
   companyName?: string;
   theme: ThemeScheme;
@@ -22,6 +24,9 @@ export interface AuthUser {
   employeeId?: string;
   operationalAnalysisEnabled?: boolean;
   operationalAnalysisChangedAt?: string;
+  tripAssistPrefillEnabled?: boolean;
+  tripAssistPrefillChangedAt?: string;
+  tripAutoMaintenanceProvisionPercent?: number;
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   controlAutomaticRecognition?: boolean;
@@ -77,6 +82,8 @@ export interface SessionData {
   token: string;
   refreshToken: string;
   role: string;
+  allowedModules: string[];
+  moduleGrants: import('@shared/models/app-modules.models').StaffModuleGrant[];
   companyId: string;
   companyName?: string;
   theme: ThemeScheme;
@@ -93,6 +100,9 @@ export interface SessionData {
   employeeId?: string;
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
+  tripAssistPrefillEnabled: boolean;
+  tripAssistPrefillChangedAt?: string;
+  tripAutoMaintenanceProvisionPercent: number;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   controlAutomaticRecognition: boolean;

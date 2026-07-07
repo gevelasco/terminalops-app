@@ -30,18 +30,11 @@ export function resolveMaintenanceContext(
   meta: FleetMaintenanceMeta,
   policy: CompanyMaintenancePolicy,
 ) {
-  const unitKm =
-    typeof meta?.maintenanceKmInterval === 'number' &&
-    Number.isFinite(meta.maintenanceKmInterval) &&
-    meta.maintenanceKmInterval > 0
-      ? meta.maintenanceKmInterval
-      : null;
-
   const kmControlActive = policy.kmControlEnabled;
-  const kmInterval = unitKm ?? (kmControlActive ? policy.kmIntervalDefault : null);
-  const alertByKm = kmControlActive ? true : meta?.maintenanceAlertByKm === true;
+  const kmInterval = kmControlActive ? policy.kmIntervalDefault : null;
+  const alertByKm = kmControlActive;
 
-  const dateControlActive = policy.dateControlEnabled;
+  const dateControlActive = policy.dateControlEnabled && !kmControlActive;
   const scheduleMonths = dateControlActive
     ? maintenanceDatePeriodToMonths(policy.datePeriod ?? 'semiannual')
     : DEFAULT_MANUAL_SCHEDULE_MONTHS;

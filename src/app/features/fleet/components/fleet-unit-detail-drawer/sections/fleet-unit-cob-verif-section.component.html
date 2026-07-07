@@ -6,7 +6,7 @@
             <h3 id="fleet-udv-ver" class="fleet-unit-sec__title">
               Verificaciones
             </h3>
-            @if (!vm.isEditing("verif")) {
+            @if (vm.showSectionEdit("verif")) {
               <button
                 type="button"
                 class="fleet-unit-sec__edit-btn"

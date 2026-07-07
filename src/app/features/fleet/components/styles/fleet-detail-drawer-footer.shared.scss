@@ -1,0 +1,168 @@
+/* Misma base que maniobra-detail (footer + botón eliminar). */
+.maniobra-drawer__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.maniobra-drawer__footer[toSideDrawerFooter] {
+  justify-content: space-between;
+}
+
+.maniobra-detail__footer {
+  gap: 0.75rem;
+}
+
+.maniobra-detail__footer-start {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.maniobra-detail__delete-maniobra-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.46rem 0.85rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-danger, #c62828) 52%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--to-color-danger, #c62828) 92%, var(--to-color-text));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-danger, #c62828) 12%, transparent);
+    border-color: color-mix(in srgb, var(--to-color-danger, #c62828) 72%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.maniobra-detail__maintenance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.46rem 0.85rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 45%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--to-color-primary) 92%, var(--to-color-text));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-primary) 10%, transparent);
+    border-color: color-mix(in srgb, var(--to-color-primary) 65%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.fleet-detail-drawer__delete-wrap {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.fleet-detail-drawer__delete-wrap--hint {
+  cursor: not-allowed;
+  position: relative;
+}
+
+.fleet-detail-drawer__delete-wrap--hint::after,
+.fleet-detail-drawer__delete-wrap--hint::before {
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+
+.fleet-detail-drawer__delete-wrap--hint::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: 0;
+  z-index: 12;
+  width: max-content;
+  max-width: min(22rem, 80vw);
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  color: var(--to-color-text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.fleet-detail-drawer__delete-wrap--hint::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 1px);
+  left: 1rem;
+  width: 10px;
+  height: 10px;
+  z-index: 13;
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border-left: 1px solid var(--to-color-border);
+  border-top: 1px solid var(--to-color-border);
+  transform: rotate(45deg);
+}
+
+.fleet-detail-drawer__delete-wrap--hint:hover::after,
+.fleet-detail-drawer__delete-wrap--hint:hover::before,
+.fleet-detail-drawer__delete-wrap--hint:focus-within::after,
+.fleet-detail-drawer__delete-wrap--hint:focus-within::before {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.maniobra-detail__delete-copy {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--to-color-text-muted);
+}
+
+:host ::ng-deep .maniobra-detail__footer to-button .to-button {
+  padding: 0.46rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}

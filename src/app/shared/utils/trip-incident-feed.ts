@@ -5,6 +5,7 @@ import type {
   Trip,
   TripIncident,
 } from '@shared/models/logistics.models';
+import { isTripBitacoraIncident } from '@features/trips/utils/trip-bitacora';
 
 export interface TripIncidentFeedItem {
   incidentId: string;
@@ -100,7 +101,7 @@ export function buildTripIncidentFeed(
 
   for (const trip of trips) {
     for (const inc of trip.incidents ?? []) {
-      if (!inc.description?.trim()) {
+      if (!inc.description?.trim() || !isTripBitacoraIncident(inc)) {
         continue;
       }
       items.push({

@@ -3,9 +3,7 @@
   wide
   headerClass="fleet-unit-detail__header"
   bodyClass="fleet-unit-body fleet-unit-detail"
-  [loading]="drawerLoading()"
-  skeletonVariant="detail"
-  (dismiss)="dismiss.emit()"
+  (dismiss)="vm.requestDismiss()"
 >
   <div toSideDrawerHeader class="fleet-unit-detail__header-text">
     <h2
@@ -24,10 +22,14 @@
           d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
         />
       </svg>
-      {{ expense().category }}
+      {{ vm.expense()?.category }}
     </h2>
     <p class="fleet-unit-sec__docs-hint">
-      Gasto {{ expense().id }}
+      @if (vm.isProjectedExpense()) {
+        {{ vm.projectedStatusHint() }}
+      } @else {
+        Gasto {{ vm.expense()?.id }}
+      }
     </p>
   </div>
 
@@ -35,82 +37,327 @@
     class="fleet-unit-sec fleet-unit-sec--boxed"
     aria-labelledby="exp-dv-class"
   >
-    <h3 id="exp-dv-class" class="fleet-unit-sec__title">Clasificación</h3>
-    <dl class="fleet-unit-detail__dl">
-      <div class="fleet-unit-detail__row">
-        <dt>Rubro</dt>
-        <dd>{{ kindLabel() }}</dd>
+    <div class="fleet-unit-sec__header">
+      <h3 id="exp-dv-class" class="fleet-unit-sec__title">Clasificación</h3>
+      @if (vm.canWriteExpense() && vm.editingSection() !== "classification") {
+        <button
+          type="button"
+          class="fleet-unit-sec__edit-btn"
+          aria-label="Editar clasificación"
+          [disabled]="vm.saving()"
+          (click)="vm.startEditSection('classification')"
+        >
+          <to-icon name="edit" [size]="14" />
+        </button>
+      }
+    </div>
+    @if (vm.editingSection() !== "classification") {
+      <dl class="fleet-unit-detail__dl">
+        <div class="fleet-unit-detail__row">
+          <dt>Rubro</dt>
+          <dd>{{ vm.rubroLabel() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Concepto</dt>
+          <dd>{{ vm.expense()?.category }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Descripción</dt>
+          <dd>{{ vm.expense()?.description?.trim() || "—" }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <div class="fleet-unit-sec__edit-form">
+        <div class="fleet-unit-sec__edit-grid">
+          <to-select
+            label="Rubro *"
+            [options]="vm.rubroOptions"
+            [value]="vm.rubro()"
+            (valueChange)="vm.setRubro($event)"
+          />
+          @if (vm.isCustomConcept()) {
+            <to-input
+              label="Concepto *"
+              placeholder="Ej. Herramienta, Limpieza"
+              [value]="vm.category()"
+              (valueChange)="vm.category.set($event)"
+            />
+          } @else {
+            <to-select
+              label="Concepto *"
+              [options]="vm.conceptOptions()"
+              [value]="vm.conceptId()"
+              (valueChange)="vm.setConcept($event)"
+            />
+          }
+        </div>
+        <to-textarea
+          label="Descripción"
+          placeholder="Detalle opcional"
+          [rows]="3"
+          [value]="vm.description()"
+          (valueChange)="vm.description.set($event)"
+        />
+        <div class="fleet-unit-sec__edit-actions">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.cancelSectionEdit()"
+          >
+            Cancelar
+          </to-button>
+          <to-button
+            type="button"
+            variant="primary"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.saveClassification()"
+          >
+            <to-icon name="save" [size]="14" />
+            {{ vm.saving() ? "Guardando…" : "Guardar" }}
+          </to-button>
+        </div>
       </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Concepto</dt>
-        <dd>{{ expense().category }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Descripción</dt>
-        <dd>{{ expense().description?.trim() || "—" }}</dd>
-      </div>
-    </dl>
+    }
   </section>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
     aria-labelledby="exp-dv-rel"
   >
-    <h3 id="exp-dv-rel" class="fleet-unit-sec__title">Relación operativa</h3>
-    <dl class="fleet-unit-detail__dl">
-      <div class="fleet-unit-detail__row">
-        <dt>Maniobra</dt>
-        <dd>
-          @if (maneuverCode() !== "—") {
-            <span class="to-op-code-badge">{{ maneuverCode() }}</span>
-          } @else {
-            —
-          }
-        </dd>
+    <div class="fleet-unit-sec__header">
+      <h3 id="exp-dv-rel" class="fleet-unit-sec__title">Relación operativa</h3>
+      @if (vm.canWriteExpense() && vm.editingSection() !== "relation") {
+        <button
+          type="button"
+          class="fleet-unit-sec__edit-btn"
+          aria-label="Editar relación operativa"
+          [disabled]="vm.saving()"
+          (click)="vm.startEditSection('relation')"
+        >
+          <to-icon name="edit" [size]="14" />
+        </button>
+      }
+    </div>
+    @if (vm.editingSection() !== "relation") {
+      <app-expense-operational-relation-fields
+        mode="read"
+        [rubro]="vm.rubro()"
+        [kind]="vm.kind()"
+        [expense]="vm.expense()"
+        [tripManeuverByTripId]="tripManeuverByTripId()"
+      />
+    } @else {
+      <div class="fleet-unit-sec__edit-form">
+        <app-expense-operational-relation-fields
+          mode="edit"
+          [rubro]="vm.rubro()"
+          [kind]="vm.kind()"
+          [expense]="vm.expense()"
+          [relationTab]="vm.relationTab()"
+          (relationTabChange)="vm.relationTab.set($event)"
+          [tripId]="vm.tripId()"
+          (tripIdChange)="vm.tripId.set($event)"
+          [relatedUnitId]="vm.relatedUnitId()"
+          (relatedUnitIdChange)="vm.relatedUnitId.set($event)"
+          [relatedEquipmentId]="vm.relatedEquipmentId()"
+          (relatedEquipmentIdChange)="vm.relatedEquipmentId.set($event)"
+          [relatedOperatorId]="vm.relatedOperatorId()"
+          (relatedOperatorIdChange)="vm.relatedOperatorId.set($event)"
+          [verificationScope]="vm.verificationScope()"
+          (verificationScopeChange)="vm.setVerificationScope($event)"
+        />
+        <div class="fleet-unit-sec__edit-actions">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.cancelSectionEdit()"
+          >
+            Cancelar
+          </to-button>
+          <to-button
+            type="button"
+            variant="primary"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.saveRelation()"
+          >
+            <to-icon name="save" [size]="14" />
+            {{ vm.saving() ? "Guardando…" : "Guardar" }}
+          </to-button>
+        </div>
       </div>
-      @if (showFleetRelation()) {
-        <div class="fleet-unit-detail__row">
-          <dt>Flota / operador</dt>
-          <dd>
-            <span class="to-op-code-badge">{{ fleetRelationDetail() }}</span>
-          </dd>
-        </div>
-      }
-      @if (expense().kind === "verification") {
-        <div class="fleet-unit-detail__row">
-          <dt>Tipo de verificación</dt>
-          <dd>{{ verificationTypeLabel() }}</dd>
-        </div>
-      }
-    </dl>
+    }
   </section>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed"
     aria-labelledby="exp-dv-money"
   >
-    <h3 id="exp-dv-money" class="fleet-unit-sec__title">Importe y pago</h3>
-    <dl class="fleet-unit-detail__dl">
-      <div class="fleet-unit-detail__row">
-        <dt>Monto</dt>
-        <dd>{{ amountFormatted() }}</dd>
+    <div class="fleet-unit-sec__header">
+      <h3 id="exp-dv-money" class="fleet-unit-sec__title">Importe y pago</h3>
+      @if (vm.canWriteExpense() && vm.editingSection() !== "payment") {
+        <button
+          type="button"
+          class="fleet-unit-sec__edit-btn"
+          aria-label="Editar importe y pago"
+          [disabled]="vm.saving()"
+          (click)="vm.startEditSection('payment')"
+        >
+          <to-icon name="edit" [size]="14" />
+        </button>
+      }
+    </div>
+    @if (vm.editingSection() !== "payment") {
+      <dl class="fleet-unit-detail__dl">
+        <div class="fleet-unit-detail__row">
+          <dt>Monto</dt>
+          <dd>{{ vm.amountFormatted() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Fecha</dt>
+          <dd>{{ vm.dateFormatted() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Forma de pago</dt>
+          <dd>{{ vm.paymentLabel() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Proveedor / beneficiario</dt>
+          <dd>{{ vm.expense()?.vendor?.trim() || "—" }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Factura fiscal requerida</dt>
+          <dd>{{ vm.invoiceRequiredLabel() }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <div class="fleet-unit-sec__edit-form">
+        <div class="fleet-unit-sec__edit-grid">
+          <to-input
+            label="Monto *"
+            type="text"
+            [groupThousands]="true"
+            placeholder="Ej. 3,500"
+            [value]="vm.amountStr()"
+            (valueChange)="vm.amountStr.set($event)"
+          />
+          <to-select
+            label="Moneda *"
+            [options]="vm.currencyOptions"
+            [value]="vm.currency()"
+            (valueChange)="vm.currency.set($event)"
+          />
+        </div>
+        <div class="fleet-unit-sec__edit-grid">
+          <to-input
+            label="Fecha *"
+            type="date"
+            [value]="vm.incurredAt()"
+            (valueChange)="vm.incurredAt.set($event)"
+          />
+          <to-select
+            label="Forma de pago"
+            [options]="vm.paymentMethodOptions"
+            [value]="vm.paymentMethod()"
+            (valueChange)="vm.paymentMethod.set($event)"
+          />
+        </div>
+        <to-input
+          label="Proveedor / beneficiario"
+          placeholder="Taller, aseguradora, plataforma…"
+          [value]="vm.vendor()"
+          (valueChange)="vm.vendor.set($event)"
+        />
+        <label class="expenses-detail__invoice-check">
+          <input
+            type="checkbox"
+            name="invoiceRequiredDetail"
+            [ngModel]="vm.invoiceRequired()"
+            (ngModelChange)="vm.invoiceRequired.set($event)"
+          />
+          <span>Factura fiscal requerida</span>
+        </label>
+        <div class="fleet-unit-sec__edit-actions">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.cancelSectionEdit()"
+          >
+            Cancelar
+          </to-button>
+          <to-button
+            type="button"
+            variant="primary"
+            size="sm"
+            [disabled]="vm.saving()"
+            (click)="vm.savePayment()"
+          >
+            <to-icon name="save" [size]="14" />
+            {{ vm.saving() ? "Guardando…" : "Guardar" }}
+          </to-button>
+        </div>
       </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Fecha</dt>
-        <dd>{{ dateFormatted() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Forma de pago</dt>
-        <dd>{{ paymentLabel() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Proveedor / beneficiario</dt>
-        <dd>{{ expense().vendor?.trim() || "—" }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Factura fiscal requerida</dt>
-        <dd>{{ invoiceRequiredLabel() }}</dd>
-      </div>
-    </dl>
+    }
   </section>
+
+  <div
+    class="maniobra-detail__footer maniobra-drawer__footer"
+    toSideDrawerFooter
+  >
+    <div class="maniobra-detail__footer-start">
+      @if (vm.canDeleteExpense()) {
+        <button
+          type="button"
+          class="maniobra-detail__delete-maniobra-btn"
+          [disabled]="vm.deleteSubmitting() || vm.saving()"
+          (click)="vm.openDeleteConfirm()"
+        >
+          <to-icon name="delete" [size]="16" />
+          Eliminar gasto
+        </button>
+      }
+    </div>
+    <to-button type="button" variant="outline" (click)="vm.requestDismiss()">
+      Cerrar
+    </to-button>
+  </div>
 </to-side-drawer>
+
+<to-confirm-dialog
+  titleId="expenses-detail-delete-title"
+  icon="warning"
+  title="Eliminar gasto"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar gasto"
+  confirmVariant="primary"
+  [open]="vm.deleteConfirmOpen()"
+  [confirmLoading]="vm.deleteSubmitting()"
+  [confirmDisabled]="vm.deleteSubmitting()"
+  (cancel)="vm.closeDeleteConfirm()"
+  (confirm)="vm.confirmDeleteExpense()"
+>
+  <p class="maniobra-detail__delete-copy">
+    Estás a punto de eliminar el gasto
+    <strong>{{ vm.expense()?.category }}</strong>
+    ({{ vm.amountFormatted() }}).
+  </p>
+  <p class="maniobra-detail__delete-copy">
+    @if (vm.expense()?.kind === 'insurance') {
+      Dejará de mostrarse en el listado y en los totales de reportes del periodo.
+      En Flota, la fecha del último pago se recalcula con los cobros de póliza que
+      sigan activos: si eliminas el pago más reciente, la póliza puede mostrarse
+      vencida; si eliminas un pago anterior, el estatus de cobertura suele
+      mantenerse igual. El registro queda archivado en el sistema.
+    } @else {
+      Dejará de mostrarse en el listado y en los totales de reportes del periodo.
+      No afecta maniobras en curso. El registro queda archivado en el sistema.
+    }
+  </p>
+</to-confirm-dialog>

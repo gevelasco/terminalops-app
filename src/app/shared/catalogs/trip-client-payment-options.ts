@@ -11,7 +11,7 @@ export const TRIP_CLIENT_PAYMENT_METHOD_OPTIONS: ToSelectOption[] = [
 
 /** Opciones del select «Método de pago» en nueva maniobra. */
 export const TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS: ToSelectOption[] =
-  TRIP_CLIENT_PAYMENT_METHOD_OPTIONS.slice(0, 3);
+  TRIP_CLIENT_PAYMENT_METHOD_OPTIONS;
 
 export function tripManeuverPaymentMethodLabel(value: string | undefined): string {
   const key = (value ?? '').trim();

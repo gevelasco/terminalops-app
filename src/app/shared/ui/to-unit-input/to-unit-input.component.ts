@@ -13,15 +13,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { EquipmentService } from '@services/api/equipment';
+import { catchError, of } from 'rxjs';
 import { UnitsService } from '@services/api/units';
 import {
   buildManeuverAssignableUnitRows,
   type ManeuverAssignableUnitRow,
 } from '@features/trips/utils/assignable-fleet-for-maneuver';
-import { Equipment, Trip, TripOperationType, Unit } from '@shared/models/logistics.models';
+import { Trip, TripOperationType, Unit } from '@shared/models/logistics.models';
 import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 
 let seq = 0;
@@ -40,7 +38,6 @@ export type UnitPickedEvent = {
 })
 export class ToUnitInputComponent {
   private readonly unitsApi = inject(UnitsService);
-  private readonly equipmentApi = inject(EquipmentService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hostEl = inject(ElementRef);
   private readonly fieldInput = viewChild<ElementRef<HTMLInputElement>>('fieldInput');
@@ -50,7 +47,6 @@ export class ToUnitInputComponent {
 
   readonly prefetchMode = input(false);
   readonly unitsData = input<readonly Unit[]>([]);
-  readonly equipmentData = input<readonly Equipment[]>([]);
   readonly tripsData = input<readonly Trip[]>([]);
 
   readonly unitId = model('');
@@ -88,11 +84,7 @@ export class ToUnitInputComponent {
     effect(() => {
       if (this.prefetchMode()) {
         this.rows.set(
-          buildManeuverAssignableUnitRows(
-            this.unitsData(),
-            this.equipmentData(),
-            this.tripsData(),
-          ),
+          buildManeuverAssignableUnitRows(this.unitsData(), this.tripsData()),
         );
         this.syncInputFromUnitId();
         this.loading.set(false);
@@ -102,14 +94,12 @@ export class ToUnitInputComponent {
         return;
       }
       this.fetchedFromApi = true;
-      forkJoin({
-        units: this.unitsApi.getUnitsList().pipe(catchError(() => of([]))),
-        equipment: this.equipmentApi.getEquipmentList().pipe(catchError(() => of([]))),
-      })
-        .pipe(takeUntilDestroyed(this.destroyRef))
+      this.unitsApi
+        .getUnitsList({ available: true })
+        .pipe(catchError(() => of([])), takeUntilDestroyed(this.destroyRef))
         .subscribe({
-          next: ({ units, equipment }) => {
-            this.rows.set(buildManeuverAssignableUnitRows(units, equipment, []));
+          next: (units) => {
+            this.rows.set(buildManeuverAssignableUnitRows(units, []));
             this.syncInputFromUnitId();
             this.loading.set(false);
           },

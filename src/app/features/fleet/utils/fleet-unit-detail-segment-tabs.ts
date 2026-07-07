@@ -1,11 +1,12 @@
+import type { FleetDetailDrawerTab } from '@features/fleet/components/fleet-detail-drawer.types';
 import type { ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from './fleet-unit-detail-tab-symbols';
 
-export type FleetUnitDetailSegmentTabId = 'ficha' | 'mant' | 'cob';
+export type FleetUnitDetailSegmentTabId = FleetDetailDrawerTab;
 
 export function fleetUnitDetailSegmentTabs(
   htmlIdPrefix: 'fleet-udv' | 'fleet-eqd',
-): readonly ToSegmentTab<FleetUnitDetailSegmentTabId>[] {
+): readonly ToSegmentTab<FleetDetailDrawerTab>[] {
   return [
     {
       id: 'ficha',

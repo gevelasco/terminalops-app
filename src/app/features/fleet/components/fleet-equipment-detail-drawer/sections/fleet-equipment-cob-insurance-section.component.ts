@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { FleetInsurancePaymentScheduleComponent } from '@features/fleet/components/fleet-insurance-payment-schedule/fleet-insurance-payment-schedule.component';
 import { FleetEquipmentDetailDrawerFacade } from '../fleet-equipment-detail-drawer.facade';
 import {
   FLEET_EQUIPMENT_COB_SECTION_IMPORTS,
@@ -7,7 +8,7 @@ import {
 
 @Component({
   selector: 'app-fleet-equipment-cob-insurance-section',
-  imports: [...FLEET_EQUIPMENT_COB_SECTION_IMPORTS],
+  imports: [...FLEET_EQUIPMENT_COB_SECTION_IMPORTS, FleetInsurancePaymentScheduleComponent],
   templateUrl: './fleet-equipment-cob-insurance-section.component.html',
   styleUrls: [...FLEET_EQUIPMENT_COB_SECTION_STYLE_URLS],
   changeDetection: ChangeDetectionStrategy.OnPush,

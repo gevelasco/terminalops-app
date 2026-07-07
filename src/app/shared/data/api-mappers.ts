@@ -1,5 +1,5 @@
 import type { Client } from '@shared/models/client.models';
-import type { Operator } from '@shared/models/logistics.models';
+import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
 import { defaultClientPayment } from '@shared/utils/client-defaults';
 import {
   EMPTY_EMERGENCY,
@@ -37,7 +37,9 @@ function mapFleetMetaTenureMode<T extends { trailerTenureMode?: string }>(
 export function mapApiClient(row: Record<string, unknown>): Client {
   const billing = row['billing'] as Record<string, unknown> | undefined;
   const delivery = row['delivery'] as Record<string, unknown> | undefined;
-  const paymentTerms = row['paymentTerms'] as Record<string, unknown> | undefined;
+  const paymentTerms = (row['paymentTerms'] ?? row['payment']) as
+    | Record<string, unknown>
+    | undefined;
   const contacts = (row['contacts'] as Record<string, unknown>[] | undefined) ?? [];
 
   return {
@@ -106,6 +108,27 @@ export function mapApiClient(row: Record<string, unknown>): Client {
   };
 }
 
+const OPERATOR_OPERATIONAL_STATUSES: readonly OperatorOperationalStatus[] = [
+  'available',
+  'in_use',
+  'scheduled',
+  'maintenance',
+  'incapacitated',
+  'leave',
+  'inactive',
+];
+
+function normalizeOperatorOperationalStatus(raw: unknown): OperatorOperationalStatus {
+  const s = String(raw ?? '').trim().toLowerCase();
+  if (s === 'on_route') {
+    return 'in_use';
+  }
+  if (OPERATOR_OPERATIONAL_STATUSES.includes(s as OperatorOperationalStatus)) {
+    return s as OperatorOperationalStatus;
+  }
+  return 'available';
+}
+
 export function mapApiOperator(row: Record<string, unknown>): Operator {
   const ec = row['emergencyContact'] as Record<string, unknown> | undefined;
   const pub = row['publicInsurance'] as Record<string, unknown> | undefined;
@@ -129,7 +152,14 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
     address: (row['address'] as string) ?? '',
     companyHireDate: (row['companyHireDate'] as string) ?? '',
     employmentContractType: (row['employmentContractType'] as string) ?? '',
-    status: (row['status'] as Operator['status']) ?? 'available',
+    paymentSchedule:
+      (row['paymentSchedule'] as Operator['paymentSchedule']) ?? 'maneuver',
+    paymentMethod:
+      typeof row['paymentMethod'] === 'string'
+        ? row['paymentMethod']
+        : undefined,
+    status: normalizeOperatorOperationalStatus(row['status']),
+    isActive: row['isActive'] !== false,
     insuranceKind: (row['insuranceKind'] as Operator['insuranceKind']) ?? 'none',
     emergencyContact: {
       ...EMPTY_EMERGENCY,
@@ -172,23 +202,88 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
       slot: d['slot'] as 'operation' | 'insurance',
       addedAt: String(d['addedAt']),
     })),
+    maneuverCount:
+      typeof row['maneuverCount'] === 'number' && Number.isFinite(row['maneuverCount'])
+        ? row['maneuverCount']
+        : undefined,
+    lastManeuver: mapApiOperatorLastManeuver(row['lastManeuver']),
+    nextPayDueOn: parseOptionalIsoDate(row['nextPayDueOn']),
+    nextPayDueVariant: parseOperatorPayDueVariant(row['nextPayDueVariant']),
+    owedAmount:
+      typeof row['owedAmount'] === 'number' && Number.isFinite(row['owedAmount'])
+        ? row['owedAmount']
+        : undefined,
   };
+}
+
+function mapApiOperatorLastManeuver(
+  value: unknown,
+): Operator['lastManeuver'] {
+  if (value == null || typeof value !== 'object') {
+    return undefined;
+  }
+  const row = value as Record<string, unknown>;
+  const code = String(row['maneuverCode'] ?? '').trim();
+  if (!code) {
+    return undefined;
+  }
+  return {
+    tripId: row['tripId'] != null ? resourceIdKey(row['tripId']) : undefined,
+    maneuverCode: code,
+    origin: row['origin'] != null ? String(row['origin']) : undefined,
+    destination:
+      row['destination'] != null ? String(row['destination']) : undefined,
+    status: row['status'] as Operator['lastManeuver'] extends { status?: infer S }
+      ? S
+      : never,
+    occurredOn: parseOptionalIsoDate(row['occurredOn']),
+  };
+}
+
+function parseOptionalIsoDate(value: unknown): string | undefined {
+  const t = value != null ? String(value).trim() : '';
+  return t || undefined;
+}
+
+function parseOperatorPayDueVariant(
+  value: unknown,
+): Operator['nextPayDueVariant'] {
+  if (value === 'success' || value === 'warning' || value === 'danger') {
+    return value;
+  }
+  return undefined;
 }
 
 export function mapApiUnit(row: Record<string, unknown>): Unit {
   const fleetMetaRaw = (row['fleetMeta'] ?? row['fleetProfile']) as UnitFleetMeta | undefined;
   const fleetMeta = mapFleetMetaTenureMode(fleetMetaRaw ? { ...fleetMetaRaw } : undefined);
   const capacity = row['capacityKg'];
+  const unitId = resourceIdKey(row['id']);
+  const rawHitched = row['equipment'];
+  const hitchedEquipment = Array.isArray(rawHitched)
+    ? rawHitched.map((item) => {
+        const ref = item as Record<string, unknown>;
+        return mapApiEquipment({
+          ...ref,
+          unitId: ref['unitId'] ?? unitId,
+        });
+      })
+    : undefined;
   return {
-    id: resourceIdKey(row['id']),
+    id: unitId,
     plate: String(row['plate'] ?? ''),
     capacityKg: typeof capacity === 'number' ? capacity : Number(capacity) || 0,
     status: String(row['status'] ?? ''),
+    isActive: row['isActive'] !== false,
     serialNumber: row['serialNumber'] as string | undefined,
+    motorNumber: row['motorNumber'] as string | undefined,
+    capacityTons:
+      row['capacityTons'] != null ? Number(row['capacityTons']) : undefined,
     name: row['name'] as string | undefined,
     trailerBrandAbbr: row['trailerBrandAbbr'] as string | undefined,
     trailerYear: row['trailerYear'] as string | undefined,
     fleetMeta,
+    hitchedEquipment,
   };
 }
 
@@ -207,6 +302,7 @@ export function mapApiEquipment(row: Record<string, unknown>): Equipment {
     plate: row['plate'] as string | undefined,
     type: row['type'] as string | undefined,
     status: row['status'] as string | undefined,
+    isActive: row['isActive'] !== false,
     trailerBrandAbbr: row['trailerBrandAbbr'] as string | undefined,
     trailerYear: row['trailerYear'] as string | undefined,
     fleetMeta,
@@ -220,6 +316,7 @@ function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
     occurredAt: String(row['occurredAt'] ?? ''),
     postedBy: String(row['postedBy'] ?? ''),
     postedByLabel: row['postedByLabel'] as string | undefined,
+    isIncident: row['isIncident'] === true,
     severity: row['severity'] as TripIncident['severity'],
   };
 }
@@ -228,6 +325,9 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
   const trip = row as unknown as Trip;
   const rawEquipmentIds = row['equipmentIds'];
   const rawIncidents = row['incidents'];
+  const incidents = Array.isArray(rawIncidents)
+    ? rawIncidents.map((inc) => mapApiTripIncident(inc as Record<string, unknown>))
+    : trip.incidents;
   return {
     ...trip,
     id: resourceIdKey(trip.id),
@@ -264,11 +364,26 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
       row['destinationRateId'] != null
         ? resourceIdKey(row['destinationRateId'] as string | number)
         : (trip.destinationRateId ?? null),
+    originOperationalCenterId:
+      row['originOperationalCenterId'] != null
+        ? resourceIdKey(row['originOperationalCenterId'] as string | number)
+        : (trip.originOperationalCenterId ?? null),
+    originOperationalCenterNameSnapshot:
+      String(
+        row['originOperationalCenterNameSnapshot'] ??
+          row['originOperationalCenterName'] ??
+          '',
+      ).trim() || undefined,
+    originOperationalCenterCodeSnapshot:
+      String(
+        row['originOperationalCenterCodeSnapshot'] ??
+          row['originOperationalCenterCode'] ??
+          '',
+      ).trim() || undefined,
     equipmentIds: Array.isArray(rawEquipmentIds)
       ? rawEquipmentIds.map((id) => resourceIdKey(id as string | number))
       : trip.equipmentIds,
-    incidents: Array.isArray(rawIncidents)
-      ? rawIncidents.map((inc) => mapApiTripIncident(inc as Record<string, unknown>))
-      : trip.incidents,
+    incidents,
+    hasIncident: (incidents ?? []).some((inc) => inc.isIncident === true),
   };
 }

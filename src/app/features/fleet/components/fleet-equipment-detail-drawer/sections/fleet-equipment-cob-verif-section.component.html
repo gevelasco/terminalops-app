@@ -12,6 +12,74 @@
           unidades tractoras). La físico-mecánica puede estar exenta 2 años si el equipo es de
           agencia o si el modelo es del año en curso.
         </p>
+        <div
+          class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--verif"
+          style="margin-bottom: 16px"
+        >
+          <p class="fleet-unit-detail__badge-label fleet-unit-detail__badge-label--sentence">
+            Exención por agencia
+          </p>
+          @if (!vm.agencyExemptionEditing()) {
+            <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
+              <div class="fleet-unit-detail__row">
+                <dt>Operado por agencia</dt>
+                <dd>{{ vm.operatedByAgencyLabel() }}</dd>
+              </div>
+              <div class="fleet-unit-detail__row">
+                <dt>Inicio exención 2 años</dt>
+                <dd>{{ vm.physMechExemptStartLabel() }}</dd>
+              </div>
+            </dl>
+            <div class="fleet-unit-detail__verif-action-btn">
+              <to-button
+                type="button"
+                variant="outline"
+                size="sm"
+                (click)="vm.startAgencyExemptionEdit()"
+              >
+                Configurar exención
+              </to-button>
+            </div>
+          } @else {
+            <div class="fleet-unit-detail__verif-form">
+              <label class="fleet-unit-detail__checkbox-row">
+                <input
+                  type="checkbox"
+                  [checked]="vm.editOperatedByAgency()"
+                  (change)="vm.editOperatedByAgency.set($any($event.target).checked)"
+                />
+                Equipo operado por agencia
+              </label>
+              @if (vm.editOperatedByAgency()) {
+                <to-input
+                  label="Inicio exención 2 años *"
+                  type="date"
+                  [max]="vm.today"
+                  [(value)]="vm.editExemptStartDate"
+                />
+              }
+              <div class="fleet-unit-detail__verif-form-actions">
+                <to-button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  (click)="vm.cancelAgencyExemptionEdit()"
+                >
+                  Cancelar
+                </to-button>
+                <to-button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  (click)="vm.saveAgencyExemption()"
+                >
+                  <to-icon name="save" [size]="14" />
+                  Guardar
+                </to-button>
+              </div>
+            </div>
+          }
+        </div>
         @if (vm.physMechExemptionActive()) {
           <p
             class="fleet-unit-detail__route-line"

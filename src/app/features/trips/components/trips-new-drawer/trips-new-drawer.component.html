@@ -284,42 +284,43 @@
         placeholder="Al elegir operador"
       />
     </div>
-    <div class="maniobra-drawer__grid3">
+    <div class="maniobra-drawer__unit-field">
       <to-unit-input
         label="Unidad *"
         [placeholder]="unitPlaceholder"
         [prefetchMode]="true"
         [unitsData]="pickerUnits()"
-        [equipmentData]="pickerEquipment()"
         [tripsData]="pickerActiveTrips()"
         [(unitId)]="unitId"
         (unitPicked)="onUnitPicked($event)"
         (blurNotify)="onUnitBlur()"
       />
-      <to-equipment-input
-        label="Equipo 1 *"
-        [placeholder]="equipmentPlaceholder"
-        [prefetchMode]="true"
-        [equipmentData]="pickerEquipment()"
-        [unitId]="unitId()"
-        [(equipmentId)]="equipmentPrimary"
-        (blurNotify)="onEquipmentPrimaryBlur()"
-      />
-      <to-equipment-input
-        [label]="usesMultipleEquipmentOperation() ? 'Equipo 2 *' : 'Equipo 2'"
-        [placeholder]="
-          usesMultipleEquipmentOperation()
-            ? equipmentPlaceholder
-            : 'Solo con configuración de varios equipos'
-        "
-        [prefetchMode]="true"
-        [equipmentData]="pickerEquipment()"
-        [unitId]="unitId()"
-        [(equipmentId)]="equipmentSecondary"
-        [disabled]="!usesMultipleEquipmentOperation()"
-        (blurNotify)="onEquipmentSecondaryBlur()"
-      />
+      @if (unitId().trim()) {
+        <to-fleet-compliance-icons [items]="selectedUnitComplianceIcons()" />
+      }
     </div>
+    @if (unitId().trim()) {
+      <div class="maniobra-drawer__equipment-stack">
+        <div class="maniobra-drawer__field-with-icons">
+          <to-display-field
+            label="Equipo 1 *"
+            variant="metric"
+            [value]="equipmentPrimaryReadonly()"
+          />
+          <to-fleet-compliance-icons [items]="equipmentPrimaryComplianceIcons()" />
+        </div>
+        @if (usesMultipleEquipmentOperation()) {
+          <div class="maniobra-drawer__field-with-icons">
+            <to-display-field
+              label="Equipo 2 *"
+              variant="metric"
+              [value]="equipmentSecondaryReadonly()"
+            />
+            <to-fleet-compliance-icons [items]="equipmentSecondaryComplianceIcons()" />
+          </div>
+        }
+      </div>
+    }
   </section>
 
   <!-- Costos operativos -->
@@ -342,7 +343,13 @@
       </svg>
       Costos operativos
     </h3>
-    <div class="maniobra-drawer__grid2">
+    <div class="maniobra-drawer__diesel-row">
+      @if (dieselPriceLabel(); as priceLabel) {
+        <div class="maniobra-drawer__diesel-price" aria-label="Precio de diesel por litro">
+          <span class="maniobra-drawer__diesel-price-value">{{ priceLabel }}</span>
+          <span class="maniobra-drawer__diesel-price-caption">por litro</span>
+        </div>
+      }
       <to-input
         label="Diesel (litros) *"
         [placeholder]="dieselLitersPlaceholder()"
@@ -367,7 +374,7 @@
         Estimando consumo de diesel…
       </p>
     }
-    <div class="maniobra-drawer__grid2">
+    <div class="maniobra-drawer__grid3">
       <to-input
         label="Casetas *"
         placeholder="0"
@@ -383,6 +390,14 @@
         [groupThousands]="true"
         [(value)]="operatorQuota"
         (blurNotify)="onOperatorQuotaBlur()"
+      />
+      <to-input
+        label="Viáticos"
+        placeholder="0"
+        prefix="$"
+        [groupThousands]="true"
+        [(value)]="perDiemAmount"
+        (blurNotify)="onPerDiemAmountBlur()"
       />
     </div>
   </section>
@@ -447,7 +462,11 @@
           />
           @if (destinationRateMatched() && includeClientBilling()) {
             <p class="maniobra-drawer__suggestion-hint">
-              Tarifa sugerida según destino operativo registrado.
+              @if (destinationRateChargeRecognized()) {
+                Tarifa sugerida según destino y tipo de maniobra.
+              } @else {
+                Tarifa de destino sin precio para este tipo de maniobra (cobro en 0).
+              }
             </p>
           }
         </div>

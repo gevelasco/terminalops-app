@@ -1,0 +1,102 @@
+@if (mode() === 'edit') {
+  <to-filter-tabs
+    class="expense-op-relation__tabs"
+    [tabs]="relationTabs"
+    [activeId]="relationTab()"
+    ariaLabel="Relación operativa"
+    (tabSelect)="onTabSelect($event)"
+  />
+
+  @switch (relationTab()) {
+    @case ('trip') {
+      <p class="expense-op-relation__hint">{{ tripHint() }}</p>
+      <to-trip-input
+        [label]="isManiobraRubro() ? 'Maniobra *' : 'Maniobra'"
+        [displayLabel]="tripDisplayLabel()"
+        [(tripId)]="tripId"
+      />
+    }
+    @case ('unit') {
+      <p class="expense-op-relation__hint">{{ unitHint() }}</p>
+      <to-fleet-resource-link-input
+        resource="unit"
+        [label]="kind() === 'verification' ? 'Unidad *' : 'Unidad'"
+        [displayLabel]="fleetRelationDisplayLabel()"
+        [(resourceId)]="relatedUnitId"
+      />
+      @if (showVerificationScope()) {
+        <to-select
+          label="Tipo de verificación *"
+          [options]="verificationScopeOptions"
+          [(value)]="verificationScope"
+        />
+      }
+    }
+    @case ('equipment') {
+      <p class="expense-op-relation__hint">{{ equipmentHint() }}</p>
+      <to-fleet-resource-link-input
+        resource="equipment"
+        label="Equipo"
+        [displayLabel]="fleetRelationDisplayLabel()"
+        [(resourceId)]="relatedEquipmentId"
+      />
+    }
+    @case ('operator') {
+      <p class="expense-op-relation__hint">{{ operatorHint() }}</p>
+      <to-operator-link-input
+        label="Operador"
+        [displayLabel]="fleetRelationDisplayLabel()"
+        [(operatorId)]="relatedOperatorId"
+      />
+    }
+  }
+} @else {
+  <dl class="fleet-unit-detail__dl expense-op-relation__read">
+    <div class="fleet-unit-detail__row">
+      <dt>Maniobra</dt>
+      <dd>
+        @if (maneuverCode() !== "—") {
+          <span class="to-op-code-badge">{{ maneuverCode() }}</span>
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="fleet-unit-detail__row">
+      <dt>Unidad</dt>
+      <dd>
+        @if (unitLabel() !== "—") {
+          <span class="to-op-code-badge">{{ unitLabel() }}</span>
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    @if (showVerificationScope() && unitLabel() !== "—") {
+      <div class="fleet-unit-detail__row">
+        <dt>Tipo de verificación</dt>
+        <dd>{{ verificationTypeLabel() }}</dd>
+      </div>
+    }
+    <div class="fleet-unit-detail__row">
+      <dt>Equipo</dt>
+      <dd>
+        @if (equipmentLabel() !== "—") {
+          <span class="to-op-code-badge">{{ equipmentLabel() }}</span>
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="fleet-unit-detail__row">
+      <dt>Operador</dt>
+      <dd>
+        @if (operatorLabel() !== "—") {
+          <span class="to-op-code-badge">{{ operatorLabel() }}</span>
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+  </dl>
+}

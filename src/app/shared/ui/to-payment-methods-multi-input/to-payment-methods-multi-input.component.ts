@@ -45,6 +45,17 @@ export class ToPaymentMethodsMultiInputComponent {
     return this.methods().includes(value as ReportsTripPaymentMethod);
   }
 
+  onFieldClick(event: Event): void {
+    if (this.disabled()) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest('.to-payment-methods-multi__chip-remove')) {
+      return;
+    }
+    this.open.set(true);
+  }
+
   toggleOpen(event: Event): void {
     event.stopPropagation();
     if (this.disabled()) {

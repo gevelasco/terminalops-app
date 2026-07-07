@@ -2,7 +2,13 @@
   class="to-clients-multi__wrap"
   [class.to-clients-multi__wrap--open]="open()"
 >
-  <div #chipsRow class="to-clients-multi__chips" role="list" aria-label="Clientes seleccionados">
+  <div
+    #chipsRow
+    class="to-clients-multi__chips"
+    role="list"
+    aria-label="Clientes seleccionados"
+    (click)="onFieldClick($event)"
+  >
     @for (c of visibleChips(); track c.id) {
       <span class="to-clients-multi__chip" role="listitem">
         <span class="to-clients-multi__chip-label">{{ c.name }}</span>
@@ -41,33 +47,35 @@
     />
   </div>
 
-  @if (loading()) {
-    <span class="to-clients-multi__spinner" aria-hidden="true"></span>
-  } @else {
-    <button
-      type="button"
-      class="to-clients-multi__toggle"
-      [attr.aria-label]="open() ? 'Cerrar lista de clientes' : 'Abrir lista de clientes'"
-      [attr.aria-expanded]="open()"
-      [disabled]="disabled()"
-      (click)="toggleOpen($event)"
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
-      </svg>
-    </button>
-  }
+  <div class="to-clients-multi__suffix">
+    @if (loading()) {
+      <span class="to-clients-multi__spinner" aria-hidden="true"></span>
+    } @else {
+      <button
+        type="button"
+        class="to-clients-multi__toggle"
+        [attr.aria-label]="open() ? 'Cerrar lista de clientes' : 'Abrir lista de clientes'"
+        [attr.aria-expanded]="open()"
+        [disabled]="disabled()"
+        (click)="toggleOpen($event)"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M7 10l5 5 5-5H7z" />
+        </svg>
+      </button>
+    }
 
-  @if (selectedClients().length > 0 && !disabled()) {
-    <button
-      type="button"
-      class="to-clients-multi__clear"
-      aria-label="Quitar todos los clientes"
-      (click)="clearAll($event)"
-    >
-      ×
-    </button>
-  }
+    @if (selectedClients().length > 0 && !disabled()) {
+      <button
+        type="button"
+        class="to-clients-multi__clear"
+        aria-label="Quitar todos los clientes"
+        (click)="clearAll($event)"
+      >
+        ×
+      </button>
+    }
+  </div>
 
   @if (open()) {
     <ul

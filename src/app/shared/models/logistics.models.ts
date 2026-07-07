@@ -20,16 +20,18 @@ export type TripContainerType = '20ft' | '40ft' | '40hc' | 'na';
 /** Prioridad operativa del incidente (alertas y notificaciones). */
 export type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low';
 
-/** Incidente registrado durante una maniobra (descripción + momento). */
+/** Entrada de bitácora de maniobra; `isIncident` marca el subconjunto operativo excepcional. */
 export interface TripIncident {
   id: string;
   description: string;
   /** Fecha y hora en que ocurrió (ISO). */
   occurredAt: string;
-  /** Usuario que registró el incidente (`portalUsername` o `username` de torre). */
+  /** Usuario que registró la entrada (`portalUsername` o `username` de torre). */
   postedBy: string;
   /** Nombre y rol para UI; lo resuelve la API desde `app_user` u operadores. */
   postedByLabel?: string;
+  /** Si es true, cuenta en alertas, métricas y columna de incidente. */
+  isIncident?: boolean;
   /** Si no se indica, se infiere del estatus de la maniobra al generar alertas. */
   severity?: IncidentSeverity;
 }
@@ -106,6 +108,12 @@ export interface Trip {
   maneuverKind?: string;
   /** Tarifa de destino vinculada al crear (si hubo match). */
   destinationRateId?: string | null;
+  /** Centro operativo de origen al programar (FK). */
+  originOperationalCenterId?: string | null;
+  /** Nombre congelado del centro operativo al crear (histórico). */
+  originOperationalCenterNameSnapshot?: string;
+  /** Código congelado del centro operativo al crear (histórico). */
+  originOperationalCenterCodeSnapshot?: string;
   /** CP de origen (5 dígitos) y desglose SEPOMex al programar. */
   originPostalCode?: string;
   /** Ciudad y/o municipio + estado (línea legible, snapshot). */
@@ -128,6 +136,8 @@ export interface Trip {
   /** Origen del monto de casetas al crear (tarifa operativa vs manual). */
   tollCalculationMode?: 'auto' | 'manual' | null;
   operatorQuota?: string;
+  /** Viáticos del operador; 0 u omitido = sin gasto automático. */
+  perDiemAmount?: string;
   clientCharge?: string;
   paymentMethod?: TripClientPaymentMethod;
   requiresInvoice?: boolean;
@@ -159,10 +169,12 @@ export type OperatorOperationalStatus =
   | 'in_use'
   | 'scheduled'
   | 'maintenance'
-  | 'on_route'
   | 'incapacitated'
   | 'leave'
   | 'inactive';
+
+/** Periodicidad de pago al operador. */
+export type OperatorPaymentSchedule = 'maneuver' | 'weekly' | 'biweekly' | 'monthly';
 
 /** Tipo de licencia de conducir (referencia normativa). */
 export type OperatorLicenseType =
@@ -230,6 +242,16 @@ export interface OperatorEmergencyContact {
   authorizedMedicalInfo: boolean;
 }
 
+/** Resumen de la maniobra más reciente (listado / cards). */
+export interface OperatorLastManeuver {
+  tripId?: string;
+  maneuverCode: string;
+  origin?: string;
+  destination?: string;
+  status?: TripStatus;
+  occurredOn?: string;
+}
+
 export interface Operator {
   id: string;
   name: string;
@@ -260,7 +282,13 @@ export interface Operator {
    * Ej. `indefinite`, `temporary`, `project`, `fees`, `other`.
    */
   employmentContractType: string;
+  /** Periodicidad de pago al operador. */
+  paymentSchedule: OperatorPaymentSchedule;
+  /** Método de pago al operador (catálogo de gastos). */
+  paymentMethod?: string;
   status: OperatorOperationalStatus;
+  /** Soft delete lógico: inactivo = oculto en asignaciones operativas. */
+  isActive?: boolean;
   emergencyContact: OperatorEmergencyContact;
   insuranceKind: OperatorInsuranceKind;
   publicInsurance: OperatorPublicInsurance;
@@ -270,13 +298,22 @@ export interface Operator {
    * `operation` = operación / contratación; `insurance` = cobertura y prestaciones.
    */
   documents: OperatorAttachedDocument[];
+  /** Maniobras concluidas asignadas al operador (agregado del backend). */
+  maneuverCount?: number;
+  /** Última maniobra asignada (agregado del backend). */
+  lastManeuver?: OperatorLastManeuver;
+  /** Próximo vencimiento de pago (ISO `YYYY-MM-DD`). */
+  nextPayDueOn?: string;
+  nextPayDueVariant?: 'success' | 'warning' | 'danger';
+  /** Saldo pendiente de pago al operador (agregado del backend). */
+  owedAmount?: number;
 }
 
 /** Cómo está constituido el capital del remolque (alta / operación). */
 export type TrailerTenureMode = 'owned' | 'financed' | 'leased' | 'managed';
 
 /** Estado de una entrada de mantenimiento. */
-export type MaintenanceEntryStatus = 'programado' | 'concluido';
+export type MaintenanceEntryStatus = 'concluido';
 
 /** Entrada individual del historial de mantenimientos del remolque. */
 export interface MaintenanceEntry {
@@ -288,6 +325,8 @@ export interface MaintenanceEntry {
   cost?: number;
   /** Observaciones libres (taller, refacciones, diagnóstico). */
   notes?: string;
+  /** Código de método de pago (transfer, cash, …). */
+  paymentMethod?: string;
   /** Nombres de archivos asociados a esta entrada. */
   documentNames?: string[];
   /** Si la entrada está programada (futuro) o concluida (pasado). */
@@ -299,6 +338,8 @@ export interface UnitFleetMeta {
   trailerBrandName?: string;
   trailerVersion?: string;
   trailerColor?: string;
+  /** Modalidad de autotransporte federal de carga (RDAFYSA). */
+  serviceModality?: string;
   /** Propio, financiado, arrendado o administrado. */
   trailerTenureMode?: TrailerTenureMode;
   /** Valor comercial estimado (modo propio). */
@@ -314,7 +355,16 @@ export interface UnitFleetMeta {
   transmissionType?: string;
   transmissionSpeeds?: string;
   grossVehicleWeightLb?: string;
+  /**
+   * Kilometraje acumulado de la unidad (arranque + km de maniobras completadas).
+   * Solo lectura en UI; lo actualiza el backend al completar maniobras.
+   */
   odometerKm?: string;
+  /**
+   * Km acumulados desde el último mantenimiento para alertas por distancia.
+   * Se reinicia al concluir un servicio; lo incrementa el backend al completar maniobras.
+   */
+  maintenanceKmCounter?: number | null;
   lastMaintenanceDate?: string;
   /**
    * Tipo de servicio realizado (catálogo): mantenimiento_general | servicio_general |
@@ -330,28 +380,24 @@ export interface UnitFleetMeta {
   maintenanceEntries?: MaintenanceEntry[];
   tireCondition?: string;
   /**
-   * Si es `true`, la alerta de próximo mantenimiento se basa en km recorridos.
-   * Si es `false` o ausente, por tiempo / calendario (intervalo desde último servicio).
-   * En producción suelen leerse y persistirse vía API en el `fleetMeta` de la unidad.
+   * @deprecated Control global en configuración operativa; usar `maintenanceKmCounter`.
    */
   maintenanceAlertByKm?: boolean;
   /**
    * Próximo mantenimiento por calendario (ISO `YYYY-MM-DD`).
-   * Si está definida, sustituye a «último servicio + 6 meses» en etiquetas y alertas por tiempo.
+   * Si está definida, sustituye a «último servicio + periodo» en etiquetas por tiempo.
    */
   maintenanceNextDateOverride?: string;
   /**
-   * Km entre servicios cuando la alerta es por km (`maintenanceAlertByKm`).
-   * Los km recorridos en maniobras completadas se comparan contra `maintenanceTripKmAtLastService`.
+   * @deprecated Intervalo definido en configuración operativa de la empresa.
    */
   maintenanceKmInterval?: number | null;
   /**
-   * Suma de km de maniobras completadas registrada al último servicio o al programar el intervalo.
+   * @deprecated Sustituido por `maintenanceKmCounter` + intervalo global.
    */
   maintenanceTripKmAtLastService?: number | null;
   /**
-   * Km estimados hasta el próximo mantenimiento (cuando `maintenanceAlertByKm`).
-   * Ausente o `null`: se calcula con intervalo y km de maniobras si hay datos; si no, "—".
+   * @deprecated Se calcula: intervalo global − `maintenanceKmCounter`.
    */
   maintenanceKmRemaining?: number | null;
   verificationPhysMechDate?: string;
@@ -367,6 +413,12 @@ export interface UnitFleetMeta {
   insuranceCarrierName?: string;
   insurancePaymentCadence?: string;
   insuranceContractDate?: string;
+  /** Último pago de póliza registrado (ISO `YYYY-MM-DD`); ancla el próximo ciclo. */
+  insuranceLastPaymentDate?: string;
+  /** Código de forma de pago (transfer, cash, check…), alineado con gastos. */
+  insurancePaymentMethod?: string;
+  /** Si los cobros de la póliza requieren factura fiscal. */
+  insuranceInvoiceRequired?: boolean;
   /** Costo, precio pagado o cantidad asociada al ciclo de seguro (seguimiento). */
   insuranceCost?: number;
   /**
@@ -381,6 +433,12 @@ export interface UnitFleetMeta {
   gpsPaymentCadence?: string;
   /** Fecha de contratación o inicio del servicio (ISO `YYYY-MM-DD`). */
   gpsContractDate?: string;
+  /** Último pago del servicio GPS registrado (ISO `YYYY-MM-DD`). */
+  gpsLastPaymentDate?: string;
+  /** Código de forma de pago (transfer, cash, check…), alineado con gastos. */
+  gpsPaymentMethod?: string;
+  /** Si los cobros del GPS requieren factura fiscal. */
+  gpsInvoiceRequired?: boolean;
   /** URL del portal del proveedor para ver ubicación en vivo. */
   gpsTrackingPortalUrl?: string;
   /**
@@ -404,7 +462,12 @@ export type EquipmentContainerSlotConfigKey =
   | 'fixed'
   | 'iso_40'
   | 'iso_20'
-  | 'iso_20_20';
+  | 'iso_20_20'
+  | 'ft_53'
+  | 'ft_48'
+  | 'ft_46'
+  | 'ft_42'
+  | 'ft_40';
 
 /**
  * Metadatos de equipo (semirremolque / remolque): tenencia, técnico, seguro,
@@ -426,8 +489,6 @@ export interface EquipmentFleetMeta {
   equipmentAxleCount?: number;
   /** Configuración de contenedor / plazas (etiqueta o value del catálogo). */
   equipmentContainerSlotConfig?: string;
-  /** Número de llantas del equipo (remolque / semirremolque). */
-  equipmentTireCount?: number;
   lastMaintenanceDate?: string;
   lastMaintenanceType?: string;
   lastMaintenanceCost?: number;
@@ -460,6 +521,9 @@ export interface EquipmentFleetMeta {
   insuranceCarrierName?: string;
   insurancePaymentCadence?: string;
   insuranceContractDate?: string;
+  insuranceLastPaymentDate?: string;
+  insurancePaymentMethod?: string;
+  insuranceInvoiceRequired?: boolean;
   insuranceCost?: number;
   documentMaintenanceNames?: string[];
   documentVerificationNames?: string[];
@@ -473,8 +537,14 @@ export interface Unit {
   plate: string;
   capacityKg: number;
   status: string;
+  /** Soft delete lógico: inactivo = oculto en asignaciones operativas. */
+  isActive?: boolean;
   /** Número de serie del chasis / VIN u otro identificador de fábrica. */
   serialNumber?: string;
+  /** Número de motor (identificación del tren motriz). */
+  motorNumber?: string;
+  /** Capacidad de carga en toneladas métricas. */
+  capacityTons?: number;
   /** Nombre comercial o alias interno (opcional). */
   name?: string;
   /** Marca del remolque (abreviatura operativa). */
@@ -482,6 +552,8 @@ export interface Unit {
   /** Año del remolque (modelo por año, no versión de equipo). */
   trailerYear?: string;
   fleetMeta?: UnitFleetMeta;
+  /** Equipos enganchados (presente en listado/detalle de unidad desde API). */
+  hitchedEquipment?: Equipment[];
 }
 
 /** Posición del remolque en el convoy enganchado a la tractora. */
@@ -504,14 +576,11 @@ export interface Equipment {
   type?: string;
   /** Estado operativo (misma convención que unidad). */
   status?: string;
+  /** Soft delete lógico: inactivo = oculto en asignaciones operativas. */
+  isActive?: boolean;
   trailerBrandAbbr?: string;
   trailerYear?: string;
   fleetMeta?: EquipmentFleetMeta;
-  /**
-   * Solo UI (drawer de detalle en Flota): suma de km en maniobras completadas
-   * del tractor (`unitId`). La página de flota lo inyecta al abrir el panel; no persistir en API.
-   */
-  uiTractorCompletedTripDistanceKm?: number | null;
   /**
    * @deprecated Preferir `fleetMeta.equipmentAxleCount` y bloque técnico.
    */
@@ -538,6 +607,7 @@ export type ExpenseKind =
   | 'trailer_admin_payout'
   | 'operator_payment'
   | 'operator_commission'
+  | 'operational_control'
   | 'other';
 
 export type ExpenseMaintenanceTarget = 'unit' | 'equipment';
@@ -554,12 +624,27 @@ export interface Expense {
    * cadena vacía si el gasto no está ligado a una maniobra.
    */
   tripId: string;
+  /** Código de maniobra (`trip.maneuverCode`) cuando el gasto está ligado a una maniobra. */
+  tripManeuverCode?: string;
+  /**
+   * Etiqueta legible del vínculo operativo (código de unidad/equipo o nombre de operador).
+   * Denormalizado en API; la UI no debe cargar catálogos de flota solo para listado.
+   */
+  fleetRelationLabel?: string;
+  /** Etiqueta legible de la unidad relacionada, si existe. */
+  relatedUnitLabel?: string;
+  /** Etiqueta legible del equipo relacionado, si existe. */
+  relatedEquipmentLabel?: string;
+  /** Etiqueta legible del operador relacionado, si existe. */
+  relatedOperatorLabel?: string;
   /** Concepto o categoría contable legible (ej. Casetas, Póliza anual). */
   category: string;
   amount: number;
   currency: string;
   /** Fecha del gasto (ISO `YYYY-MM-DD` o con zona, según origen). */
   incurredAt: string;
+  /** Fecha operativa canónica `YYYY-MM-DD` (zona México), cuando la expone el API. */
+  incurredDate?: string;
   /**
    * Rubro operativo: determina qué campos de relación (`related*`) tienen sentido.
    * Mantenimiento exige `maintenanceTarget` + unidad o equipo.
@@ -591,8 +676,6 @@ export interface Expense {
   invoiceRequired?: boolean;
 }
 
-export type AlertSeverity = 'success' | 'warning' | 'danger' | 'neutral';
-
 /** Icono opcional junto al título en tarjetas KPI / gráficas. */
 export type KpiTitleIcon =
   | 'maniobras'
@@ -614,22 +697,6 @@ export type KpiTitleIcon =
   | 'maintenance'
   | 'calendar';
 
-export interface Alert {
-  id: string;
-  severity: AlertSeverity;
-  message: string;
-  createdAt: string;
-  /** Título de tarjeta / KPI */
-  title?: string;
-  /** Texto secundario (delta, leyenda, estado) junto al mensaje principal */
-  legend?: string;
-  /** Icono en la etiqueta superior del KPI */
-  titleIcon?: KpiTitleIcon;
-}
-
-/** Alerta operativa para tabla del dashboard (prioridad alta). */
-export type CriticalSeverity = IncidentSeverity;
-
 /** Tipo de alerta (define el icono Material en UI). */
 export type CriticalAlertKind =
   | 'cold_chain'
@@ -639,17 +706,3 @@ export type CriticalAlertKind =
   | 'document'
   | 'schedule'
   | 'default';
-
-export interface CriticalAlert {
-  id: string;
-  severity: CriticalSeverity;
-  kind: CriticalAlertKind;
-  title: string;
-  /** Línea combinada (maniobra · cliente · ruta · autor) para listados compactos. */
-  description: string;
-  maneuverCode: string;
-  clientName: string;
-  routeLabel: string;
-  authorLabel: string;
-  detectedAt: string;
-}

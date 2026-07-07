@@ -1,0 +1,146 @@
+<to-side-drawer
+  titleId="usuarios-new-drawer-title"
+  wide
+  formMode
+  [loading]="drawerLoading()"
+  skeletonVariant="form"
+  bodyClass="fleet-unit-body"
+  (dismiss)="dismiss.emit()"
+  (formSubmit)="submit()"
+>
+  <h2 toSideDrawerHeader id="usuarios-new-drawer-title" class="to-side-drawer__title">
+    <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
+    Nuevo usuario
+  </h2>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
+    aria-labelledby="usuarios-new-account"
+  >
+    <h3 id="usuarios-new-account" class="fleet-unit-sec__title">Cuenta</h3>
+
+    <div class="profile-drawer__identity">
+      <div class="profile-drawer__avatar-wrap">
+        @if (hasPhoto()) {
+          <img
+            class="profile-drawer__avatar"
+            [src]="photoDataUrl()"
+            alt=""
+            width="64"
+            height="64"
+          />
+        } @else {
+          <span
+            class="profile-drawer__avatar profile-drawer__avatar--initials"
+            aria-hidden="true"
+            >{{ avatarPreview() }}</span
+          >
+        }
+        <label class="profile-drawer__avatar-edit">
+          <span class="profile-drawer__sr-only">Agregar foto</span>
+          <input
+            type="file"
+            accept="image/*"
+            class="profile-drawer__file-input"
+            [disabled]="saving()"
+            (change)="onPhotoSelected($event)"
+          />
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
+            />
+          </svg>
+        </label>
+      </div>
+
+      <div class="profile-drawer__identity-meta">
+        <p class="profile-drawer__identity-name">
+          {{ draftDisplayName().trim() || 'Nuevo usuario' }}
+        </p>
+        <p class="profile-drawer__identity-role">
+          {{ draftJobTitle().trim() || (draftRole() === 'admin' ? 'Administrador' : 'Staff') }}
+        </p>
+        <p class="profile-drawer__identity-email">
+          {{ draftEmail().trim() || draftUsername().trim() || '—' }}
+        </p>
+        @if (hasPhoto()) {
+          <button
+            type="button"
+            class="profile-drawer__photo-remove"
+            [disabled]="saving()"
+            (click)="removePhoto()"
+          >
+            Quitar foto
+          </button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-personal">
+    <h3 id="usuarios-new-personal" class="fleet-unit-sec__title">Datos personales</h3>
+    <div class="usuarios-new-drawer__grid">
+      <to-input label="Nombre *" [(value)]="draftDisplayName" [disabled]="saving()" />
+      <to-input label="Puesto" placeholder="Ej. Coordinador de operaciones" [(value)]="draftJobTitle" [disabled]="saving()" />
+      <to-input label="Correo electrónico" type="email" [(value)]="draftEmail" [disabled]="saving()" />
+      <to-input label="Teléfono" type="text" [(value)]="draftPhone" [disabled]="saving()" />
+    </div>
+  </section>
+
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-access">
+    <h3 id="usuarios-new-access" class="fleet-unit-sec__title">Acceso</h3>
+    <div class="usuarios-new-drawer__grid">
+      <to-input label="Usuario *" [(value)]="draftUsername" [disabled]="saving()" />
+      <to-input
+        label="Contraseña *"
+        type="password"
+        [passwordToggle]="true"
+        autocomplete="new-password"
+        [(value)]="draftPassword"
+        [disabled]="saving()"
+      />
+    </div>
+    <div class="usuarios-new-drawer__role-tabs">
+      <span class="usuarios-new-drawer__field-label">Rol</span>
+      <to-segment-control
+        layout="drawer"
+        ariaLabel="Rol del usuario"
+        [tabs]="roleTabs()"
+        [activeId]="draftRole()"
+        (tabSelect)="onRoleTab($event)"
+      />
+    </div>
+  </section>
+
+  @if (draftRole() === 'staff') {
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-modules">
+      <h3 id="usuarios-new-modules" class="fleet-unit-sec__title">Permisos por módulo</h3>
+      <p class="usuarios-new-drawer__hint">
+        Lectura permite consultar; Escritura permite crear, editar y exportar (p. ej. PDF/Excel en Reportes). Eliminar sigue siendo solo del administrador.
+      </p>
+      <app-usuarios-module-permissions-fields
+        [permissions]="draftPermissions()"
+        (permissionsChange)="draftPermissions.set($event)"
+        [disabled]="saving()"
+      />
+    </section>
+  } @else {
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-admin-perms">
+      <h3 id="usuarios-new-admin-perms" class="fleet-unit-sec__title">Permisos</h3>
+      <p class="usuarios-new-drawer__hint">
+        Los administradores tienen acceso a todos los módulos operativos y a Usuarios.
+      </p>
+    </section>
+  }
+
+  <div toSideDrawerFooter class="fleet-unit-sec__edit-actions">
+    <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">
+      Cancelar
+    </to-button>
+    <to-button type="submit" variant="primary" [loading]="saving()" [disabled]="saving()">
+      <to-icon name="save" [size]="14" />
+      Crear usuario
+    </to-button>
+  </div>
+</to-side-drawer>

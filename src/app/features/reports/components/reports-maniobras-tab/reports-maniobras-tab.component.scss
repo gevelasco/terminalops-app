@@ -1,0 +1,314 @@
+@use '../../../../shared/styles/trip-maneuver-status-pill.scss';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 0;
+}
+
+:host ::ng-deep .reports-maniobras-kpis to-kpi-card .to-card__inner {
+  padding: 0.5rem 0.6rem 0.45rem;
+}
+
+:host ::ng-deep .reports-maniobras-kpis to-kpi-card .to-kpi-card__value {
+  font-size: clamp(1rem, 1.1vw, 1.22rem);
+}
+
+.reports-maniobras-kpis {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reports-maniobras-kpis > * {
+  min-width: 0;
+}
+
+.reports-maniobras-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding-bottom: 0.35rem;
+}
+
+.reports-maniobras-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 220px;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 82%, transparent);
+  border-radius: var(--to-radius-lg, 0.5rem);
+  background: var(--to-color-surface);
+  padding: 0.65rem 0.75rem 0.55rem;
+}
+
+.reports-maniobras-panel--map {
+  grid-column: 1 / -1;
+  min-height: 300px;
+}
+
+.reports-maniobras-panel__head {
+  flex-shrink: 0;
+  margin-bottom: 0.35rem;
+}
+
+.reports-maniobras-panel__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+.reports-maniobras-panel__subtitle {
+  margin: 0.12rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted);
+}
+
+.reports-maniobras-panel__chart {
+  flex: 1 1 auto;
+  min-height: 180px;
+}
+
+.reports-maniobras-panel__chart--map {
+  min-height: 240px;
+}
+
+.reports-maniobras-panel__empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+}
+
+.reports-maniobras-panel__map-split {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.55rem;
+  min-height: 260px;
+}
+
+.reports-maniobras-panel__map-chart {
+  flex: 0 0 70%;
+  min-width: 0;
+  min-height: 240px;
+}
+
+.reports-maniobras-panel__map-table-wrap {
+  flex: 0 0 calc(30% - 0.55rem);
+  min-width: 0;
+  min-height: 240px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  border-radius: var(--to-radius-md, 0.375rem);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, var(--to-color-bg));
+}
+
+.reports-maniobras-panel__map-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+}
+
+.reports-maniobras-panel__map-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--to-color-surface);
+}
+
+.reports-maniobras-panel__map-table th,
+.reports-maniobras-panel__map-table td {
+  padding: 0.32rem 0.35rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 65%, transparent);
+}
+
+.reports-maniobras-panel__map-table th:nth-child(1),
+.reports-maniobras-panel__map-table td:nth-child(1) {
+  width: 28%;
+}
+
+.reports-maniobras-panel__map-table th:nth-child(2),
+.reports-maniobras-panel__map-table td:nth-child(2),
+.reports-maniobras-panel__map-table th:nth-child(3),
+.reports-maniobras-panel__map-table td:nth-child(3) {
+  width: 28%;
+}
+
+.reports-maniobras-panel__map-table th:nth-child(4),
+.reports-maniobras-panel__map-table td:nth-child(4) {
+  width: 16%;
+}
+
+.reports-maniobras-panel__map-table th {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.reports-maniobras-panel__map-table td {
+  color: var(--to-color-text);
+}
+
+.reports-maniobras-panel__map-code-pill {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  cursor: default;
+}
+
+.reports-maniobras-panel__map-code-pill .to-table-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.reports-maniobras-panel__map-table td:not(:first-child):not(:last-child) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reports-maniobras-panel__map-table td:last-child {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.reports-maniobras-panel__map-table-empty {
+  margin: 0;
+  padding: 1rem 0.65rem;
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+  text-align: center;
+}
+
+.reports-maniobras-panel--incidents {
+  min-height: 220px;
+}
+
+.reports-maniobras-panel__incidents-body {
+  flex: 1 1 auto;
+  min-height: 180px;
+  overflow: auto;
+}
+
+.reports-maniobras-panel__incidents-empty {
+  margin: 0;
+  padding: 0.75rem 0.15rem;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.reports-maniobras-panel__data-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+}
+
+.reports-maniobras-panel__data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--to-color-surface);
+}
+
+.reports-maniobras-panel__data-table th,
+.reports-maniobras-panel__data-table td {
+  padding: 0.32rem 0.35rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 65%, transparent);
+}
+
+.reports-maniobras-panel__data-table th {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.reports-maniobras-panel__data-table td {
+  color: var(--to-color-text);
+}
+
+.reports-maniobras-panel__data-table th:nth-child(1),
+.reports-maniobras-panel__data-table td:nth-child(1) {
+  width: 38%;
+}
+
+.reports-maniobras-panel__data-table th:nth-child(2),
+.reports-maniobras-panel__data-table td:nth-child(2) {
+  width: 12%;
+  text-align: center;
+}
+
+.reports-maniobras-panel__data-table th:nth-child(3),
+.reports-maniobras-panel__data-table td:nth-child(3) {
+  width: 34%;
+}
+
+.reports-maniobras-panel__data-table th:nth-child(4),
+.reports-maniobras-panel__data-table td:nth-child(4) {
+  width: 16%;
+  white-space: nowrap;
+}
+
+.reports-maniobras-panel__data-table td:nth-child(1),
+.reports-maniobras-panel__data-table td:nth-child(3) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reports-maniobras-panel__data-table td:nth-child(2) {
+  font-weight: 600;
+  color: var(--to-color-text);
+}
+
+@media (max-width: 1200px) {
+  .reports-maniobras-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .reports-maniobras-body {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-maniobras-panel--map {
+    grid-column: auto;
+  }
+
+  .reports-maniobras-panel__map-split {
+    flex-direction: column;
+  }
+
+  .reports-maniobras-panel__map-chart,
+  .reports-maniobras-panel__map-table-wrap {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .reports-maniobras-panel__map-table-wrap {
+    max-height: 220px;
+  }
+}
+
+@media (max-width: 520px) {
+  .reports-maniobras-kpis {
+    grid-template-columns: 1fr;
+  }
+}

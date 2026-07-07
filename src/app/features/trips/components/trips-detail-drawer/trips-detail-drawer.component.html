@@ -7,8 +7,8 @@
   skeletonVariant="detail"
   (dismiss)="vm.requestDismiss()"
 >
-  @if (vm.trip(); as trip) {
-    <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+    @if (vm.trip(); as trip) {
       <h2
         id="maniobra-detail-title"
         class="to-side-drawer__title fleet-unit-detail__title"
@@ -20,8 +20,8 @@
         <span class="to-table-pill__dot" aria-hidden="true"></span>
         <span class="to-table-pill__label">{{ vm.detailStatusLabel() }}</span>
       </span>
-    </div>
-  }
+    }
+  </div>
 
   @if (vm.trip()) {
     <to-segment-control
@@ -54,7 +54,18 @@
             class="maniobra-detail__cancel-maniobra-btn"
             (click)="openCancelDialog()"
           >
+            <to-icon name="cancelCircle" [size]="16" />
             Cancelar maniobra
+          </button>
+        }
+        @if (vm.canDeleteManiobra()) {
+          <button
+            type="button"
+            class="maniobra-detail__delete-maniobra-btn"
+            (click)="vm.openDeleteConfirm()"
+          >
+            <to-icon name="delete" [size]="16" />
+            Eliminar maniobra
           </button>
         }
       </div>
@@ -204,5 +215,53 @@
         </div>
       </div>
     </dialog>
+
+    <to-confirm-dialog
+      titleId="maniobra-delete-title"
+      icon="warning"
+      title="Eliminar maniobra del sistema"
+      cancelLabel="Cancelar"
+      confirmLabel="Eliminar maniobra"
+      confirmVariant="primary"
+      [open]="vm.deleteConfirmOpen()"
+      [confirmDisabled]="!vm.canConfirmDeleteManiobra()"
+      [confirmLoading]="vm.deleteSubmitting()"
+      (cancel)="vm.closeDeleteConfirm()"
+      (confirm)="vm.confirmDeleteManiobra()"
+    >
+      <p>
+        Estás a punto de eliminar <strong>{{ trip.maneuverCode }}</strong> de forma
+        permanente para la operación diaria.
+      </p>
+      <ul class="maniobra-detail__delete-impact-list">
+        <li>Desaparecerá de listados, mapas, liquidación y reportes.</li>
+        <li>
+          Se descartarán los gastos vinculados (diesel, casetas, pagos a operador,
+          provisiones y otros cargos automáticos).
+        </li>
+        <li>
+          Dejarán de considerarse ingresos, per diems y pagos asociados al operador.
+        </li>
+        <li>No contará en márgenes, rentabilidad ni métricas operativas.</li>
+        <li>
+          Si está programada o en curso, la unidad, equipos y operador asignados
+          regresarán a disponible.
+        </li>
+      </ul>
+      @if (vm.deleteRequiresInTransitAck()) {
+        <label class="maniobra-detail__delete-in-transit-check">
+          <input
+            type="checkbox"
+            [checked]="vm.deleteInTransitAck()"
+            [disabled]="vm.deleteSubmitting()"
+            (change)="vm.onDeleteInTransitAckChange($event)"
+          />
+          <span
+            >Esta maniobra está en curso. Confirmo que deseo eliminarla de todos
+            modos.</span
+          >
+        </label>
+      }
+    </to-confirm-dialog>
   }
 </to-side-drawer>

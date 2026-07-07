@@ -38,27 +38,6 @@
   box-sizing: border-box;
 }
 
-.maniobra-detail__dl {
-  display: grid;
-  grid-template-columns: minmax(6.5rem, 34%) 1fr;
-  gap: 0.45rem 1rem;
-  margin: 0;
-}
-
-.maniobra-detail__dl dt {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--to-color-text-muted);
-}
-
-.maniobra-detail__dl dd {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--to-color-text);
-  word-break: break-word;
-}
-
 .maniobra-detail__field-meta {
   font-size: 0.75rem;
   color: var(--to-color-text-muted);
@@ -169,6 +148,50 @@
   color: var(--to-color-text);
 }
 
+.maniobra-detail__incident-item--marked {
+  border-color: color-mix(in srgb, var(--to-color-warning) 45%, var(--to-color-border));
+  background: color-mix(in srgb, var(--to-color-warning) 8%, var(--to-color-surface));
+}
+
+.maniobra-detail__bitacora-head-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  min-width: 0;
+}
+
+.maniobra-detail__bitacora-incident-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--to-color-warning);
+  background: color-mix(in srgb, var(--to-color-warning) 14%, transparent);
+}
+
+.maniobra-detail__bitacora-incident-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text);
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--to-color-primary);
+  }
+}
+
 .maniobra-detail__incident-add {
   display: flex;
   flex-direction: column;
@@ -218,10 +241,15 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .maniobra-detail__cancel-maniobra-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   margin: 0;
   padding: 0.46rem 0.85rem;
   border-radius: var(--to-radius-md, 8px);
@@ -238,9 +266,53 @@
     border-color: color-mix(in srgb, var(--to-color-danger, #c62828) 72%, transparent);
   }
 
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   &:focus-visible {
     outline: 2px solid var(--to-focus-ring);
     outline-offset: 2px;
+  }
+}
+
+.maniobra-detail__delete-maniobra-btn {
+  @extend .maniobra-detail__cancel-maniobra-btn;
+}
+
+:host ::ng-deep .maniobra-detail__footer to-button .to-button {
+  padding: 0.46rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.maniobra-detail__delete-impact-list {
+  margin: 0 0 0.85rem;
+  padding-left: 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--to-color-text-muted);
+
+  li + li {
+    margin-top: 0.35rem;
+  }
+}
+
+.maniobra-detail__delete-in-transit-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  font-weight: 600;
+
+  input {
+    margin-top: 0.15rem;
+    flex-shrink: 0;
   }
 }
 
@@ -434,8 +506,14 @@
 
 .maniobra-settlement__kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.55rem;
+}
+
+@media (max-width: 720px) {
+  .maniobra-settlement__kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
@@ -456,6 +534,19 @@
     var(--to-color-surface)
   );
   border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+}
+
+.maniobra-settlement__kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.maniobra-settlement__kpi-icon {
+  flex-shrink: 0;
+  color: var(--to-color-primary);
+  opacity: 0.9;
 }
 
 .maniobra-settlement__kpi--negative .maniobra-settlement__kpi-value {
@@ -485,13 +576,14 @@
 
 .maniobra-settlement__payment-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
   margin-bottom: 0.65rem;
 }
 
 .maniobra-settlement__badge {
-  align-self: flex-start;
+  flex-shrink: 0;
   display: inline-flex;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
@@ -504,6 +596,21 @@
 .maniobra-settlement__badge--paid {
   color: #166534;
   background: color-mix(in srgb, #22c55e 16%, var(--to-color-surface));
+}
+
+.maniobra-settlement__badge--credit-on-track {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 16%, var(--to-color-surface));
+}
+
+.maniobra-settlement__badge--credit-due-today {
+  color: #92400e;
+  background: color-mix(in srgb, #f59e0b 18%, var(--to-color-surface));
+}
+
+.maniobra-settlement__badge--credit-overdue {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 16%, var(--to-color-surface));
 }
 
 .maniobra-settlement__badge--credit {
@@ -523,6 +630,8 @@
 
 .maniobra-settlement__payment-detail {
   margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--to-color-text-muted);
@@ -595,13 +704,21 @@
 
 .maniobra-detail__dl--schedule {
   margin-top: 0;
+  row-gap: 0.35rem;
 }
 
-.maniobra-detail__schedule-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.65rem;
+.maniobra-detail__schedule-input {
+  margin-top: 0.5rem;
+
+  &:first-of-type {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  }
+
+  & + .maniobra-detail__schedule-input {
+    margin-top: 0.5rem;
+  }
 }
 
 .maniobra-detail__schedule-edit-toggle {
@@ -620,10 +737,11 @@
 
 .maniobra-detail__schedule-real-label {
   color: var(--to-color-primary, #6366f1);
+  font-weight: 700;
 }
 
 .maniobra-detail__schedule-real-value {
-  font-weight: 600;
+  font-weight: 400;
   color: var(--to-color-primary, #6366f1);
 }
 

@@ -9,6 +9,13 @@ import type {
 import type { CompanyOperationalSettings } from '@shared/models/company-operational-settings.models';
 import type { MaintenanceDatePeriod } from '@shared/models/company-operational-settings.models';
 import { normalizeApiIsoDate } from '@core/utils/api-date';
+import {
+  resolveAllowedModules,
+  canReadModule as canReadModuleAccess,
+  canWriteModule as canWriteModuleAccess,
+  resolveStaffModuleGrants,
+} from '@shared/utils/access-control';
+import { APP_MODULE_CODES, type AppModuleCode } from '@shared/models/app-modules.models';
 
 const SESSION_STORAGE_KEY = '_to_s';
 const SESSION_OBFUSCATE_KEY = 't3rm1n4l0ps_s3ss10n';
@@ -80,6 +87,10 @@ export class SessionService {
   readonly token = computed(() => this.data()?.token ?? null);
   readonly refreshToken = computed(() => this.data()?.refreshToken ?? null);
   readonly role = computed(() => this.data()?.role ?? null);
+  readonly allowedModules = computed(() => this.data()?.allowedModules ?? []);
+  readonly moduleGrants = computed(() =>
+    resolveStaffModuleGrants(this.data()?.moduleGrants ?? []),
+  );
   readonly companyId = computed(() => this.data()?.companyId ?? null);
   readonly companyName = computed(() => this.data()?.companyName ?? null);
   readonly theme = computed(() => this.data()?.theme ?? 'light');
@@ -100,6 +111,25 @@ export class SessionService {
   readonly operationalAnalysisChangedAt = computed(
     () => this.data()?.operationalAnalysisChangedAt ?? null,
   );
+  readonly tripAssistPrefillEnabled = computed(
+    () =>
+      this.data()?.tripAssistPrefillEnabled ??
+      this.data()?.controlAutomaticRecognition ??
+      false,
+  );
+  readonly tripAssistPrefillChangedAt = computed(
+    () =>
+      this.data()?.tripAssistPrefillChangedAt ??
+      this.data()?.controlAutomaticRecognitionChangedAt ??
+      null,
+  );
+  readonly tripAutoMaintenanceProvisionPercent = computed(() => {
+    const raw = this.data()?.tripAutoMaintenanceProvisionPercent;
+    if (raw == null || !Number.isFinite(raw)) {
+      return 5;
+    }
+    return raw >= 0 && raw <= 100 ? raw : 5;
+  });
   readonly dieselControlEnabled = computed(
     () => this.data()?.dieselControlEnabled ?? true,
   );
@@ -107,10 +137,10 @@ export class SessionService {
     () => this.data()?.dieselControlChangedAt ?? null,
   );
   readonly controlAutomaticRecognition = computed(
-    () => this.data()?.controlAutomaticRecognition ?? false,
+    () => this.tripAssistPrefillEnabled(),
   );
   readonly controlAutomaticRecognitionChangedAt = computed(
-    () => this.data()?.controlAutomaticRecognitionChangedAt ?? null,
+    () => this.tripAssistPrefillChangedAt(),
   );
   readonly maintenanceKmControlEnabled = computed(
     () => this.data()?.maintenanceKmControlEnabled ?? false,
@@ -151,6 +181,22 @@ export class SessionService {
   readonly operationalCenterLongitude = computed(
     () => this.data()?.operationalCenterLongitude ?? null,
   );
+
+  canReadModule(module: AppModuleCode): boolean {
+    return canReadModuleAccess(this.role(), this.moduleGrants(), module);
+  }
+
+  canWriteModule(module: AppModuleCode): boolean {
+    return canWriteModuleAccess(this.role(), this.moduleGrants(), module);
+  }
+
+  canPostTripBitacora(): boolean {
+    return this.canReadModule(APP_MODULE_CODES.TRIPS);
+  }
+
+  canMarkTripIncident(): boolean {
+    return this.canWriteModule(APP_MODULE_CODES.TRIPS);
+  }
 
   isLoggedIn(): boolean {
     const d = this.data();
@@ -198,6 +244,8 @@ export class SessionService {
       Pick<
         CompanyOperationalSettings,
         | 'operationalAnalysisEnabled'
+        | 'tripAssistPrefillEnabled'
+        | 'tripAutoMaintenanceProvisionPercent'
         | 'dieselControlEnabled'
         | 'maintenanceKmControlEnabled'
         | 'maintenanceKmIntervalDefault'
@@ -216,6 +264,7 @@ export class SessionService {
     > & {
       companyName?: string;
       operationalAnalysisChangedAt?: string | null;
+      tripAssistPrefillChangedAt?: string | null;
       dieselControlChangedAt?: string | null;
       maintenanceKmIntervalDefault?: number | null;
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
@@ -240,6 +289,21 @@ export class SessionService {
     }
     if (patch.operationalAnalysisEnabled !== undefined) {
       next.operationalAnalysisEnabled = patch.operationalAnalysisEnabled;
+    }
+    if (patch.tripAssistPrefillEnabled !== undefined) {
+      next.tripAssistPrefillEnabled = patch.tripAssistPrefillEnabled;
+      next.controlAutomaticRecognition = patch.tripAssistPrefillEnabled;
+    }
+    if (patch.tripAutoMaintenanceProvisionPercent !== undefined) {
+      next.tripAutoMaintenanceProvisionPercent = patch.tripAutoMaintenanceProvisionPercent;
+    }
+    const prefillChangedAt = normalizeApiIsoDate(patch.tripAssistPrefillChangedAt);
+    if (prefillChangedAt) {
+      next.tripAssistPrefillChangedAt = prefillChangedAt;
+      next.controlAutomaticRecognitionChangedAt = prefillChangedAt;
+    } else if (patch.tripAssistPrefillChangedAt === null) {
+      next.tripAssistPrefillChangedAt = undefined;
+      next.controlAutomaticRecognitionChangedAt = undefined;
     }
     if (patch.dieselControlEnabled !== undefined) {
       next.dieselControlEnabled = patch.dieselControlEnabled;
@@ -434,7 +498,17 @@ export class SessionService {
     return {
       token,
       refreshToken,
-      role: user.role ?? payload?.role ?? 'coordinator',
+      role: user.role ?? payload?.role ?? 'staff',
+      allowedModules:
+        user.allowedModules ??
+        payload?.allowedModules ??
+        resolveAllowedModules(
+          user.role ?? payload?.role,
+          user.moduleGrants ?? payload?.moduleGrants,
+        ),
+      moduleGrants: resolveStaffModuleGrants(
+        user.moduleGrants ?? payload?.moduleGrants ?? [],
+      ),
       companyId: String(user.companyId ?? payload?.companyId ?? ''),
       companyName: user.companyName ?? payload?.companyName,
       theme: user.theme === 'dark' ? 'dark' : 'light',
@@ -458,6 +532,28 @@ export class SessionService {
         normalizeApiIsoDate(user.operationalAnalysisChangedAt) ??
         normalizeApiIsoDate(payload?.operationalAnalysisChangedAt) ??
         undefined,
+      tripAssistPrefillEnabled:
+        user.tripAssistPrefillEnabled ??
+        user.controlAutomaticRecognition ??
+        payload?.tripAssistPrefillEnabled ??
+        payload?.controlAutomaticRecognition ??
+        false,
+      tripAssistPrefillChangedAt:
+        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
+        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
+        normalizeApiIsoDate(payload?.tripAssistPrefillChangedAt) ??
+        normalizeApiIsoDate(payload?.controlAutomaticRecognitionChangedAt) ??
+        undefined,
+      tripAutoMaintenanceProvisionPercent: (() => {
+        const raw =
+          user.tripAutoMaintenanceProvisionPercent ??
+          payload?.tripAutoMaintenanceProvisionPercent;
+        if (raw == null || !Number.isFinite(Number(raw))) {
+          return 5;
+        }
+        const n = Number(raw);
+        return n >= 0 && n <= 100 ? n : 5;
+      })(),
       dieselControlEnabled:
         user.dieselControlEnabled ?? payload?.dieselControlEnabled ?? true,
       dieselControlChangedAt:
@@ -465,11 +561,15 @@ export class SessionService {
         normalizeApiIsoDate(payload?.dieselControlChangedAt) ??
         undefined,
       controlAutomaticRecognition:
+        user.tripAssistPrefillEnabled ??
         user.controlAutomaticRecognition ??
+        payload?.tripAssistPrefillEnabled ??
         payload?.controlAutomaticRecognition ??
         false,
       controlAutomaticRecognitionChangedAt:
+        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
         normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
+        normalizeApiIsoDate(payload?.tripAssistPrefillChangedAt) ??
         normalizeApiIsoDate(payload?.controlAutomaticRecognitionChangedAt) ??
         undefined,
       maintenanceKmControlEnabled:

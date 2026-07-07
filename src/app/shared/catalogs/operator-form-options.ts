@@ -3,6 +3,7 @@ import type {
   OperatorInsuranceKind,
   OperatorLicenseType,
   OperatorOperationalStatus,
+  OperatorPaymentSchedule,
 } from '@shared/models/logistics.models';
 
 /** Mismos valores que estado operativo de unidad en Flota + RRHH. */
@@ -11,7 +12,6 @@ export const OPERATOR_OPERATIONAL_STATUS_OPTIONS: ToSelectOption[] = [
   { value: 'in_use', label: 'En curso' },
   { value: 'scheduled', label: 'Programado' },
   { value: 'maintenance', label: 'Mantenimiento' },
-  { value: 'on_route', label: 'En ruta' },
   { value: 'incapacitated', label: 'Incapacitado' },
   { value: 'leave', label: 'Vacaciones / descanso' },
   { value: 'inactive', label: 'Inactivo / baja' },
@@ -58,6 +58,13 @@ export const OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS: ToSelectOption[] = [
   { value: 'other', label: 'Otro' },
 ];
 
+export const OPERATOR_PAYMENT_SCHEDULE_OPTIONS: ToSelectOption[] = [
+  { value: 'maneuver', label: 'Maniobra' },
+  { value: 'weekly', label: 'Semana' },
+  { value: 'biweekly', label: 'Quincenal' },
+  { value: 'monthly', label: 'Mensual' },
+];
+
 export function operatorOperationalStatusLabel(
   s: OperatorOperationalStatus,
 ): string {
@@ -70,8 +77,6 @@ export function operatorOperationalStatusLabel(
       return 'Programado';
     case 'maintenance':
       return 'Mantenimiento';
-    case 'on_route':
-      return 'En ruta';
     case 'incapacitated':
       return 'Incapacitado';
     case 'leave':
@@ -113,4 +118,11 @@ export function operatorRelationshipLabel(code: string): string {
 export function operatorEmploymentContractLabel(code: string): string {
   const row = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS.find((o) => o.value === code);
   return row?.label && row.value !== '' ? row.label : '—';
+}
+
+export function operatorPaymentScheduleLabel(
+  schedule: OperatorPaymentSchedule | string,
+): string {
+  const row = OPERATOR_PAYMENT_SCHEDULE_OPTIONS.find((o) => o.value === schedule);
+  return row?.label ?? '—';
 }
