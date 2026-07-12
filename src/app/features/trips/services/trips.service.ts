@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, finalize, map, of, Subscription, switchMap, type Observable } from 'rxjs';
+import { catchError, map, of, Subscription, switchMap, type Observable } from 'rxjs';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { TripsService as TripsApiService } from '@services/api/trips';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
@@ -8,8 +8,8 @@ import type { Trip } from '@shared/models/logistics.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 
 /**
- * Fuente única de verdad del feature Trips (lista en memoria + selección).
- * GET /companies/{companyId}/trips — una vez al entrar; refresh solo tras mutaciones explícitas.
+ * Estado de UI del feature Trips: selección y mutaciones.
+ * La lista vive en `OperationalFleetSyncService` (una sola copia en memoria).
  * Alcance: ruta `/trips`.
  */
 @Injectable()
@@ -19,49 +19,42 @@ export class TripsFeatureService {
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly requestGen = createRequestGeneration();
 
-  private readonly _trips = signal<readonly Trip[]>([]);
   private readonly _selectedTripId = signal<string | null>(null);
   private readonly _fallbackTrip = signal<Trip | null>(null);
-  private readonly _loading = signal(false);
-  private readonly _listEpoch = signal(0);
 
-  private initialLoadStarted = false;
+  private loadRequested = false;
   private disposed = false;
-  private fetchSub: Subscription | null = null;
   private selectTripSub: Subscription | null = null;
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
   }
 
-  readonly trips = this._trips.asReadonly();
+  readonly trips = this.operationalSync.trips;
+  readonly loading = this.operationalSync.tripsLoading;
+  readonly listEpoch = this.operationalSync.tripsEpoch;
   readonly selectedTripId = this._selectedTripId.asReadonly();
   readonly selectedTrip = computed(() => {
     const id = this._selectedTripId();
     if (!id) {
       return null;
     }
-    return this._trips().find((t) => t.id === id) ?? this._fallbackTrip();
+    return this.trips().find((t) => t.id === id) ?? this._fallbackTrip();
   });
-  readonly loading = this._loading.asReadonly();
-  readonly listEpoch = this._listEpoch.asReadonly();
 
   loadTrips(): void {
-    if (this.disposed) {
+    if (this.disposed || this.loadRequested) {
       return;
     }
-    if (this.initialLoadStarted) {
-      return;
-    }
-    this.initialLoadStarted = true;
-    this.runFetch();
+    this.loadRequested = true;
+    this.operationalSync.ensureTripsLoaded();
   }
 
   refreshTrips(): void {
     if (this.disposed) {
       return;
     }
-    this.runFetch();
+    this.operationalSync.refreshTrips();
   }
 
   selectTrip(tripId: string): void {
@@ -69,7 +62,7 @@ export class TripsFeatureService {
     if (!id) {
       return;
     }
-    if (this._trips().some((t) => t.id === id)) {
+    if (this.trips().some((t) => t.id === id)) {
       this.selectTripSub?.unsubscribe();
       this._fallbackTrip.set(null);
       this._selectedTripId.set(id);
@@ -107,10 +100,9 @@ export class TripsFeatureService {
         if (!this.canApplyResponse(requestId)) {
           return created;
         }
-        const withoutDuplicate = this._trips().filter((t) => t.id !== created.id);
-        // Al crear, no autoabrimos detalle: consistencia con clients.
-        this.applyList([created, ...withoutDuplicate], null);
-        this.operationalSync.notifyTripFleetMutation();
+        const withoutDuplicate = this.trips().filter((t) => t.id !== created.id);
+        const list = [created, ...withoutDuplicate];
+        this.applyList(list, null, 'fleet');
         return created;
       }),
     );
@@ -131,8 +123,8 @@ export class TripsFeatureService {
             if (!this.canApplyResponse(requestId)) {
               return updated;
             }
-            this.applyList(list, keepId);
-            return this._trips().find((t) => t.id === keepId) ?? updated;
+            this.applyList(list, keepId, 'list');
+            return this.trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
       ),
@@ -149,9 +141,8 @@ export class TripsFeatureService {
             if (!this.canApplyResponse(requestId)) {
               return updated;
             }
-            this.applyList(list, keepId);
-            this.operationalSync.notifyTripFleetMutation();
-            return this._trips().find((t) => t.id === keepId) ?? updated;
+            this.applyList(list, keepId, 'fleet');
+            return this.trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
       ),
@@ -168,8 +159,8 @@ export class TripsFeatureService {
             if (!this.canApplyResponse(requestId)) {
               return updated;
             }
-            this.applyList(list, keepId);
-            return this._trips().find((t) => t.id === keepId) ?? updated;
+            this.applyList(list, keepId, 'list');
+            return this.trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
       ),
@@ -189,9 +180,8 @@ export class TripsFeatureService {
             if (!this.canApplyResponse(requestId)) {
               return updated;
             }
-            this.applyList(list, keepId);
-            this.operationalSync.notifyTripFleetMutation();
-            return this._trips().find((t) => t.id === keepId) ?? updated;
+            this.applyList(list, keepId, 'fleet');
+            return this.trips().find((t) => t.id === keepId) ?? updated;
           }),
         ),
       ),
@@ -207,46 +197,14 @@ export class TripsFeatureService {
           return;
         }
         const selected = this._selectedTripId();
-        const list = this._trips().filter((t) => t.id !== id);
-        this.applyList(list, selected === id ? null : selected);
+        const list = this.trips().filter((t) => t.id !== id);
+        this.applyList(list, selected === id ? null : selected, 'fleet');
         if (selected === id) {
           this._selectedTripId.set(null);
           this._fallbackTrip.set(null);
         }
-        this.operationalSync.notifyTripFleetMutation();
       }),
     );
-  }
-
-  private runFetch(): void {
-    if (this.disposed) {
-      return;
-    }
-    const requestId = this.requestGen.next();
-    this.fetchSub?.unsubscribe();
-    this._loading.set(true);
-    this.fetchSub = this.fetchList()
-      .pipe(
-        finalize(() => {
-          if (this.requestGen.isCurrent(requestId)) {
-            this._loading.set(false);
-          }
-        }),
-      )
-      .subscribe({
-        next: (list) => {
-          if (!this.canApplyResponse(requestId)) {
-            return;
-          }
-          this.applyList(list, this._selectedTripId());
-        },
-        error: () => {
-          if (!this.canApplyResponse(requestId)) {
-            return;
-          }
-          this.applyList([], this._selectedTripId());
-        },
-      });
   }
 
   private canApplyResponse(requestId: number): boolean {
@@ -257,9 +215,16 @@ export class TripsFeatureService {
     return this.tripsApi.getTripsList().pipe(catchError(() => of([] as Trip[])));
   }
 
-  private applyList(list: Trip[], selectedId: string | null): void {
-    this._trips.set(list);
-    this._listEpoch.update((n) => n + 1);
+  private applyList(
+    list: Trip[],
+    selectedId: string | null,
+    sync: 'list' | 'fleet',
+  ): void {
+    if (sync === 'fleet') {
+      this.operationalSync.publishTripsAfterMutation(list);
+    } else {
+      this.operationalSync.replaceTrips(list);
+    }
     if (!selectedId) {
       return;
     }
@@ -272,22 +237,17 @@ export class TripsFeatureService {
     this._fallbackTrip.set(null);
   }
 
-  /** Destrucción terminal al salir del feature (no reutilizar instancia). */
+  /** Limpia selección al salir del feature; la lista permanece en sync hasta logout. */
   dispose(): void {
     if (this.disposed) {
       return;
     }
     this.disposed = true;
     this.requestGen.invalidate();
-    this.fetchSub?.unsubscribe();
     this.selectTripSub?.unsubscribe();
-    this.fetchSub = null;
     this.selectTripSub = null;
-    this._trips.set([]);
     this._selectedTripId.set(null);
     this._fallbackTrip.set(null);
-    this._loading.set(false);
-    this.initialLoadStarted = false;
+    this.loadRequested = false;
   }
 }
-

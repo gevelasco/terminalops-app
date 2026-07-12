@@ -9,6 +9,9 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
@@ -21,12 +24,18 @@ import {
   operatorOverviewMatchesQuery,
 } from '@features/operators/utils/operators-overview-card';
 import {
+  buildOperatorsCsv,
+  downloadOperatorsCsv,
+} from '@features/operators/utils/operators-export-csv';
+import { operatorListExportRowFromTableRow } from '@features/operators/utils/operators-list-export.util';
+import {
   operatorInsuranceKindLabel,
   operatorOperationalStatusLabel,
 } from '@shared/catalogs/operator-form-options';
 import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
 import { compareByOperatorOperationalStatus } from '@shared/utils/operator-operational-status-sort';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import {
@@ -64,6 +73,7 @@ function formatIsoDateEs(iso: string): string {
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
+    ToIconComponent,
     ToSegmentControlComponent,
     OperatorsNewDrawerComponent,
     OperatorsDetailDrawerComponent,
@@ -74,9 +84,12 @@ function formatIsoDateEs(iso: string): string {
 })
 export class OperatorsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   protected readonly operatorsFeature = inject(OperatorsFeatureService);
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -92,7 +105,20 @@ export class OperatorsPageComponent implements OnInit {
       operatorsEpochBaseline = epoch;
       this.operatorsFeature.refreshOperators();
     });
+
+    effect(() => {
+      const id = this.pendingOperatorId();
+      if (!id || this.operatorsFeature.loading()) {
+        return;
+      }
+      this.operatorsFeature.selectOperator(id);
+      if (this.operatorsFeature.selectedOperator()) {
+        this.pendingOperatorId.set(null);
+      }
+    });
   }
+
+  private readonly pendingOperatorId = signal<string | null>(null);
 
   readonly pageTab = signal<OperatorsPageTab>('operators');
   readonly viewSegmentTabs: readonly ToSegmentTab<OperatorsPageTab>[] = [
@@ -164,6 +190,27 @@ export class OperatorsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.operatorsFeature.loadOperators();
+    this.openOperatorFromQuery(this.route.snapshot.queryParamMap.get('operatorId'));
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.openOperatorFromQuery(params.get('operatorId'));
+      });
+  }
+
+  private openOperatorFromQuery(operatorId: string | null): void {
+    const id = operatorId?.trim();
+    if (!id) {
+      return;
+    }
+    this.pageTab.set('operators');
+    this.pendingOperatorId.set(id);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { operatorId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   onPageTabSelect(tab: OperatorsPageTab): void {
@@ -195,6 +242,22 @@ export class OperatorsPageComponent implements OnInit {
 
   onOperatorCreated(_op: Operator): void {
     this.newOperatorOpen.set(false);
+  }
+
+  exportOperators(): void {
+    const rows = this.displayedOperatorRows();
+    if (rows.length === 0) {
+      this.toast.show(
+        'No hay operadores para exportar con los filtros actuales.',
+        'warning',
+      );
+      return;
+    }
+    const csv = buildOperatorsCsv(
+      rows.map((row) => operatorListExportRowFromTableRow(row)),
+    );
+    downloadOperatorsCsv(csv, 'operadores.csv');
+    this.toast.show(`Exportados ${rows.length} operadores.`, 'success');
   }
 
   private static rowMatchesQuery(

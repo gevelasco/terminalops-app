@@ -17,8 +17,6 @@
   padding-bottom: 0.75rem;
   margin-bottom: 1rem;
   background: var(--to-color-bg, #f9f9f9);
-  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 88%, transparent);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--to-color-text) 5%, transparent);
 
   ::ng-deep to-page-header {
     position: static;
@@ -29,8 +27,6 @@
     box-shadow: none;
 
     .to-page-header {
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
       border-bottom: 1px solid
         color-mix(in srgb, var(--to-color-border) 72%, transparent);
       box-shadow: none;
@@ -80,10 +76,83 @@
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
 }
 
-.fleet-toolbar__filters {
+.fleet-toolbar__filters,
+.fleet-toolbar__table-actions {
   margin-left: auto;
   flex-shrink: 1;
   min-width: 0;
+}
+
+.fleet-toolbar__table-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.fleet-toolbar__export-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.fleet-toolbar__export-wrap::after,
+.fleet-toolbar__export-wrap::before {
+  opacity: 0;
+  transform: translateY(2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  pointer-events: none;
+}
+
+.fleet-toolbar__export-wrap::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(16rem, 80vw);
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  color: var(--to-color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.fleet-toolbar__export-wrap::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 0.15rem);
+  right: 0.65rem;
+  border: 5px solid transparent;
+  border-top-color: var(--to-color-border);
+}
+
+.fleet-toolbar__export-wrap:hover::after,
+.fleet-toolbar__export-wrap:hover::before,
+.fleet-toolbar__export-wrap:focus-within::after,
+.fleet-toolbar__export-wrap:focus-within::before {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fleet-toolbar__export {
+  flex-shrink: 0;
+  display: inline-flex;
+
+  ::ng-deep .to-button {
+    width: var(--fleet-toolbar-control-height);
+    min-width: var(--fleet-toolbar-control-height);
+    height: var(--fleet-toolbar-control-height);
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 .fleet-overview__hint {

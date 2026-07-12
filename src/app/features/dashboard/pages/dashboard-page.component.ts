@@ -8,10 +8,11 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { catchError, firstValueFrom, forkJoin, of } from 'rxjs';
+import { finalize, map } from 'rxjs/operators';
 import { DashboardService } from '@services/api/dashboard';
 import { CompaniesService } from '@services/api/companies';
+import { ExpensesService } from '@services/api/expenses';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { dashboardChartPrimary } from '@features/dashboard/utils/dashboard-chart-colors';
@@ -19,6 +20,11 @@ import { buildDashboardOperationalFlowOption } from '@features/dashboard/utils/d
 import { buildDashboardTopDestinationsOption } from '@features/dashboard/utils/dashboard-top-destinations-option';
 import { buildDashboardTripActivityOption } from '@features/dashboard/utils/dashboard-trip-activity-option';
 import { buildReportsGeneralOperationMixPieOption } from '@features/reports/utils/charts/general/reports-general-operation-mix-pie-option';
+import {
+  buildDashboardUpcomingPayments,
+  dashboardUpcomingPaymentsRange,
+  type DashboardUpcomingPaymentRow,
+} from '@features/dashboard/utils/dashboard-upcoming-payments.util';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
@@ -65,13 +71,21 @@ function formatWeekOverWeekPercent(value: number | null | undefined): string {
 export class DashboardPageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly companiesApi = inject(CompaniesService);
+  private readonly expensesApi = inject(ExpensesService);
   private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly toast = inject(ToastService);
 
   private readonly pageResource = resource({
-    loader: () => firstValueFrom(this.dashboardApi.getPageData()),
+    loader: () =>
+      firstValueFrom(
+        forkJoin({
+          summary: this.dashboardApi.getSummary(),
+          insights: this.dashboardApi.getInsights(),
+          upcomingPayments: this.loadUpcomingPayments(),
+        }),
+      ),
   });
 
   readonly dieselEditOpen = signal(false);
@@ -84,6 +98,29 @@ export class DashboardPageComponent {
 
   readonly summary = computed(() => this.pageResource.value()?.summary);
   readonly insights = computed(() => this.pageResource.value()?.insights);
+  readonly upcomingPayments = computed(
+    () => this.pageResource.value()?.upcomingPayments ?? [],
+  );
+  readonly showUpcomingPayments = computed(
+    () => this.showFinancialInsights() && this.upcomingPayments().length > 0,
+  );
+  readonly upcomingPaymentsSubtitle = computed(() => {
+    const { to } = dashboardUpcomingPaymentsRange();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(to);
+    if (!match) {
+      return 'Vencidos y hasta fin de mes';
+    }
+    const end = new Date(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      12,
+    );
+    const monthLabel = new Intl.DateTimeFormat('es-MX', { month: 'long' }).format(end);
+    const month =
+      monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+    return `Vencidos y hasta el ${end.getDate()} de ${month}`;
+  });
 
   /** Re-lee el azul del sidemenu (`--palette-primary`) al cambiar tema o datos. */
   readonly chartShellColor = computed(() => {
@@ -304,6 +341,28 @@ export class DashboardPageComponent {
       return charge;
     }
     return this.currencyMx.transform(n);
+  }
+
+  upcomingPaymentAmountLabel(row: DashboardUpcomingPaymentRow): string {
+    return this.currencyMx.transform(row.amount, row.currency);
+  }
+
+  private loadUpcomingPayments() {
+    if (!this.showFinancialInsights()) {
+      return of([] as DashboardUpcomingPaymentRow[]);
+    }
+    const range = dashboardUpcomingPaymentsRange();
+    return this.expensesApi
+      .getExpensesCalendar({
+        from: range.fetchFrom,
+        to: range.to,
+        page: 1,
+        limit: 0,
+      })
+      .pipe(
+        map((response) => buildDashboardUpcomingPayments(response.items, range)),
+        catchError(() => of([] as DashboardUpcomingPaymentRow[])),
+      );
   }
 
   openRecentTrip(tripId: number): void {

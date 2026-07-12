@@ -53,4 +53,17 @@ describe('tripResolvedDirectCost', () => {
 
     expect(tripResolvedDirectCost(trip(), expenses)).toBe(6500);
   });
+
+  it('adds trip-linked extras on top of programmed fields when auto ledger is absent', () => {
+    const expenses: Expense[] = [
+      expense({
+        id: 'repair',
+        kind: 'repair',
+        amount: 2500,
+        category: 'Reparación',
+      }),
+    ];
+
+    expect(tripResolvedDirectCost(trip(), expenses)).toBe(4050);
+  });
 });

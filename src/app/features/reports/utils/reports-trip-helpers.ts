@@ -89,7 +89,8 @@ export function tripResolvedDirectCost(
   if (ledgerCoversTripProgrammedCosts(ledger)) {
     return ledger.reduce((sum, expense) => sum + expense.amount, 0);
   }
-  return tripDirectCost(trip);
+  const extras = ledger.reduce((sum, expense) => sum + expense.amount, 0);
+  return tripDirectCost(trip) + extras;
 }
 
 export function sumTripResolvedDirectCost(

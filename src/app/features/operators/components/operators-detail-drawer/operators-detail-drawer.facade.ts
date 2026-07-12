@@ -423,7 +423,7 @@ export class OperatorsDetailDrawerFacade {
     const birthDate = this.editBirthDate().trim();
     const curp = this.editCurp().trim().toUpperCase();
     const rfc = this.editRfc().trim().toUpperCase();
-    const licenseNumber = this.editLicenseNumber().trim();
+    const licenseNumber = this.editLicenseNumber().trim().toUpperCase();
     const licenseExpiresOn = this.editLicenseExpiresOn().trim();
     const phone = this.editPhone().trim();
 

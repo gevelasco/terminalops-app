@@ -58,6 +58,7 @@
       class="to-field__control"
       [class.to-field__control--invalid]="error()"
       [class.to-field__control--affixed]="hasAffix()"
+      [class.to-field__control--uppercase]="uppercase()"
       [attr.id]="id()"
       [attr.name]="inputName() ?? null"
       [attr.type]="effectiveType()"

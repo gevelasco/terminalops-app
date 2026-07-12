@@ -582,3 +582,28 @@
     </to-button>
   </div>
 </to-side-drawer>
+
+<to-confirm-dialog
+  titleId="maniobra-past-completion-title"
+  icon="warning"
+  title="Registrar maniobra ya completada"
+  cancelLabel="Revisar fechas"
+  confirmLabel="Registrar"
+  confirmIcon="checkCircle"
+  confirmVariant="primary"
+  [open]="pastCompletionConfirmOpen()"
+  [confirmLoading]="creating()"
+  [confirmDisabled]="creating()"
+  (cancel)="cancelPastCompletionCreate()"
+  (confirm)="confirmPastCompletionCreate()"
+>
+  <p class="maniobra-drawer__confirm-copy">
+    Las fechas indican que concluyó
+    @if (plannedCompletionDisplayLabel()) {
+      (fin: {{ plannedCompletionDisplayLabel() }})
+    }
+    , se registrará como <strong>completada</strong> y no como programada.
+    <br /><br />
+    ¿Deseas continuar?
+  </p>
+</to-confirm-dialog>

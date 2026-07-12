@@ -525,7 +525,12 @@
             }
             <div class="fleet-unit-detail__row">
               <dt>Estatus comercial</dt>
-              <dd>{{ vm.healthSummary() }}</dd>
+              <dd>
+                <span [class]="vm.commercialHealthPillClass()">
+                  <span class="to-table-pill__dot" aria-hidden="true"></span>
+                  <span class="to-table-pill__label">{{ vm.healthSummary() }}</span>
+                </span>
+              </dd>
             </div>
             <div class="fleet-unit-detail__row">
               <dt>Método de pago preferido</dt>
@@ -537,12 +542,10 @@
             <app-client-pay-fields
               layout="edit"
               [yesNoOptions]="vm.yesNoOptions"
-              [healthOptions]="vm.healthOptions"
               [paymentMethodOptions]="vm.paymentMethodOptions"
               [(payHasCredit)]="vm.payHasCredit"
               [(payCreditDays)]="vm.payCreditDays"
               [(payCreditAmount)]="vm.payCreditAmount"
-              [(payHealth)]="vm.payHealth"
               [(payDefaultPaymentMethod)]="vm.payDefaultPaymentMethod"
             />
             <div class="fleet-unit-sec__edit-actions">

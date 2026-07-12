@@ -222,6 +222,7 @@
             <app-fleet-insurance-payment-schedule
               [schedule]="vm.insurancePaymentSchedule()"
               [saving]="vm.saving()"
+              [canConfirmPayments]="vm.canWriteFleet()"
               [formatDate]="vm.formatYmd"
               [formatAmount]="vm.formatTrackingAmount.bind(vm)"
               (confirmCycle)="vm.confirmInsurancePaymentCycle($event)"

@@ -14,6 +14,7 @@ export type ExpenseRubro =
   | 'gps'
   | 'administracion'
   | 'verificaciones'
+  | 'servicio'
   | 'gasto'
   | 'otro';
 
@@ -27,6 +28,7 @@ export const EXPENSE_RUBRO_OPTIONS: ToSelectOption[] = [
   { value: 'gps', label: 'GPS' },
   { value: 'administracion', label: 'Administración' },
   { value: 'verificaciones', label: 'Verificaciones' },
+  { value: 'servicio', label: 'Servicio' },
   { value: 'gasto', label: 'Gasto' },
   { value: 'otro', label: 'Otro' },
 ];
@@ -50,12 +52,6 @@ export const EXPENSE_CONCEPT_CATALOG: readonly ExpenseConceptDefinition[] = [
     label: 'Pago a operador',
     rubro: 'maniobra',
     kind: 'operator_payment',
-  },
-  {
-    id: 'operator_commission',
-    label: 'Comisión a operador',
-    rubro: 'maniobra',
-    kind: 'operator_commission',
   },
   {
     id: 'maniobra_custom',
@@ -156,6 +152,14 @@ export const EXPENSE_CONCEPT_CATALOG: readonly ExpenseConceptDefinition[] = [
   },
 
   {
+    id: 'servicio_custom',
+    label: 'Otro (especificar)',
+    rubro: 'servicio',
+    kind: 'service',
+    custom: true,
+  },
+
+  {
     id: 'gasto_custom',
     label: 'Otro (especificar)',
     rubro: 'gasto',
@@ -181,6 +185,7 @@ const RUBRO_LABELS: Record<ExpenseRubro, string> = {
   gps: 'GPS',
   administracion: 'Administración',
   verificaciones: 'Verificaciones',
+  servicio: 'Servicio',
   gasto: 'Gasto',
   otro: 'Otro',
 };
@@ -215,6 +220,7 @@ const KIND_DEFAULT_RUBRO = new Map<ExpenseKind, ExpenseRubro>([
   ['equipment_rent', 'administracion'],
   ['trailer_admin_payout', 'administracion'],
   ['operational_control', 'administracion'],
+  ['service', 'servicio'],
   ['other', 'otro'],
 ]);
 
@@ -249,6 +255,8 @@ export function defaultKindForRubro(rubro: ExpenseRubro): ExpenseKind {
       return 'other';
     case 'verificaciones':
       return 'verification';
+    case 'servicio':
+      return 'service';
     case 'gasto':
       return 'other';
     default:
@@ -284,8 +292,10 @@ export function resolveExpenseConceptFromExpense(e: Expense): {
     return { rubro, conceptId: byLabel.id };
   }
 
+  const kindForConcept =
+    e.kind === 'operator_commission' ? 'operator_payment' : e.kind;
   const byKind = EXPENSE_CONCEPT_CATALOG.find(
-    (c) => c.rubro === rubro && !c.custom && c.kind === e.kind,
+    (c) => c.rubro === rubro && !c.custom && c.kind === kindForConcept,
   );
   if (byKind) {
     return { rubro, conceptId: byKind.id };

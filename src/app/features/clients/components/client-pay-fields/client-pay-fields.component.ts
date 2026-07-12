@@ -17,13 +17,11 @@ import {
 export class ClientPayFieldsComponent {
   readonly layout = input<'new' | 'edit'>('new');
   readonly yesNoOptions = input.required<ToSelectOption[]>();
-  readonly healthOptions = input.required<ToSelectOption[]>();
   readonly paymentMethodOptions = input.required<ToSelectOption[]>();
 
   readonly payHasCredit = model('');
   readonly payCreditDays = model('');
   readonly payCreditAmount = model('');
-  readonly payHealth = model('');
   readonly payDefaultPaymentMethod = model('');
 
   readonly creditGranted = computed(() => yesNoToBool(this.payHasCredit()));

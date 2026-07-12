@@ -1,4 +1,5 @@
 import { tripDueDate } from '@features/reports/utils/reports-credit-receivable-charts';
+import { CLIENT_COMMERCIAL_DUE_SOON_DAYS } from '@features/clients/utils/client-commercial-status.util';
 import { localYmd } from '@features/reports/utils/reports-filter';
 import {
   isTripBillableForReporting,
@@ -61,6 +62,34 @@ export interface ClientBalanceSummary {
   paymentHistory: ClientPaymentHistoryRow[];
 }
 
+/** Resumen vacío para clientes sin maniobras (p. ej. overview API). */
+export function emptyClientBalanceSummary(): ClientBalanceSummary {
+  return {
+    hasTrips: false,
+    hasBillable: false,
+    statusCounts: {
+      completed: 0,
+      inTransit: 0,
+      scheduled: 0,
+      cancelled: 0,
+      total: 0,
+    },
+    completedCount: 0,
+    totalKm: 0,
+    collected: 0,
+    receivable: 0,
+    totalRevenue: 0,
+    directCost: 0,
+    margin: 0,
+    marginPct: 0,
+    nextDueYmd: null,
+    nextDueLabel: '—',
+    nextDueBadgeVariant: 'neutral',
+    upcomingPayments: [],
+    paymentHistory: [],
+  };
+}
+
 function tripMatchesClient(t: Trip, clientId: string): boolean {
   const id = clientId.trim();
   if (!id) {
@@ -106,7 +135,7 @@ function dueBadgeVariant(
   if (dueYmd < asOfYmd) {
     return 'danger';
   }
-  if (dueYmd <= addDaysYmd(asOfYmd, 7)) {
+  if (dueYmd <= addDaysYmd(asOfYmd, CLIENT_COMMERCIAL_DUE_SOON_DAYS)) {
     return 'warning';
   }
   return 'success';
@@ -116,7 +145,7 @@ function dueStatusHint(dueYmd: string, asOfYmd: string): string {
   if (dueYmd < asOfYmd) {
     return 'Vencido';
   }
-  if (dueYmd <= addDaysYmd(asOfYmd, 7)) {
+  if (dueYmd <= addDaysYmd(asOfYmd, CLIENT_COMMERCIAL_DUE_SOON_DAYS)) {
     return 'Vence pronto';
   }
   return 'Programado';
@@ -230,5 +259,103 @@ export function buildClientBalanceSummary(
     nextDueBadgeVariant: nextDueBadgeVariant,
     upcomingPayments,
     paymentHistory,
+  };
+}
+
+const mxMoney0 = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+});
+
+function compactDateLabel(ymd: string): string {
+  const d = new Date(`${ymd}T12:00:00`);
+  if (Number.isNaN(d.getTime())) {
+    return ymd;
+  }
+  return new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric',
+    month: 'short',
+  }).format(d);
+}
+
+function daysOverdue(dueYmd: string, asOfYmd: string): number {
+  const due = new Date(`${dueYmd}T12:00:00`);
+  const asOf = new Date(`${asOfYmd}T12:00:00`);
+  if (Number.isNaN(due.getTime()) || Number.isNaN(asOf.getTime())) {
+    return 0;
+  }
+  const diff = Math.floor((asOf.getTime() - due.getTime()) / 86_400_000);
+  return diff > 0 ? diff : 0;
+}
+
+/** Formato monetario compartido para balance de cliente (cards y drawer). */
+export function formatClientBalanceMoney(value: number): string {
+  return mxMoney0.format(value);
+}
+
+export interface ClientBalanceCollectionStatus {
+  label: string;
+  variant: ClientPaymentDueBadgeVariant;
+  icon: 'warning' | 'cancelCircle' | null;
+}
+
+/** Etiqueta de cobranza derivada del resumen (cards de balance). */
+export function clientBalanceCollectionStatus(
+  balance: ClientBalanceSummary,
+  asOf: Date = new Date(),
+): ClientBalanceCollectionStatus {
+  const pendingCount = balance.upcomingPayments.length;
+  if (balance.receivable <= 0 || pendingCount === 0) {
+    return { label: 'Vigente', variant: 'success', icon: null };
+  }
+
+  const overdue = balance.upcomingPayments.filter(
+    (row) => row.badgeVariant === 'danger',
+  );
+  if (overdue.length > 0) {
+    const days = daysOverdue(overdue[0].dueYmd, localYmd(asOf));
+    return {
+      label: days > 0 ? `Pago vencido (${days} días)` : 'Pago vencido',
+      variant: 'danger',
+      icon: 'cancelCircle',
+    };
+  }
+
+  const noun = pendingCount === 1 ? 'maniobra' : 'maniobras';
+  return {
+    label: `${pendingCount} ${noun} por cobrar`,
+    variant: 'warning',
+    icon: 'warning',
+  };
+}
+
+export interface ClientBalanceHighlightedPayment {
+  sectionLabel: string;
+  dueLabel: string;
+  amountLabel: string;
+  overdue: boolean;
+}
+
+/** Próximo cobro o vencimiento más urgente (primer `upcomingPayments`). */
+export function clientBalanceHighlightedPayment(
+  balance: ClientBalanceSummary,
+): ClientBalanceHighlightedPayment {
+  const next = balance.upcomingPayments[0];
+  if (!next) {
+    return {
+      sectionLabel: 'Próximo pago',
+      dueLabel: '—',
+      amountLabel: '—',
+      overdue: false,
+    };
+  }
+
+  const overdue = next.badgeVariant === 'danger';
+  return {
+    sectionLabel: overdue ? 'Fecha vencimiento' : 'Próximo pago',
+    dueLabel: compactDateLabel(next.dueYmd),
+    amountLabel: formatClientBalanceMoney(next.amount),
+    overdue,
   };
 }

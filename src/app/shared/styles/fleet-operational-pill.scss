@@ -46,6 +46,31 @@
   background: color-mix(in srgb, #a1a1aa 14%, var(--to-color-surface, #fff));
 }
 
+.to-table-pill--client-good {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--client-due-soon {
+  color: #a16207;
+  background: color-mix(in srgb, #eab308 22%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--client-watch {
+  color: #475569;
+  background: color-mix(in srgb, #94a3b8 16%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--client-restricted {
+  color: #9a3412;
+  background: color-mix(in srgb, #f97316 18%, var(--to-color-surface, #fff));
+}
+
+.to-table-pill--client-na {
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+}
+
 :host-context([data-app-scheme='dark']) {
   .to-table-pill--fleet-maneuver {
     color: #93c5fd;
@@ -85,5 +110,25 @@
   .to-table-pill--operator-inactive {
     color: #d4d4d8;
     background: color-mix(in srgb, #a1a1aa 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--client-good {
+    color: #86efac;
+    background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--client-due-soon {
+    color: #fde047;
+    background: color-mix(in srgb, #eab308 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--client-watch {
+    color: #cbd5e1;
+    background: color-mix(in srgb, #94a3b8 18%, var(--to-color-surface));
+  }
+
+  .to-table-pill--client-restricted {
+    color: #fdba74;
+    background: color-mix(in srgb, #f97316 18%, var(--to-color-surface));
   }
 }

@@ -59,6 +59,19 @@ export type ReportsBalanceExpenseRubro = {
   count: number;
 };
 
+export type ReportsBalanceDailyActivityEvent = {
+  kind: 'income' | 'expense';
+  label: string;
+  amount: number;
+};
+
+export type ReportsBalanceDailyActivityDay = {
+  date: string;
+  incomeCount: number;
+  expenseCount: number;
+  events: ReportsBalanceDailyActivityEvent[];
+};
+
 export type ReportsBalanceInsights = {
   composition: ReportsBalanceCompositionSlice[];
   creditByClient: ReportsBalanceCreditByClient[];
@@ -66,6 +79,7 @@ export type ReportsBalanceInsights = {
   marginByClient: ReportsBalanceMarginByClient[];
   profitability: ReportsBalanceProfitability;
   expensesByRubro: ReportsBalanceExpenseRubro[];
+  dailyActivity: ReportsBalanceDailyActivityDay[];
 };
 
 export type ReportsBalanceData = {
@@ -157,6 +171,19 @@ export function mapApiReportsBalance(raw: Record<string, unknown>): ReportsBalan
     }),
   );
 
+  const dailyActivity = ((insightsRaw['dailyActivity'] ?? []) as Record<string, unknown>[]).map(
+    (row) => ({
+      date: String(row['date'] ?? ''),
+      incomeCount: num(row['incomeCount']),
+      expenseCount: num(row['expenseCount']),
+      events: ((row['events'] ?? []) as Record<string, unknown>[]).map((event) => ({
+        kind: event['kind'] === 'expense' ? ('expense' as const) : ('income' as const),
+        label: String(event['label'] ?? ''),
+        amount: num(event['amount']),
+      })),
+    }),
+  );
+
   return {
     summary: mapSummary((raw['summary'] ?? {}) as Record<string, unknown>),
     insights: {
@@ -168,6 +195,7 @@ export function mapApiReportsBalance(raw: Record<string, unknown>): ReportsBalan
         (insightsRaw['profitability'] ?? {}) as Record<string, unknown>,
       ),
       expensesByRubro,
+      dailyActivity,
     },
   };
 }

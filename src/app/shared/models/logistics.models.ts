@@ -14,8 +14,11 @@ export type TripOperationType = string;
 /** Carga del servicio (equipo vacío vs cargado). */
 export type TripLoadType = 'vacio' | 'lleno';
 
-/** Contenedor ISO / convención terrestre (N/A si no aplica). */
-export type TripContainerType = '20ft' | '40ft' | '40hc' | 'na';
+/**
+ * Contenedor ISO en arrastre portuario / carretera (México).
+ * DC = Dry Container estándar (8′6″); HC = High Cube (9′6″).
+ */
+export type TripContainerType = '20dc' | '20hc' | '40dc' | '40hc' | '45hc' | 'na';
 
 /** Prioridad operativa del incidente (alertas y notificaciones). */
 export type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -460,9 +463,14 @@ export interface UnitFleetMeta {
 export type EquipmentContainerSlotConfigKey =
   | 'na'
   | 'fixed'
-  | 'iso_40'
   | 'iso_20'
+  | 'iso_40'
+  | 'iso_45'
   | 'iso_20_20'
+  | 'iso_20_40'
+  | 'iso_20_45'
+  | 'iso_20_40_45'
+  | 'gooseneck'
   | 'ft_53'
   | 'ft_48'
   | 'ft_46'
@@ -608,6 +616,7 @@ export type ExpenseKind =
   | 'operator_payment'
   | 'operator_commission'
   | 'operational_control'
+  | 'service'
   | 'other';
 
 export type ExpenseMaintenanceTarget = 'unit' | 'equipment';

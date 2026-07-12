@@ -55,6 +55,23 @@
           [(value)]="searchQuery"
         />
       </div>
+      <div class="operators-toolbar__table-actions">
+        <span
+          class="operators-toolbar__export-wrap"
+          data-tooltip="Exportar CSV"
+        >
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="operators-toolbar__export"
+            ariaLabel="Exportar CSV"
+            (click)="exportOperators()"
+          >
+            <to-icon name="download" [size]="18" />
+          </to-button>
+        </span>
+      </div>
     } @else {
       <div class="operators-toolbar__search">
         <to-input

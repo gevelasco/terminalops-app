@@ -3,14 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToClientsMultiInputComponent } from '@shared/ui/to-clients-multi-input/to-clients-multi-input.component';
 import { ToPaymentMethodsMultiInputComponent } from '@shared/ui/to-payment-methods-multi-input/to-payment-methods-multi-input.component';
-import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
-import type {
-  ReportsFilter,
-  ReportsPeriodPreset,
-  ReportsTabId,
-} from '../../models/reports-view.models';
+import type { ReportsFilter, ReportsTabId } from '../../models/reports-view.models';
 import type { ReportsToolbarTab } from '../../reports.constants';
-import { parseYmd, rangeForPreset } from '../../utils/reports-filter';
+import {
+  rangeForCalendarMonth,
+  reportsCalendarMonthOptions,
+  reportsCalendarYearOptions,
+} from '../../utils/reports-filter';
 
 @Component({
   selector: 'app-reports-filter-bar',
@@ -30,36 +29,32 @@ export class ReportsFilterBarComponent {
   readonly tab = model.required<ReportsTabId>();
   readonly tabs = input<ReportsToolbarTab[]>([]);
 
-  readonly periodRangeLabel = computed(() => {
-    const f = this.filter();
-    const a = parseYmd(f.from);
-    const b = parseYmd(f.to);
-    if (!a || !b) {
-      return '';
+  readonly yearOptions = computed(() => reportsCalendarYearOptions());
+
+  readonly monthOptions = computed(() =>
+    reportsCalendarMonthOptions(this.filter().periodYear),
+  );
+
+  onMonthChange(value: string | number): void {
+    this.applyPeriod(Number(value), this.filter().periodYear);
+  }
+
+  onYearChange(value: string | number): void {
+    const year = Number(value);
+    let month = this.filter().periodMonth;
+    const allowedMonths = reportsCalendarMonthOptions(year);
+    if (!allowedMonths.some((option) => option.value === month)) {
+      month = allowedMonths.at(-1)?.value ?? month;
     }
-    const fmt = new Intl.DateTimeFormat('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: a.getFullYear() !== b.getFullYear() ? 'numeric' : undefined,
-    });
-    return `${fmt.format(a)} – ${fmt.format(b)}`;
-  });
+    this.applyPeriod(month, year);
+  }
 
-  readonly presetOptions: ToSelectOption[] = [
-    { value: 'today', label: 'Hoy' },
-    { value: 'week', label: 'Semana' },
-    { value: 'month', label: 'Mes' },
-    { value: 'quarter', label: 'Trimestre' },
-    { value: 'semester', label: 'Semestre' },
-    { value: 'year', label: 'Año' },
-  ];
-
-  onPresetChange(value: string): void {
-    const preset = value as ReportsPeriodPreset;
-    const range = rangeForPreset(preset);
+  private applyPeriod(month: number, year: number): void {
+    const range = rangeForCalendarMonth(year, month);
     this.filter.update((f) => ({
       ...f,
-      preset,
+      periodMonth: month,
+      periodYear: year,
       from: range.from,
       to: range.to,
     }));

@@ -97,6 +97,16 @@
                     clientHealthPillLabel(row[col.key])
                   }}</span>
                 </span>
+              } @else if (col.cell === 'client-name-status') {
+                <div class="to-table-name-status">
+                  <span class="to-table-name-status__name">{{ row[col.key] }}</span>
+                  <span [class]="clientHealthPillClass(row['commercialHealth'])">
+                    <span class="to-table-pill__dot" aria-hidden="true"></span>
+                    <span class="to-table-pill__label">{{
+                      clientHealthPillLabel(row['commercialHealth'])
+                    }}</span>
+                  </span>
+                </div>
               } @else if (col.cell === 'rate-availability-pill') {
                 <span [class]="rateAvailabilityPillClass(row[col.key])">
                   <span class="to-table-pill__dot" aria-hidden="true"></span>

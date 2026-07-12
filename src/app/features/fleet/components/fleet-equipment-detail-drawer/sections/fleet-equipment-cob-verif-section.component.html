@@ -30,6 +30,7 @@
                 <dd>{{ vm.physMechExemptStartLabel() }}</dd>
               </div>
             </dl>
+            @if (vm.canWriteFleet()) {
             <div class="fleet-unit-detail__verif-action-btn">
               <to-button
                 type="button"
@@ -40,6 +41,7 @@
                 Configurar exención
               </to-button>
             </div>
+            }
           } @else {
             <div class="fleet-unit-detail__verif-form">
               <label class="fleet-unit-detail__checkbox-row">
@@ -115,7 +117,7 @@
                 {{ vm.physMechNextShortLabel() }}
               </span>
             </div>
-            @if (!vm.isPhysVerifFormOpen()) {
+            @if (vm.canWriteFleet() && !vm.isPhysVerifFormOpen()) {
               <div class="fleet-unit-detail__verif-action-btn">
                 <to-button
                   type="button"
@@ -147,7 +149,7 @@
             Costo:
             {{ vm.formatTrackingAmount(vm.meta()?.verificationPhysMechCost) }}
           </p>
-          @if (vm.isPhysVerifFormOpen()) {
+          @if (vm.canWriteFleet() && vm.isPhysVerifFormOpen()) {
             <div class="fleet-unit-detail__verif-form">
               <div class="fleet-unit-detail__verif-form-grid">
                 <to-input

@@ -1,5 +1,4 @@
 import {
-  equipmentTypeDisplayLabel,
   isPlanaEquipment,
 } from '@features/fleet/utils/unit-hitched-equipment';
 import type { OperationConfigurationResolver } from '@shared/services/operation-configuration-resolver.types';
@@ -26,20 +25,31 @@ function convoyDisplayFromEquipment(equipment: readonly Equipment[]): UnitConvoy
   if (base.label !== 'Configuración desconocida' || equipment.length === 0) {
     return base;
   }
-  if (equipment.length >= 2) {
+
+  const n = equipment.length;
+  if (n >= 2) {
     const label = 'Doble articulado';
     return {
-      ...base,
       kind: 'multi',
+      code: 'full',
       label,
       badgeClass: operationConfigBadgeClass(label),
+      description: `${n} equipos enganchados (${label}).`,
     };
   }
-  const label = equipmentTypeDisplayLabel(equipment[0]!);
+
+  const eq = equipment[0]!;
+  const isPlataforma = isPlanaEquipment(eq);
+  const label = isPlataforma ? 'Plana' : 'Sencillo';
+  const code = isPlataforma ? 'plana' : 'sencillo';
   return {
-    ...base,
+    kind: isPlataforma ? 'plataforma' : 'single',
+    code,
     label,
     badgeClass: operationConfigBadgeClass(label),
+    description: isPlataforma
+      ? `Un equipo tipo plataforma (${label}).`
+      : `Un equipo enganchado (${label}).`,
   };
 }
 

@@ -16,48 +16,47 @@ export type ReportsChartTypeId =
   | 'donutPie';
 
 export type ReportsTabChartAssignment = Partial<
-  Record<ReportsChartTypeId, readonly ('general' | 'balance' | 'maniobras' | 'fleet')[]>
+  Record<ReportsChartTypeId, readonly ('balance' | 'maniobras' | 'fleet')[]>
 >;
 
-/** Asignación planificada por tab (General ya implementada). */
 export const REPORTS_CHART_TYPE_REGISTRY: Record<
   ReportsChartTypeId,
   {
     label: string;
     echartsFamily: string;
-    assignedTabs: readonly ('general' | 'balance' | 'maniobras' | 'fleet')[];
+    assignedTabs: readonly ('balance' | 'maniobras' | 'fleet')[];
     notes?: string;
   }
 > = {
   areaPieces: {
     label: 'Basic Line',
     echartsFamily: 'line',
-    assignedTabs: ['general'],
+    assignedTabs: ['maniobras'],
     notes: 'Actividad diaria del periodo (multi-serie)',
   },
   basicBar: {
     label: 'Basic Bar',
     echartsFamily: 'bar',
-    assignedTabs: ['general'],
+    assignedTabs: ['maniobras'],
     notes: 'Top destinos (barras verticales)',
   },
   treemapSpend: {
     label: 'Treemap (spend breakdown)',
     echartsFamily: 'treemap',
-    assignedTabs: ['general', 'balance'],
-    notes: 'General: distribución financiera · Balance: utilidad del periodo',
+    assignedTabs: ['balance'],
+    notes: 'Balance: utilidad del periodo',
   },
   ringGauge: {
     label: 'Ring Gauge',
     echartsFamily: 'gauge',
-    assignedTabs: ['general'],
-    notes: 'Ejecución operativa (staff sin balance)',
+    assignedTabs: [],
+    notes: 'Reservado',
   },
   sunburstRounded: {
     label: 'Sunburst with Rounded Corners',
     echartsFamily: 'sunburst',
-    assignedTabs: ['general'],
-    notes: 'Mix de configuración jerárquico',
+    assignedTabs: [],
+    notes: 'Reservado',
   },
   piePadAngle: {
     label: 'Pie with padAngle',
@@ -92,7 +91,7 @@ export const REPORTS_CHART_TYPE_REGISTRY: Record<
 };
 
 export function reportsChartTypesForTab(
-  tab: 'general' | 'balance' | 'maniobras' | 'fleet',
+  tab: 'balance' | 'maniobras' | 'fleet',
 ): ReportsChartTypeId[] {
   return (Object.entries(REPORTS_CHART_TYPE_REGISTRY) as [
     ReportsChartTypeId,

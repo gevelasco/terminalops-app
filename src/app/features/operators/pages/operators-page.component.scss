@@ -11,6 +11,10 @@
   align-items: flex-end;
   gap: 0.75rem 1rem;
   margin-bottom: 1rem;
+  --operators-toolbar-control-height: calc(
+    0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px
+  );
+  --toolbar-segment-min-height: var(--operators-toolbar-control-height);
 }
 
 .operators-toolbar__search {
@@ -22,6 +26,79 @@
   to-input {
     display: block;
     width: 100%;
+  }
+}
+
+.operators-toolbar__table-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.operators-toolbar__export-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.operators-toolbar__export-wrap::after,
+.operators-toolbar__export-wrap::before {
+  opacity: 0;
+  transform: translateY(2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  pointer-events: none;
+}
+
+.operators-toolbar__export-wrap::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(16rem, 80vw);
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  color: var(--to-color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.operators-toolbar__export-wrap::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 0.15rem);
+  right: 0.65rem;
+  border: 5px solid transparent;
+  border-top-color: var(--to-color-border);
+}
+
+.operators-toolbar__export-wrap:hover::after,
+.operators-toolbar__export-wrap:hover::before,
+.operators-toolbar__export-wrap:focus-within::after,
+.operators-toolbar__export-wrap:focus-within::before {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.operators-toolbar__export {
+  flex-shrink: 0;
+  display: inline-flex;
+
+  ::ng-deep .to-button {
+    width: var(--operators-toolbar-control-height);
+    min-width: var(--operators-toolbar-control-height);
+    height: var(--operators-toolbar-control-height);
+    padding: 0;
+    box-sizing: border-box;
   }
 }
 

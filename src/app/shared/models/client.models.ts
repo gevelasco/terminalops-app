@@ -23,12 +23,13 @@ export interface ClientBilling {
 }
 
 /**
- * Condición comercial de cobro. `commercialHealth` será alimentado por
- * reglas de negocio (puntualidad de pago, antigüedad de cartera, etc.).
+ * Condición comercial de cobro. Se deriva en UI desde maniobras y cartera;
+ * `watch_list` es el valor inicial al registrar un cliente nuevo.
  */
 export type ClientCommercialHealth =
   | 'not_evaluated'
   | 'good_standing'
+  | 'due_soon'
   | 'watch_list'
   | 'restricted';
 

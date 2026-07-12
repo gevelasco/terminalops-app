@@ -14,6 +14,7 @@ import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logis
 import type { ClientCommercialHealth } from '@shared/models/client.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import { operatorOperationalStatusLabel } from '@shared/catalogs/operator-form-options';
+import { clientCommercialPillClass } from '@shared/utils/client-commercial-pill';
 import { operatorOperationalPillClass as operatorOpPillClass } from '@shared/utils/operator-operational-pill';
 import {
   maneuverStatusPillClass,
@@ -48,6 +49,7 @@ export type ToTableCellKind =
   | 'fleet-insurance-icon'
   | 'operator-op-pill'
   | 'client-health-pill'
+  | 'client-name-status'
   | 'rate-availability-pill'
   | 'module-access-icons'
   | 'user-role-pill'
@@ -370,18 +372,7 @@ export class ToTableComponent {
   }
 
   clientHealthPillClass(v: unknown): string {
-    const base = 'to-table-pill';
-    switch (v as ClientCommercialHealth) {
-      case 'good_standing':
-        return `${base} to-table-pill--client-good`;
-      case 'watch_list':
-        return `${base} to-table-pill--client-watch`;
-      case 'restricted':
-        return `${base} to-table-pill--client-restricted`;
-      case 'not_evaluated':
-      default:
-        return `${base} to-table-pill--client-na`;
-    }
+    return clientCommercialPillClass(v as ClientCommercialHealth);
   }
 
   clientHealthPillLabel(v: unknown): string {

@@ -57,8 +57,70 @@
 }
 
 .profile-drawer__provision-field {
-  flex: 0 0 4.75rem;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+.profile-drawer__provision-payment {
+  margin-top: 0.35rem;
+  max-width: 100%;
+}
+
+:host ::ng-deep .profile-drawer__provision-field .to-field {
+  gap: 0.2rem;
+  width: max-content;
+  max-width: 100%;
+}
+
+:host ::ng-deep .profile-drawer__provision-field .to-field__label {
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .profile-drawer__provision-field .to-field__control-row {
   width: 4.75rem;
+  max-width: 100%;
+}
+
+:host ::ng-deep .profile-drawer__provision-field .to-field__control {
+  min-height: 1.85rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+:host ::ng-deep .profile-drawer__provision-payment .to-field {
+  gap: 0.2rem;
+}
+
+:host ::ng-deep .profile-drawer__provision-payment .to-field__label {
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.profile-drawer__auto-payments {
+  margin-top: 0.6rem;
+
+  &.fleet-unit-sec--boxed {
+    padding: 0.6rem 0.7rem;
+  }
+}
+
+.profile-drawer__auto-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+:host ::ng-deep .profile-drawer__auto-payment-grid .to-field {
+  gap: 0.2rem;
+}
+
+:host ::ng-deep .profile-drawer__auto-payment-grid .to-field__label {
+  font-size: 0.6875rem;
+  white-space: nowrap;
 }
 
 .profile-drawer__maintenance-segment {
@@ -72,21 +134,6 @@
   to-select {
     margin-top: 0.15rem;
   }
-}
-
-:host ::ng-deep .profile-drawer__provision-field .to-field {
-  gap: 0.2rem;
-}
-
-:host ::ng-deep .profile-drawer__provision-field .to-field__label {
-  font-size: 0.6875rem;
-}
-
-:host ::ng-deep .profile-drawer__provision-field .to-field__control {
-  min-height: 1.85rem;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-  font-size: 0.8125rem;
 }
 
 :host ::ng-deep .profile-drawer__setting-row--policy .to-field {

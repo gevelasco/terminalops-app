@@ -1,3 +1,6 @@
 <span [class]="'to-badge to-badge--' + variant()">
+  @if (icon(); as iconName) {
+    <to-icon class="to-badge__icon" [name]="iconName" [size]="14" />
+  }
   <ng-content />
 </span>

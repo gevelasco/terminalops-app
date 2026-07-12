@@ -3,27 +3,22 @@
   subtitle="Análisis por periodo, cliente y forma de pago"
 />
 
-<div class="reports-layout">
-  <app-reports-filter-bar
-    [(filter)]="filter"
-    [(tab)]="tab"
-    [tabs]="tabs()"
-  />
+<app-reports-filter-bar
+  [(filter)]="filter"
+  [(tab)]="tab"
+  [tabs]="tabs()"
+/>
 
-  <div class="reports-content">
-    @switch (tab()) {
-      @case ('general') {
-        <app-reports-general-tab [filter]="filter()" />
-      }
-      @case ('balance') {
-        <app-reports-balance-tab [filter]="filter()" />
-      }
-      @case ('maniobras') {
-        <app-reports-maniobras-tab [filter]="filter()" />
-      }
-      @case ('fleet') {
-        <app-reports-fleet-tab [filter]="filter()" />
-      }
+<div class="reports-content">
+  @switch (tab()) {
+    @case ('balance') {
+      <app-reports-balance-tab [filter]="filter()" />
     }
-  </div>
+    @case ('maniobras') {
+      <app-reports-maniobras-tab [filter]="filter()" />
+    }
+    @case ('fleet') {
+      <app-reports-fleet-tab [filter]="filter()" />
+    }
+  }
 </div>

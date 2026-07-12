@@ -130,6 +130,18 @@ export class SessionService {
     }
     return raw >= 0 && raw <= 100 ? raw : 5;
   });
+  readonly tripAutoFuelPaymentMethod = computed(
+    () => this.data()?.tripAutoFuelPaymentMethod ?? 'cash',
+  );
+  readonly tripAutoTollsPaymentMethod = computed(
+    () => this.data()?.tripAutoTollsPaymentMethod ?? 'cash',
+  );
+  readonly tripAutoPerDiemPaymentMethod = computed(
+    () => this.data()?.tripAutoPerDiemPaymentMethod ?? 'cash',
+  );
+  readonly tripAutoControlPaymentMethod = computed(
+    () => this.data()?.tripAutoControlPaymentMethod ?? 'cash',
+  );
   readonly dieselControlEnabled = computed(
     () => this.data()?.dieselControlEnabled ?? true,
   );
@@ -246,6 +258,10 @@ export class SessionService {
         | 'operationalAnalysisEnabled'
         | 'tripAssistPrefillEnabled'
         | 'tripAutoMaintenanceProvisionPercent'
+        | 'tripAutoFuelPaymentMethod'
+        | 'tripAutoTollsPaymentMethod'
+        | 'tripAutoPerDiemPaymentMethod'
+        | 'tripAutoControlPaymentMethod'
         | 'dieselControlEnabled'
         | 'maintenanceKmControlEnabled'
         | 'maintenanceKmIntervalDefault'
@@ -296,6 +312,18 @@ export class SessionService {
     }
     if (patch.tripAutoMaintenanceProvisionPercent !== undefined) {
       next.tripAutoMaintenanceProvisionPercent = patch.tripAutoMaintenanceProvisionPercent;
+    }
+    if (patch.tripAutoFuelPaymentMethod !== undefined) {
+      next.tripAutoFuelPaymentMethod = patch.tripAutoFuelPaymentMethod;
+    }
+    if (patch.tripAutoTollsPaymentMethod !== undefined) {
+      next.tripAutoTollsPaymentMethod = patch.tripAutoTollsPaymentMethod;
+    }
+    if (patch.tripAutoPerDiemPaymentMethod !== undefined) {
+      next.tripAutoPerDiemPaymentMethod = patch.tripAutoPerDiemPaymentMethod;
+    }
+    if (patch.tripAutoControlPaymentMethod !== undefined) {
+      next.tripAutoControlPaymentMethod = patch.tripAutoControlPaymentMethod;
     }
     const prefillChangedAt = normalizeApiIsoDate(patch.tripAssistPrefillChangedAt);
     if (prefillChangedAt) {
@@ -554,6 +582,22 @@ export class SessionService {
         const n = Number(raw);
         return n >= 0 && n <= 100 ? n : 5;
       })(),
+      tripAutoFuelPaymentMethod:
+        user.tripAutoFuelPaymentMethod ??
+        payload?.tripAutoFuelPaymentMethod ??
+        'cash',
+      tripAutoTollsPaymentMethod:
+        user.tripAutoTollsPaymentMethod ??
+        payload?.tripAutoTollsPaymentMethod ??
+        'cash',
+      tripAutoPerDiemPaymentMethod:
+        user.tripAutoPerDiemPaymentMethod ??
+        payload?.tripAutoPerDiemPaymentMethod ??
+        'cash',
+      tripAutoControlPaymentMethod:
+        user.tripAutoControlPaymentMethod ??
+        payload?.tripAutoControlPaymentMethod ??
+        'cash',
       dieselControlEnabled:
         user.dieselControlEnabled ?? payload?.dieselControlEnabled ?? true,
       dieselControlChangedAt:

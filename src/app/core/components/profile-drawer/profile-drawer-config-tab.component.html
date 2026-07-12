@@ -72,6 +72,17 @@
           <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
         </button>
       </div>
+      @if (draftIntelligentEnabled()) {
+        <div class="profile-drawer__provision-payment">
+          <to-select
+            label="Pago de control operativo"
+            [options]="autoExpensePaymentMethodOptions"
+            [value]="draftControlPaymentMethod()"
+            [disabled]="saving()"
+            (valueChange)="draftControlPaymentMethod.set($event)"
+          />
+        </div>
+      }
       @if (!draftIntelligentEnabled()) {
         <p class="profile-drawer__setting-desc">
           Estima llantas y provisión de mantenimiento por maniobra; alimenta
@@ -163,6 +174,42 @@
         />
       }
     </article>
+  </section>
+
+  <section
+    class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__auto-payments"
+    aria-labelledby="profile-auto-payments-heading"
+  >
+    <h3 id="profile-auto-payments-heading" class="fleet-unit-sec__title">
+      Pagos en gastos automáticos
+    </h3>
+    <p class="fleet-unit-sec__docs-hint">
+      Método de pago con el que se registra cada gasto generado automáticamente
+      al crear una maniobra.
+    </p>
+    <div class="profile-drawer__auto-payment-grid">
+      <to-select
+        label="Pago de diésel"
+        [options]="autoExpensePaymentMethodOptions"
+        [value]="draftFuelPaymentMethod()"
+        [disabled]="saving()"
+        (valueChange)="draftFuelPaymentMethod.set($event)"
+      />
+      <to-select
+        label="Pago de casetas"
+        [options]="autoExpensePaymentMethodOptions"
+        [value]="draftTollsPaymentMethod()"
+        [disabled]="saving()"
+        (valueChange)="draftTollsPaymentMethod.set($event)"
+      />
+      <to-select
+        label="Pago de viáticos"
+        [options]="autoExpensePaymentMethodOptions"
+        [value]="draftPerDiemPaymentMethod()"
+        [disabled]="saving()"
+        (valueChange)="draftPerDiemPaymentMethod.set($event)"
+      />
+    </div>
   </section>
 </div>
 

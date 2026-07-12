@@ -44,6 +44,8 @@ export class ToInputComponent {
    * Usar con montos, litros, etc.
    */
   readonly groupThousands = input(false);
+  /** Fuerza mayúsculas al escribir (CURP, RFC, placas, series, etc.). */
+  readonly uppercase = input(false);
   readonly value = model('');
 
   /**
@@ -110,10 +112,20 @@ export class ToInputComponent {
 
   onInput(ev: Event): void {
     const el = ev.target as HTMLInputElement;
-    this.value.set(el.value);
+    const next = this.uppercase() ? el.value.toUpperCase() : el.value;
+    if (next !== el.value) {
+      el.value = next;
+    }
+    this.value.set(next);
   }
 
   onBlur(): void {
+    if (this.uppercase()) {
+      const upper = this.value().toUpperCase();
+      if (upper !== this.value()) {
+        this.value.set(upper);
+      }
+    }
     if (this.groupThousands()) {
       const raw = this.value().trim();
       if (raw !== '') {

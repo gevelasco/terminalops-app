@@ -1,9 +1,20 @@
+@use '../../../../shared/styles/fleet-operational-pill.scss';
+
 :host {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   width: 100%;
   min-height: 0;
+}
+
+:host ::ng-deep .reports-balance-kpis to-kpi-card {
+  height: auto;
+}
+
+:host ::ng-deep .reports-balance-kpis to-kpi-card .to-card,
+:host ::ng-deep .reports-balance-kpis to-kpi-card .to-card__inner {
+  height: auto;
 }
 
 :host ::ng-deep .reports-balance-kpis to-kpi-card .to-card__inner {
@@ -42,6 +53,10 @@
   padding: 0.65rem 0.75rem 0.55rem;
 }
 
+.reports-balance-panel--wide {
+  grid-column: 1 / -1;
+}
+
 .reports-balance-panel__head {
   flex-shrink: 0;
   margin-bottom: 0.35rem;
@@ -67,6 +82,113 @@
   min-height: 180px;
 }
 
+.reports-balance-panel__chart--tall {
+  min-height: 260px;
+}
+
+.reports-balance-panel__heatmap {
+  flex: 1 1 auto;
+  min-height: 180px;
+}
+
+.reports-balance-panel__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.reports-balance-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.reports-balance-panel__table th,
+.reports-balance-panel__table td {
+  padding: 0.45rem 0.35rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  vertical-align: middle;
+}
+
+.reports-balance-panel__table th {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.reports-balance-panel__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.reports-balance-panel__total-row th,
+.reports-balance-panel__total-row td {
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  border-bottom: 0;
+  font-weight: 700;
+  color: var(--to-color-text);
+}
+
+.reports-balance-panel__status-cell {
+  white-space: nowrap;
+}
+
+.reports-balance-panel__empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--to-color-text-muted);
+}
+
+.reports-balance-upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.reports-balance-upcoming-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  font-size: 0.75rem;
+}
+
+.reports-balance-upcoming-list__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.reports-balance-upcoming-list__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--to-color-text-muted);
+}
+
+.reports-balance-upcoming-list__amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reports-balance-upcoming-list__date {
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.reports-balance-upcoming-list__date--overdue {
+  color: var(--to-color-danger, #c0392b);
+  font-weight: 600;
+}
+
 @media (max-width: 1100px) {
   .reports-balance-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -74,6 +196,15 @@
 
   .reports-balance-body {
     grid-template-columns: 1fr;
+  }
+
+  .reports-balance-upcoming-list__item {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .reports-balance-upcoming-list__date {
+    text-align: left;
   }
 }
 

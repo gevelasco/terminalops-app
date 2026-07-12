@@ -1,3 +1,146 @@
 .clients-balance-tab__sections {
   gap: 1.25rem;
 }
+
+.clients-balance-pay-table {
+  width: 100%;
+  margin-top: 0.5rem;
+  table-layout: fixed;
+}
+
+.clients-balance-pay-table th:last-child,
+.clients-balance-pay-table td:last-child {
+  padding-right: 0;
+}
+
+.clients-balance-pay-table__status {
+  white-space: normal;
+}
+
+:host ::ng-deep .clients-balance-pay-table .to-badge {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
+.clients-balance-pay-table__action-head,
+.clients-balance-pay-table__action-cell {
+  width: 2.75rem;
+  text-align: center;
+}
+
+.clients-balance-pay-table__action-tooltip {
+  position: relative;
+  display: inline-flex;
+  overflow: visible;
+}
+
+.clients-balance-pay-table__action-tooltip::after,
+.clients-balance-pay-table__action-tooltip::before {
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  pointer-events: none;
+}
+
+.clients-balance-pay-table__action-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: 50%;
+  z-index: 12;
+  width: max-content;
+  max-width: min(16rem, 80vw);
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  color: var(--to-color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  transform: translate(-50%, 2px);
+}
+
+.clients-balance-pay-table__action-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 0.12rem);
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  z-index: 13;
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border-right: 1px solid var(--to-color-border);
+  border-bottom: 1px solid var(--to-color-border);
+  transform: translateX(-50%) rotate(45deg) translateY(2px);
+}
+
+.clients-balance-pay-table__action-tooltip:hover::after,
+.clients-balance-pay-table__action-tooltip:focus-within::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.clients-balance-pay-table__action-tooltip:hover::before,
+.clients-balance-pay-table__action-tooltip:focus-within::before {
+  opacity: 1;
+  transform: translateX(-50%) rotate(45deg) translateY(0);
+}
+
+.clients-balance-pay-table__confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 35%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--to-color-primary) 8%, transparent);
+  color: var(--to-color-primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.clients-balance-pay-table__revert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-danger) 35%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--to-color-danger) 8%, transparent);
+  color: var(--to-color-danger);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--to-color-danger) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.clients-balance-pay-table__action-empty {
+  color: var(--to-color-text-muted);
+}
+
+.clients-balance-confirm-copy {
+  margin: 0;
+  color: var(--to-color-text-muted);
+  line-height: 1.5;
+}

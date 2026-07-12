@@ -18,15 +18,13 @@ export const DESTINATION_RATE_TIME_UNIT_OPTIONS: ToSelectOption[] = [
   { value: 'days', label: 'Días' },
 ];
 
-/**
- * Estado comercial visible hoy; el valor `not_evaluated` deja lugar al cálculo
- * automático por historial de pagos.
- */
+/** Etiquetas del estatus comercial calculado (maniobras + cartera). */
 export const CLIENT_COMMERCIAL_HEALTH_OPTIONS: ToSelectOption[] = [
   { value: 'not_evaluated', label: 'Sin evaluar' },
-  { value: 'good_standing', label: 'Al corriente' },
+  { value: 'good_standing', label: 'Vigente' },
+  { value: 'due_soon', label: 'Vence pronto' },
   { value: 'watch_list', label: 'En seguimiento' },
-  { value: 'restricted', label: 'Restringido' },
+  { value: 'restricted', label: 'Vencido' },
 ];
 
 export function clientCommercialHealthLabel(code: string | undefined): string {

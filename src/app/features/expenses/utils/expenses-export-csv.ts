@@ -1,45 +1,42 @@
-import type { Expense } from '@shared/models/logistics.models';
-import {
-  expenseKindLabel,
-  expenseManeuverCode,
-} from '@features/expenses/utils/expense-row-labels';
-import { expenseIncurredDateInput } from './expenses-form.util';
+export interface ExpenseTableExportRow {
+  rubroLabel: string;
+  category: string;
+  maneuver: string;
+  fleetRelation: string;
+  amount: string;
+  paymentMethod: string;
+  incurredAt: string;
+  invoiceRequired: string;
+}
 
 function csvCell(value: string): string {
   const t = value.replace(/"/g, '""');
   return /[",\n\r]/.test(t) ? `"${t}"` : t;
 }
 
-function expenseIncurredYmd(expense: Expense): string {
-  return expenseIncurredDateInput(expense.incurredDate ?? expense.incurredAt);
-}
-
-export function buildExpensesCsv(
-  expenses: readonly Expense[],
-  tripManeuverByTripId?: ReadonlyMap<string, string>,
-): string {
+export function buildExpensesCsv(rows: readonly ExpenseTableExportRow[]): string {
   const headers = [
     'Rubro',
-    'Maniobra',
     'Concepto',
-    'Descripción',
+    'Maniobra',
+    'Flota / operador',
     'Monto',
-    'Moneda',
+    'Método de pago',
     'Fecha',
-    'ID',
+    'Factura',
   ];
   const lines = [headers.map(csvCell).join(',')];
-  for (const e of expenses) {
+  for (const row of rows) {
     lines.push(
       [
-        expenseKindLabel(e.kind),
-        expenseManeuverCode(e, tripManeuverByTripId),
-        e.category,
-        e.description?.trim() ?? '',
-        String(e.amount),
-        e.currency,
-        expenseIncurredYmd(e),
-        e.id,
+        row.rubroLabel,
+        row.category,
+        row.maneuver,
+        row.fleetRelation,
+        row.amount,
+        row.paymentMethod,
+        row.incurredAt,
+        row.invoiceRequired,
       ]
         .map((v) => csvCell(String(v)))
         .join(','),

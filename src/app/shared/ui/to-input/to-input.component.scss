@@ -157,6 +157,10 @@
   &--invalid {
     border-color: var(--to-color-danger);
   }
+
+  &--uppercase {
+    text-transform: uppercase;
+  }
 }
 
 .to-field__error {

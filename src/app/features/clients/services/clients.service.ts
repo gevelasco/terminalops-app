@@ -65,9 +65,11 @@ export class ClientsFeatureService {
   }
 
   selectClient(clientId: string): void {
-    if (this._clients().some((c) => c.id === clientId)) {
-      this._selectedClientId.set(clientId);
+    const id = clientId.trim();
+    if (!id) {
+      return;
     }
+    this._selectedClientId.set(id);
   }
 
   clearSelection(): void {

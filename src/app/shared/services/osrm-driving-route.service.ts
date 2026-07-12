@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 import { isValidLatLon } from '@shared/services/lat-lon';
 
 export interface LatLon {
@@ -39,7 +40,9 @@ export class OsrmDrivingRouteService {
    */
   drivingKm(from: LatLon, to: LatLon): Observable<number | null> {
     if (!isValidLatLon(from) || !isValidLatLon(to)) {
-      console.warn('[Trips][OSRM][Skip] Coordenadas inválidas', { from, to });
+      if (!environment.production) {
+        console.warn('[Trips][OSRM][Skip] Coordenadas inválidas', { from, to });
+      }
       return of(null);
     }
 
@@ -48,18 +51,24 @@ export class OsrmDrivingRouteService {
     const destinationLat = to.lat;
     const destinationLng = to.lon;
 
-    console.log('[Trips][OSRM][Request]', {
-      originLat,
-      originLng,
-      destinationLat,
-      destinationLng,
-    });
+    if (!environment.production) {
+      console.log('[Trips][OSRM][Request]', {
+        originLat,
+        originLng,
+        destinationLat,
+        destinationLng,
+      });
+    }
 
     const path = `${from.lon},${from.lat};${to.lon},${to.lat}`;
     const url = `${this.base}/${path}`;
     const params = new HttpParams().set('overview', 'false');
     return this.http.get<OsrmRouteResponse>(url, { params }).pipe(
-      tap((res) => console.log('[Trips][OSRM][Response]', res)),
+      tap((res) => {
+        if (!environment.production) {
+          console.log('[Trips][OSRM][Response]', res);
+        }
+      }),
       map((res) => {
         const code = (res.code ?? '').trim();
         if (code.toLowerCase() !== 'ok' || !res.routes?.[0]) {
@@ -79,7 +88,9 @@ export class OsrmDrivingRouteService {
         return Math.round(km * 10) / 10;
       }),
       catchError((error) => {
-        console.error('[Trips][OSRM][Error]', error);
+        if (!environment.production) {
+          console.error('[Trips][OSRM][Error]', error);
+        }
         return of(null);
       }),
     );

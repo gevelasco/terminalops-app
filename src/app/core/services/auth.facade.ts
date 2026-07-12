@@ -91,6 +91,22 @@ export class AuthFacade {
         const n = Number(raw);
         return n >= 0 && n <= 100 ? n : 5;
       })(),
+      tripAutoFuelPaymentMethod:
+        user.tripAutoFuelPaymentMethod ??
+        payload.tripAutoFuelPaymentMethod ??
+        'cash',
+      tripAutoTollsPaymentMethod:
+        user.tripAutoTollsPaymentMethod ??
+        payload.tripAutoTollsPaymentMethod ??
+        'cash',
+      tripAutoPerDiemPaymentMethod:
+        user.tripAutoPerDiemPaymentMethod ??
+        payload.tripAutoPerDiemPaymentMethod ??
+        'cash',
+      tripAutoControlPaymentMethod:
+        user.tripAutoControlPaymentMethod ??
+        payload.tripAutoControlPaymentMethod ??
+        'cash',
       allowedModules:
         user.allowedModules ??
         payload.allowedModules ??

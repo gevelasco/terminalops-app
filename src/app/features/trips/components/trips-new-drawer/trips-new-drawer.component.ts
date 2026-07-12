@@ -115,6 +115,7 @@ import {
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToDisplayFieldComponent } from '@shared/ui/to-display-field/to-display-field.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -126,6 +127,10 @@ import {
   isTripClientPaymentMethod,
   TRIP_CLIENT_PAYMENT_METHOD_OPTIONS,
 } from '@shared/catalogs/trip-client-payment-options';
+import {
+  normalizeTripContainerType,
+  TRIP_CONTAINER_TYPE_OPTIONS,
+} from '@shared/catalogs/trip-container-type-options';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
 import {
@@ -155,6 +160,7 @@ import {
     FormsModule,
     ToButtonComponent,
     ToIconComponent,
+    ToConfirmDialogComponent,
     OperationalCenterSelectComponent,
     ToDisplayFieldComponent,
     ToInputComponent,
@@ -451,12 +457,7 @@ export class TripsNewDrawerComponent {
     { value: 'lleno', label: 'Lleno' },
   ];
 
-  readonly containerTypeOptions: ToSelectOption[] = [
-    { value: '20ft', label: '20 pies' },
-    { value: '40ft', label: '40 pies' },
-    { value: '40hc', label: '40 pies HC (High Cube)' },
-    { value: 'na', label: 'N/A' },
-  ];
+  readonly containerTypeOptions: ToSelectOption[] = TRIP_CONTAINER_TYPE_OPTIONS;
 
   readonly paymentMethodOptions: ToSelectOption[] = TRIP_CLIENT_PAYMENT_METHOD_OPTIONS;
 
@@ -465,6 +466,24 @@ export class TripsNewDrawerComponent {
   readonly creating = signal(false);
   readonly drawerLoading = computed(() => !this.catalog.ready());
   readonly drawerBusy = computed(() => this.drawerLoading() || this.creating());
+
+  /** Confirmación cuando las fechas planeadas ya pasaron (maniobra completada). */
+  readonly pastCompletionConfirmOpen = signal(false);
+  private pendingCreatePayload: CreateTripPayload | null = null;
+  readonly plannedCompletionDisplayLabel = computed(() => {
+    const iso = dateTimeLocalValueToIso(this.plannedCompletionDateTime().trim());
+    if (!iso) {
+      return '';
+    }
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return '';
+    }
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    }).format(d);
+  });
 
   readonly dieselPriceLabel = computed(() => {
     const price = this.dieselPricePerLiter();
@@ -604,6 +623,15 @@ export class TripsNewDrawerComponent {
     this.operationalCentersFeature.loadOperationalCenters();
     this.operationConfigsFeature.loadOperationConfigurations();
     this.catalog.ensureLoaded();
+
+    effect(() => {
+      const unitId = this.unitId().trim();
+      const hitched = this.selectedUnitHitchedEquipment();
+      const equipmentIds = [hitched[0]?.id, hitched[1]?.id].filter(
+        (id): id is string => Boolean(id?.trim()),
+      );
+      this.catalog.ensureComplianceExpenses(unitId, equipmentIds);
+    });
 
     this.fuelEstimatePipeline$ = combineLatest([
       toObservable(this.routeKm),
@@ -1252,7 +1280,7 @@ export class TripsNewDrawerComponent {
     if (validOp) {
       this.operationType.set(op);
     }
-    this.containerType.set(item.containerType as TripContainerType);
+    this.containerType.set(normalizeTripContainerType(item.containerType));
     this.loadType.set(item.loadType as TripLoadType);
     this.approximateWeightTons.set(item.approximateWeightTons);
   }
@@ -2023,6 +2051,38 @@ export class TripsNewDrawerComponent {
         return { originOperationalCenterId: centerId };
       })(),
     };
+    if (this.plannedCompletionIsInPast(plannedSchedule.plannedCompletionAt)) {
+      this.pendingCreatePayload = payload;
+      this.pastCompletionConfirmOpen.set(true);
+      return;
+    }
+
+    this.runCreateTrip(payload);
+  }
+
+  /** El fin de maniobra planeado ya ocurrió → se registrará como completada. */
+  private plannedCompletionIsInPast(plannedCompletionAt: string): boolean {
+    const t = Date.parse(plannedCompletionAt);
+    return Number.isFinite(t) && t < Date.now();
+  }
+
+  confirmPastCompletionCreate(): void {
+    const payload = this.pendingCreatePayload;
+    if (!payload) {
+      this.pastCompletionConfirmOpen.set(false);
+      return;
+    }
+    this.pastCompletionConfirmOpen.set(false);
+    this.pendingCreatePayload = null;
+    this.runCreateTrip(payload);
+  }
+
+  cancelPastCompletionCreate(): void {
+    this.pastCompletionConfirmOpen.set(false);
+    this.pendingCreatePayload = null;
+  }
+
+  private runCreateTrip(payload: CreateTripPayload): void {
     this.creating.set(true);
     this.tripsFeature
       .createTrip(payload)

@@ -43,6 +43,7 @@ import {
 } from '@shared/catalogs/fleet-form-options';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import { gpsFleetFormHasContent } from '@features/fleet/utils/fleet-gps-payment.util';
+import { cyclicRenewalHint } from '@features/fleet/utils/fleet-cyclic-renewal-hint';
 
 type RenewUi = 'due' | 'soon' | 'ok' | null;
 
@@ -232,61 +233,13 @@ export class FleetNewUnitDrawerComponent {
     renewalFromLastDate(this.verificationEmissionsDate(), 6),
   );
 
-  readonly insuranceRenewHint = computed(() => {
-    const iso = this.insuranceContractDate().trim();
-    const cad = this.insurancePaymentCadence();
-    if (!iso) {
-      return null;
-    }
-    const start = parseYmd(iso);
-    if (!start) {
-      return null;
-    }
-    const next =
-      cad === 'weekly'
-        ? new Date(start.getTime() + 7 * 86400000)
-        : cad === 'monthly'
-          ? addMonths(start, 1)
-          : cad === 'quarterly'
-            ? addMonths(start, 3)
-            : addMonths(start, 12);
-    const d = daysFromToday(next);
-    if (d < 0) {
-      return 'due' as const;
-    }
-    if (d <= 30) {
-      return 'soon' as const;
-    }
-    return 'ok' as const;
-  });
+  readonly insuranceRenewHint = computed(() =>
+    cyclicRenewalHint(this.insuranceContractDate().trim(), this.insurancePaymentCadence()),
+  );
 
-  readonly gpsRenewHint = computed(() => {
-    const iso = this.gpsContractDate().trim();
-    const cad = this.gpsPaymentCadence();
-    if (!iso) {
-      return null;
-    }
-    const start = parseYmd(iso);
-    if (!start) {
-      return null;
-    }
-    const next =
-      cad === 'weekly'
-        ? new Date(start.getTime() + 7 * 86400000)
-        : cad === 'monthly'
-          ? addMonths(start, 1)
-          : cad === 'quarterly'
-            ? addMonths(start, 3)
-            : addMonths(start, 12);
-    const d = daysFromToday(next);
-    if (d < 0) {
-      return 'due' as const;
-    }
-    if (d <= 30) {
-      return 'soon' as const;
-    }
-    return 'ok' as const;
-  });
+  readonly gpsRenewHint = computed(() =>
+    cyclicRenewalHint(this.gpsContractDate().trim(), this.gpsPaymentCadence()),
+  );
 
   constructor() {
     this.fleetFeature.ensureFleetCatalogLoaded();
@@ -382,8 +335,8 @@ export class FleetNewUnitDrawerComponent {
   submit(): void {
     const brandName = this.brandName().trim();
     const yearRaw = this.modelYear().trim();
-    const plate = this.plate().trim();
-    const motorNumber = this.motorNumber().trim();
+    const plate = this.plate().trim().toUpperCase();
+    const motorNumber = this.motorNumber().trim().toUpperCase();
     const lbRaw = this.grossVehicleWeightLb().trim().replace(/,/g, '');
     const tonsRaw = this.capacityTons().trim().replace(/,/g, '');
 
@@ -604,7 +557,7 @@ export class FleetNewUnitDrawerComponent {
         motorNumber,
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
-        serialNumber: this.serialNumber().trim() || undefined,
+        serialNumber: this.serialNumber().trim().toUpperCase() || undefined,
         name: this.unitAlias().trim() || undefined,
         fleetMeta: meta,
       })

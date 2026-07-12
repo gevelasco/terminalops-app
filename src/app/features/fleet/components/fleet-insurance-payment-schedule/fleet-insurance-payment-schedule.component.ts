@@ -16,6 +16,7 @@ import {
 export class FleetInsurancePaymentScheduleComponent {
   readonly schedule = input.required<readonly InsuranceScheduleRow[]>();
   readonly saving = input(false);
+  readonly canConfirmPayments = input(true);
   readonly formatDate = input.required<(ymd: string | undefined) => string>();
   readonly formatAmount = input.required<(amount: number | undefined) => string>();
 

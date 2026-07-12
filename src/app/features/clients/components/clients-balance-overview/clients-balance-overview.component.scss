@@ -1,0 +1,189 @@
+@use '../../../../shared/styles/fleet-operational-pill.scss';
+
+.clients-balance-overview__hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+}
+
+.clients-balance-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  gap: 0.85rem;
+  padding: 0.35rem 0 0.5rem;
+  min-width: 0;
+}
+
+.clients-balance-overview__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+  min-height: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--to-color-text) 4%, transparent);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--to-color-primary) 35%, var(--to-color-border));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--to-color-text) 8%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.clients-balance-overview__head {
+  display: flex;
+  align-items: stretch;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.clients-balance-overview__code {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  min-height: 4rem;
+  border-radius: calc(var(--to-radius-md) - 2px);
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface-muted);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--to-color-primary);
+}
+
+.clients-balance-overview__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.clients-balance-overview__pill-row {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  margin-bottom: 0.1rem;
+}
+
+.clients-balance-overview__status-pill {
+  flex-shrink: 0;
+}
+
+.clients-balance-overview__name {
+  margin: 0;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--to-color-text);
+  overflow-wrap: anywhere;
+}
+
+.clients-balance-overview__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+}
+
+.clients-balance-overview__meta-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.08rem;
+  opacity: 0.85;
+}
+
+.clients-balance-overview__balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.clients-balance-overview__balance-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.clients-balance-overview__balance-amount {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--to-color-text);
+}
+
+.clients-balance-overview__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding: 0.65rem 0.7rem;
+  border-radius: calc(var(--to-radius-md) - 2px);
+  background: color-mix(in srgb, var(--to-color-surface-muted) 70%, var(--to-color-surface));
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+}
+
+.clients-balance-overview__footer-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.clients-balance-overview__footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.clients-balance-overview__footer-date {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--to-color-text);
+}
+
+.clients-balance-overview__footer-amount {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--to-color-primary);
+  white-space: nowrap;
+}
+
+.clients-balance-overview__empty {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}

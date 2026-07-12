@@ -9,9 +9,9 @@ import {
 import { SessionService } from '@core/services/state/session';
 import { ReportsFilterBarComponent } from '@features/reports/components/reports-filter-bar/reports-filter-bar.component';
 import { ReportsBalanceTabComponent } from '@features/reports/components/reports-balance-tab/reports-balance-tab.component';
-import { ReportsGeneralTabComponent } from '@features/reports/components/reports-general-tab/reports-general-tab.component';
 import { ReportsManiobrasTabComponent } from '@features/reports/components/reports-maniobras-tab/reports-maniobras-tab.component';
 import { ReportsFleetTabComponent } from '@features/reports/components/reports-fleet-tab/reports-fleet-tab.component';
+import { ReportsTabDataService } from '@features/reports/services/reports-tab-data.service';
 import type { ReportsTabId } from '@features/reports/models/reports-view.models';
 import {
   REPORTS_FINANCIAL_TAB_IDS,
@@ -27,18 +27,16 @@ import { canAccessModule, isAdminRole } from '@shared/utils/access-control';
   selector: 'app-reports-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ReportsTabDataService],
   imports: [
     ToPageHeaderComponent,
     ReportsFilterBarComponent,
-    ReportsGeneralTabComponent,
     ReportsBalanceTabComponent,
     ReportsManiobrasTabComponent,
     ReportsFleetTabComponent,
   ],
   host: {
-    class: 'reports-page-host',
-    '[class.reports-page-host--general]': 'tab() === "general"',
-    '[class.reports-page-host--scroll]': 'tab() === "balance" || tab() === "maniobras" || tab() === "fleet"',
+    class: 'reports-page-host reports-page-host--scroll',
   },
   templateUrl: './reports-page.component.html',
   styleUrl: './reports-page.component.scss',
@@ -47,7 +45,7 @@ export class ReportsPageComponent {
   private readonly session = inject(SessionService);
 
   readonly filter = signal(defaultReportsFilter());
-  readonly tab = signal<ReportsTabId>('general');
+  readonly tab = signal<ReportsTabId>('balance');
 
   /** Exportaciones (PDF/Excel) requerirán este permiso cuando estén disponibles. */
   readonly canWriteReports = computed(() =>

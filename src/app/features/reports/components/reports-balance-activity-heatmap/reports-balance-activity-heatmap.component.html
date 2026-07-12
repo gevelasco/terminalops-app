@@ -1,0 +1,146 @@
+<div class="reports-balance-activity-heatmap">
+  <div class="reports-balance-activity-heatmap__legend" aria-hidden="true">
+    <span class="reports-balance-activity-heatmap__legend-item">
+      <span class="reports-balance-activity-heatmap__swatch reports-balance-activity-heatmap__swatch--income"></span>
+      Ingresos
+      <span class="reports-balance-activity-heatmap__scale reports-balance-activity-heatmap__scale--income"></span>
+    </span>
+    <span class="reports-balance-activity-heatmap__legend-item">
+      <span class="reports-balance-activity-heatmap__swatch reports-balance-activity-heatmap__swatch--expense"></span>
+      Gastos
+      <span class="reports-balance-activity-heatmap__scale reports-balance-activity-heatmap__scale--expense"></span>
+    </span>
+    <span class="reports-balance-activity-heatmap__legend-hint">menos → más actividad</span>
+  </div>
+
+  @switch (model().layout) {
+    @case ('day') {
+      @if (model().dayCells[0]; as cell) {
+        <div class="reports-balance-activity-day">
+          <button
+            type="button"
+            [class]="cellClasses(cell)"
+            [style]="cellStyle(cell)"
+            (mouseenter)="showTooltip($event, dayLabel(cell.date), cell.events)"
+            (mouseleave)="hideTooltip()"
+          >
+            <span class="reports-balance-activity-cell__day">{{ cell.day }}</span>
+            @if (cellCountLabel(cell)) {
+              <span class="reports-balance-activity-cell__count">{{ cellCountLabel(cell) }}</span>
+            }
+          </button>
+        </div>
+      }
+    }
+
+    @case ('week') {
+      <div class="reports-balance-activity-week" role="grid" aria-label="Actividad semanal">
+        <div class="reports-balance-activity-week__head" role="row">
+          @for (label of model().weekdayLabels; track label) {
+            <span class="reports-balance-activity-week__weekday" role="columnheader">{{
+              label
+            }}</span>
+          }
+        </div>
+        <div class="reports-balance-activity-week__row" role="row">
+          @for (cell of model().dayCells; track cell.date) {
+            @if (cell.inRange) {
+              <button
+                type="button"
+                [class]="cellClasses(cell)"
+                [style]="cellStyle(cell)"
+                role="gridcell"
+                (mouseenter)="showTooltip($event, dayLabel(cell.date), cell.events)"
+                (mouseleave)="hideTooltip()"
+              >
+                <span class="reports-balance-activity-cell__day">{{ cell.day }}</span>
+                @if (cellCountLabel(cell)) {
+                  <span class="reports-balance-activity-cell__count">{{ cellCountLabel(cell) }}</span>
+                }
+              </button>
+            } @else {
+              <span class="reports-balance-activity-cell reports-balance-activity-cell--pad" aria-hidden="true"></span>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    @case ('months') {
+      <div
+        class="reports-balance-activity-months"
+        [style.--activity-month-columns]="model().monthCells.length"
+        role="grid"
+        aria-label="Actividad por mes"
+      >
+        @for (cell of model().monthCells; track cell.monthKey) {
+          <button
+            type="button"
+            [class]="monthCellClasses(cell)"
+            [style]="monthCellStyle(cell)"
+            role="gridcell"
+            (mouseenter)="showTooltip($event, cell.label, cell.events)"
+            (mouseleave)="hideTooltip()"
+          >
+            <span class="reports-balance-activity-month-cell__label">{{ cell.label }}</span>
+            <span class="reports-balance-activity-month-cell__count">{{
+              monthCountLabel(cell)
+            }}</span>
+          </button>
+        }
+      </div>
+    }
+
+    @default {
+      <div class="reports-balance-activity-calendar" role="grid" aria-label="Calendario de actividad">
+        <div class="reports-balance-activity-calendar__head" role="row">
+          @for (label of model().weekdayLabels; track label) {
+            <span class="reports-balance-activity-calendar__weekday" role="columnheader">{{
+              label
+            }}</span>
+          }
+        </div>
+        @for (week of model().weeks; track week.days[0].ymd) {
+          <div class="reports-balance-activity-calendar__week" role="row">
+            @for (cell of week.days; track cell.ymd) {
+              @let activityCell = calendarCell(cell.ymd, cell.day, cell.inMonth);
+              <button
+                type="button"
+                [class]="cellClasses(activityCell)"
+                [style]="cellStyle(activityCell)"
+                role="gridcell"
+                [disabled]="!activityCell.inRange"
+                (mouseenter)="
+                  activityCell.inRange
+                    ? showTooltip($event, dayLabel(activityCell.date), activityCell.events)
+                    : hideTooltip()
+                "
+                (mouseleave)="hideTooltip()"
+              >
+                <span class="reports-balance-activity-cell__day">{{ activityCell.day }}</span>
+                @if (activityCell.inRange && cellCountLabel(activityCell)) {
+                  <span class="reports-balance-activity-cell__count">{{
+                    cellCountLabel(activityCell)
+                  }}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @if (tooltip(); as tip) {
+    <div
+      class="reports-balance-activity-tooltip"
+      [style.left.px]="tip.x"
+      [style.top.px]="tip.y"
+      role="tooltip"
+    >
+      @for (line of tip.text.split('\n'); track $index) {
+        <span class="reports-balance-activity-tooltip__line">{{ line }}</span>
+      }
+    </div>
+  }
+</div>

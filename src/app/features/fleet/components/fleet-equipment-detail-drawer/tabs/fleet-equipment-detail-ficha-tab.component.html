@@ -97,11 +97,13 @@
         <to-input
           label="Número de serie *"
           placeholder="Serie o inventario"
+          [uppercase]="true"
           [(value)]="vm.editSerialNumber"
         />
         <to-input
           label="Placa"
           placeholder="Ej. 12-AB-3C (opcional)"
+          [uppercase]="true"
           [(value)]="vm.editPlate"
         />
       </div>
@@ -502,7 +504,40 @@
       </button>
     }
   </div>
-  @if (vm.showSectionEdit('hitch')) {
+  @if (vm.isEditing('hitch')) {
+    <div class="fleet-unit-sec__edit-form">
+      <to-fleet-unit-input
+        label="Unidad tractora (opcional)"
+        placeholder="Buscar tractora o dejar vacío…"
+        [units]="vm.hitchSelectableUnits()"
+        [(unitId)]="vm.editUnitId"
+      />
+      @if (vm.editUnitId().trim()) {
+        <app-fleet-hitch-validation-block
+          [validation]="vm.editHitchValidation()"
+          [hideInfo]="true"
+        />
+      }
+      <div class="fleet-unit-sec__edit-actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="vm.cancelEdit()"
+        >
+          Cancelar
+        </to-button>
+        <to-button
+          type="button"
+          size="sm"
+          [disabled]="!vm.editHitchValidation().canSave"
+          (click)="vm.saveEditHitch()"
+        >
+          Guardar
+        </to-button>
+      </div>
+    </div>
+  } @else {
     @if (vm.hitchAssignmentAvailable()) {
       <p class="fleet-unit-sec__hint" style="margin: 0">
         <strong>Disponible</strong> — sin unidad tractora asignada.
@@ -514,7 +549,7 @@
             <div class="fleet-unit-hitch__card-head">
               <span class="fleet-unit-hitch__position">{{ card.positionLabel }}</span>
               <div class="fleet-unit-hitch__card-actions">
-                @if (!vm.hitchManagementBlocked()) {
+                @if (vm.canWriteFleet() && !vm.hitchManagementBlocked()) {
                   <button
                     type="button"
                     class="fleet-unit-hitch__link"
@@ -562,39 +597,6 @@
         enganche hasta que finalice la maniobra.
       </p>
     }
-  } @else {
-    <div class="fleet-unit-sec__edit-form">
-      <to-fleet-unit-input
-        label="Unidad tractora (opcional)"
-        placeholder="Buscar tractora o dejar vacío…"
-        [units]="vm.hitchSelectableUnits()"
-        [(unitId)]="vm.editUnitId"
-      />
-      @if (vm.editUnitId().trim()) {
-        <app-fleet-hitch-validation-block
-          [validation]="vm.editHitchValidation()"
-          [hideInfo]="true"
-        />
-      }
-      <div class="fleet-unit-sec__edit-actions">
-        <to-button
-          type="button"
-          variant="outline"
-          size="sm"
-          (click)="vm.cancelEdit()"
-        >
-          Cancelar
-        </to-button>
-        <to-button
-          type="button"
-          size="sm"
-          [disabled]="!vm.editHitchValidation().canSave"
-          (click)="vm.saveEditHitch()"
-        >
-          Guardar
-        </to-button>
-      </div>
-    </div>
   }
 </section>
 

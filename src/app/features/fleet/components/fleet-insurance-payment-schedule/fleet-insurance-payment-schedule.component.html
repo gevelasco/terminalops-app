@@ -46,7 +46,7 @@
                 }
               </td>
               <td class="fleet-insurance-schedule__cell--center">
-                @if (row.canConfirm) {
+                @if (row.canConfirm && canConfirmPayments()) {
                   <button
                     type="button"
                     class="fleet-insurance-schedule__confirm"

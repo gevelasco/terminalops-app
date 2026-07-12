@@ -16,7 +16,12 @@ describe('equipment-container-slot-options.util', () => {
     expect(options.map((option) => option.value)).toEqual([
       'iso_20',
       'iso_40',
+      'iso_45',
       'iso_20_20',
+      'iso_20_40',
+      'iso_20_45',
+      'iso_20_40_45',
+      'gooseneck',
       'fixed',
     ]);
   });

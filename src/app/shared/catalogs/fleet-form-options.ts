@@ -124,10 +124,15 @@ export const EQUIPMENT_OPERATION_TYPE_OPTIONS: ToSelectOption[] = [
 /** Configuración de vanos ISO, chasis o longitud en pies según tipo de equipo. */
 export const EQUIPMENT_CONTAINER_SLOT_OPTIONS: ToSelectOption[] = [
   { value: 'na', label: 'No aplica' },
-  { value: 'fixed', label: 'Chasis fijo' },
-  { value: 'iso_40', label: "40′ (un contenedor)" },
   { value: 'iso_20', label: "20′ (un contenedor)" },
+  { value: 'iso_40', label: "40′ (un contenedor)" },
+  { value: 'iso_45', label: "45′ (un contenedor)" },
   { value: 'iso_20_20', label: "20′ + 20′ (dos contenedores)" },
+  { value: 'iso_20_40', label: "20′ ó 40′ (extensible)" },
+  { value: 'iso_20_45', label: "20′ a 45′ (extensible)" },
+  { value: 'iso_20_40_45', label: "20′ / 40′ / 45′ (extensible)" },
+  { value: 'gooseneck', label: 'Cuello de ganso (high cube)' },
+  { value: 'fixed', label: 'Chasis fijo' },
   { value: 'ft_53', label: '53 pies' },
   { value: 'ft_48', label: '48 pies' },
   { value: 'ft_46', label: '46 pies' },

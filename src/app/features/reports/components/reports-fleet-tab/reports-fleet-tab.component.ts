@@ -7,8 +7,8 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
-import { ReportsService } from '@services/api/reports';
 import { SessionService } from '@core/services/state/session';
+import { ReportsTabDataService } from '@features/reports/services/reports-tab-data.service';
 import { buildReportsFleetStatusDonutOption } from '@features/reports/utils/charts/fleet/reports-fleet-status-donut-option';
 import { buildReportsFleetUnitsHorizontalBarOption } from '@features/reports/utils/charts/fleet/reports-fleet-units-horizontal-bar-option';
 import { buildReportsFleetUnitProfitabilityStackedBarOption } from '@features/reports/utils/charts/fleet/reports-fleet-unit-profitability-stacked-bar-option';
@@ -17,7 +17,7 @@ import {
   reportsChartPrimary,
 } from '@features/reports/utils/charts/reports-chart-palette';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
-import { parseYmd } from '@features/reports/utils/reports-filter';
+import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-subtitle.util';
 import { formatReportsMoneyMx } from '@features/reports/utils/charts/reports-chart-axis.util';
 import type { ReportsFleetData } from '@shared/models/api/api-reports-fleet.model';
 import { renewalBucketFromOverview } from '@features/fleet/utils/fleet-overview-view';
@@ -98,7 +98,7 @@ function maintenanceStatusLabel(status: string): string {
   styleUrl: './reports-fleet-tab.component.scss',
 })
 export class ReportsFleetTabComponent {
-  private readonly reportsApi = inject(ReportsService);
+  private readonly tabData = inject(ReportsTabDataService);
   private readonly session = inject(SessionService);
 
   readonly filter = input.required<ReportsFilter>();
@@ -106,7 +106,7 @@ export class ReportsFleetTabComponent {
   private readonly pageState = toSignal(
     toObservable(this.filter).pipe(
       switchMap((params) =>
-        this.reportsApi.getFleet(params).pipe(
+        this.tabData.getFleet(params).pipe(
           map((data) => ({ loading: false, data })),
           catchError(() => of({ loading: false, data: null })),
           startWith({ loading: true, data: null as ReportsFleetData | null }),
@@ -140,20 +140,7 @@ export class ReportsFleetTabComponent {
     { key: 'fleetIns', label: 'Seguro', cell: 'fleet-insurance-icon' },
   ];
 
-  readonly periodSubtitle = computed(() => {
-    const f = this.filter();
-    const a = parseYmd(f.from);
-    const b = parseYmd(f.to);
-    if (!a || !b) {
-      return '';
-    }
-    const fmt = new Intl.DateTimeFormat('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: a.getFullYear() !== b.getFullYear() ? 'numeric' : undefined,
-    });
-    return `${fmt.format(a)} – ${fmt.format(b)}`;
-  });
+  readonly periodSubtitle = computed(() => reportsPeriodSubtitle(this.filter()));
 
   readonly statusMixOption = computed(() =>
     buildReportsFleetStatusDonutOption(
@@ -234,6 +221,6 @@ export class ReportsFleetTabComponent {
     formatDays(this.summary()?.avgDaysWithoutOperation ?? 0),
   );
   readonly idleDaysLegend = computed(
-    () => 'Promedio por unidad activa (en ruta o programada = 0 días)',
+    () => 'Promedio por unidad',
   );
 }

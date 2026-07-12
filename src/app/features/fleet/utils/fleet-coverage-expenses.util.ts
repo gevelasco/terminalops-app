@@ -1,5 +1,33 @@
+import type { ExpensesListParams } from '@core/services/api/expenses';
 import type { Expense } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
+
+/** Tope por consulta filtrada (p. ej. 12 mensualidades + margen). */
+export const FLEET_COVERAGE_EXPENSES_PAGE_LIMIT = 48;
+
+export type FleetCoverageExpenseKind = 'insurance' | 'gps';
+
+export type FleetCoverageExpenseScope =
+  | { resource: 'unit'; unitId: string }
+  | { resource: 'equipment'; equipmentId: string };
+
+export function buildFleetCoverageExpensesPageParams(
+  scope: FleetCoverageExpenseScope,
+  kind: FleetCoverageExpenseKind,
+  bounds: { from: string; to: string },
+): ExpensesListParams {
+  const base: ExpensesListParams = {
+    from: bounds.from,
+    to: bounds.to,
+    kind,
+    page: 1,
+    limit: FLEET_COVERAGE_EXPENSES_PAGE_LIMIT,
+  };
+  if (scope.resource === 'unit') {
+    return { ...base, relatedUnitId: scope.unitId };
+  }
+  return { ...base, relatedEquipmentId: scope.equipmentId };
+}
 
 function formatYmd(d: Date): string {
   const y = d.getFullYear();

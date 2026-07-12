@@ -169,7 +169,7 @@ export class OperatorsNewDrawerComponent {
 
   submit(): void {
     const name = this.name().trim();
-    const licenseNumber = this.licenseNumber().trim();
+    const licenseNumber = this.licenseNumber().trim().toUpperCase();
     const licenseExpiresOn = this.licenseExpiresOn().trim();
     const phone = this.phone().trim();
     const birthDate = this.birthDate().trim();

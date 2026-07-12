@@ -103,12 +103,21 @@
   );
 }
 
-.fleet-unit-detail__status--client-watch,
-.to-status-pill--client-watch {
+.fleet-unit-detail__status--client-due-soon,
+.to-status-pill--client-due-soon {
   @include status-tone(
     #a16207,
     color-mix(in srgb, #eab308 18%, var(--to-color-surface)),
     color-mix(in srgb, #eab308 32%, transparent)
+  );
+}
+
+.fleet-unit-detail__status--client-watch,
+.to-status-pill--client-watch {
+  @include status-tone(
+    #475569,
+    color-mix(in srgb, #94a3b8 14%, var(--to-color-surface)),
+    color-mix(in srgb, #94a3b8 28%, transparent)
   );
 }
 

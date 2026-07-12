@@ -29,6 +29,7 @@ import {
   registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
+import { cyclicRenewalHint } from '@features/fleet/utils/fleet-cyclic-renewal-hint';
 import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
 import { Equipment, Unit } from '@shared/models/logistics.models';
@@ -301,33 +302,9 @@ export class FleetNewEquipmentDrawerComponent {
     renewalFromLastDateForVerif(this.verificationPhysMechDate().trim(), 6),
   );
 
-  readonly insuranceRenewHint = computed(() => {
-    const iso = this.insuranceContractDate().trim();
-    const cad = this.insurancePaymentCadence();
-    if (!iso) {
-      return null;
-    }
-    const start = parseYmd(iso);
-    if (!start) {
-      return null;
-    }
-    const next =
-      cad === 'weekly'
-        ? new Date(start.getTime() + 7 * 86400000)
-        : cad === 'monthly'
-          ? addMonths(start, 1)
-          : cad === 'quarterly'
-            ? addMonths(start, 3)
-            : addMonths(start, 12);
-    const d = daysFromToday(next);
-    if (d < 0) {
-      return 'due' as const;
-    }
-    if (d <= 30) {
-      return 'soon' as const;
-    }
-    return 'ok' as const;
-  });
+  readonly insuranceRenewHint = computed(() =>
+    cyclicRenewalHint(this.insuranceContractDate().trim(), this.insurancePaymentCadence()),
+  );
 
   @HostListener('document:keydown', ['$event'])
   onDocKey(ev: KeyboardEvent): void {
@@ -416,8 +393,8 @@ export class FleetNewEquipmentDrawerComponent {
     const brandName = this.brandName().trim();
     const yearRaw = this.modelYear().trim();
     const opType = this.operationTypeCode().trim();
-    const plate = this.plate().trim();
-    const serial = this.serialNumber().trim();
+    const plate = this.plate().trim().toUpperCase();
+    const serial = this.serialNumber().trim().toUpperCase();
 
     if (!brandName || !opType || !plate || !serial) {
       this.toast.show(

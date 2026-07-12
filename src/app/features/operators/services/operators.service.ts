@@ -70,9 +70,11 @@ export class OperatorsFeatureService {
   }
 
   selectOperator(operatorId: string): void {
-    if (this._operators().some((o) => o.id === operatorId)) {
-      this._selectedOperatorId.set(operatorId);
+    const id = operatorId.trim();
+    if (!id) {
+      return;
     }
+    this._selectedOperatorId.set(id);
   }
 
   clearSelection(): void {

@@ -56,16 +56,18 @@
       <to-input
         label="Número de serie / VIN"
         placeholder="Ej. 3HSDZSPR5KN123456"
+        [uppercase]="true"
         [(value)]="serialNumber"
       />
       <to-input
         label="Número de motor *"
         placeholder="Ej. 79412345"
+        [uppercase]="true"
         [(value)]="motorNumber"
       />
     </div>
     <div class="fleet-unit-sec__grid2">
-      <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [(value)]="plate" />
+      <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [uppercase]="true" [(value)]="plate" />
       <to-select
         label="Modalidad"
         placeholder="Selecciona modalidad"
@@ -480,15 +482,16 @@
       />
       Factura fiscal requerida
     </label>
-    @if (insuranceRenewHint() === "soon") {
-      <p class="fleet-unit-callout fleet-unit-callout--warn">
-        Próximo pago o renovación de póliza en los próximos 30 días.
-      </p>
-    }
-    @if (insuranceRenewHint() === "due") {
-      <p class="fleet-unit-callout fleet-unit-callout--bad">
-        Puede haber vencido el ciclo de pago; revisa la póliza.
-      </p>
+    @if (insuranceRenewHint(); as hint) {
+      @if (hint.status === "soon") {
+        <p class="fleet-unit-callout fleet-unit-callout--warn">
+          Próximo pago o renovación de póliza el {{ hint.nextDateLabel }}.
+        </p>
+      } @else if (hint.status === "due") {
+        <p class="fleet-unit-callout fleet-unit-callout--bad">
+          Puede haber vencido el ciclo de pago; revisa la póliza.
+        </p>
+      }
     }
 
     <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
@@ -579,16 +582,17 @@
         />
         Factura fiscal requerida
       </label>
-      @if (gpsRenewHint() === "soon") {
-        <p class="fleet-unit-callout fleet-unit-callout--warn">
-          Próximo ciclo de pago o renovación del GPS en los próximos 30 días.
-        </p>
-      }
-      @if (gpsRenewHint() === "due") {
-        <p class="fleet-unit-callout fleet-unit-callout--bad">
-          Puede haber vencido el ciclo de pago del servicio GPS; revisa con el
-          proveedor.
-        </p>
+      @if (gpsRenewHint(); as hint) {
+        @if (hint.status === "soon") {
+          <p class="fleet-unit-callout fleet-unit-callout--warn">
+            Próximo ciclo de pago o renovación del GPS el {{ hint.nextDateLabel }}.
+          </p>
+        } @else if (hint.status === "due") {
+          <p class="fleet-unit-callout fleet-unit-callout--bad">
+            Puede haber vencido el ciclo de pago del servicio GPS; revisa con el
+            proveedor.
+          </p>
+        }
       }
       <div class="fleet-unit-toggle-row">
         <span class="fleet-unit-toggle-row__label" id="fleet-gps-endorse-label">

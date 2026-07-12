@@ -99,11 +99,13 @@
         <to-input
           label="Número de serie / VIN"
           placeholder="Opcional"
+          [uppercase]="true"
           [(value)]="vm.editSerial"
         />
         <to-input
           label="Número de motor"
           placeholder="Opcional"
+          [uppercase]="true"
           [(value)]="vm.editMotorNumber"
         />
       </div>
@@ -111,6 +113,7 @@
         <to-input
           label="Placa *"
           placeholder="Ej. 12-AB-3C"
+          [uppercase]="true"
           [(value)]="vm.editPlate"
         />
         <to-select
@@ -604,7 +607,7 @@
               row.positionLabel
             }}</span>
             <div class="fleet-unit-hitch__card-actions">
-              @if (!vm.onRoute()) {
+              @if (vm.canWriteFleet() && !vm.onRoute()) {
                 <button
                   type="button"
                   class="fleet-unit-hitch__link"

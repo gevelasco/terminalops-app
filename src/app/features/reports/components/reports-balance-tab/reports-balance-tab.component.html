@@ -3,7 +3,7 @@
 } @else if (summary() && insights()) {
   <div class="reports-balance-kpis">
     <to-kpi-card
-      title="Ingreso cobrado"
+      title="Dinero cobrado"
       titleIcon="payment"
       [value]="collectedValue()"
       [legend]="collectedLegend()"
@@ -21,19 +21,7 @@
       [legend]="expensesLegend()"
     />
     <to-kpi-card
-      title="Cuentas por pagar"
-      titleIcon="credit"
-      [value]="payableValue()"
-      [legend]="payableLegend()"
-    />
-    <to-kpi-card
-      title="Provisiones"
-      titleIcon="alert"
-      [value]="provisionsValue()"
-      [legend]="provisionsLegend()"
-    />
-    <to-kpi-card
-      title="Resultado de caja"
+      title="Ganancia en caja"
       titleIcon="revenue"
       [value]="cashMarginValue()"
       [legend]="cashMarginLegend()"
@@ -46,10 +34,22 @@
       [legend]="tollsSpendLegend()"
     />
     <to-kpi-card
-      title="Operadores"
+      title="Pagos a operadores"
       titleIcon="operators"
       [value]="operatorSpendValue()"
       [legend]="operatorSpendLegend()"
+    />
+    <to-kpi-card
+      title="Cuentas por pagar"
+      titleIcon="credit"
+      [value]="payableValue()"
+      [legend]="payableLegend()"
+    />
+    <to-kpi-card
+      title="Provisiones"
+      titleIcon="alert"
+      [value]="provisionsValue()"
+      [legend]="provisionsLegend()"
     />
   </div>
 
@@ -59,7 +59,7 @@
         <div>
           <h2 class="reports-balance-panel__title">Movimiento del periodo</h2>
           <p class="reports-balance-panel__subtitle">
-            Ingreso cobrado, gastos, por cobrar y provisiones · {{ periodSubtitle() }}
+            Cobrado, gastos, por cobrar y provisiones · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -71,49 +71,106 @@
     <section class="reports-balance-panel">
       <header class="reports-balance-panel__head">
         <div>
+          <h2 class="reports-balance-panel__title">Actividad diaria</h2>
+          <p class="reports-balance-panel__subtitle">
+            Ingresos y gastos por día · {{ activityHeatmapSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__heatmap">
+        <app-reports-balance-activity-heatmap
+          [dailyActivity]="insights()?.dailyActivity ?? []"
+          [filter]="filter()"
+        />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel reports-balance-panel--wide">
+      <header class="reports-balance-panel__head">
+        <div>
           <h2 class="reports-balance-panel__title">Cartera por cliente</h2>
-          <p class="reports-balance-panel__subtitle">Saldo por cobrar y próximo vencimiento</p>
-        </div>
-      </header>
-      <div class="reports-balance-panel__chart">
-        <to-echarts-host [option]="creditByClientOption()" />
-      </div>
-    </section>
-
-    <section class="reports-balance-panel">
-      <header class="reports-balance-panel__head">
-        <div>
-          <h2 class="reports-balance-panel__title">Ingresos por cliente</h2>
           <p class="reports-balance-panel__subtitle">
-            Mejores clientes por ingreso cobrado · {{ periodSubtitle() }}
+            Venta total, cobrado y por cobrar · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
-      <div class="reports-balance-panel__chart">
-        <to-echarts-host [option]="incomeByClientOption()" />
+      <div class="reports-balance-panel__table-wrap">
+        @if (hasPortfolioRows()) {
+          <table class="reports-balance-panel__table">
+            <thead>
+              <tr>
+                <th scope="col">Cliente</th>
+                <th scope="col" class="reports-balance-panel__num">Venta total</th>
+                <th scope="col" class="reports-balance-panel__num">Cobrado</th>
+                <th scope="col" class="reports-balance-panel__num">Por cobrar</th>
+                <th scope="col">Próximo pago</th>
+                <th scope="col">Estatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of portfolioRows(); track row.clientName) {
+                <tr>
+                  <td>{{ row.clientName }}</td>
+                  <td class="reports-balance-panel__num">{{ formatMoney(row.totalSales) }}</td>
+                  <td class="reports-balance-panel__num">{{ formatMoney(row.collected) }}</td>
+                  <td class="reports-balance-panel__num">{{ formatMoney(row.receivable) }}</td>
+                  <td>{{ row.nextDueLabel }}</td>
+                  <td class="reports-balance-panel__status-cell">
+                    <span [class]="commercialPillClass(row.commercialHealth)">
+                      <span class="to-table-pill__dot" aria-hidden="true"></span>
+                      <span class="to-table-pill__label">{{ row.commercialHealthLabel }}</span>
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="reports-balance-panel__total-row">
+                <th scope="row">Total</th>
+                <td class="reports-balance-panel__num">
+                  {{ formatMoney(portfolioTotals().totalSales) }}
+                </td>
+                <td class="reports-balance-panel__num">
+                  {{ formatMoney(portfolioTotals().collected) }}
+                </td>
+                <td class="reports-balance-panel__num">
+                  {{ formatMoney(portfolioTotals().receivable) }}
+                </td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        } @else {
+          <p class="reports-balance-panel__empty">Sin movimiento de clientes en el periodo.</p>
+        }
       </div>
     </section>
 
-    <section class="reports-balance-panel">
+    <section class="reports-balance-panel reports-balance-panel--wide">
       <header class="reports-balance-panel__head">
         <div>
-          <h2 class="reports-balance-panel__title">Utilidad por cliente</h2>
+          <h2 class="reports-balance-panel__title">Rendimiento por cliente</h2>
           <p class="reports-balance-panel__subtitle">
-            Ingreso pactado − costo directo y gastos de maniobra · {{ periodSubtitle() }}
+            Inversión, ingreso y margen por cliente · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
-      <div class="reports-balance-panel__chart">
-        <to-echarts-host [option]="marginByClientOption()" />
-      </div>
+      @if (hasClientPerformance()) {
+        <div class="reports-balance-panel__chart reports-balance-panel__chart--tall">
+          <to-echarts-host [option]="clientPerformanceOption()" />
+        </div>
+      } @else {
+        <p class="reports-balance-panel__empty">Sin movimiento por cliente en el periodo.</p>
+      }
     </section>
 
     <section class="reports-balance-panel">
       <header class="reports-balance-panel__head">
         <div>
-          <h2 class="reports-balance-panel__title">Utilidad del periodo</h2>
+          <h2 class="reports-balance-panel__title">Ganancia por maniobra</h2>
           <p class="reports-balance-panel__subtitle">
-            Ingreso pactado vs costos de maniobra completadas · {{ periodSubtitle() }}
+            Lo que deberías ganar por viaje completado · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -133,5 +190,6 @@
         <to-echarts-host [option]="rubroOption()" />
       </div>
     </section>
+
   </div>
 }

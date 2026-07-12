@@ -1,15 +1,28 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable, shareReplay, tap } from 'rxjs';
-import type { Client, CreateClientPayload } from '@shared/models/client.models';
+import type { ClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
+import type { ClientCommercialHealth } from '@shared/models/client.models';
 import { buildClientApiWriteBody } from '@features/clients/utils/client-payload';
 import { mapApiClient } from '@shared/data/api-mappers';
+import type { Client, CreateClientPayload } from '@shared/models/client.models';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url';
 
 export type ClientPickerOption = {
   id: string;
   name: string;
+};
+
+export type ClientBalanceOverviewItem = {
+  clientId: string;
+  summary: ClientBalanceSummary;
+  commercialHealth: ClientCommercialHealth;
+};
+
+export type ClientBalanceOverviewResponse = {
+  asOf: string;
+  items: ClientBalanceOverviewItem[];
 };
 
 @Injectable({ providedIn: 'root' })
@@ -79,5 +92,20 @@ export class ClientsService {
         map((r) => mapApiClient(r)),
         tap(() => this.invalidateClientPickerCache()),
       );
+  }
+
+  getClientsBalanceOverview(): Observable<ClientBalanceOverviewResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http.get<ClientBalanceOverviewResponse>(
+      companyResourceUrl(companyId, 'clients/balance-overview'),
+    );
+  }
+
+  getClientBalance(clientId: string): Observable<ClientBalanceSummary> {
+    const companyId = requireCompanyId(this.session.companyId());
+    const id = clientId.trim();
+    return this.http.get<ClientBalanceSummary>(
+      companyResourceUrl(companyId, `clients/${id}/balance`),
+    );
   }
 }

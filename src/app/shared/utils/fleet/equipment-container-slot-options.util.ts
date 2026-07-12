@@ -22,7 +22,8 @@ const LEGACY_FIXED_SLOT_LABELS = new Set([
 /**
  * Opciones de configuración por tipo de equipo (México / NAM).
  *
- * - Portacontenedor: plazas ISO (20′, 40′, 20′+20′) o chasis fijo.
+ * - Portacontenedor: plazas ISO / chasis fijos, extensibles (extraíbles),
+ *   combinados (uno u otro tamaño) y cuello de ganso para high cube.
  * - Cajas cerradas (seca, reefer, cortina): longitud en pies (48′ / 53′).
  * - Plataformas y similares: longitud de deck en pies.
  * - Góndola, tolva, pipa, cuello de ganso: no aplica configuración de vano.
@@ -30,7 +31,17 @@ const LEGACY_FIXED_SLOT_LABELS = new Set([
 export const EQUIPMENT_CONTAINER_SLOT_KEYS_BY_OPERATION_TYPE: Readonly<
   Record<string, readonly EquipmentContainerSlotConfigKey[]>
 > = {
-  portacontenedor: ['iso_20', 'iso_40', 'iso_20_20', 'fixed'],
+  portacontenedor: [
+    'iso_20',
+    'iso_40',
+    'iso_45',
+    'iso_20_20',
+    'iso_20_40',
+    'iso_20_45',
+    'iso_20_40_45',
+    'gooseneck',
+    'fixed',
+  ],
   plataforma: ['ft_40', 'ft_42', 'ft_46', 'ft_48', 'ft_53'],
   caja_seca: ['ft_48', 'ft_53'],
   refrigerado: ['ft_48', 'ft_53'],
@@ -46,7 +57,12 @@ export const EQUIPMENT_CONTAINER_SLOT_KEYS_BY_OPERATION_TYPE: Readonly<
     'na',
     'iso_20',
     'iso_40',
+    'iso_45',
     'iso_20_20',
+    'iso_20_40',
+    'iso_20_45',
+    'iso_20_40_45',
+    'gooseneck',
     'fixed',
     'ft_40',
     'ft_42',
@@ -56,12 +72,17 @@ export const EQUIPMENT_CONTAINER_SLOT_KEYS_BY_OPERATION_TYPE: Readonly<
   ],
 };
 
-/** Orden canónico en listas desplegables (pies / ISO de menor a mayor). */
+/** Orden canónico en listas desplegables (ISO por tamaño, luego pies). */
 const CONTAINER_SLOT_DISPLAY_ORDER: readonly EquipmentContainerSlotConfigKey[] = [
   'na',
   'iso_20',
   'iso_40',
+  'iso_45',
   'iso_20_20',
+  'iso_20_40',
+  'iso_20_45',
+  'iso_20_40_45',
+  'gooseneck',
   'fixed',
   'ft_40',
   'ft_42',

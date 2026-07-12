@@ -1,5 +1,5 @@
-@if (vm.tripsLoading()) {
-  <p class="clients-contact-empty">Cargando maniobras del cliente…</p>
+@if (vm.balanceLoading()) {
+  <p class="clients-contact-empty">Cargando balance del cliente…</p>
 } @else if (!vm.balanceSummary().hasTrips) {
   <p class="clients-contact-empty">
     Este cliente aún no tiene maniobras registradas en el sistema.
@@ -106,14 +106,21 @@
           No hay saldos pendientes de cobro para este cliente.
         </p>
       } @else {
-        <div class="clients-contact-scroll">
-          <table class="clients-contact-table" aria-label="Próximos cobros">
+          <table
+            class="clients-contact-table clients-balance-pay-table"
+            aria-label="Próximos cobros"
+          >
             <thead>
               <tr>
                 <th scope="col">Fecha límite</th>
                 <th scope="col">Maniobra</th>
                 <th scope="col">Monto</th>
                 <th scope="col">Estado</th>
+                @if (vm.canWriteTrips()) {
+                  <th scope="col" class="clients-balance-pay-table__action-head">
+                    Acción
+                  </th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -122,16 +129,47 @@
                   <td>{{ row.dueLabel }}</td>
                   <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
                   <td>{{ vm.balanceMoney(row.amount) }}</td>
-                  <td>
+                  <td class="clients-balance-pay-table__status">
                     <to-badge [variant]="vm.paymentDueBadgeVariant(row.badgeVariant)">{{
                       row.statusHint
                     }}</to-badge>
                   </td>
+                  @if (vm.canWriteTrips()) {
+                    <td class="clients-balance-pay-table__action-cell">
+                      @if (vm.canConfirmClientCollection(row.tripId)) {
+                        <span
+                          class="clients-balance-pay-table__action-tooltip"
+                          [attr.data-tooltip]="
+                            'Confirmar cobro de ' + row.maneuverCode
+                          "
+                        >
+                          <button
+                            type="button"
+                            class="clients-balance-pay-table__confirm"
+                            [disabled]="vm.collectionConfirming() || vm.saving()"
+                            [attr.aria-label]="
+                              'Confirmar cobro de la maniobra ' + row.maneuverCode
+                            "
+                            (click)="
+                              vm.openClientCollectionConfirm(
+                                'confirm',
+                                row.tripId,
+                                row.maneuverCode
+                              )
+                            "
+                          >
+                            <to-icon name="checkCircle" [size]="16" />
+                          </button>
+                        </span>
+                      } @else {
+                        <span class="clients-balance-pay-table__action-empty">—</span>
+                      }
+                    </td>
+                  }
                 </tr>
               }
             </tbody>
           </table>
-        </div>
       }
     </section>
 
@@ -147,13 +185,20 @@
           Aún no hay cobros confirmados en maniobras de este cliente.
         </p>
       } @else {
-        <div class="clients-contact-scroll">
-          <table class="clients-contact-table" aria-label="Historial de cobros">
+          <table
+            class="clients-contact-table clients-balance-pay-table"
+            aria-label="Historial de cobros"
+          >
             <thead>
               <tr>
                 <th scope="col">Fecha de cobro</th>
                 <th scope="col">Maniobra</th>
                 <th scope="col">Monto</th>
+                @if (vm.canWriteTrips()) {
+                  <th scope="col" class="clients-balance-pay-table__action-head">
+                    Acción
+                  </th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -162,11 +207,42 @@
                   <td>{{ row.collectedLabel }}</td>
                   <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
                   <td>{{ vm.balanceMoney(row.amount) }}</td>
+                  @if (vm.canWriteTrips()) {
+                    <td class="clients-balance-pay-table__action-cell">
+                      @if (vm.canRevertClientCollection(row.tripId)) {
+                        <span
+                          class="clients-balance-pay-table__action-tooltip"
+                          [attr.data-tooltip]="
+                            'Revertir cobro de ' + row.maneuverCode
+                          "
+                        >
+                          <button
+                            type="button"
+                            class="clients-balance-pay-table__revert"
+                            [disabled]="vm.collectionConfirming() || vm.saving()"
+                            [attr.aria-label]="
+                              'Revertir cobro de la maniobra ' + row.maneuverCode
+                            "
+                            (click)="
+                              vm.openClientCollectionConfirm(
+                                'revert',
+                                row.tripId,
+                                row.maneuverCode
+                              )
+                            "
+                          >
+                            <to-icon name="cancelCircle" [size]="16" />
+                          </button>
+                        </span>
+                      } @else {
+                        <span class="clients-balance-pay-table__action-empty">—</span>
+                      }
+                    </td>
+                  }
                 </tr>
               }
             </tbody>
           </table>
-        </div>
       }
     </section>
 
@@ -202,3 +278,39 @@
     </section>
   </div>
 }
+
+<to-confirm-dialog
+  titleId="clients-balance-collection-confirm-title"
+  icon="warning"
+  [title]="
+    vm.collectionConfirmRequest()?.kind === 'revert'
+      ? 'Revertir cobro'
+      : 'Confirmar cobro'
+  "
+  cancelLabel="Cancelar"
+  [confirmLabel]="
+    vm.collectionConfirmRequest()?.kind === 'revert'
+      ? 'Revertir cobro'
+      : 'Confirmar cobro'
+  "
+  confirmVariant="primary"
+  [open]="vm.collectionConfirmOpen()"
+  [confirmLoading]="vm.collectionConfirming()"
+  [confirmDisabled]="vm.collectionConfirming()"
+  (cancel)="vm.closeCollectionConfirm()"
+  (confirm)="vm.submitCollectionConfirm()"
+>
+  @if (vm.collectionConfirmRequest(); as req) {
+  <p class="clients-balance-confirm-copy">
+    @if (req.kind === 'revert') {
+      Vas a revertir el cobro de la maniobra
+      <strong>{{ req.maneuverCode }}</strong>. Dejará de contarse como ingreso
+      cobrado y volverá a saldo pendiente.
+    } @else {
+      Vas a confirmar el cobro de la maniobra
+      <strong>{{ req.maneuverCode }}</strong>. Se registrará como ingreso cobrado
+      en reportes y cartera.
+    }
+  </p>
+  }
+</to-confirm-dialog>

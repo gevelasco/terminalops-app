@@ -27,6 +27,10 @@ export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   tripAssistPrefillEnabled: boolean;
   tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent: number;
+  tripAutoFuelPaymentMethod: string;
+  tripAutoTollsPaymentMethod: string;
+  tripAutoPerDiemPaymentMethod: string;
+  tripAutoControlPaymentMethod: string;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   maintenanceKmControlEnabled: boolean;

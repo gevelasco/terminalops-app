@@ -14,33 +14,33 @@
         (keydown)="onCardKeydown($event, card.id)"
       >
         <header class="operators-overview__head">
-          <div class="operators-overview__identity">
-            @if (card.photoUrl) {
-              <img
-                class="operators-overview__avatar"
-                [src]="card.photoUrl"
-                [alt]="'Foto de ' + card.name"
-                width="52"
-                height="52"
-                loading="lazy"
-                decoding="async"
-              />
-            } @else {
-              <span
-                class="operators-overview__avatar operators-overview__avatar--initials"
-                aria-hidden="true"
-                >{{ card.photoInitials }}</span
-              >
-            }
-            <div class="operators-overview__title-block">
-              <h3 class="operators-overview__name">{{ card.name }}</h3>
-              <p class="operators-overview__tenure">{{ card.companyTenureLabel }}</p>
+          @if (card.photoUrl) {
+            <img
+              class="operators-overview__avatar"
+              [src]="card.photoUrl"
+              [alt]="'Foto de ' + card.name"
+              width="52"
+              height="52"
+              loading="lazy"
+              decoding="async"
+            />
+          } @else {
+            <span
+              class="operators-overview__avatar operators-overview__avatar--initials"
+              aria-hidden="true"
+              >{{ card.photoInitials }}</span
+            >
+          }
+          <div class="operators-overview__title-block">
+            <div class="operators-overview__pill-row">
+              <span [class]="'operators-overview__status-pill ' + card.statusPillClass">
+                <span class="to-table-pill__dot" aria-hidden="true"></span>
+                <span class="to-table-pill__label">{{ card.statusLabel }}</span>
+              </span>
             </div>
+            <h3 class="operators-overview__name">{{ card.name }}</h3>
+            <p class="operators-overview__tenure">{{ card.companyTenureLabel }}</p>
           </div>
-          <span [class]="'operators-overview__status-pill ' + card.statusPillClass">
-            <span class="to-table-pill__dot" aria-hidden="true"></span>
-            <span class="to-table-pill__label">{{ card.statusLabel }}</span>
-          </span>
         </header>
 
         <section class="operators-overview__body" aria-label="Resumen del operador">

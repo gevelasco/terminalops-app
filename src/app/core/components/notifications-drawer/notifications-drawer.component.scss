@@ -2,14 +2,29 @@
   z-index: 125;
 }
 
-/* Mismo patrón visual que tabs de estado en Maniobras */
-.incidents-drawer__tabs-wrap {
+.notifications-drawer__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--to-color-primary);
+}
+
+.notifications-drawer__tabs-wrap {
   flex-shrink: 0;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
 }
 
-.incidents-drawer__tabs {
+.notifications-drawer__tabs {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
@@ -20,13 +35,11 @@
   background: var(--to-color-surface);
   border: 1px solid var(--to-color-border);
   overflow-x: auto;
-  overflow-y: hidden;
   box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
 }
 
-.incidents-drawer__tab {
+.notifications-drawer__tab {
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -40,14 +53,8 @@
   font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
   color: var(--to-color-text-muted);
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
 
   &:hover {
     color: var(--to-color-text);
@@ -60,44 +67,24 @@
   }
 }
 
-.incidents-drawer__tab--active {
+.notifications-drawer__tab--active {
   border-color: color-mix(in srgb, var(--to-color-border) 88%, transparent);
   background: var(--to-color-surface-muted);
   color: var(--to-color-text);
 }
 
-.incidents-drawer__tab-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  width: 1.125rem;
-  height: 1.125rem;
-  opacity: 0.72;
-  color: currentColor;
-
-  svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-}
-
-.incidents-drawer__tab--active .incidents-drawer__tab-icon {
-  opacity: 1;
-  color: var(--to-color-primary);
-}
-
-.incidents-drawer__body {
+.notifications-drawer__body {
   padding: 0.85rem 1rem 1rem;
 }
 
-.incidents-drawer__empty {
+.notifications-drawer__empty {
   margin: 1.25rem 0;
   text-align: center;
   font-size: 0.875rem;
   color: var(--to-color-text-muted);
 }
 
-.incidents-drawer__list {
+.notifications-drawer__list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -106,19 +93,58 @@
   gap: 0.75rem;
 }
 
-/* Misma disposición que `.dash-critical-card` en el dashboard */
-.incidents-drawer__item {
+.notifications-drawer__item {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 0;
+  border-radius: var(--to-radius-md);
+  border: 1px solid var(--to-color-border);
+  background: var(--to-color-surface-muted);
+  overflow: hidden;
+}
+
+.notifications-drawer__item-btn,
+.notifications-drawer__item-static {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   gap: 0.75rem;
+  width: 100%;
   padding: 0.75rem 0.8rem;
-  border-radius: var(--to-radius-md);
-  border: 1px solid var(--to-color-border);
-  background: var(--to-color-surface-muted);
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 
-.incidents-drawer__icon-wrap {
+.notifications-drawer__item-btn {
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--to-color-text) 4%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: -2px;
+  }
+}
+
+.notifications-drawer__item--actionable {
+  cursor: pointer;
+}
+
+.notifications-drawer__item--danger {
+  border-color: color-mix(in srgb, var(--to-color-danger, #dc2626) 35%, var(--to-color-border));
+}
+
+.notifications-drawer__item--warning {
+  border-color: color-mix(in srgb, var(--to-color-warning, #d97706) 35%, var(--to-color-border));
+}
+
+.notifications-drawer__icon-wrap {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -128,22 +154,17 @@
   border-radius: 0.375rem;
   color: var(--to-color-text-muted);
   background: color-mix(in srgb, var(--to-color-text) 8%, transparent);
-
-  svg {
-    display: block;
-    flex-shrink: 0;
-  }
 }
 
-.incidents-drawer__content {
+.notifications-drawer__content {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.35rem;
   min-width: 0;
   flex: 1;
 }
 
-.incidents-drawer__desc {
+.notifications-drawer__title {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
@@ -151,28 +172,20 @@
   color: var(--to-color-text);
 }
 
-.incidents-drawer__meta {
-  margin: 0.25rem 0 0;
-  font-size: 0.75rem;
-  color: var(--to-color-text-muted);
-}
-
-.incidents-drawer__author {
-  margin: 0.2rem 0 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--to-color-primary);
-}
-
-.incidents-drawer__footer {
+.notifications-drawer__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: 0.45rem;
 
   time {
     font-size: 0.6875rem;
     color: var(--to-color-text-muted);
   }
+}
+
+.notifications-drawer__actor {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
 }

@@ -1,4 +1,5 @@
-import { DestroyRef, Injectable, computed, inject } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import type { FleetDetailDrawerTab } from '@features/fleet/components/fleet-detail-drawer.types';
 import { EquipmentFeatureService } from './equipment.service';
 import { FleetCatalogFeatureService } from './fleet-catalog.service';
 import { FleetOverviewFeatureService } from './fleet-overview.service';
@@ -19,6 +20,7 @@ export class FleetFeatureService {
 
   private moduleLoadStarted = false;
   private disposed = false;
+  private readonly _pendingDetailTab = signal<FleetDetailDrawerTab | null>(null);
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -47,6 +49,7 @@ export class FleetFeatureService {
   readonly equipment = this.equipmentFeature.equipment;
   readonly selectedUnit = this.unitsFeature.selectedUnit;
   readonly selectedEquipment = this.equipmentFeature.selectedEquipment;
+  readonly pendingDetailTab = this._pendingDetailTab.asReadonly();
 
   /** Overview + unidades + equipo en paralelo (una vez por visita). */
   loadFleetModule(): void {
@@ -89,6 +92,14 @@ export class FleetFeatureService {
     this.overviewFeature.refreshOverview();
     this.unitsFeature.refreshUnits();
     this.equipmentFeature.refreshEquipment();
+  }
+
+  requestDetailTab(tab: FleetDetailDrawerTab): void {
+    this._pendingDetailTab.set(tab);
+  }
+
+  clearPendingDetailTab(): void {
+    this._pendingDetailTab.set(null);
   }
 
   selectUnit(unitId: string): void {

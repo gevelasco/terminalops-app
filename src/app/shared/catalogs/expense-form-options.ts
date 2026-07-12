@@ -21,8 +21,9 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
     label: 'Pago por administración de equipo / rendimiento',
   },
   { value: 'operator_payment', label: 'Pago a operador' },
-  { value: 'operator_commission', label: 'Comisiones a operador' },
+  { value: 'operator_commission', label: 'Pago a operador' },
   { value: 'operational_control', label: 'Control operativo' },
+  { value: 'service', label: 'Servicio' },
   { value: 'other', label: 'Otro (general)' },
 ];
 
@@ -51,6 +52,10 @@ export const EXPENSE_PAYMENT_METHOD_OPTIONS: ToSelectOption[] = [
   { value: 'credit', label: 'Crédito / proveedor' },
   { value: 'other', label: 'Otro' },
 ];
+
+/** Métodos de pago requeridos para gastos automáticos de maniobra (sin opción vacía). */
+export const TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS: ToSelectOption[] =
+  EXPENSE_PAYMENT_METHOD_OPTIONS.filter((option) => option.value !== '');
 
 export const EXPENSE_CURRENCY_OPTIONS: ToSelectOption[] = [
   { value: 'MXN', label: 'MXN — Peso mexicano' },

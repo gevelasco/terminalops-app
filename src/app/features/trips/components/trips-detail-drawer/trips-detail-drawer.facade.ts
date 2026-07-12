@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
+import { catchError, map, of } from 'rxjs';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ToastService } from '@core/notifications/toast.service';
@@ -36,6 +36,7 @@ import { OperationConfigurationResolverService } from '@shared/services/operatio
 import { snapshotTextOrDash, storedOperationalDistanceKmLabel, storedRouteDistanceKmLabel } from '@features/trips/utils/maniobra-route-display';
 import { tripOperatorDisplayName, tripEquipmentDisplayAt } from '@features/trips/utils/trip-display-labels';
 import { tripManeuverPaymentMethodLabel } from '@shared/catalogs/trip-client-payment-options';
+import { tripContainerTypeLabelMx } from '@shared/catalogs/trip-container-type-options';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { formatDestinationRateRouteSummary } from '@features/clients/utils/destination-rate-payload';
@@ -185,9 +186,18 @@ export class TripsDetailDrawerFacade {
     });
 
     effect((onCleanup) => {
+      const tab = this.detailTab();
+      const t = this.tripsFeature.selectedTrip();
+      if (tab !== 'settlement' || !this.showsSettlementTab() || !t) {
+        this.expensesForSettlement.set([]);
+        return;
+      }
       const sub = this.expensesApi
-        .getExpensesList()
-        .pipe(catchError(() => of([])))
+        .getExpensesPage({ tripId: t.id, limit: 0 })
+        .pipe(
+          map((response) => response.items),
+          catchError(() => of([] as Expense[])),
+        )
         .subscribe((rows) => this.expensesForSettlement.set(rows));
       onCleanup(() => sub.unsubscribe());
     });
@@ -525,7 +535,18 @@ export class TripsDetailDrawerFacade {
 
   canMarkClientCollected(): boolean {
     const s = this.trip().status;
-    return this.showsClientBillingBlock() && (s === 'completed' || s === 'cancelled');
+    return (
+      this.canWriteTrips() &&
+      this.showsClientBillingBlock() &&
+      (s === 'completed' || s === 'cancelled')
+    );
+  }
+
+  showsClientCollectionStatus(): boolean {
+    const s = this.trip().status;
+    return (
+      this.showsClientBillingBlock() && (s === 'completed' || s === 'cancelled')
+    );
   }
 
   clientCollected(): boolean {
@@ -608,14 +629,8 @@ export class TripsDetailDrawerFacade {
     return load === 'vacio' ? 'Vacío' : 'Lleno';
   }
 
-  containerLabel(c: TripContainerType): string {
-    const labels: Record<TripContainerType, string> = {
-      '20ft': '20 pies',
-      '40ft': '40 pies',
-      '40hc': '40 pies HC (High Cube)',
-      na: 'N/A',
-    };
-    return labels[c];
+  containerLabel(c: TripContainerType | string): string {
+    return tripContainerTypeLabelMx(c);
   }
 
   routeDistanceDisplay(): string {

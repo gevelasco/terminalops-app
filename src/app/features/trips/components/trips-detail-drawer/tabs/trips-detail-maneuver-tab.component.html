@@ -253,6 +253,14 @@
               <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
             </button>
           </div>
+          } @else if (vm.showsClientCollectionStatus()) {
+            <p class="maniobra-detail__collect-pending-hint">
+              @if (vm.clientCollected()) {
+                Cobro confirmado{{ vm.clientCollectedAtLabel() ? ' · ' + vm.clientCollectedAtLabel() : '' }}
+              } @else {
+                Pendiente de cobro; se refleja como crédito en reportes.
+              }
+            </p>
           } @else {
             <p class="maniobra-detail__collect-pending-hint">
               El cobro se confirma cuando la maniobra esté completada o cancelada.

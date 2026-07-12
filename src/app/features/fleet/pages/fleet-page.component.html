@@ -47,6 +47,25 @@
           (tabSelect)="onOverviewStatusFilterSelect($event)"
         />
       </div>
+    } @else if (tab() === 'units' || tab() === 'equipment') {
+      <div class="fleet-toolbar__table-actions">
+        <span
+          class="fleet-toolbar__export-wrap"
+          data-tooltip="Exportar CSV"
+        >
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="fleet-toolbar__export"
+            ariaLabel="Exportar CSV"
+            [disabled]="tableExportDisabled()"
+            (click)="exportCurrentTable()"
+          >
+            <to-icon name="download" [size]="18" />
+          </to-button>
+        </span>
+      </div>
     }
   </div>
 </div>

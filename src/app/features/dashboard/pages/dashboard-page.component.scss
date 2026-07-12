@@ -180,7 +180,7 @@
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.6rem;
 }
@@ -197,22 +197,36 @@
 }
 
 .dashboard-panel--flow {
-  grid-column: 1 / 5;
+  grid-column: 1 / 10;
   grid-row: 1;
+}
+
+.dashboard-body--with-upcoming .dashboard-panel--flow {
+  grid-column: 1 / 7;
 }
 
 .dashboard-panel--destinations {
-  grid-column: 5 / 7;
+  grid-column: 10 / 13;
   grid-row: 1;
 }
 
+.dashboard-body--with-upcoming .dashboard-panel--destinations {
+  grid-column: 7 / 10;
+}
+
+.dashboard-panel--upcoming {
+  grid-column: 10 / 13;
+  grid-row: 1;
+  padding-inline: 0.6rem;
+}
+
 .dashboard-panel--recent {
-  grid-column: 1 / 4;
+  grid-column: 1 / 7;
   grid-row: 2;
 }
 
 .dashboard-panel--mix {
-  grid-column: 4 / 7;
+  grid-column: 7 / 13;
   grid-row: 2;
 }
 
@@ -247,6 +261,84 @@
 .dashboard-panel__chart {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.dashboard-upcoming-list {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dashboard-upcoming-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 0.1rem 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.dashboard-upcoming-list__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dashboard-upcoming-list__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--palette-primary, var(--to-color-primary)) 10%, transparent);
+  color: var(--palette-primary, var(--to-color-primary));
+}
+
+.dashboard-upcoming-list__type-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--to-color-text);
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dashboard-upcoming-list__amount {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text);
+  white-space: nowrap;
+}
+
+.dashboard-upcoming-list__date {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding-left: 1.9rem;
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+
+  &--overdue {
+    color: var(--to-color-danger, #c0392b);
+    font-weight: 600;
+  }
 }
 
 .dashboard-recent-table-wrap {
@@ -331,10 +423,16 @@
 
   .dashboard-panel--flow,
   .dashboard-panel--destinations,
+  .dashboard-panel--upcoming,
   .dashboard-panel--recent,
   .dashboard-panel--mix {
     grid-column: 1;
     grid-row: auto;
+  }
+
+  .dashboard-body--with-upcoming .dashboard-panel--flow,
+  .dashboard-body--with-upcoming .dashboard-panel--destinations {
+    grid-column: 1;
   }
 
   :host {

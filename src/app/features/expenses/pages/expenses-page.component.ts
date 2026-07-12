@@ -6,12 +6,14 @@ import {
   effect,
   inject,
   model,
+  OnInit,
   resource,
   signal,
   untracked,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, finalize, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
@@ -84,10 +86,12 @@ export type ExpensesPageTab = 'calendar' | 'list';
   templateUrl: './expenses-page.component.html',
   styleUrl: './expenses-page.component.scss',
 })
-export class ExpensesPageComponent {
+export class ExpensesPageComponent implements OnInit {
   private readonly expensesApi = inject(ExpensesService);
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly operationalFleetSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
@@ -153,11 +157,20 @@ export class ExpensesPageComponent {
 
   private readonly listResource = resource<
     ExpensesListResponse,
-    ExpensesListParams
+    ExpensesListParams | undefined
   >({
-    request: () => this.listParams(),
-    loader: async ({ request }): Promise<ExpensesListResponse> =>
-      firstValueFrom(
+    request: () => (this.pageTab() === 'list' ? this.listParams() : undefined),
+    loader: async ({ request }): Promise<ExpensesListResponse> => {
+      if (!request) {
+        return {
+          items: [] as Expense[],
+          total: 0,
+          page: 1,
+          limit: this.pageSize(),
+          totalAmount: 0,
+        };
+      }
+      return firstValueFrom(
         this.expensesApi.getExpensesPage(request).pipe(
           catchError(() =>
             of({
@@ -169,7 +182,8 @@ export class ExpensesPageComponent {
             } satisfies ExpensesListResponse),
           ),
         ),
-      ),
+      );
+    },
   });
 
   constructor() {
@@ -196,6 +210,40 @@ export class ExpensesPageComponent {
       untracked(() => {
         queueMicrotask(() => this.searchField()?.focus());
       });
+    });
+  }
+
+  ngOnInit(): void {
+    this.openExpenseFromQuery(this.route.snapshot.queryParamMap.get('expenseId'));
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.openExpenseFromQuery(params.get('expenseId'));
+      });
+  }
+
+  private openExpenseFromQuery(expenseId: string | null): void {
+    const id = expenseId?.trim();
+    if (!id) {
+      return;
+    }
+    this.pageTab.set('list');
+    this.expensesApi
+      .getExpenseById(id)
+      .pipe(
+        catchError(() => of(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((expense) => {
+        if (expense) {
+          this.detailExpense.set(expense);
+        }
+      });
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { expenseId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
     });
   }
 
@@ -389,25 +437,33 @@ export class ExpensesPageComponent {
       }
       const range = expensesRangeForPreset(this.periodPreset());
       const suffix = range ? `${range.from}_${range.to}` : 'todo';
-      const csv = buildExpensesCsv(res.items, this.tripManeuverByTripId());
+      const csv = buildExpensesCsv(
+        res.items.map((e) => this.mapExpenseExportRow(e)),
+      );
       downloadExpensesCsv(csv, `gastos_${suffix}.csv`);
       this.toast.show(`Exportados ${res.items.length} gastos.`, 'success');
     });
   }
 
   private mapExpenseRow(e: Expense): Record<string, unknown> {
-    const maneuver = expenseManeuverCode(e, this.tripManeuverByTripId());
-    const fleetRelation = expenseFleetRelationLabel(e);
+    const exportRow = this.mapExpenseExportRow(e);
     return {
       id: e.id,
+      ...exportRow,
+      invoiceStatus: e.invoiceRequired === true ? 'required' : 'not-required',
+    };
+  }
+
+  private mapExpenseExportRow(e: Expense) {
+    return {
       rubroLabel: expenseRubroLabelForExpense(e),
       category: expenseConceptLabel(e),
-      maneuver,
-      fleetRelation,
+      maneuver: expenseManeuverCode(e, this.tripManeuverByTripId()),
+      fleetRelation: expenseFleetRelationLabel(e),
       amount: this.currencyMx.transform(e.amount, e.currency),
       paymentMethod: expensePaymentMethodLabel(e.paymentMethod),
       incurredAt: formatExpenseIncurredDateDisplay(e.incurredAt, e.incurredDate),
-      invoiceStatus: e.invoiceRequired === true ? 'required' : 'not-required',
+      invoiceRequired: e.invoiceRequired === true ? 'Sí' : 'No',
     };
   }
 }

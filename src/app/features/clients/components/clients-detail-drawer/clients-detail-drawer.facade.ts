@@ -7,16 +7,16 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
-import { ExpensesService } from '@core/services/api/expenses';
+import { catchError, finalize, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { TripsService as TripsApiService } from '@core/services/api/trips';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
+import { ClientsBalanceContextService } from '@features/clients/services/clients-balance-context.service';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
-  commercialHealthFromUnknown,
   formatClientDeliveryCoord,
   normalizeContacts,
   parseOptionalInt,
@@ -24,7 +24,8 @@ import {
   yesNoToBool,
 } from '@features/clients/utils/client-payload';
 import { clientDeliveryRouteLinkTitle } from '@features/clients/utils/client-delivery-route-link';
-import { buildClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
+import { deriveClientCommercialHealthFromSummary } from '@features/clients/utils/client-commercial-status.util';
+import { formatClientBalanceMoney } from '@features/clients/utils/client-balance-summary';
 import { buildClientManeuverVolumeSummary } from '@features/clients/utils/client-maneuver-volume-summary';
 import {
   clientManeuversPeriodFilterTabs,
@@ -39,8 +40,9 @@ import {
 } from '@features/clients/utils/client-maneuvers-table.util';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
+import { isTripClientCollected } from '@features/reports/utils/reports-trip-helpers';
+import { clientCommercialPillClass, clientCommercialStatusMod } from '@shared/utils/client-commercial-pill';
 import {
-  CLIENT_COMMERCIAL_HEALTH_OPTIONS,
   CLIENT_YES_NO_OPTIONS,
   clientCommercialHealthLabel,
 } from '@shared/catalogs/client-form-options';
@@ -48,16 +50,15 @@ import {
   TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS,
   tripManeuverPaymentMethodLabel,
 } from '@shared/catalogs/trip-client-payment-options';
-import type { Expense } from '@shared/models/logistics.models';
 import type {
   Client,
-  ClientCommercialHealth,
   ClientContactPerson,
 } from '@shared/models/client.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
+import type { Trip } from '@shared/models/logistics.models';
 
 export type ClientDetailEditSection = 'ident' | 'fiscal' | 'delivery' | 'contacts' | 'pay';
 export type ClientDrawerTab = 'details' | 'balance' | 'maneuvers';
@@ -66,18 +67,19 @@ export type ClientDrawerTab = 'details' | 'balance' | 'maneuvers';
 export class ClientsDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsFeature = inject(ClientsFeatureService);
+  private readonly balanceContext = inject(ClientsBalanceContextService);
   private readonly operationalTrips = inject(OperationalTripsFeatureService);
+  private readonly tripsApi = inject(TripsApiService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
-  private readonly expensesApi = inject(ExpensesService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
 
   private dismissCallback: (() => void) | null = null;
 
-  readonly expensesForBalance = signal<readonly Expense[]>([]);
-
   readonly tripsLoading = computed(() => this.operationalTrips.loading());
+  readonly balanceLoading = computed(() => this.balanceContext.clientBalanceLoading());
   readonly clientTrips = computed(() => this.operationalTrips.trips());
+  readonly balanceExpenses = computed(() => this.balanceContext.expenses());
 
   readonly client = computed(() => this.clientsFeature.selectedClient()!);
 
@@ -107,12 +109,23 @@ export class ClientsDetailDrawerFacade {
   readonly maneuversPeriodFilterTabs = clientManeuversPeriodFilterTabs();
   readonly editingSection = signal<ClientDetailEditSection | null>(null);
   readonly saving = signal(false);
+  readonly collectionConfirming = signal(false);
+  readonly collectionConfirmRequest = signal<{
+    kind: 'confirm' | 'revert';
+    tripId: string;
+    maneuverCode: string;
+  } | null>(null);
+  readonly collectionConfirmOpen = computed(
+    () => this.collectionConfirmRequest() !== null,
+  );
   readonly canWriteCommercial = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
   );
+  readonly canWriteTrips = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.TRIPS),
+  );
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
-  readonly healthOptions: ToSelectOption[] = CLIENT_COMMERCIAL_HEALTH_OPTIONS;
 
   readonly editName = signal('');
   readonly editRfc = signal('');
@@ -147,7 +160,6 @@ export class ClientsDetailDrawerFacade {
   readonly payHasCredit = signal('no');
   readonly payCreditDays = signal('');
   readonly payCreditAmount = signal('');
-  readonly payHealth = signal('not_evaluated');
   readonly payDefaultPaymentMethod = signal('');
 
   readonly paymentMethodOptions = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
@@ -156,12 +168,10 @@ export class ClientsDetailDrawerFacade {
     buildClientManeuverVolumeSummary(this.client().id, this.clientTrips()),
   );
 
-  readonly balanceSummary = computed(() =>
-    buildClientBalanceSummary(
-      this.client().id,
-      this.clientTrips(),
-      this.expensesForBalance(),
-    ),
+  readonly balanceSummary = computed(() => this.balanceContext.resolvedClientBalance());
+
+  readonly derivedCommercialHealth = computed(() =>
+    deriveClientCommercialHealthFromSummary(this.balanceSummary()),
   );
 
   readonly maneuversPeriodRangeLabel = computed(() =>
@@ -182,7 +192,7 @@ export class ClientsDetailDrawerFacade {
     buildClientManeuverTableRows(
       this.filteredManeuverTrips(),
       (value) => this.balanceMoney(value),
-      this.expensesForBalance(),
+      this.balanceExpenses(),
     ),
   );
 
@@ -193,30 +203,17 @@ export class ClientsDetailDrawerFacade {
   readonly maneuverPeriodTotals = computed(() =>
     buildClientManeuverPeriodTotals(
       this.filteredManeuverTrips(),
-      this.expensesForBalance(),
+      this.balanceExpenses(),
     ),
   );
 
-  private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  });
-
   constructor() {
-    effect((onCleanup) => {
-      const sub = this.expensesApi
-        .getExpensesList()
-        .pipe(catchError(() => of([])))
-        .subscribe((rows) => this.expensesForBalance.set(rows));
-      onCleanup(() => sub.unsubscribe());
-    });
-
     effect(() => {
       const c = this.clientsFeature.selectedClient();
       if (!c) {
         return;
       }
+      this.balanceContext.ensureTripsLoaded();
       const idChanged = this.priorClientId !== c.id;
       this.priorClientId = c.id;
       this.drawerLoading.set(false);
@@ -228,6 +225,20 @@ export class ClientsDetailDrawerFacade {
       }
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromClient(c);
+      }
+    });
+
+    effect(() => {
+      const c = this.clientsFeature.selectedClient();
+      const tab = this.drawerTab();
+      if (!c) {
+        return;
+      }
+      if (tab === 'balance') {
+        this.balanceContext.ensureClientBalanceLoaded(c.id);
+      } else if (tab === 'maneuvers') {
+        const tripIds = this.filteredManeuverTrips().map((trip) => trip.id);
+        this.balanceContext.ensureExpensesForTrips(tripIds);
       }
     });
 
@@ -283,11 +294,15 @@ export class ClientsDetailDrawerFacade {
   }
 
   healthSummary(): string {
-    return clientCommercialHealthLabel(this.client().payment?.commercialHealth);
+    return clientCommercialHealthLabel(this.derivedCommercialHealth());
+  }
+
+  commercialHealthPillClass(): string {
+    return clientCommercialPillClass(this.derivedCommercialHealth());
   }
 
   balanceMoney(value: number): string {
-    return this.mxMoney0.format(value);
+    return formatClientBalanceMoney(value);
   }
 
   balanceMarginLabel(): string {
@@ -314,6 +329,111 @@ export class ClientsDetailDrawerFacade {
     return v;
   }
 
+  canConfirmClientCollection(tripId: string): boolean {
+    if (!this.canWriteTrips()) {
+      return false;
+    }
+    const trip = this.tripForCollection(tripId);
+    if (!trip) {
+      return false;
+    }
+    if (isTripClientCollected(trip)) {
+      return false;
+    }
+    return this.tripAllowsClientCollection(trip);
+  }
+
+  canRevertClientCollection(tripId: string): boolean {
+    if (!this.canWriteTrips()) {
+      return false;
+    }
+    const trip = this.tripForCollection(tripId);
+    if (!trip) {
+      return false;
+    }
+    if (!isTripClientCollected(trip)) {
+      return false;
+    }
+    return this.tripAllowsClientCollection(trip);
+  }
+
+  openClientCollectionConfirm(
+    kind: 'confirm' | 'revert',
+    tripId: string,
+    maneuverCode: string,
+  ): void {
+    if (this.collectionConfirming() || this.saving()) {
+      return;
+    }
+    const normalizedTripId = tripId.trim();
+    if (!normalizedTripId) {
+      return;
+    }
+    if (kind === 'confirm' && !this.canConfirmClientCollection(normalizedTripId)) {
+      return;
+    }
+    if (kind === 'revert' && !this.canRevertClientCollection(normalizedTripId)) {
+      return;
+    }
+    this.collectionConfirmRequest.set({
+      kind,
+      tripId: normalizedTripId,
+      maneuverCode: maneuverCode.trim() || normalizedTripId,
+    });
+  }
+
+  closeCollectionConfirm(): void {
+    if (this.collectionConfirming()) {
+      return;
+    }
+    this.collectionConfirmRequest.set(null);
+  }
+
+  submitCollectionConfirm(): void {
+    const request = this.collectionConfirmRequest();
+    if (!request || this.collectionConfirming() || this.saving()) {
+      return;
+    }
+    const collected = request.kind === 'confirm';
+    if (collected && !this.canConfirmClientCollection(request.tripId)) {
+      return;
+    }
+    if (!collected && !this.canRevertClientCollection(request.tripId)) {
+      return;
+    }
+    this.collectionConfirming.set(true);
+    this.tripsApi
+      .patchTripClientCollected(request.tripId, collected)
+      .pipe(
+        catchError(() => {
+          this.toast.show(
+            collected
+              ? 'No se pudo confirmar el cobro.'
+              : 'No se pudo revertir el cobro.',
+            'error',
+          );
+          return of(null);
+        }),
+        finalize(() => this.collectionConfirming.set(false)),
+      )
+      .subscribe((updated) => {
+        if (!updated) {
+          return;
+        }
+        this.collectionConfirmRequest.set(null);
+        this.balanceContext.invalidateBalances();
+        this.balanceContext.ensureClientBalanceLoaded(this.client().id);
+        this.balanceContext.ensureOverviewLoaded();
+        this.operationalTrips.refreshTrips();
+        this.toast.show(
+          collected
+            ? `Cobro de ${updated.maneuverCode} confirmado; cuenta como ingreso en reportes.`
+            : `Cobro de ${updated.maneuverCode} revertido; la maniobra vuelve a saldo pendiente.`,
+          'success',
+        );
+      });
+  }
+
   volumeTotalManeuversLabel(): string {
     const n = this.volumeSummary().allManeuverCount;
     if (n === 0) {
@@ -338,7 +458,7 @@ export class ClientsDetailDrawerFacade {
     if (!v.hasData) {
       return '—';
     }
-    return `${this.mxMoney0.format(v.billedPerMonth)} / mes (suma de cobros pactados)`;
+    return `${formatClientBalanceMoney(v.billedPerMonth)} / mes (suma de cobros pactados)`;
   }
 
   volumeOperationalPerMonthLabel(): string {
@@ -346,7 +466,7 @@ export class ClientsDetailDrawerFacade {
     if (!v.hasData) {
       return '—';
     }
-    return `${this.mxMoney0.format(v.operationalPerMonth)} / mes (diesel, casetas, operador)`;
+    return `${formatClientBalanceMoney(v.operationalPerMonth)} / mes (diesel, casetas, operador)`;
   }
 
   volumeProfitPerMonthLabel(): string {
@@ -354,24 +474,11 @@ export class ClientsDetailDrawerFacade {
     if (!v.hasData) {
       return '—';
     }
-    return `${this.mxMoney0.format(v.profitPerMonth)} / mes (facturación aprox. menos costos operativos)`;
+    return `${formatClientBalanceMoney(v.profitPerMonth)} / mes (facturación aprox. menos costos operativos)`;
   }
 
   commercialHealthStatusMod(): string {
-    const h =
-      (this.client().payment?.commercialHealth as ClientCommercialHealth | undefined) ??
-      'not_evaluated';
-    switch (h) {
-      case 'good_standing':
-        return 'fleet-unit-detail__status--client-good';
-      case 'watch_list':
-        return 'fleet-unit-detail__status--client-watch';
-      case 'restricted':
-        return 'fleet-unit-detail__status--client-restricted';
-      case 'not_evaluated':
-      default:
-        return 'fleet-unit-detail__status--client-na';
-    }
+    return clientCommercialStatusMod(this.derivedCommercialHealth());
   }
 
   relationshipStartedLabel(): string {
@@ -577,11 +684,11 @@ export class ClientsDetailDrawerFacade {
       ...base,
       payment: {
         hasCredit: hasCr,
+        commercialHealth: base.payment?.commercialHealth ?? 'watch_list',
         ...(hasCr && days != null ? { creditDays: days } : {}),
         ...(hasCr && this.payCreditAmount().trim()
           ? { approximateCreditAmount: this.payCreditAmount().trim() }
           : {}),
-        commercialHealth: commercialHealthFromUnknown(this.payHealth()),
         defaultPaymentMethod: this.payDefaultPaymentMethod().trim() || undefined,
       },
     };
@@ -634,8 +741,22 @@ export class ClientsDetailDrawerFacade {
     this.payHasCredit.set(boolToYesNo(p?.hasCredit ?? false));
     this.payCreditDays.set(p?.creditDays != null ? String(p.creditDays) : '');
     this.payCreditAmount.set(p?.approximateCreditAmount ?? '');
-    this.payHealth.set(p?.commercialHealth ?? 'not_evaluated');
     this.payDefaultPaymentMethod.set(p?.defaultPaymentMethod ?? '');
+  }
+
+  private tripForCollection(tripId: string): Trip | undefined {
+    const id = tripId.trim();
+    if (!id) {
+      return undefined;
+    }
+    return this.clientTrips().find((t) => t.id === id);
+  }
+
+  private tripAllowsClientCollection(trip: Trip): boolean {
+    if (trip.hasClientBilling === false) {
+      return false;
+    }
+    return trip.status === 'completed' || trip.status === 'cancelled';
   }
 
   private formatYmdEs(ymd: string | undefined): string {

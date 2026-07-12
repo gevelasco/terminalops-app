@@ -17,6 +17,7 @@ export class OperationalFleetSyncService {
 
   private readonly _trips = signal<readonly Trip[]>([]);
   private readonly _tripsLoading = signal(false);
+  private readonly _tripsEpoch = signal(0);
   private readonly _fleetMutationEpoch = signal(0);
   private readonly _operatorsMutationEpoch = signal(0);
 
@@ -24,11 +25,13 @@ export class OperationalFleetSyncService {
   private fetchSub: Subscription | null = null;
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.dispose());
+    this.destroyRef.onDestroy(() => this.resetState());
   }
 
   readonly trips = this._trips.asReadonly();
   readonly tripsLoading = this._tripsLoading.asReadonly();
+  /** Incrementa cuando cambia la lista en memoria (p. ej. tab lista de maniobras). */
+  readonly tripsEpoch = this._tripsEpoch.asReadonly();
   readonly fleetMutationEpoch = this._fleetMutationEpoch.asReadonly();
   readonly operatorsMutationEpoch = this._operatorsMutationEpoch.asReadonly();
 
@@ -49,6 +52,31 @@ export class OperationalFleetSyncService {
     this._fleetMutationEpoch.update((n) => n + 1);
     this._operatorsMutationEpoch.update((n) => n + 1);
     this.refreshTrips();
+  }
+
+  /**
+   * Actualiza la lista en memoria sin notificar flota/operadores.
+   * Usar cuando el caller ya refrescó viajes pero no cambió asignación operativa.
+   */
+  replaceTrips(trips: readonly Trip[]): void {
+    this._trips.set(trips);
+    this.loadStarted = true;
+    this._tripsEpoch.update((n) => n + 1);
+  }
+
+  /**
+   * Sincroniza la caché compartida y notifica flota/operadores sin HTTP adicional.
+   * Usar cuando el caller ya obtuvo la lista actualizada (p. ej. TripsFeatureService).
+   */
+  publishTripsAfterMutation(trips: readonly Trip[]): void {
+    this.replaceTrips(trips);
+    this._fleetMutationEpoch.update((n) => n + 1);
+    this._operatorsMutationEpoch.update((n) => n + 1);
+  }
+
+  /** Limpia caché en memoria al cerrar sesión (multi-tenant). */
+  clearOnLogout(): void {
+    this.resetState();
   }
 
   /** Tras mutaciones de gastos que afectan meta de flota (verificación, seguro, GPS). */
@@ -80,15 +108,19 @@ export class OperationalFleetSyncService {
           return;
         }
         this._trips.set(list);
+        this._tripsEpoch.update((n) => n + 1);
       });
   }
 
-  private dispose(): void {
+  private resetState(): void {
     this.requestGen.invalidate();
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._trips.set([]);
     this._tripsLoading.set(false);
     this.loadStarted = false;
+    this._tripsEpoch.set(0);
+    this._fleetMutationEpoch.set(0);
+    this._operatorsMutationEpoch.set(0);
   }
 }

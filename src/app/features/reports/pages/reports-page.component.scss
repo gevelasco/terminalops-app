@@ -5,65 +5,26 @@
   min-height: 0;
   width: 100%;
   height: 100%;
-}
-
-:host.reports-page-host--general {
   overflow: hidden;
-  gap: 0.55rem;
 }
 
-:host.reports-page-host--general to-page-header,
-:host.reports-page-host--general app-reports-filter-bar {
+:host.reports-page-host to-page-header,
+:host.reports-page-host app-reports-filter-bar {
   flex-shrink: 0;
 }
 
-:host.reports-page-host--general .reports-layout {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  gap: 0.55rem;
-}
-
-:host.reports-page-host--general .reports-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-:host.reports-page-host--scroll {
-  overflow: hidden;
-  gap: 0.55rem;
-}
-
-:host.reports-page-host--scroll to-page-header,
-:host.reports-page-host--scroll app-reports-filter-bar {
-  flex-shrink: 0;
-}
-
-:host.reports-page-host--scroll .reports-layout {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  gap: 0.55rem;
+:host.reports-page-host app-reports-filter-bar {
+  margin-bottom: 0.85rem;
 }
 
 :host.reports-page-host--scroll .reports-content {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-bottom: 0.35rem;
-}
-
-.reports-layout {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.85rem;
-  min-height: 0;
-  width: 100%;
 }
 
 .reports-content {
   width: 100%;
   min-height: 0;
-  flex: 1 1 auto;
 }

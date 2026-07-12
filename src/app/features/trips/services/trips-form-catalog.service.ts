@@ -7,9 +7,12 @@ import { EquipmentService } from '@services/api/equipment';
 import { ExpensesService } from '@services/api/expenses';
 import type { Client } from '@shared/models/client.models';
 import type { Equipment, Expense, Operator, Unit } from '@shared/models/logistics.models';
-import { fleetCoverageExpensesQueryRange } from '@features/fleet/utils/fleet-coverage-expenses.util';
+import {
+  buildFleetCoverageExpensesPageParams,
+  fleetCoverageExpensesQueryRange,
+} from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { createRequestGeneration } from '@shared/utils/request-generation';
-import { catchError, finalize, forkJoin, of, Subscription } from 'rxjs';
+import { catchError, finalize, forkJoin, map, of, Subscription } from 'rxjs';
 
 /**
  * Catálogos para formularios de trips (lazy, scope de `/trips`).
@@ -37,6 +40,8 @@ export class TripsFormCatalogService {
 
   private disposed = false;
   private loadSub: Subscription | null = null;
+  private complianceSub: Subscription | null = null;
+  private complianceKey = '';
 
   readonly clients = this._clients.asReadonly();
   readonly units = this._units.asReadonly();
@@ -59,6 +64,75 @@ export class TripsFormCatalogService {
     this.runLoad();
   }
 
+  /**
+   * Gastos de seguro/GPS solo para la unidad y remolques seleccionados (iconos de cumplimiento).
+   */
+  ensureComplianceExpenses(unitId: string, equipmentIds: readonly string[]): void {
+    if (this.disposed) {
+      return;
+    }
+    const uid = unitId.trim();
+    const eqIds = [
+      ...new Set(equipmentIds.map((id) => id.trim()).filter(Boolean)),
+    ].sort();
+    const key = `${uid}|${eqIds.join(',')}`;
+    if (key === this.complianceKey) {
+      return;
+    }
+    this.complianceKey = key;
+    this.complianceSub?.unsubscribe();
+    if (!uid && eqIds.length === 0) {
+      this._fleetCoverageExpenses.set([]);
+      return;
+    }
+
+    const range = fleetCoverageExpensesQueryRange();
+    const requests = [];
+    if (uid) {
+      requests.push(
+        this.expensesApi
+          .getExpensesPage(
+            buildFleetCoverageExpensesPageParams(
+              { resource: 'unit', unitId: uid },
+              'insurance',
+              range,
+            ),
+          )
+          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+        this.expensesApi
+          .getExpensesPage(
+            buildFleetCoverageExpensesPageParams({ resource: 'unit', unitId: uid }, 'gps', range),
+          )
+          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+      );
+    }
+    for (const equipmentId of eqIds) {
+      requests.push(
+        this.expensesApi
+          .getExpensesPage(
+            buildFleetCoverageExpensesPageParams(
+              { resource: 'equipment', equipmentId },
+              'insurance',
+              range,
+            ),
+          )
+          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+      );
+    }
+    if (requests.length === 0) {
+      this._fleetCoverageExpenses.set([]);
+      return;
+    }
+
+    this.complianceSub = forkJoin(requests)
+      .pipe(map((chunks) => chunks.flat()))
+      .subscribe((rows) => {
+        if (!this.disposed) {
+          this._fleetCoverageExpenses.set(rows);
+        }
+      });
+  }
+
   private runLoad(): void {
     if (this.disposed) {
       return;
@@ -66,7 +140,6 @@ export class TripsFormCatalogService {
     const requestId = this.requestGen.next();
     this.loadSub?.unsubscribe();
     this._loading.set(true);
-    const coverageRange = fleetCoverageExpensesQueryRange();
     this.loadSub = forkJoin({
       clients: this.clientsApi.getClientsList().pipe(catchError(() => of([] as Client[]))),
       units: this.unitsApi
@@ -75,22 +148,6 @@ export class TripsFormCatalogService {
       equipment: this.equipmentApi
         .getEquipmentList()
         .pipe(catchError(() => of([] as Equipment[]))),
-      insuranceExpenses: this.expensesApi
-        .getExpensesPage({
-          from: coverageRange.from,
-          to: coverageRange.to,
-          kind: 'insurance',
-          limit: 0,
-        })
-        .pipe(catchError(() => of({ items: [] as Expense[] }))),
-      gpsExpenses: this.expensesApi
-        .getExpensesPage({
-          from: coverageRange.from,
-          to: coverageRange.to,
-          kind: 'gps',
-          limit: 0,
-        })
-        .pipe(catchError(() => of({ items: [] as Expense[] }))),
       operators: this.operatorsApi
         .getOperatorsList({ available: true })
         .pipe(catchError(() => of([] as Operator[]))),
@@ -111,10 +168,6 @@ export class TripsFormCatalogService {
           this._clients.set(bundle.clients);
           this._units.set(bundle.units);
           this._equipment.set(bundle.equipment);
-          this._fleetCoverageExpenses.set([
-            ...bundle.insuranceExpenses.items,
-            ...bundle.gpsExpenses.items,
-          ]);
           this._operators.set(bundle.operators);
           const username = bundle.me?.username?.trim();
           this._currentUsername.set(username || null);
@@ -141,6 +194,7 @@ export class TripsFormCatalogService {
     this._operators.set([]);
     this._currentUsername.set(null);
     this._ready.set(false);
+    this.complianceKey = '';
   }
 
   /** Destrucción terminal al salir del feature (no reutilizar instancia). */
@@ -152,6 +206,8 @@ export class TripsFormCatalogService {
     this.requestGen.invalidate();
     this.loadSub?.unsubscribe();
     this.loadSub = null;
+    this.complianceSub?.unsubscribe();
+    this.complianceSub = null;
     this.clearCatalogSignals();
     this._loading.set(false);
   }

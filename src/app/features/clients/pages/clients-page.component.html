@@ -86,12 +86,16 @@
               [ariaLabel]="
                 pageTab() === 'clients'
                   ? 'Buscar en el listado de clientes'
-                  : 'Buscar tarifas por destino'
+                  : pageTab() === 'destination-rates'
+                    ? 'Buscar tarifas por destino'
+                    : 'Buscar en balance por cliente'
               "
               [placeholder]="
                 pageTab() === 'clients'
                   ? 'Nombre, RFC, estatus, maniobras, id…'
-                  : 'CP, localidad, ciudad, tarifas…'
+                  : pageTab() === 'destination-rates'
+                    ? 'CP, localidad, ciudad, tarifas…'
+                    : 'Nombre, saldo, estatus de cobro…'
               "
               [(value)]="searchInput"
             />
@@ -113,13 +117,38 @@
           </div>
         }
       </div>
+
+      @if (pageTab() === 'clients') {
+        <div class="clients-toolbar__table-actions">
+          <span
+            class="clients-toolbar__export-wrap"
+            data-tooltip="Exportar CSV"
+          >
+            <to-button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="clients-toolbar__export"
+              ariaLabel="Exportar CSV"
+              [disabled]="loading() || searchPending()"
+              (click)="exportClients()"
+            >
+              <to-icon name="download" [size]="18" />
+            </to-button>
+          </span>
+        </div>
+      }
     </div>
 
-    @if (pageTab() === 'clients') {
+    @if (pageTab() === 'balance') {
+      <p class="clients-page__hint">
+        Cartera por cliente con saldo pendiente y próximos cobros.
+      </p>
+    } @else if (pageTab() === 'clients') {
       <p class="clients-page__hint">
         Catálogo de clientes. Clic en una fila para ver ficha, balance o editar.
       </p>
-    } @else {
+    } @else if (pageTab() === 'destination-rates') {
       <p class="clients-page__hint">
         Tarifas por origen y destino. Clic en una fila para ver detalle o editar.
       </p>
@@ -143,7 +172,7 @@
           }
         </p>
       }
-    } @else {
+    } @else if (pageTab() === 'destination-rates') {
       @if (hasRateRows()) {
         <to-table
           [columns]="rateColumns"
@@ -158,6 +187,22 @@
             Ninguna tarifa coincide con los filtros actuales.
           } @else {
             No hay tarifas registradas.
+          }
+        </p>
+      }
+    } @else {
+      @if (hasBalanceCards()) {
+        <app-clients-balance-overview
+          [cards]="displayedBalanceCards()"
+          (cardSelect)="onBalanceCardSelect($event)"
+        />
+      }
+      @if (showBalanceEmptyHint()) {
+        <p class="clients-empty-hint">
+          @if (searchQuery().trim()) {
+            Ningún cliente coincide con la búsqueda.
+          } @else {
+            No hay clientes registrados.
           }
         </p>
       }

@@ -96,6 +96,12 @@ export function expenseFleetRelationCode(e: Expense): string {
     case 'operator_payment':
     case 'operator_commission':
       return e.relatedOperatorId?.trim() || '—';
+    case 'fuel':
+    case 'tolls':
+      return e.relatedUnitId?.trim() || '—';
+    case 'per_diem':
+    case 'lodging':
+      return e.relatedOperatorId?.trim() || e.relatedUnitId?.trim() || '—';
     default:
       return '—';
   }

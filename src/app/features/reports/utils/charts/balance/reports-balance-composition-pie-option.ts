@@ -70,8 +70,9 @@ export function buildReportsBalanceCompositionPieOption(
           ...reportsChartOutsideLabelStyle({ fontSize: 10 }),
           formatter: (p) => {
             const name = String((p as { name?: string }).name ?? '');
+            const value = Number((p as { value?: number }).value) || 0;
             const pct = Number((p as { percent?: number }).percent) || 0;
-            return `${name}\n${pct.toFixed(0)}%`;
+            return `${name}\n${formatReportsMoneyMx(value, true)} · ${pct.toFixed(0)}%`;
           },
         },
         labelLine: {

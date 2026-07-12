@@ -91,6 +91,13 @@ export class ToTripInputComponent {
       this.destroyRef,
     );
 
+    this.destroyRef.onDestroy(() => {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+        this.searchTimer = null;
+      }
+    });
+
     effect(() => {
       if (this.prefetchMode()) {
         this.tripRows.set(this.tripsData().map(tripToLinkOption));

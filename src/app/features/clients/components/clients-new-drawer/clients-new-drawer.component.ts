@@ -15,17 +15,13 @@ import { ToastService } from '@core/notifications/toast.service';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
-  commercialHealthFromUnknown,
   normalizeContacts,
   parseOptionalInt,
   validateClientDelivery,
   yesNoToBool,
 } from '@features/clients/utils/client-payload';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
-import {
-  CLIENT_COMMERCIAL_HEALTH_OPTIONS,
-  CLIENT_YES_NO_OPTIONS,
-} from '@shared/catalogs/client-form-options';
+import { CLIENT_YES_NO_OPTIONS } from '@shared/catalogs/client-form-options';
 import { TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/trip-client-payment-options';
 import type { Client, CreateClientPayload } from '@shared/models/client.models';
 import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fields/client-contact-inline-fields.component';
@@ -70,7 +66,6 @@ export class ClientsNewDrawerComponent {
   readonly saved = output<Client>();
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
-  readonly healthOptions: ToSelectOption[] = CLIENT_COMMERCIAL_HEALTH_OPTIONS;
   readonly paymentMethodOptions: ToSelectOption[] = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
 
   readonly name = model('');
@@ -104,7 +99,6 @@ export class ClientsNewDrawerComponent {
   readonly payHasCredit = model('no');
   readonly payCreditDays = model('');
   readonly payCreditAmount = model('');
-  readonly payHealth = model('not_evaluated');
   readonly payDefaultPaymentMethod = model('');
 
   constructor() {
@@ -224,7 +218,7 @@ export class ClientsNewDrawerComponent {
         ...(hasCr && this.payCreditAmount().trim()
           ? { approximateCreditAmount: this.payCreditAmount().trim() }
           : {}),
-        commercialHealth: commercialHealthFromUnknown(this.payHealth()),
+        commercialHealth: 'watch_list',
         defaultPaymentMethod: this.payDefaultPaymentMethod().trim() || undefined,
       },
     };

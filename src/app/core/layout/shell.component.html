@@ -330,7 +330,10 @@
 }
 
 @if (notificationsDrawerOpen()) {
-  <app-incidents-notifications-drawer (dismiss)="closeNotificationsDrawer()" />
+  <app-notifications-drawer
+    (dismiss)="closeNotificationsDrawer()"
+    (dayTotalChange)="onNotificationsDayTotal($event)"
+  />
 }
 
 @if (checklistDrawerOpen()) {

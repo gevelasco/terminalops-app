@@ -7,9 +7,13 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of, switchMap } from 'rxjs';
+import { catchError, of, switchMap, type Subscription } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@core/services/api/expenses';
+import {
+  buildFleetCoverageExpensesPageParams,
+  fleetCoverageExpensesQueryRange,
+} from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
@@ -207,7 +211,9 @@ export class FleetEquipmentDetailDrawerFacade {
     }),
   );
 
-  readonly showsMaintenanceAction = computed(() => this.maintenanceAction() != null);
+  readonly showsMaintenanceAction = computed(
+    () => this.canWriteFleet() && this.maintenanceAction() != null,
+  );
 
   readonly maintenanceActionLabel = computed(() =>
     fleetMaintenanceActionLabel(this.maintenanceAction()),
@@ -433,6 +439,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   submitMaintenanceAction(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const action = this.maintenanceAction();
     if (!action || this.maintenanceSubmitting()) {
       return;
@@ -698,7 +707,7 @@ export class FleetEquipmentDetailDrawerFacade {
     /* Posición fijada por cupo de la tractora; sin toggle manual. */
   }
   startEditHitch(): void {
-    if (this.hitchBlockedForAssignedTractor()) {
+    if (!this.canWriteFleet() || this.hitchBlockedForAssignedTractor()) {
       return;
     }
     this.requestFocusDetailTab('ficha');
@@ -709,6 +718,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   saveEditHitch(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const unitId = this.editUnitId().trim();
     if (this.hitchBlockedForAssignedTractor()) {
       return;
@@ -741,6 +753,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   private commitEditHitch(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const unitId = this.editUnitId().trim();
     const hitchPosition = unitId
       ? hitchPositionForNewEquipmentOnUnit(
@@ -766,7 +781,7 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   unhitchFromTractor(): void {
-    if (this.hitchBlockedForAssignedTractor()) {
+    if (!this.canWriteFleet() || this.hitchBlockedForAssignedTractor()) {
       return;
     }
     const equipment = this.effEquipment();
@@ -790,6 +805,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   private commitUnhitchFromTractor(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     this.persistCatalogEquipmentUnhitch(this.effEquipment(), 'Equipo desenganchado.');
   }
 
@@ -959,6 +977,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   startPhysVerifEntry(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     this.newPhysVerifDate.set('');
     this.newPhysVerifCost.set('');
     this.verifEntryKind.set('phys');
@@ -971,6 +992,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   savePhysVerifEntry(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const date = this.newPhysVerifDate().trim();
     if (!date) {
       this.toast.show('Indica la fecha de la nueva verificación.', 'warning');
@@ -1254,7 +1278,7 @@ export class FleetEquipmentDetailDrawerFacade {
     this.editingSection.set('id');
   }
   saveEditId(): void {
-    const serial = this.editSerialNumber().trim();
+    const serial = this.editSerialNumber().trim().toUpperCase();
     const typeVal = this.editType().trim();
     if (!serial || !typeVal) {
       this.toast.show('Número de serie y tipo de unidad son obligatorios.', 'warning');
@@ -1266,7 +1290,7 @@ export class FleetEquipmentDetailDrawerFacade {
       return;
     }
     const brandAbbr = deriveFleetBrandAbbr(brandName);
-    const plate = this.editPlate().trim() || undefined;
+    const plate = this.editPlate().trim().toUpperCase() || undefined;
     const equipmentDraft: Partial<Equipment> = {
       serialNumber: serial,
       name: this.editName().trim(),
@@ -1700,7 +1724,7 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   canConfirmInsurancePayment(): boolean {
-    return canConfirmInsurancePayment(this.meta());
+    return this.canWriteFleet() && canConfirmInsurancePayment(this.meta());
   }
 
   insurancePaymentConfirmHint(): string {
@@ -1727,7 +1751,7 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   confirmInsurancePaymentCycle(dueDate: string): void {
-    if (this.saving()) {
+    if (!this.canWriteFleet() || this.saving()) {
       return;
     }
     const normalizedDueDate = dueDate.trim();
@@ -1756,6 +1780,45 @@ export class FleetEquipmentDetailDrawerFacade {
       { fleetMeta: patch, sparseFleetMeta: true },
       COB_SECTION_PERSIST_OPTIONS,
     );
+  }
+
+  private subscribeInsurancePaymentExpensesLoad(): Subscription | null {
+    const equipment = this.equipmentSource();
+    const equipmentId = equipment?.id;
+    const meta = equipment?.fleetMeta;
+    if (
+      this.detailTab() !== 'cob' ||
+      !equipmentId ||
+      !showInsurancePaymentSchedule(meta?.insurancePaymentCadence)
+    ) {
+      this.insurancePaymentExpenses.set([]);
+      return null;
+    }
+    const bounds = insurancePolicyYearBounds(meta, new Date(this.today));
+    if (!bounds) {
+      this.insurancePaymentExpenses.set([]);
+      return null;
+    }
+    const requestId = ++this.insurancePaymentExpensesLoadId;
+    return this.expensesApi
+      .getExpensesPage(
+        buildFleetCoverageExpensesPageParams(
+          { resource: 'equipment', equipmentId },
+          'insurance',
+          bounds,
+        ),
+      )
+      .pipe(
+        catchError(() =>
+          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+        ),
+      )
+      .subscribe((res) => {
+        if (requestId !== this.insurancePaymentExpensesLoadId) {
+          return;
+        }
+        this.insurancePaymentExpenses.set(res.items);
+      });
   }
 
   maintenanceEntries(): MaintenanceEntry[] {
@@ -1817,6 +1880,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   startAgencyExemptionEdit(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const m = this.meta();
     this.editOperatedByAgency.set(m?.equipmentOperatedByAgency === true);
     this.editExemptStartDate.set(
@@ -1834,6 +1900,9 @@ export class FleetEquipmentDetailDrawerFacade {
   }
 
   saveAgencyExemption(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
     const byAgency = this.editOperatedByAgency();
     const start = this.editExemptStartDate().trim();
     if (byAgency && !start) {
@@ -1927,40 +1996,13 @@ export class FleetEquipmentDetailDrawerFacade {
       this.syncCatalogFromFeature();
     });
 
-    effect(() => {
-      const equipment = this.equipmentSource();
-      const equipmentId = equipment?.id;
-      const meta = equipment?.fleetMeta;
-      if (!equipmentId || !showInsurancePaymentSchedule(meta?.insurancePaymentCadence)) {
-        this.insurancePaymentExpenses.set([]);
-        return;
+    effect((onCleanup) => {
+      this.detailTab();
+      this.equipmentSource();
+      const sub = this.subscribeInsurancePaymentExpensesLoad();
+      if (sub) {
+        onCleanup(() => sub.unsubscribe());
       }
-      const bounds = insurancePolicyYearBounds(meta, new Date(this.today));
-      if (!bounds) {
-        this.insurancePaymentExpenses.set([]);
-        return;
-      }
-      const requestId = ++this.insurancePaymentExpensesLoadId;
-      const sub = this.expensesApi
-        .getExpensesPage({
-          from: bounds.from,
-          to: bounds.to,
-          kind: 'insurance',
-          relatedEquipmentId: equipmentId,
-          limit: 0,
-        })
-        .pipe(
-          catchError(() =>
-            of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
-          ),
-        )
-        .subscribe((res) => {
-          if (requestId !== this.insurancePaymentExpensesLoadId) {
-            return;
-          }
-          this.insurancePaymentExpenses.set(res.items);
-        });
-      return () => sub.unsubscribe();
     });
 
     registerFleetHitchSlotSync({
@@ -1987,6 +2029,16 @@ export class FleetEquipmentDetailDrawerFacade {
         this.detailTab.set('mant');
       }
       priorEquipmentId = id;
+    });
+
+    effect(() => {
+      const equipment = this.equipmentFeature.selectedEquipment();
+      const tab = this.fleetFeature.pendingDetailTab();
+      if (!equipment || !tab) {
+        return;
+      }
+      this.fleetFeature.clearPendingDetailTab();
+      this.requestFocusDetailTab(tab);
     });
   }
 }

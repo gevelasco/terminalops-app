@@ -85,12 +85,14 @@
     label="CURP"
     [placeholder]="isNew ? '18 caracteres' : ''"
     [maxLength]="18"
+    [uppercase]="true"
     [(value)]="curp"
   />
   <to-input
     label="RFC"
     [placeholder]="isNew ? 'Homoclave' : ''"
     [maxLength]="13"
+    [uppercase]="true"
     [(value)]="rfc"
   />
 </div>
@@ -102,6 +104,7 @@
   <to-input
     label="Número de licencia *"
     [placeholder]="isNew ? 'Ej. CMX-778899' : ''"
+    [uppercase]="true"
     [(value)]="licenseNumber"
   />
   <to-input

@@ -78,6 +78,13 @@ export class ToOperatorLinkInputComponent {
       this.destroyRef,
     );
 
+    this.destroyRef.onDestroy(() => {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+        this.searchTimer = null;
+      }
+    });
+
     effect(() => {
       const id = this.operatorId().trim();
       const label = this.displayLabel().trim();

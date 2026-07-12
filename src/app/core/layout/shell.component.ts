@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ChecklistDrawerComponent } from '@core/components/checklist-drawer/checklist-drawer.component';
-import { IncidentsNotificationsDrawerComponent } from '@core/components/incidents-notifications-drawer/incidents-notifications-drawer.component';
+import { NotificationsDrawerComponent } from '@core/components/notifications-drawer/notifications-drawer.component';
 import {
   NavigationEnd,
   Router,
@@ -39,7 +39,7 @@ import { UserPreferencesStore } from '@core/services/state/user-preferences';
     RouterLink,
     RouterLinkActive,
     ProfileDrawerComponent,
-    IncidentsNotificationsDrawerComponent,
+    NotificationsDrawerComponent,
     ChecklistDrawerComponent,
   ],
   templateUrl: './shell.component.html',
@@ -56,6 +56,8 @@ export class ShellComponent implements OnDestroy {
   readonly profileDrawerOpen = signal(false);
   readonly notificationsDrawerOpen = signal(false);
   readonly checklistDrawerOpen = signal(false);
+  /** Conteo del día: se obtiene al abrir el drawer (sin prefetch global). */
+  readonly notificationBadgeCount = signal(0);
   /** Drawer lateral en viewport estrecho (móvil / tablet) */
   readonly navOpen = signal(false);
 
@@ -119,8 +121,7 @@ export class ShellComponent implements OnDestroy {
     visibleNavItems(this.session.allowedModules(), 'bottom', APP_NAV_ITEMS),
   );
 
-  /** Sin prefetch global de maniobras: el badge queda en 0 hasta integrar caché del módulo. */
-  readonly notificationCount = computed(() => 0);
+  readonly notificationCount = computed(() => this.notificationBadgeCount());
 
   readonly companyTitle = computed(
     () => this.session.companyName()?.trim() || 'Mi empresa',
@@ -162,6 +163,7 @@ export class ShellComponent implements OnDestroy {
     if (this.checklistDrawerOpen()) {
       this.profileDrawerOpen.set(false);
       this.notificationsDrawerOpen.set(false);
+      this.notificationBadgeCount.set(0);
     }
   }
 
@@ -173,10 +175,18 @@ export class ShellComponent implements OnDestroy {
     this.profileDrawerOpen.set(false);
     this.checklistDrawerOpen.set(false);
     this.notificationsDrawerOpen.update((open) => !open);
+    if (!this.notificationsDrawerOpen()) {
+      this.notificationBadgeCount.set(0);
+    }
+  }
+
+  onNotificationsDayTotal(total: number): void {
+    this.notificationBadgeCount.set(total);
   }
 
   closeNotificationsDrawer(): void {
     this.notificationsDrawerOpen.set(false);
+    this.notificationBadgeCount.set(0);
   }
 
   openProfileDrawer(): void {
@@ -186,6 +196,7 @@ export class ShellComponent implements OnDestroy {
     }
     this.profiles.hydrateFromSession();
     this.notificationsDrawerOpen.set(false);
+    this.notificationBadgeCount.set(0);
     this.checklistDrawerOpen.set(false);
     this.profileDrawerOpen.set(true);
   }

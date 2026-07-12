@@ -9,11 +9,15 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-overview-card/fleet-overview-card.component';
 import { FleetEquipmentDetailDrawerComponent } from '@features/fleet/components/fleet-equipment-detail-drawer/fleet-equipment-detail-drawer.component';
+import type { FleetDetailDrawerTab } from '@features/fleet/components/fleet-detail-drawer.types';
 import { FleetNewEquipmentDrawerComponent } from '@features/fleet/components/fleet-new-equipment-drawer/fleet-new-equipment-drawer.component';
 import { FleetNewUnitDrawerComponent } from '@features/fleet/components/fleet-new-unit-drawer/fleet-new-unit-drawer.component';
 import { FleetUnitDetailDrawerComponent } from '@features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer.component';
@@ -29,8 +33,10 @@ import {
 import {
   buildFleetEquipmentTableRow,
   buildFleetUnitTableRow,
+  fleetOperationalKeyLabel,
   operationalKey,
   operationalKeyEquipment,
+  type FleetOperationalKey,
 } from '@features/fleet/utils/fleet-unit-table-row';
 import {
   equipmentAssignedToUnit,
@@ -48,9 +54,14 @@ import {
   type FleetOverviewCardEntry,
 } from '@features/fleet/utils/fleet-overview-view';
 import {
-  fleetOperationalKeyLabel,
-  type FleetOperationalKey,
-} from '@features/fleet/utils/fleet-unit-table-row';
+  buildFleetEquipmentCsv,
+  buildFleetUnitsCsv,
+  downloadFleetCsv,
+} from '@features/fleet/utils/fleet-export-csv';
+import {
+  fleetEquipmentListExportRowFromTableRow,
+  fleetUnitListExportRowFromTableRow,
+} from '@features/fleet/utils/fleet-list-export.util';
 import type { Unit } from '@shared/models/logistics.models';
 import {
   ToSegmentControlComponent,
@@ -106,9 +117,12 @@ export type FleetOverviewStatusFilter = Exclude<
 })
 export class FleetPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   protected readonly fleet = inject(FleetFeatureService);
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -124,7 +138,31 @@ export class FleetPageComponent implements OnInit {
       fleetEpochBaseline = epoch;
       this.fleet.refreshFleetModule();
     });
+
+    effect(() => {
+      const unitId = this.pendingUnitId();
+      const equipmentId = this.pendingEquipmentId();
+      if (this.fleet.loading()) {
+        return;
+      }
+      if (unitId) {
+        this.fleet.selectUnit(unitId);
+        if (this.fleet.selectedUnit()) {
+          this.pendingUnitId.set(null);
+        }
+        return;
+      }
+      if (equipmentId) {
+        this.fleet.selectEquipment(equipmentId);
+        if (this.fleet.selectedEquipment()) {
+          this.pendingEquipmentId.set(null);
+        }
+      }
+    });
   }
+
+  private readonly pendingUnitId = signal<string | null>(null);
+  private readonly pendingEquipmentId = signal<string | null>(null);
 
   readonly tab = signal<FleetPageTab>('overview');
   readonly viewSegmentTabs: readonly ToSegmentTab<FleetPageTab>[] = [
@@ -161,6 +199,50 @@ export class FleetPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.fleet.loadFleetModule();
+    const snap = this.route.snapshot.queryParamMap;
+    this.openFleetFromQuery(
+      snap.get('unitId'),
+      snap.get('equipmentId'),
+      snap.get('fleetTab'),
+    );
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.openFleetFromQuery(
+          params.get('unitId'),
+          params.get('equipmentId'),
+          params.get('fleetTab'),
+        );
+      });
+  }
+
+  private openFleetFromQuery(
+    unitId: string | null,
+    equipmentId: string | null,
+    fleetTab: string | null,
+  ): void {
+    const unit = unitId?.trim();
+    const equipment = equipmentId?.trim();
+    const tab = fleetTab?.trim();
+    if (tab === 'cob' || tab === 'ficha' || tab === 'mant') {
+      this.fleet.requestDetailTab(tab as FleetDetailDrawerTab);
+    }
+    if (!unit && !equipment) {
+      return;
+    }
+    if (unit) {
+      this.tab.set('units');
+      this.pendingUnitId.set(unit);
+    } else if (equipment) {
+      this.tab.set('equipment');
+      this.pendingEquipmentId.set(equipment);
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { unitId: null, equipmentId: null, fleetTab: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private readonly unitOperationalMap = computed(() =>
@@ -183,6 +265,17 @@ export class FleetPageComponent implements OnInit {
   readonly detailEquipmentForDrawer = computed(() => this.fleet.selectedEquipment());
 
   readonly searchQuery = model('');
+
+  readonly tableExportDisabled = computed(() => {
+    const tab = this.tab();
+    if (tab === 'units') {
+      return this.loadingUnits();
+    }
+    if (tab === 'equipment') {
+      return this.loadingEquipment();
+    }
+    return true;
+  });
 
   readonly displayedUnitRows = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
@@ -416,6 +509,7 @@ export class FleetPageComponent implements OnInit {
 
   onUnitDetailDismiss(): void {
     this.fleet.clearUnitSelection();
+    this.fleet.clearPendingDetailTab();
     this.detailUnitOnRoute.set(false);
   }
 
@@ -444,6 +538,7 @@ export class FleetPageComponent implements OnInit {
 
   onEquipmentDetailDismiss(): void {
     this.fleet.clearEquipmentSelection();
+    this.fleet.clearPendingDetailTab();
     this.detailEquipmentOnRoute.set(false);
   }
 
@@ -457,6 +552,48 @@ export class FleetPageComponent implements OnInit {
 
   onFleetDataChanged(): void {
     this.fleet.refreshFleetModule();
+  }
+
+  exportCurrentTable(): void {
+    if (this.tab() === 'units') {
+      this.exportUnits();
+      return;
+    }
+    if (this.tab() === 'equipment') {
+      this.exportEquipment();
+    }
+  }
+
+  private exportUnits(): void {
+    const rows = this.displayedUnitRows();
+    if (rows.length === 0) {
+      this.toast.show(
+        'No hay unidades para exportar con los filtros actuales.',
+        'warning',
+      );
+      return;
+    }
+    const csv = buildFleetUnitsCsv(
+      rows.map((row) => fleetUnitListExportRowFromTableRow(row)),
+    );
+    downloadFleetCsv(csv, 'unidades.csv');
+    this.toast.show(`Exportadas ${rows.length} unidades.`, 'success');
+  }
+
+  private exportEquipment(): void {
+    const rows = this.displayedEquipmentRows();
+    if (rows.length === 0) {
+      this.toast.show(
+        'No hay equipo para exportar con los filtros actuales.',
+        'warning',
+      );
+      return;
+    }
+    const csv = buildFleetEquipmentCsv(
+      rows.map((row) => fleetEquipmentListExportRowFromTableRow(row)),
+    );
+    downloadFleetCsv(csv, 'equipo.csv');
+    this.toast.show(`Exportados ${rows.length} equipos.`, 'success');
   }
 
   private unitOperationalKey(unit: Unit): FleetOperationalKey {

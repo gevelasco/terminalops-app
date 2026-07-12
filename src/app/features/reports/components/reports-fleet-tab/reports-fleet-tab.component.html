@@ -63,8 +63,7 @@
         <div>
           <h2 class="reports-fleet-panel__title">Rentabilidad por unidad</h2>
           <p class="reports-fleet-panel__subtitle">
-            Ingreso generado − diésel, operador, casetas, mantenimiento y llantas = utilidad real
-            · {{ periodSubtitle() }}
+            Ingreso − diésel, operador, casetas, mantenimiento y llantas · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -78,7 +77,7 @@
         <div>
           <h2 class="reports-fleet-panel__title">Desgaste de llantas</h2>
           <p class="reports-fleet-panel__subtitle">
-            Estimado por km y peso de carga · {{ periodSubtitle() }}
+            Estimación por km y peso — no es un gasto registrado · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -116,12 +115,13 @@
       </div>
     </section>
 
-    <section class="reports-fleet-panel reports-fleet-panel--wide">
+    <section class="reports-fleet-panel">
       <header class="reports-fleet-panel__head">
         <div>
           <h2 class="reports-fleet-panel__title">Cumplimiento y renovaciones</h2>
           <p class="reports-fleet-panel__subtitle">
-            Unidades ordenadas por urgencia · mantenimiento, verificaciones y seguro
+            Estado actual de la flota (no depende del periodo) · mantenimiento, verificaciones y
+            seguro
           </p>
         </div>
       </header>
@@ -139,7 +139,7 @@
       </div>
     </section>
 
-    <section class="reports-fleet-panel reports-fleet-panel--wide">
+    <section class="reports-fleet-panel">
       <header class="reports-fleet-panel__head">
         <div>
           <h2 class="reports-fleet-panel__title">Mantenimientos del periodo</h2>

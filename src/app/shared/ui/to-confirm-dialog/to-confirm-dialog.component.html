@@ -31,6 +31,9 @@
         [loading]="confirmLoading()"
         (click)="onConfirmClick()"
       >
+        @if (confirmIcon(); as iconName) {
+          <to-icon [name]="iconName" [size]="16" />
+        }
         {{ confirmLabel() }}
       </to-button>
     </div>

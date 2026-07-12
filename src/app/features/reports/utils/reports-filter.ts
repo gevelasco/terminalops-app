@@ -12,10 +12,60 @@ export function parseYmd(s: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat('es-MX', { month: 'long' });
+
+export function reportsCalendarMonthLabel(month: number): string {
+  const label = MONTH_LABEL_FORMAT.format(new Date(2024, month - 1, 1, 12));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+export function reportsCalendarMonthOptions(
+  year: number,
+  now = new Date(),
+): Array<{ value: number; label: string }> {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const maxMonth = year >= currentYear ? currentMonth : 12;
+  return Array.from({ length: maxMonth }, (_, index) => {
+    const value = index + 1;
+    return { value, label: reportsCalendarMonthLabel(value) };
+  });
+}
+
+export function reportsCalendarYearOptions(
+  now = new Date(),
+  yearsBack = 10,
+): number[] {
+  const currentYear = now.getFullYear();
+  const firstYear = Math.max(2020, currentYear - yearsBack);
+  return Array.from(
+    { length: currentYear - firstYear + 1 },
+    (_, index) => currentYear - index,
+  );
+}
+
+/** Rango inclusivo del mes calendario; mes en curso termina hoy. */
+export function rangeForCalendarMonth(
+  year: number,
+  month: number,
+  now = new Date(),
+): { from: string; to: string } {
+  const start = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const isCurrentMonth =
+    year === today.getFullYear() && month - 1 === today.getMonth();
+  const end = isCurrentMonth ? today : lastDay;
+  return { from: localYmd(start), to: localYmd(end) };
+}
+
 export function defaultReportsFilter(now = new Date()): ReportsFilter {
-  const range = rangeForPreset('month', now);
+  const periodMonth = now.getMonth() + 1;
+  const periodYear = now.getFullYear();
+  const range = rangeForCalendarMonth(periodYear, periodMonth, now);
   return {
-    preset: 'month',
+    periodMonth,
+    periodYear,
     from: range.from,
     to: range.to,
     clientPaymentMethods: [],

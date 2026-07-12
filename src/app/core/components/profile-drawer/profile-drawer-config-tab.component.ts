@@ -23,6 +23,7 @@ import {
   type CompanyMaintenancePolicyMode,
   type MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
+import { TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -64,6 +65,7 @@ export class ProfileDrawerConfigTabComponent {
   private readonly companies = inject(CompaniesService);
 
   readonly maintDatePeriodOptions = [...MAINTENANCE_DATE_PERIOD_OPTIONS];
+  readonly autoExpensePaymentMethodOptions = TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS;
   readonly maintenancePolicyTabs: readonly ToSegmentTab<CompanyMaintenancePolicyMode>[] =
     [
       { id: 'none', label: 'Manual' },
@@ -77,6 +79,10 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftDatePeriod = model<MaintenanceDatePeriod>('semiannual');
   readonly draftIntelligentEnabled = model(false);
   readonly draftMaintenanceProvisionPercent = model('5');
+  readonly draftFuelPaymentMethod = model('cash');
+  readonly draftTollsPaymentMethod = model('cash');
+  readonly draftPerDiemPaymentMethod = model('cash');
+  readonly draftControlPaymentMethod = model('cash');
   readonly draftDieselControlEnabled = model(true);
   readonly draftTripAssistPrefillEnabled = model(false);
 
@@ -248,6 +254,23 @@ export class ProfileDrawerConfigTabComponent {
         );
         return;
       }
+      if (!this.isValidAutoExpensePaymentMethod(this.draftControlPaymentMethod())) {
+        this.toast.show('Selecciona el método de pago de control operativo.', 'warning');
+        return;
+      }
+    }
+
+    if (!this.isValidAutoExpensePaymentMethod(this.draftFuelPaymentMethod())) {
+      this.toast.show('Selecciona el método de pago del diésel.', 'warning');
+      return;
+    }
+    if (!this.isValidAutoExpensePaymentMethod(this.draftTollsPaymentMethod())) {
+      this.toast.show('Selecciona el método de pago de casetas.', 'warning');
+      return;
+    }
+    if (!this.isValidAutoExpensePaymentMethod(this.draftPerDiemPaymentMethod())) {
+      this.toast.show('Selecciona el método de pago de viáticos.', 'warning');
+      return;
     }
 
     this.saving.set(true);
@@ -292,6 +315,23 @@ export class ProfileDrawerConfigTabComponent {
       draftPercentRounded !== savedPercent
     ) {
       patch.tripAutoMaintenanceProvisionPercent = draftPercentRounded;
+    }
+
+    const savedFuelPayment = this.session.tripAutoFuelPaymentMethod();
+    if (this.draftFuelPaymentMethod() !== savedFuelPayment) {
+      patch.tripAutoFuelPaymentMethod = this.draftFuelPaymentMethod();
+    }
+    const savedTollsPayment = this.session.tripAutoTollsPaymentMethod();
+    if (this.draftTollsPaymentMethod() !== savedTollsPayment) {
+      patch.tripAutoTollsPaymentMethod = this.draftTollsPaymentMethod();
+    }
+    const savedPerDiemPayment = this.session.tripAutoPerDiemPaymentMethod();
+    if (this.draftPerDiemPaymentMethod() !== savedPerDiemPayment) {
+      patch.tripAutoPerDiemPaymentMethod = this.draftPerDiemPaymentMethod();
+    }
+    const savedControlPayment = this.session.tripAutoControlPaymentMethod();
+    if (this.draftControlPaymentMethod() !== savedControlPayment) {
+      patch.tripAutoControlPaymentMethod = this.draftControlPaymentMethod();
     }
 
     const mode = this.draftMaintenanceMode();
@@ -366,6 +406,16 @@ export class ProfileDrawerConfigTabComponent {
     const percent = this.session.tripAutoMaintenanceProvisionPercent();
     this.draftMaintenanceProvisionPercent.set(
       Number.isFinite(percent) ? String(percent) : '5',
+    );
+    this.draftFuelPaymentMethod.set(this.session.tripAutoFuelPaymentMethod());
+    this.draftTollsPaymentMethod.set(this.session.tripAutoTollsPaymentMethod());
+    this.draftPerDiemPaymentMethod.set(this.session.tripAutoPerDiemPaymentMethod());
+    this.draftControlPaymentMethod.set(this.session.tripAutoControlPaymentMethod());
+  }
+
+  private isValidAutoExpensePaymentMethod(value: string): boolean {
+    return TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS.some(
+      (option) => option.value === value.trim(),
     );
   }
 

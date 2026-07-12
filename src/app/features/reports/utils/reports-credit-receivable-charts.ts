@@ -1,4 +1,5 @@
 import { tripCompletionIso } from '@features/trips/utils/trip-schedule-accessors';
+import { CLIENT_COMMERCIAL_DUE_SOON_DAYS } from '@features/clients/utils/client-commercial-status.util';
 import type { Trip } from '@shared/models/logistics.models';
 import type {
   ReportsCreditByClientRow,
@@ -51,7 +52,7 @@ function creditDueBadgeVariant(
   if (dueYmd < asOfYmd) {
     return 'danger';
   }
-  if (dueYmd <= addDaysYmd(asOfYmd, 7)) {
+  if (dueYmd <= addDaysYmd(asOfYmd, CLIENT_COMMERCIAL_DUE_SOON_DAYS)) {
     return 'warning';
   }
   return 'success';

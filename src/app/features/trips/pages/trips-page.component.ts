@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, firstValueFrom, of } from 'rxjs';
+import { catchError, finalize, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
@@ -24,6 +24,11 @@ import {
   type TripsListResponse,
 } from '@services/api/trips';
 import { maniobraListRowFromTrip } from '@features/trips/utils/maniobra-list-row';
+import { maniobraListExportRowFromTableRow } from '@features/trips/utils/maniobra-list-export.util';
+import {
+  buildManiobrasCsv,
+  downloadManiobrasCsv,
+} from '@features/trips/utils/trips-export-csv';
 import {
   debouncedTrimmedSearchQuery,
   EXPENSES_SEARCH_DEBOUNCE_MS,
@@ -36,6 +41,7 @@ import {
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import type { ToFilterTab } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -56,6 +62,7 @@ import { TripsMapStateFleetService } from '@features/trips/services/trips-map-st
 import { TripsFormCatalogService } from '@features/trips/services/trips-form-catalog.service';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
+import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 
 export type TripsStatusFilter = TripStatus | 'all';
 
@@ -83,6 +90,7 @@ export type TripsViewMode = 'route' | 'list';
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
+    ToIconComponent,
     ToInputComponent,
     ToFilterTabsComponent,
     ToSegmentControlComponent,
@@ -107,6 +115,7 @@ export class TripsPageComponent implements OnInit {
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
+  private readonly opResolver = inject(OperationConfigurationResolverService);
   private readonly searchField = viewChild<ToInputComponent>('searchField');
   private readonly searchKeepFocus = signal(false);
 
@@ -197,6 +206,7 @@ export class TripsPageComponent implements OnInit {
   readonly pageIndex = signal(0);
   readonly pageSize = signal(15);
   readonly pageSizeOptions = [10, 15, 25, 50, 100] as const;
+  readonly exporting = signal(false);
 
   readonly searchPending = computed(
     () => this.searchInput().trim() !== this.searchQuery(),
@@ -218,6 +228,11 @@ export class TripsPageComponent implements OnInit {
       ...(this.searchQuery() ? { q: this.searchQuery() } : {}),
       ...(status !== 'all' ? { status } : {}),
     };
+  });
+
+  readonly exportParams = computed((): TripsListParams => {
+    const { page: _page, limit: _limit, ...rest } = this.listParams();
+    return { ...rest, limit: 0 };
   });
 
   private readonly listResource = resource<TripsListResponse, TripsListParams | undefined>({
@@ -338,6 +353,45 @@ export class TripsPageComponent implements OnInit {
     }
     this.pageIndex.set(0);
     this.statusFilter.set(value);
+  }
+
+  exportFiltered(): void {
+    if (this.exporting()) {
+      return;
+    }
+    this.exporting.set(true);
+    const params = this.exportParams();
+    void firstValueFrom(
+      this.tripsApi.getTripsPage(params).pipe(
+        catchError(() => {
+          this.toast.show('No se pudo exportar el listado.', 'error');
+          return of(null);
+        }),
+        finalize(() => this.exporting.set(false)),
+      ),
+    ).then((res) => {
+      if (!res) {
+        return;
+      }
+      if (res.items.length === 0) {
+        this.toast.show(
+          'No hay maniobras para exportar con los filtros actuales.',
+          'warning',
+        );
+        return;
+      }
+      const operationLabel = (op: unknown, row?: Record<string, unknown>) =>
+        this.opResolver.resolveCellDisplay(op, row).label;
+      const rows = res.items.map((trip) => {
+        const tableRow = maniobraListRowFromTrip(trip);
+        return maniobraListExportRowFromTableRow(tableRow, operationLabel);
+      });
+      const status = this.statusFilter();
+      const suffix = status === 'all' ? 'todos' : status;
+      const csv = buildManiobrasCsv(rows);
+      downloadManiobrasCsv(csv, `maniobras_${suffix}.csv`);
+      this.toast.show(`Exportadas ${res.items.length} maniobras.`, 'success');
+    });
   }
 
   onTripRowClick(row: Record<string, unknown>): void {

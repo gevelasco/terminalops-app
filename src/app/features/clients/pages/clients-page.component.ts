@@ -3,20 +3,30 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   model,
   OnInit,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastService } from '@core/notifications/toast.service';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
+import { ClientsBalanceOverviewComponent } from '@features/clients/components/clients-balance-overview/clients-balance-overview.component';
 import { ClientsDetailDrawerComponent } from '@features/clients/components/clients-detail-drawer/clients-detail-drawer.component';
 import { ClientsNewDrawerComponent } from '@features/clients/components/clients-new-drawer/clients-new-drawer.component';
 import { DestinationRatesDetailDrawerComponent } from '@features/clients/components/destination-rates-detail-drawer/destination-rates-detail-drawer.component';
 import { DestinationRatesNewDrawerComponent } from '@features/clients/components/destination-rates-new-drawer/destination-rates-new-drawer.component';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
+import { ClientsBalanceContextService } from '@features/clients/services/clients-balance-context.service';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
+import {
+  buildClientsCsv,
+  downloadClientsCsv,
+} from '@features/clients/utils/clients-export-csv';
+import { clientListExportRowFromTableRow } from '@features/clients/utils/clients-list-export.util';
 import { formatDestinationRateEstimatedTimeDisplay } from '@features/clients/utils/destination-rate-estimated-time';
 import {
   formatDestinationRateDestinationCell,
@@ -26,12 +36,24 @@ import { OperationConfigurationResolverService } from '@shared/services/operatio
 import { operationConfigRateTableBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import {
+  buildClientBalanceOverviewCards,
+  clientBalanceOverviewMatchesQuery,
+  compareClientBalanceOverviewCards,
+} from '@features/clients/utils/client-balance-overview-card.util';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
+import { deriveClientCommercialHealth } from '@features/clients/utils/client-commercial-status.util';
+import {
+  clientCreditDaysTableCell,
+  clientCreditVolumeTableCell,
+} from '@features/clients/utils/client-payload';
 import type { Client } from '@shared/models/client.models';
+import type { Trip } from '@shared/models/logistics.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import {
@@ -49,7 +71,7 @@ import {
   type ToTableOperationTypeBadge,
 } from '@shared/ui/to-table/to-table.component';
 
-export type ClientsPageTab = 'clients' | 'destination-rates';
+export type ClientsPageTab = 'clients' | 'destination-rates' | 'balance';
 
 /** Espera tras dejar de escribir antes de filtrar el listado. */
 const CLIENTS_SEARCH_DEBOUNCE_MS = 1000;
@@ -74,6 +96,7 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
   standalone: true,
   providers: [
     ClientsFeatureService,
+    ClientsBalanceContextService,
     DestinationRatesFeatureService,
     OperationalCentersFeatureService,
     ...OPERATION_CONFIGURATION_PROVIDERS,
@@ -86,9 +109,11 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
     ToTableComponent,
     ToSkeletonComponent,
     ToButtonComponent,
+    ToIconComponent,
     ToSegmentControlComponent,
     ClientsNewDrawerComponent,
     ClientsDetailDrawerComponent,
+    ClientsBalanceOverviewComponent,
     DestinationRatesNewDrawerComponent,
     DestinationRatesDetailDrawerComponent,
   ],
@@ -97,17 +122,22 @@ function formatRelationshipDateEs(ymd: string | undefined): string {
 })
 export class ClientsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   protected readonly clientsFeature = inject(ClientsFeatureService);
   protected readonly ratesFeature = inject(DestinationRatesFeatureService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
+  private readonly balanceContext = inject(ClientsBalanceContextService);
   private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.clientsFeature.dispose();
       this.ratesFeature.dispose();
       this.operationConfigsFeature.dispose();
+      this.balanceContext.dispose();
     });
 
     toObservable(this.searchInput)
@@ -118,15 +148,28 @@ export class ClientsPageComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((q) => this.searchQuery.set(q));
+
+    effect(() => {
+      const id = this.pendingClientId();
+      if (!id || this.clientsFeature.loading()) {
+        return;
+      }
+      this.clientsFeature.selectClient(id);
+      if (this.clientsFeature.selectedClient()) {
+        this.pendingClientId.set(null);
+      }
+    });
   }
 
-  readonly pageTab = signal<ClientsPageTab>('destination-rates');
+  private readonly pendingClientId = signal<string | null>(null);
+
+  readonly pageTab = signal<ClientsPageTab>('balance');
   readonly viewSegmentTabs: readonly ToSegmentTab<ClientsPageTab>[] = [
     {
-      id: 'destination-rates',
-      label: 'Tarifas',
-      icon: 'sell',
-      htmlId: 'clients-tab-destination-rates',
+      id: 'balance',
+      label: 'Balance',
+      icon: 'settlement',
+      htmlId: 'clients-tab-balance',
     },
     {
       id: 'clients',
@@ -134,19 +177,32 @@ export class ClientsPageComponent implements OnInit {
       icon: 'client',
       htmlId: 'clients-tab-clients',
     },
+    {
+      id: 'destination-rates',
+      label: 'Tarifas',
+      icon: 'sell',
+      htmlId: 'clients-tab-destination-rates',
+    },
   ];
 
-  readonly loading = computed(() =>
-    this.pageTab() === 'clients'
+  readonly loading = computed(() => {
+    const tab = this.pageTab();
+    if (tab === 'balance') {
+      return (
+        this.clientsFeature.loading() || this.balanceContext.overviewLoading()
+      );
+    }
+    return tab === 'clients'
       ? this.clientsFeature.loading()
-      : this.ratesFeature.loading() || this.operationConfigsFeature.loading(),
-  );
+      : this.ratesFeature.loading() || this.operationConfigsFeature.loading();
+  });
 
-  readonly clientRows = computed(() =>
-    this.clientsFeature
+  readonly clientRows = computed(() => {
+    const trips = this.balanceContext.trips();
+    return this.clientsFeature
       .clients()
-      .map((c) => ClientsPageComponent.mapClientRow(c)),
-  );
+      .map((c) => ClientsPageComponent.mapClientRow(c, trips));
+  });
   readonly rateRows = computed(() =>
     this.ratesFeature.rates().map((r) => this.mapRateRow(r)),
   );
@@ -191,17 +247,14 @@ export class ClientsPageComponent implements OnInit {
   );
 
   readonly clientColumns: ToTableColumn[] = [
-    { key: 'name', label: 'Cliente' },
+    { key: 'name', label: 'Cliente', cell: 'client-name-status' },
     { key: 'rfc', label: 'RFC', cell: 'muted-badge' },
     {
       key: 'relationshipLabel',
       label: 'Sociedad desde',
     },
-    {
-      key: 'commercialHealth',
-      label: 'Estatus',
-      cell: 'client-health-pill',
-    },
+    { key: 'creditDaysLabel', label: 'Crédito (días)', cell: 'nowrap' },
+    { key: 'creditVolumeLabel', label: 'Volumen de crédito', cell: 'nowrap' },
     { key: 'maneuverCount', label: 'Maniobras' },
   ];
 
@@ -252,13 +305,58 @@ export class ClientsPageComponent implements OnInit {
     () => !this.loading() && !this.hasRateRows(),
   );
 
+  readonly balanceOverviewCards = computed(() =>
+    buildClientBalanceOverviewCards(
+      this.clientsFeature.clients(),
+      this.balanceContext.overviewByClientId(),
+    ).sort(compareClientBalanceOverviewCards),
+  );
+
+  readonly displayedBalanceCards = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const all = this.balanceOverviewCards();
+    if (!q) {
+      return all;
+    }
+    return all.filter((card) => clientBalanceOverviewMatchesQuery(card, q));
+  });
+
+  readonly hasBalanceCards = computed(() => this.displayedBalanceCards().length > 0);
+
+  readonly showBalanceEmptyHint = computed(
+    () => !this.loading() && !this.hasBalanceCards(),
+  );
+
   ngOnInit(): void {
-    this.ensureDestinationRatesTabLoaded();
+    this.ensureBalanceTabLoaded();
+    this.openClientFromQuery(this.route.snapshot.queryParamMap.get('clientId'));
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.openClientFromQuery(params.get('clientId'));
+      });
   }
 
-  /** Lazy: clientes solo al entrar por primera vez a la tab Clientes. */
+  private openClientFromQuery(clientId: string | null): void {
+    const id = clientId?.trim();
+    if (!id) {
+      return;
+    }
+    this.pageTab.set('clients');
+    this.ensureClientsTabLoaded();
+    this.pendingClientId.set(id);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { clientId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** Lazy: clientes + maniobras (estatus comercial; sin gastos completos). */
   private ensureClientsTabLoaded(): void {
     this.clientsFeature.loadClients();
+    this.balanceContext.ensureTripsLoaded();
   }
 
   /** Lazy: tarifas + catálogo operativo al entrar por primera vez a la tab Tarifas. */
@@ -267,16 +365,24 @@ export class ClientsPageComponent implements OnInit {
     this.operationConfigsFeature.loadOperationConfigurations();
   }
 
+  /** Balance: clientes + overview agregado desde API. */
+  private ensureBalanceTabLoaded(): void {
+    this.clientsFeature.loadClients();
+    this.balanceContext.ensureOverviewLoaded();
+  }
+
   onPageTabSelect(tab: ClientsPageTab): void {
     this.pageTab.set(tab);
     this.searchInput.set('');
     this.searchQuery.set('');
     this.rateOriginCenterFilter.set('');
-    if (tab === 'clients') {
-      this.ratesFeature.clearSelection();
+    this.clientsFeature.clearSelection();
+    this.ratesFeature.clearSelection();
+    if (tab === 'balance') {
+      this.ensureBalanceTabLoaded();
+    } else if (tab === 'clients') {
       this.ensureClientsTabLoaded();
-    } else {
-      this.clientsFeature.clearSelection();
+    } else if (tab === 'destination-rates') {
       this.ensureDestinationRatesTabLoaded();
     }
   }
@@ -286,7 +392,16 @@ export class ClientsPageComponent implements OnInit {
     if (!id) {
       return;
     }
-    this.clientsFeature.selectClient(id);
+    this.openClientDrawer(id);
+  }
+
+  onBalanceCardSelect(clientId: string): void {
+    this.openClientDrawer(clientId);
+  }
+
+  private openClientDrawer(clientId: string): void {
+    this.balanceContext.ensureClientBalanceLoaded(clientId);
+    this.clientsFeature.selectClient(clientId);
   }
 
   onRateRowClick(row: Record<string, unknown>): void {
@@ -318,6 +433,22 @@ export class ClientsPageComponent implements OnInit {
     this.ratesFeature.selectRate(rate.id, rate);
   }
 
+  exportClients(): void {
+    const rows = this.displayedClientRows();
+    if (rows.length === 0) {
+      this.toast.show(
+        'No hay clientes para exportar con los filtros actuales.',
+        'warning',
+      );
+      return;
+    }
+    const csv = buildClientsCsv(
+      rows.map((row) => clientListExportRowFromTableRow(row)),
+    );
+    downloadClientsCsv(csv, 'clientes.csv');
+    this.toast.show(`Exportados ${rows.length} clientes.`, 'success');
+  }
+
   private static clientRowMatchesQuery(
     row: Record<string, unknown>,
     q: string,
@@ -332,6 +463,8 @@ export class ClientsPageComponent implements OnInit {
       row['name'],
       row['rfc'],
       row['relationshipLabel'],
+      row['creditDaysLabel'],
+      row['creditVolumeLabel'],
       healthCode,
       healthLabel,
       row['maneuverCount'],
@@ -367,14 +500,19 @@ export class ClientsPageComponent implements OnInit {
     return haystack.includes(q);
   }
 
-  private static mapClientRow(c: Client): Record<string, unknown> {
+  private static mapClientRow(
+    c: Client,
+    trips: readonly Trip[],
+  ): Record<string, unknown> {
+    const commercialHealth = deriveClientCommercialHealth(c.id, trips);
     return {
       id: c.id,
       name: c.name,
       rfc: c.rfc?.trim() || '—',
       relationshipLabel: formatRelationshipDateEs(c.relationshipStartedOn),
-      commercialHealth:
-        (c.payment?.commercialHealth as string | undefined) ?? 'not_evaluated',
+      creditDaysLabel: clientCreditDaysTableCell(c.payment),
+      creditVolumeLabel: clientCreditVolumeTableCell(c.payment),
+      commercialHealth,
       maneuverCount: String(c.maneuverCount ?? 0),
     };
   }

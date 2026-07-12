@@ -62,7 +62,7 @@
                   {{ vm.nextMx(vm.meta()?.verificationPhysMechDate, vm.verifCycleMo) }}
                 </span>
               </div>
-              @if (!vm.isVerifEntryOpen("phys")) {
+              @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("phys")) {
                 <div class="fleet-unit-detail__verif-action-btn">
                   <to-button
                     type="button"
@@ -94,7 +94,7 @@
               Costo:
               {{ vm.formatTrackingAmount(vm.meta()?.verificationPhysMechCost) }}
             </p>
-            @if (vm.isVerifEntryOpen("phys")) {
+            @if (vm.canWriteFleet() && vm.isVerifEntryOpen("phys")) {
               <div class="fleet-unit-detail__verif-form">
                 <div class="fleet-unit-detail__verif-form-grid">
                   <to-input
@@ -168,7 +168,7 @@
                   {{ vm.nextMx(vm.meta()?.verificationEmissionsDate, vm.verifCycleMo) }}
                 </span>
               </div>
-              @if (!vm.isVerifEntryOpen("emis")) {
+              @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("emis")) {
                 <div class="fleet-unit-detail__verif-action-btn">
                   <to-button
                     type="button"
@@ -200,7 +200,7 @@
               Costo:
               {{ vm.formatTrackingAmount(vm.meta()?.verificationEmissionsCost) }}
             </p>
-            @if (vm.isVerifEntryOpen("emis")) {
+            @if (vm.canWriteFleet() && vm.isVerifEntryOpen("emis")) {
               <div class="fleet-unit-detail__verif-form">
                 <div class="fleet-unit-detail__verif-form-grid">
                   <to-input
@@ -282,7 +282,7 @@
                     }}
                   </span>
                 </div>
-                @if (!vm.isVerifEntryOpen("double")) {
+                @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("double")) {
                   <div class="fleet-unit-detail__verif-action-btn">
                     <to-button
                       type="button"
@@ -321,7 +321,7 @@
                 }}
               </p>
             } @else {
-              @if (!vm.isVerifEntryOpen("double")) {
+              @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("double")) {
                 <div class="fleet-unit-detail__verif-section-header">
                   <p
                     class="fleet-unit-detail__plain fleet-unit-detail__plain--verif-inline"
@@ -356,7 +356,7 @@
                 </div>
               }
             }
-            @if (vm.isVerifEntryOpen("double")) {
+            @if (vm.canWriteFleet() && vm.isVerifEntryOpen("double")) {
               <div class="fleet-unit-detail__verif-form">
                 <div class="fleet-unit-detail__verif-form-grid">
                   <to-input

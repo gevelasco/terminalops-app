@@ -27,6 +27,10 @@ export interface AuthUser {
   tripAssistPrefillEnabled?: boolean;
   tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent?: number;
+  tripAutoFuelPaymentMethod?: string;
+  tripAutoTollsPaymentMethod?: string;
+  tripAutoPerDiemPaymentMethod?: string;
+  tripAutoControlPaymentMethod?: string;
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   controlAutomaticRecognition?: boolean;
@@ -103,6 +107,10 @@ export interface SessionData {
   tripAssistPrefillEnabled: boolean;
   tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent: number;
+  tripAutoFuelPaymentMethod: string;
+  tripAutoTollsPaymentMethod: string;
+  tripAutoPerDiemPaymentMethod: string;
+  tripAutoControlPaymentMethod: string;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   controlAutomaticRecognition: boolean;

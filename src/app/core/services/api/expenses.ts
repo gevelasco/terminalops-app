@@ -14,6 +14,8 @@ export interface ExpensesListParams {
   kind?: string;
   relatedUnitId?: string;
   relatedEquipmentId?: string;
+  tripId?: string;
+  tripIds?: string;
 }
 
 export interface ExpensesListResponse {
@@ -225,6 +227,12 @@ function buildExpensesListParams(params?: ExpensesListParams): HttpParams {
   if (params.relatedEquipmentId?.trim()) {
     httpParams = httpParams.set('relatedEquipmentId', params.relatedEquipmentId.trim());
   }
+  if (params.tripId?.trim()) {
+    httpParams = httpParams.set('tripId', params.tripId.trim());
+  }
+  if (params.tripIds?.trim()) {
+    httpParams = httpParams.set('tripIds', params.tripIds.trim());
+  }
   return httpParams;
 }
 
@@ -245,6 +253,13 @@ export class ExpensesService {
         params: buildExpensesListParams(params),
       })
       .pipe(map((res) => mapExpensesListResponse(res)));
+  }
+
+  getExpenseById(id: string): Observable<Expense> {
+    const expenseId = id.trim();
+    return this.http
+      .get<Expense>(resourceByIdUrl('expenses', expenseId))
+      .pipe(map((e) => mapApiExpenseRow(e)));
   }
 
   getExpensesCalendar(params: ExpensesCalendarParams): Observable<ExpensesCalendarResponse> {

@@ -35,7 +35,7 @@ export function equipmentHitchPositionDisplayLabel(
     return '2.do equipo';
   }
   if (e.hitchPosition === 'lead') {
-    return total != null && total > 1 ? '1.er equipo' : 'Equipo enganchado';
+    return total != null && total > 1 ? '1.er equipo' : '1.er remolque';
   }
   if (index != null && total != null) {
     return total <= 1 ? 'Equipo enganchado' : index === 0 ? '1.er equipo' : '2.do equipo';

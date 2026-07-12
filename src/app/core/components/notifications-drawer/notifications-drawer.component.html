@@ -1,0 +1,109 @@
+<to-side-drawer
+  titleId="notifications-drawer-title"
+  wide
+  panelClass="notifications-drawer__panel"
+  bodyClass="notifications-drawer__body"
+  [loading]="facade.loading()"
+  skeletonVariant="list"
+  (dismiss)="dismiss.emit()"
+>
+  <h2 toSideDrawerHeader id="notifications-drawer-title" class="to-side-drawer__title">
+    <svg
+      class="to-side-drawer__title-icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+      />
+    </svg>
+    Notificaciones
+    @if (facade.total() > 0) {
+      <span class="notifications-drawer__count">{{ facade.total() }}</span>
+    }
+  </h2>
+
+  <div class="notifications-drawer__tabs-wrap">
+    <div
+      class="notifications-drawer__tabs"
+      role="tablist"
+      aria-label="Periodo de notificaciones"
+    >
+      @for (tab of facade.periodTabs; track tab.value) {
+        <button
+          type="button"
+          class="notifications-drawer__tab"
+          role="tab"
+          [attr.aria-selected]="facade.period() === tab.value"
+          [class.notifications-drawer__tab--active]="facade.period() === tab.value"
+          (click)="facade.setPeriod(tab.value)"
+        >
+          <to-icon [name]="tab.icon" [size]="16" aria-hidden="true" />
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (facade.error(); as errorMessage) {
+    <p class="notifications-drawer__empty">{{ errorMessage }}</p>
+  } @else if (facade.items().length === 0 && !facade.loading()) {
+    <p class="notifications-drawer__empty">
+      No hay notificaciones para este periodo.
+    </p>
+  } @else {
+    <ul class="notifications-drawer__list" aria-label="Lista de notificaciones">
+      @for (item of facade.items(); track item.id) {
+        <li
+          class="notifications-drawer__item"
+          [class.notifications-drawer__item--danger]="item.tone === 'danger'"
+          [class.notifications-drawer__item--warning]="item.tone === 'warning'"
+          [class.notifications-drawer__item--actionable]="isNavigable(item)"
+        >
+          @if (isNavigable(item)) {
+            <button
+              type="button"
+              class="notifications-drawer__item-btn"
+              (click)="onItemActivate(item)"
+            >
+              <div class="notifications-drawer__icon-wrap" aria-hidden="true">
+                <to-icon [name]="iconName(item.icon)" [size]="20" />
+              </div>
+              <div class="notifications-drawer__content">
+                <p class="notifications-drawer__title">
+                  {{ item.title }} — {{ item.subjectLabel }}
+                </p>
+                <div class="notifications-drawer__footer">
+                  <time [attr.datetime]="item.occurredAt">{{
+                    formatDate(item.occurredAt)
+                  }}</time>
+                  <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                </div>
+              </div>
+            </button>
+          } @else {
+            <div class="notifications-drawer__item-static">
+              <div class="notifications-drawer__icon-wrap" aria-hidden="true">
+                <to-icon [name]="iconName(item.icon)" [size]="20" />
+              </div>
+              <div class="notifications-drawer__content">
+                <p class="notifications-drawer__title">
+                  {{ item.title }} — {{ item.subjectLabel }}
+                </p>
+                <div class="notifications-drawer__footer">
+                  <time [attr.datetime]="item.occurredAt">{{
+                    formatDate(item.occurredAt)
+                  }}</time>
+                  <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</to-side-drawer>

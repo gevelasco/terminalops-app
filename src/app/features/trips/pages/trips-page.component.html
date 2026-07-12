@@ -82,6 +82,23 @@
           ariaLabel="Filtrar maniobras por estado"
           (tabSelect)="onStatusFilterSelect($event)"
         />
+        <span
+          class="maniobra-toolbar__export-wrap"
+          data-tooltip="Exportar CSV"
+        >
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="maniobra-toolbar__export"
+            ariaLabel="Exportar CSV"
+            [loading]="exporting()"
+            [disabled]="exporting() || initialListLoading()"
+            (click)="exportFiltered()"
+          >
+            <to-icon name="download" [size]="18" />
+          </to-button>
+        </span>
       </div>
     }
   </div>

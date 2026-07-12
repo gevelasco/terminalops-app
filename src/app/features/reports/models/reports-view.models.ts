@@ -1,6 +1,6 @@
 import type { TripClientPaymentMethod } from '@shared/models/logistics.models';
 
-export type ReportsTabId = 'general' | 'balance' | 'maniobras' | 'fleet';
+export type ReportsTabId = 'balance' | 'maniobras' | 'fleet';
 
 export type ReportsPeriodPreset =
   | 'today'
@@ -14,7 +14,9 @@ export type ReportsPeriodPreset =
 export type ReportsTripPaymentMethod = TripClientPaymentMethod;
 
 export interface ReportsFilter {
-  preset: ReportsPeriodPreset;
+  /** Mes calendario 1–12. */
+  periodMonth: number;
+  periodYear: number;
   from: string;
   to: string;
   /** Vacío = todos los clientes. */

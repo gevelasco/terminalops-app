@@ -8,3 +8,4 @@ export * from './equipment';
 export * from './trips';
 export * from './expenses';
 export * from './dashboard';
+export * from './notifications';

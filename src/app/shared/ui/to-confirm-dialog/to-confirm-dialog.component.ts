@@ -29,6 +29,7 @@ export class ToConfirmDialogComponent {
   readonly title = input.required<string>();
   readonly cancelLabel = input('Cancelar');
   readonly confirmLabel = input('Confirmar');
+  readonly confirmIcon = input<ToIconName | null>(null);
   readonly confirmDisabled = input(false);
   readonly confirmLoading = input(false);
   readonly confirmVariant = input<ToButtonVariant>('primary');

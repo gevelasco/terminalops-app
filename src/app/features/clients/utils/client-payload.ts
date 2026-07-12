@@ -41,6 +41,7 @@ export function commercialHealthFromUnknown(
 ): ClientCommercialHealth {
   if (
     v === 'good_standing' ||
+    v === 'due_soon' ||
     v === 'watch_list' ||
     v === 'restricted' ||
     v === 'not_evaluated'
@@ -116,4 +117,64 @@ export function buildClientApiWriteBody(
     ...rest,
     ...(payment ? { payment: payment as ClientPaymentTerms } : {}),
   };
+}
+
+export function clientCreditDaysTableCell(
+  payment: ClientPaymentTerms | undefined,
+): string {
+  if (!payment?.hasCredit) {
+    return '0';
+  }
+  const days = payment.creditDays;
+  return days != null && days > 0 ? String(days) : '0';
+}
+
+function formatEsMxGroupedNumber(n: number): string {
+  return new Intl.NumberFormat('es-MX', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(n);
+}
+
+export function formatClientCreditVolumeDisplay(raw: string): string {
+  const t = raw.trim();
+  if (!t) {
+    return '0';
+  }
+
+  const normalized = t.replace(/\s/g, '').replace(/,/g, '');
+  if (/^\d+(\.\d+)?$/.test(normalized)) {
+    const n = Number(normalized);
+    if (Number.isFinite(n)) {
+      return formatEsMxGroupedNumber(n);
+    }
+  }
+
+  const match = t.match(/^([\d,\s.]+)\s*(.*)$/);
+  if (match?.[1]) {
+    const numPart = match[1].replace(/\s/g, '').replace(/,/g, '');
+    if (/^\d+(\.\d+)?$/.test(numPart)) {
+      const n = Number(numPart);
+      if (Number.isFinite(n)) {
+        const suffix = match[2]?.trim();
+        const formatted = formatEsMxGroupedNumber(n);
+        return suffix ? `${formatted} ${suffix}` : formatted;
+      }
+    }
+  }
+
+  return t;
+}
+
+export function clientCreditVolumeTableCell(
+  payment: ClientPaymentTerms | undefined,
+): string {
+  if (!payment?.hasCredit) {
+    return '0';
+  }
+  const volume = payment.approximateCreditAmount?.trim();
+  if (!volume) {
+    return '0';
+  }
+  return formatClientCreditVolumeDisplay(volume);
 }

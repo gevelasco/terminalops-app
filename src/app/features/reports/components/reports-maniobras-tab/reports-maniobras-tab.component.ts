@@ -7,8 +7,8 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
-import { ReportsService } from '@services/api/reports';
 import { SessionService } from '@core/services/state/session';
+import { ReportsTabDataService } from '@features/reports/services/reports-tab-data.service';
 import { ReportsManiobrasGeoChartComponent } from '@features/reports/components/reports-maniobras-tab/reports-maniobras-geo-chart.component';
 import { buildReportsGeneralDestinationsBarOption } from '@features/reports/utils/charts/general/reports-general-destinations-bar-option';
 import { buildReportsManiobrasClientsHorizontalBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-clients-horizontal-bar-option';
@@ -20,7 +20,12 @@ import {
   reportsChartPrimary,
 } from '@features/reports/utils/charts/reports-chart-palette';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
-import { parseYmd } from '@features/reports/utils/reports-filter';
+import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-subtitle.util';
+import {
+  countManiobrasWithIncidents,
+  maniobrasDelayedRatePercent,
+  maniobrasIncidentRatePercent,
+} from '@features/reports/utils/reports-maniobras-quality.util';
 import type { ReportsManiobrasData } from '@shared/models/api/api-reports-maniobras.model';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { maneuverStatusPillClass } from '@shared/utils/maneuver-status-pill';
@@ -97,7 +102,7 @@ function formatIncidentDate(iso: string | null | undefined): string {
   styleUrl: './reports-maniobras-tab.component.scss',
 })
 export class ReportsManiobrasTabComponent {
-  private readonly reportsApi = inject(ReportsService);
+  private readonly tabData = inject(ReportsTabDataService);
   private readonly session = inject(SessionService);
 
   readonly filter = input.required<ReportsFilter>();
@@ -105,7 +110,7 @@ export class ReportsManiobrasTabComponent {
   private readonly pageState = toSignal(
     toObservable(this.filter).pipe(
       switchMap((params) =>
-        this.reportsApi.getManiobras(params).pipe(
+        this.tabData.getManiobras(params).pipe(
           map((data) => ({ loading: false, data })),
           catchError(() => of({ loading: false, data: null })),
           startWith({ loading: true, data: null as ReportsManiobrasData | null }),
@@ -124,20 +129,7 @@ export class ReportsManiobrasTabComponent {
     return reportsChartPrimary();
   });
 
-  readonly periodSubtitle = computed(() => {
-    const f = this.filter();
-    const a = parseYmd(f.from);
-    const b = parseYmd(f.to);
-    if (!a || !b) {
-      return '';
-    }
-    const fmt = new Intl.DateTimeFormat('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: a.getFullYear() !== b.getFullYear() ? 'numeric' : undefined,
-    });
-    return `${fmt.format(a)} – ${fmt.format(b)}`;
-  });
+  readonly periodSubtitle = computed(() => reportsPeriodSubtitle(this.filter()));
 
   readonly recurringIncidentRoutes = computed(
     () => this.insights()?.recurringIncidentRoutes ?? [],
@@ -266,7 +258,15 @@ export class ReportsManiobrasTabComponent {
     return pluralEs(n, 'maniobra', 'maniobras');
   });
 
-  readonly delayedLegend = computed(() => 'Fuera de ventana programada');
+  readonly delayedLegend = computed(() => {
+    const completed = this.summary()?.completedTripsCount ?? 0;
+    const delayed = this.summary()?.delayedTripsCount ?? 0;
+    const pct = maniobrasDelayedRatePercent(delayed, completed);
+    if (pct == null) {
+      return 'Fuera de ventana programada';
+    }
+    return `${pct}% de completadas`;
+  });
 
   readonly operationalKmValue = computed(() =>
     formatKm(this.summary()?.totalOperationalKm ?? 0),
@@ -283,12 +283,20 @@ export class ReportsManiobrasTabComponent {
 
   readonly avgDurationLegend = computed(() => 'Salida a llegada en maniobras completadas');
 
-  readonly destinationsValue = computed(() => String(this.summary()?.uniqueDestinations ?? 0));
+  readonly incidentTripsCount = computed(() =>
+    countManiobrasWithIncidents(this.insights()?.recurringIncidentRoutes ?? []),
+  );
 
-  readonly destinationsValueUnit = computed(() => {
-    const n = this.summary()?.uniqueDestinations ?? 0;
-    return pluralEs(n, 'destino', 'destinos');
+  readonly incidentRateValue = computed(() => {
+    const completed = this.summary()?.completedTripsCount ?? 0;
+    const pct = maniobrasIncidentRatePercent(this.incidentTripsCount(), completed);
+    return pct == null ? '—' : `${pct}%`;
   });
 
-  readonly destinationsLegend = computed(() => 'Destinos distintos en el periodo');
+  readonly incidentRateUnit = computed(() => {
+    const n = this.incidentTripsCount();
+    return pluralEs(n, 'maniobra', 'maniobras');
+  });
+
+  readonly incidentRateLegend = computed(() => 'Con al menos un incidente registrado');
 }
