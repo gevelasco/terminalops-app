@@ -6,9 +6,9 @@
 @if (account.isLoading()) {
   <to-skeleton height="8rem" />
 } @else if (accountData()) {
-  <section class="cuenta-card">
-    <h2 class="cuenta-card__title">{{ accountData()!.name }}</h2>
-    <dl class="cuenta-card__grid">
+  <section class="account-card">
+    <h2 class="account-card__title">{{ accountData()!.name }}</h2>
+    <dl class="account-card__grid">
       <div>
         <dt>Estado de licencia</dt>
         <dd>{{ accountData()!.subscriptionStatus }}</dd>
@@ -22,7 +22,7 @@
         <dd>{{ accountData()!.subscriptionEndsAt || 'Sin fecha de vencimiento' }}</dd>
       </div>
     </dl>
-    <p class="cuenta-card__note">
+    <p class="account-card__note">
       La gestión de pagos y facturación estará disponible en próximas versiones.
     </p>
   </section>

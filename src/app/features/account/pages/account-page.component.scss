@@ -1,4 +1,4 @@
-.cuenta-card {
+.account-card {
   margin-top: 1rem;
   padding: 1rem 1.1rem;
   border-radius: var(--to-radius-lg);
@@ -6,13 +6,13 @@
   background: var(--to-color-surface);
 }
 
-.cuenta-card__title {
+.account-card__title {
   margin: 0 0 0.85rem;
   font-size: 1rem;
   font-weight: 700;
 }
 
-.cuenta-card__grid {
+.account-card__grid {
   display: grid;
   gap: 0.75rem;
   margin: 0;
@@ -34,7 +34,7 @@
   }
 }
 
-.cuenta-card__note {
+.account-card__note {
   margin: 1rem 0 0;
   font-size: 0.8125rem;
   line-height: 1.45;

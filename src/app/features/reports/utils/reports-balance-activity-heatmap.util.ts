@@ -8,6 +8,7 @@ import type {
   ReportsBalanceDailyActivityDay,
   ReportsBalanceDailyActivityEvent,
 } from '@shared/models/api/api-reports-balance.model';
+import { localYmd } from '@shared/utils/local-ymd';
 
 export type ReportsBalanceActivityHeatmapLayout =
   | 'day'
@@ -84,6 +85,88 @@ function monthTitle(from: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function enumerateDays(from: string, to: string): string[] {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+  if (!start || !end) {
+    return [];
+  }
+  const days: string[] = [];
+  const cursor = new Date(start);
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(localYmd(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
+function monthKeyFromYmd(ymd: string): string {
+  return ymd.slice(0, 7);
+}
+
+function monthLabelFromKey(monthKey: string): string {
+  const [y, m] = monthKey.split('-').map((v) => Number(v));
+  if (!y || !m) {
+    return monthKey;
+  }
+  const label = new Intl.DateTimeFormat('es-MX', {
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(y, m - 1, 1, 12));
+  return label.replace('.', '');
+}
+
+function buildMonthCells(
+  from: string,
+  to: string,
+  indexed: Map<string, ReportsBalanceDailyActivityDay>,
+): ReportsBalanceActivityHeatmapMonthCell[] {
+  const byMonth = new Map<string, ReportsBalanceActivityHeatmapMonthCell>();
+
+  for (const ymd of enumerateDays(from, to)) {
+    const monthKey = monthKeyFromYmd(ymd);
+    const row = indexed.get(ymd);
+    if (!row) {
+      continue;
+    }
+    let bucket = byMonth.get(monthKey);
+    if (!bucket) {
+      bucket = {
+        monthKey,
+        label: monthLabelFromKey(monthKey),
+        incomeCount: 0,
+        expenseCount: 0,
+        events: [],
+      };
+      byMonth.set(monthKey, bucket);
+    }
+    bucket.incomeCount += row.incomeCount;
+    bucket.expenseCount += row.expenseCount;
+    bucket.events = [...bucket.events, ...row.events];
+  }
+
+  const monthKeys = [...new Set(enumerateDays(from, to).map(monthKeyFromYmd))];
+  return monthKeys.map(
+    (monthKey) =>
+      byMonth.get(monthKey) ?? {
+        monthKey,
+        label: monthLabelFromKey(monthKey),
+        incomeCount: 0,
+        expenseCount: 0,
+        events: [],
+      },
+  );
+}
+
+function isSameCalendarMonth(from: string, to: string): boolean {
+  const a = parseYmd(from);
+  const b = parseYmd(to);
+  if (!a || !b) {
+    return true;
+  }
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
 export function buildReportsBalanceActivityHeatmapModel(
   dailyActivity: readonly ReportsBalanceDailyActivityDay[],
   from: string,
@@ -91,6 +174,19 @@ export function buildReportsBalanceActivityHeatmapModel(
 ): ReportsBalanceActivityHeatmapModel {
   const indexed = indexDailyActivity(dailyActivity);
   const weekdayLabels = expensesCalendarWeekdayLabels();
+
+  if (!isSameCalendarMonth(from, to)) {
+    const monthCells = buildMonthCells(from, to, indexed);
+    return {
+      layout: 'months',
+      title: 'Por mes',
+      weekdayLabels,
+      weeks: [],
+      dayCells: [],
+      monthCells,
+      hasActivity: monthCells.some((cell) => cell.incomeCount + cell.expenseCount > 0),
+    };
+  }
 
   const anchor = parseYmd(from) ?? new Date();
   const weeks = buildExpensesCalendarWeeks(anchor);

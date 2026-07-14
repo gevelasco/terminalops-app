@@ -69,16 +69,16 @@ export const routes: Routes = [
           import('./features/reports/routes').then((m) => m.reportsRoutes),
       },
       {
-        path: 'cuenta',
-        canActivate: [moduleAccessGuard(APP_MODULE_CODES.CUENTA)],
+        path: 'account',
+        canActivate: [moduleAccessGuard(APP_MODULE_CODES.ACCOUNT)],
         loadChildren: () =>
-          import('./features/cuenta/routes').then((m) => m.cuentaRoutes),
+          import('./features/account/routes').then((m) => m.accountRoutes),
       },
       {
-        path: 'usuarios',
-        canActivate: [moduleAccessGuard(APP_MODULE_CODES.USUARIOS)],
+        path: 'users',
+        canActivate: [moduleAccessGuard(APP_MODULE_CODES.USERS)],
         loadChildren: () =>
-          import('./features/usuarios/routes').then((m) => m.usuariosRoutes),
+          import('./features/users/routes').then((m) => m.usersRoutes),
       },
     ],
   },

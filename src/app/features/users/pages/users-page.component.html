@@ -4,7 +4,7 @@
 >
   @if (!loading()) {
     <to-button type="button" variant="primary" (click)="newUserOpen.set(true)">
-      <span class="usuarios-page-header__btn-icon" aria-hidden="true">
+      <span class="users-page-header__btn-icon" aria-hidden="true">
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path
             fill="currentColor"
@@ -19,7 +19,7 @@
 
 @if (newUserOpen()) {
   @defer {
-    <app-usuarios-new-drawer
+    <app-users-new-drawer
       (dismiss)="newUserOpen.set(false)"
       (saved)="onUserCreated()"
     />
@@ -28,7 +28,7 @@
 
 @if (selectedUser(); as user) {
   @defer {
-    <app-usuarios-detail-drawer
+    <app-users-detail-drawer
       [user]="user"
       (dismiss)="onDetailDismiss()"
       (saved)="onUserSaved($event)"
@@ -39,7 +39,7 @@
 @if (loading()) {
   <to-skeleton [lines]="5" />
 } @else {
-  <div class="usuarios-table-block">
+  <div class="users-table-block">
     <to-table
       [columns]="columns"
       [rows]="tableRows()"

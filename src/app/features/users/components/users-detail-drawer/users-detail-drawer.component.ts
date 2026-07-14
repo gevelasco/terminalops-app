@@ -36,7 +36,7 @@ import {
   staffModulePermissionSummary,
   type StaffModulePermissionDraftMap,
 } from '@shared/utils/staff-module-permissions';
-import { UsuariosModulePermissionsFieldsComponent } from '@features/usuarios/components/usuarios-module-permissions-fields/usuarios-module-permissions-fields.component';
+import { UsersModulePermissionsFieldsComponent } from '@features/users/components/users-module-permissions-fields/users-module-permissions-fields.component';
 import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
@@ -47,10 +47,10 @@ import {
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 
-type UsuarioEditSection = 'personal' | 'password' | 'permissions';
+type UserEditSection = 'personal' | 'password' | 'permissions';
 
 @Component({
-  selector: 'app-usuarios-detail-drawer',
+  selector: 'app-users-detail-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -59,19 +59,19 @@ type UsuarioEditSection = 'personal' | 'password' | 'permissions';
     ToIconComponent,
     ToInputComponent,
     ToSegmentControlComponent,
-    UsuariosModulePermissionsFieldsComponent,
+    UsersModulePermissionsFieldsComponent,
   ],
-  templateUrl: './usuarios-detail-drawer.component.html',
+  templateUrl: './users-detail-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
     '../../../../core/components/profile-drawer/profile-drawer.component.scss',
-    '../usuarios-module-access.shared.scss',
-    './usuarios-detail-drawer.component.scss',
+    '../users-module-access.shared.scss',
+    './users-detail-drawer.component.scss',
   ],
 })
-export class UsuariosDetailDrawerComponent {
+export class UsersDetailDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
@@ -84,7 +84,7 @@ export class UsuariosDetailDrawerComponent {
   readonly drawerLoading = signal(true);
   readonly saving = signal(false);
   readonly photoSaving = signal(false);
-  readonly editingSection = signal<UsuarioEditSection | null>(null);
+  readonly editingSection = signal<UserEditSection | null>(null);
   readonly moduleOptions = [...STAFF_MODULE_OPTIONS];
   readonly staffModuleIcon = staffModuleIcon;
 
@@ -191,11 +191,11 @@ export class UsuariosDetailDrawerComponent {
     return this.photoDataUrl().trim().length > 0;
   }
 
-  isEditing(section: UsuarioEditSection): boolean {
+  isEditing(section: UserEditSection): boolean {
     return this.editingSection() === section;
   }
 
-  startEditSection(section: UsuarioEditSection): void {
+  startEditSection(section: UserEditSection): void {
     if (section === 'password') {
       this.newPassword.set('');
       this.confirmPassword.set('');

@@ -1,0 +1,73 @@
+<div class="to-month-year-picker">
+  <button
+    type="button"
+    class="to-month-year-picker__trigger"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="listId"
+    [disabled]="disabled()"
+    (click)="toggle()"
+  >
+    <span class="to-month-year-picker__value">{{ displayLabel() }}</span>
+    <span class="to-month-year-picker__chevron" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24">
+        <path
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.25"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="m6 9 6 6 6-6"
+        />
+      </svg>
+    </span>
+  </button>
+
+  @if (open()) {
+    <div
+      class="to-month-year-picker__panel"
+      role="dialog"
+      [attr.aria-label]="ariaLabel()"
+      [id]="listId"
+    >
+      <div class="to-month-year-picker__year-row">
+        <button
+          type="button"
+          class="to-month-year-picker__nav"
+          aria-label="Año anterior"
+          [disabled]="!canGoPrevYear()"
+          (click)="shiftYear(-1)"
+        >
+          ‹
+        </button>
+        <span class="to-month-year-picker__year">{{ panelYear() }}</span>
+        <button
+          type="button"
+          class="to-month-year-picker__nav"
+          aria-label="Año siguiente"
+          [disabled]="!canGoNextYear()"
+          (click)="shiftYear(1)"
+        >
+          ›
+        </button>
+      </div>
+
+      <div class="to-month-year-picker__months" role="listbox">
+        @for (m of months(); track m.month) {
+          <button
+            type="button"
+            class="to-month-year-picker__month"
+            role="option"
+            [class.to-month-year-picker__month--selected]="m.selected"
+            [attr.aria-selected]="m.selected"
+            [attr.aria-label]="m.longLabel + ' ' + panelYear()"
+            [disabled]="m.disabled"
+            (click)="selectMonth(m.month)"
+          >
+            {{ m.label }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

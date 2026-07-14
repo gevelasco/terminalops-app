@@ -1,10 +1,10 @@
-.usuarios-module-permissions {
+.users-module-permissions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.usuarios-module-permission-row {
+.users-module-permission-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -15,14 +15,14 @@
   background: color-mix(in srgb, var(--to-color-text) 2%, transparent);
 }
 
-.usuarios-module-permission-row__head {
+.users-module-permission-row__head {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   min-width: 0;
 }
 
-.usuarios-module-permission-row__icon {
+.users-module-permission-row__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -35,13 +35,13 @@
   flex-shrink: 0;
 }
 
-.usuarios-module-permission-row__label {
+.users-module-permission-row__label {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--to-color-text);
 }
 
-.usuarios-module-permission-row__checks {
+.users-module-permission-row__checks {
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -49,7 +49,7 @@
   justify-content: flex-end;
 }
 
-.usuarios-module-permission-check {
+.users-module-permission-check {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -66,12 +66,12 @@
 }
 
 @media (max-width: 720px) {
-  .usuarios-module-permission-row {
+  .users-module-permission-row {
     grid-template-columns: 1fr;
     align-items: start;
   }
 
-  .usuarios-module-permission-row__checks {
+  .users-module-permission-row__checks {
     justify-content: flex-start;
   }
 }

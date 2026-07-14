@@ -23,7 +23,7 @@ import {
   staffModuleGrantsFromDraft,
   type StaffModulePermissionDraftMap,
 } from '@shared/utils/staff-module-permissions';
-import { UsuariosModulePermissionsFieldsComponent } from '@features/usuarios/components/usuarios-module-permissions-fields/usuarios-module-permissions-fields.component';
+import { UsersModulePermissionsFieldsComponent } from '@features/users/components/users-module-permissions-fields/users-module-permissions-fields.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -35,7 +35,7 @@ import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.
 import type { CompanyUserRow } from '@core/services/api/company-users';
 
 @Component({
-  selector: 'app-usuarios-new-drawer',
+  selector: 'app-users-new-drawer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -44,18 +44,18 @@ import type { CompanyUserRow } from '@core/services/api/company-users';
     ToIconComponent,
     ToInputComponent,
     ToSegmentControlComponent,
-    UsuariosModulePermissionsFieldsComponent,
+    UsersModulePermissionsFieldsComponent,
   ],
-  templateUrl: './usuarios-new-drawer.component.html',
+  templateUrl: './users-new-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../../core/components/profile-drawer/profile-drawer.component.scss',
-    '../usuarios-module-access.shared.scss',
-    './usuarios-new-drawer.component.scss',
+    '../users-module-access.shared.scss',
+    './users-new-drawer.component.scss',
   ],
 })
-export class UsuariosNewDrawerComponent {
+export class UsersNewDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);

@@ -1,4 +1,4 @@
-.usuarios-new-drawer__grid {
+.users-new-drawer__grid {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8,21 +8,21 @@
   }
 }
 
-.usuarios-new-drawer__role-tabs {
+.users-new-drawer__role-tabs {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
   margin-top: 0.75rem;
 }
 
-.usuarios-new-drawer__field-label {
+.users-new-drawer__field-label {
   margin: 0;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--to-color-text);
 }
 
-.usuarios-new-drawer__hint {
+.users-new-drawer__hint {
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.4;

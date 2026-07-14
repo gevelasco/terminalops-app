@@ -1,5 +1,5 @@
 <to-side-drawer
-  titleId="usuarios-detail-drawer-title"
+  titleId="users-detail-drawer-title"
   wide
   headerClass="fleet-unit-detail__header"
   bodyClass="fleet-unit-body fleet-unit-detail"
@@ -7,16 +7,16 @@
   skeletonVariant="detail"
   (dismiss)="dismiss.emit()"
 >
-  <h2 toSideDrawerHeader id="usuarios-detail-drawer-title" class="to-side-drawer__title">
+  <h2 toSideDrawerHeader id="users-detail-drawer-title" class="to-side-drawer__title">
     <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
     {{ user().displayName }}
   </h2>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
-    aria-labelledby="usuarios-detail-account"
+    aria-labelledby="users-detail-account"
   >
-    <h3 id="usuarios-detail-account" class="fleet-unit-sec__title">Cuenta</h3>
+    <h3 id="users-detail-account" class="fleet-unit-sec__title">Cuenta</h3>
 
     <div class="profile-drawer__identity">
       <div class="profile-drawer__avatar-wrap">
@@ -85,9 +85,9 @@
     </div>
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-detail-personal">
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-personal">
     <div class="fleet-unit-sec__header">
-      <h3 id="usuarios-detail-personal" class="fleet-unit-sec__title">Datos personales</h3>
+      <h3 id="users-detail-personal" class="fleet-unit-sec__title">Datos personales</h3>
       @if (canEditPersonal() && !isEditing('personal')) {
         <button
           type="button"
@@ -151,8 +151,8 @@
     }
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-detail-collab">
-    <h3 id="usuarios-detail-collab" class="fleet-unit-sec__title">Colaborador</h3>
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-collab">
+    <h3 id="users-detail-collab" class="fleet-unit-sec__title">Colaborador</h3>
     <dl class="fleet-unit-detail__dl">
       <div class="fleet-unit-detail__row">
         <dt>Fecha de ingreso</dt>
@@ -177,9 +177,9 @@
     </dl>
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-detail-perms">
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-perms">
     <div class="fleet-unit-sec__header">
-      <h3 id="usuarios-detail-perms" class="fleet-unit-sec__title">Permisos</h3>
+      <h3 id="users-detail-perms" class="fleet-unit-sec__title">Permisos</h3>
       @if (canEditAccess() && !isEditing('permissions')) {
         <button
           type="button"
@@ -209,25 +209,25 @@
           <dd>{{ user().status === 'active' ? 'Activo' : 'Inactivo' }}</dd>
         </div>
       </dl>
-      <p class="usuarios-detail-drawer__hint">Módulos y nivel de acceso.</p>
-      <div class="usuarios-module-permissions-view">
+      <p class="users-detail-drawer__hint">Módulos y nivel de acceso.</p>
+      <div class="users-module-permissions-view">
         @for (item of viewModulePermissions(); track item.label) {
           <div
-            class="usuarios-module-permission-view-row"
-            [class.usuarios-module-permission-view-row--active]="item.active"
+            class="users-module-permission-view-row"
+            [class.users-module-permission-view-row--active]="item.active"
           >
-            <span class="usuarios-module-permission-view-row__icon" aria-hidden="true">
+            <span class="users-module-permission-view-row__icon" aria-hidden="true">
               <to-icon [name]="item.icon" [size]="16" />
             </span>
-            <span class="usuarios-module-permission-view-row__label">{{ item.label }}</span>
-            <span class="usuarios-module-permission-view-row__summary">{{ item.summary }}</span>
+            <span class="users-module-permission-view-row__label">{{ item.label }}</span>
+            <span class="users-module-permission-view-row__summary">{{ item.summary }}</span>
           </div>
         }
       </div>
     } @else {
       <div class="fleet-unit-sec__edit-form">
-        <div class="usuarios-detail-drawer__role-tabs">
-          <span class="usuarios-detail-drawer__label">Rol</span>
+        <div class="users-detail-drawer__role-tabs">
+          <span class="users-detail-drawer__label">Rol</span>
           <to-segment-control
             layout="drawer"
             ariaLabel="Rol del usuario"
@@ -237,10 +237,10 @@
           />
         </div>
 
-        <div class="usuarios-detail-drawer__row usuarios-detail-drawer__row--access">
+        <div class="users-detail-drawer__row users-detail-drawer__row--access">
           <div>
-            <p class="usuarios-detail-drawer__label">Cuenta activa</p>
-            <p class="usuarios-detail-drawer__hint">
+            <p class="users-detail-drawer__label">Cuenta activa</p>
+            <p class="users-detail-drawer__hint">
               Los usuarios inactivos no pueden iniciar sesión.
             </p>
           </div>
@@ -258,19 +258,19 @@
         </div>
 
         @if (draftRole() === 'staff') {
-          <div class="usuarios-detail-drawer__modules">
-            <p class="usuarios-detail-drawer__label">Permisos por módulo</p>
-            <p class="usuarios-detail-drawer__hint">
+          <div class="users-detail-drawer__modules">
+            <p class="users-detail-drawer__label">Permisos por módulo</p>
+            <p class="users-detail-drawer__hint">
               Lectura permite consultar; Escritura permite crear, editar y exportar (p. ej. PDF/Excel en Reportes). Eliminar sigue siendo solo del administrador.
             </p>
-            <app-usuarios-module-permissions-fields
+            <app-users-module-permissions-fields
               [permissions]="draftPermissions()"
               (permissionsChange)="draftPermissions.set($event)"
               [disabled]="saving()"
             />
           </div>
         } @else {
-          <p class="usuarios-detail-drawer__hint">
+          <p class="users-detail-drawer__hint">
             Los administradores tienen acceso a todos los módulos operativos y a Usuarios.
           </p>
         }
@@ -289,9 +289,9 @@
   </section>
 
   @if (canResetPassword()) {
-    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-detail-pwd">
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-pwd">
       <div class="fleet-unit-sec__header">
-        <h3 id="usuarios-detail-pwd" class="fleet-unit-sec__title">Contraseña</h3>
+        <h3 id="users-detail-pwd" class="fleet-unit-sec__title">Contraseña</h3>
         @if (!isEditing('password')) {
           <button
             type="button"

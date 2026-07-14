@@ -86,6 +86,9 @@ export class ReportsBalanceTabComponent {
       this.filter().from,
       this.filter().to,
     );
+    if (model.layout === 'months') {
+      return `${model.title} · ${this.periodSubtitle()}`;
+    }
     return model.title || this.periodSubtitle();
   });
 

@@ -1,6 +1,6 @@
 @use '../../../shared/styles/module-access-icon.scss';
 
-.usuarios-module-grid {
+.users-module-grid {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -10,7 +10,7 @@
   }
 }
 
-.usuarios-module-card {
+.users-module-card {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -35,7 +35,7 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-primary) 8%, transparent);
   }
 
-  &:has(input:checked) .usuarios-module-card__icon {
+  &:has(input:checked) .users-module-card__icon {
     border-color: color-mix(in srgb, var(--to-color-primary) 35%, transparent);
     background: color-mix(in srgb, var(--to-color-primary) 18%, var(--to-color-surface));
     color: var(--to-color-primary);
@@ -53,7 +53,7 @@
   }
 }
 
-.usuarios-module-card__icon {
+.users-module-card__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -70,23 +70,23 @@
     border-color 0.15s ease;
 }
 
-.usuarios-module-card__label {
+.users-module-card__label {
   min-width: 0;
   line-height: 1.25;
 }
 
-.usuarios-module-card--readonly {
+.users-module-card--readonly {
   cursor: default;
   pointer-events: none;
 }
 
-.usuarios-module-card--readonly-on {
+.users-module-card--readonly-on {
   border-color: color-mix(in srgb, var(--to-color-primary) 40%, transparent);
   background: color-mix(in srgb, var(--to-color-primary) 10%, var(--to-color-surface));
   color: var(--to-color-text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-primary) 8%, transparent);
 
-  .usuarios-module-card__icon {
+  .users-module-card__icon {
     border-color: color-mix(in srgb, var(--to-color-primary) 35%, transparent);
     background: color-mix(in srgb, var(--to-color-primary) 18%, var(--to-color-surface));
     color: var(--to-color-primary);
@@ -94,7 +94,7 @@
 }
 
 :host-context([data-app-scheme='dark']) {
-  .usuarios-module-card {
+  .users-module-card {
     background: color-mix(in srgb, var(--to-color-text) 4%, transparent);
 
     &:has(input:checked) {
@@ -102,11 +102,11 @@
     }
   }
 
-  .usuarios-module-card--readonly-on {
+  .users-module-card--readonly-on {
     background: color-mix(in srgb, var(--to-color-primary) 16%, var(--to-color-surface));
   }
 
-  .usuarios-module-card__icon {
+  .users-module-card__icon {
     background: color-mix(in srgb, var(--to-color-text) 4%, transparent);
     color: color-mix(in srgb, var(--to-color-text-muted) 92%, transparent);
   }

@@ -18,12 +18,12 @@ const OPERATIONAL_MODULE_CODES: AppModuleCode[] = [
 
 const ADMIN_MODULE_CODES: AppModuleCode[] = [
   ...OPERATIONAL_MODULE_CODES,
-  APP_MODULE_CODES.USUARIOS,
+  APP_MODULE_CODES.USERS,
 ];
 
 const OWNER_MODULE_CODES: AppModuleCode[] = [
   ...ADMIN_MODULE_CODES,
-  APP_MODULE_CODES.CUENTA,
+  APP_MODULE_CODES.ACCOUNT,
 ];
 
 export function resolveStaffModuleGrants(

@@ -13,14 +13,14 @@ import { staffModuleIcon } from '@shared/utils/staff-module-present';
 import type { StaffModulePermissionDraftMap } from '@shared/utils/staff-module-permissions';
 
 @Component({
-  selector: 'app-usuarios-module-permissions-fields',
+  selector: 'app-users-module-permissions-fields',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToIconComponent],
-  templateUrl: './usuarios-module-permissions-fields.component.html',
-  styleUrl: './usuarios-module-permissions-fields.component.scss',
+  templateUrl: './users-module-permissions-fields.component.html',
+  styleUrl: './users-module-permissions-fields.component.scss',
 })
-export class UsuariosModulePermissionsFieldsComponent {
+export class UsersModulePermissionsFieldsComponent {
   readonly permissions = model.required<StaffModulePermissionDraftMap>();
   readonly disabled = input(false);
 

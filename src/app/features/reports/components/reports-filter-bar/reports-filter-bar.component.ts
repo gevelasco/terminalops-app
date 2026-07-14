@@ -1,22 +1,21 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import {
+  ToMonthYearPickerComponent,
+  type ToMonthYearValue,
+} from '@shared/ui/to-month-year-picker/to-month-year-picker.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToClientsMultiInputComponent } from '@shared/ui/to-clients-multi-input/to-clients-multi-input.component';
 import { ToPaymentMethodsMultiInputComponent } from '@shared/ui/to-payment-methods-multi-input/to-payment-methods-multi-input.component';
 import type { ReportsFilter, ReportsTabId } from '../../models/reports-view.models';
 import type { ReportsToolbarTab } from '../../reports.constants';
-import {
-  rangeForCalendarMonth,
-  reportsCalendarMonthOptions,
-  reportsCalendarYearOptions,
-} from '../../utils/reports-filter';
+import { compareMonthYear, rangeForMonthYearSpan } from '../../utils/reports-filter';
 
 @Component({
   selector: 'app-reports-filter-bar',
   standalone: true,
   imports: [
-    FormsModule,
     ToSegmentControlComponent,
+    ToMonthYearPickerComponent,
     ToClientsMultiInputComponent,
     ToPaymentMethodsMultiInputComponent,
   ],
@@ -29,32 +28,56 @@ export class ReportsFilterBarComponent {
   readonly tab = model.required<ReportsTabId>();
   readonly tabs = input<ReportsToolbarTab[]>([]);
 
-  readonly yearOptions = computed(() => reportsCalendarYearOptions());
+  readonly currentMonthYear = computed((): ToMonthYearValue => {
+    const now = new Date();
+    return { month: now.getMonth() + 1, year: now.getFullYear() };
+  });
 
-  readonly monthOptions = computed(() =>
-    reportsCalendarMonthOptions(this.filter().periodYear),
-  );
+  readonly fromValue = computed((): ToMonthYearValue => ({
+    month: this.filter().fromMonth,
+    year: this.filter().fromYear,
+  }));
 
-  onMonthChange(value: string | number): void {
-    this.applyPeriod(Number(value), this.filter().periodYear);
-  }
+  readonly toValue = computed((): ToMonthYearValue => ({
+    month: this.filter().toMonth,
+    year: this.filter().toYear,
+  }));
 
-  onYearChange(value: string | number): void {
-    const year = Number(value);
-    let month = this.filter().periodMonth;
-    const allowedMonths = reportsCalendarMonthOptions(year);
-    if (!allowedMonths.some((option) => option.value === month)) {
-      month = allowedMonths.at(-1)?.value ?? month;
+  onFromChange(value: ToMonthYearValue): void {
+    const f = this.filter();
+    let toMonth = f.toMonth;
+    let toYear = f.toYear;
+    if (compareMonthYear(value, { month: toMonth, year: toYear }) > 0) {
+      toMonth = value.month;
+      toYear = value.year;
     }
-    this.applyPeriod(month, year);
+    this.applyRange(value.month, value.year, toMonth, toYear);
   }
 
-  private applyPeriod(month: number, year: number): void {
-    const range = rangeForCalendarMonth(year, month);
+  onToChange(value: ToMonthYearValue): void {
+    const f = this.filter();
+    let fromMonth = f.fromMonth;
+    let fromYear = f.fromYear;
+    if (compareMonthYear({ month: fromMonth, year: fromYear }, value) > 0) {
+      fromMonth = value.month;
+      fromYear = value.year;
+    }
+    this.applyRange(fromMonth, fromYear, value.month, value.year);
+  }
+
+  private applyRange(
+    fromMonth: number,
+    fromYear: number,
+    toMonth: number,
+    toYear: number,
+  ): void {
+    const range = rangeForMonthYearSpan(fromMonth, fromYear, toMonth, toYear);
     this.filter.update((f) => ({
       ...f,
-      periodMonth: month,
-      periodYear: year,
+      fromMonth,
+      fromYear,
+      toMonth,
+      toYear,
       from: range.from,
       to: range.to,
     }));

@@ -1,5 +1,5 @@
 <to-side-drawer
-  titleId="usuarios-new-drawer-title"
+  titleId="users-new-drawer-title"
   wide
   formMode
   [loading]="drawerLoading()"
@@ -8,16 +8,16 @@
   (dismiss)="dismiss.emit()"
   (formSubmit)="submit()"
 >
-  <h2 toSideDrawerHeader id="usuarios-new-drawer-title" class="to-side-drawer__title">
+  <h2 toSideDrawerHeader id="users-new-drawer-title" class="to-side-drawer__title">
     <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
     Nuevo usuario
   </h2>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
-    aria-labelledby="usuarios-new-account"
+    aria-labelledby="users-new-account"
   >
-    <h3 id="usuarios-new-account" class="fleet-unit-sec__title">Cuenta</h3>
+    <h3 id="users-new-account" class="fleet-unit-sec__title">Cuenta</h3>
 
     <div class="profile-drawer__identity">
       <div class="profile-drawer__avatar-wrap">
@@ -78,9 +78,9 @@
     </div>
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-personal">
-    <h3 id="usuarios-new-personal" class="fleet-unit-sec__title">Datos personales</h3>
-    <div class="usuarios-new-drawer__grid">
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-new-personal">
+    <h3 id="users-new-personal" class="fleet-unit-sec__title">Datos personales</h3>
+    <div class="users-new-drawer__grid">
       <to-input label="Nombre *" [(value)]="draftDisplayName" [disabled]="saving()" />
       <to-input label="Puesto" placeholder="Ej. Coordinador de operaciones" [(value)]="draftJobTitle" [disabled]="saving()" />
       <to-input label="Correo electrónico" type="email" [(value)]="draftEmail" [disabled]="saving()" />
@@ -88,9 +88,9 @@
     </div>
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-access">
-    <h3 id="usuarios-new-access" class="fleet-unit-sec__title">Acceso</h3>
-    <div class="usuarios-new-drawer__grid">
+  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-new-access">
+    <h3 id="users-new-access" class="fleet-unit-sec__title">Acceso</h3>
+    <div class="users-new-drawer__grid">
       <to-input label="Usuario *" [(value)]="draftUsername" [disabled]="saving()" />
       <to-input
         label="Contraseña *"
@@ -101,8 +101,8 @@
         [disabled]="saving()"
       />
     </div>
-    <div class="usuarios-new-drawer__role-tabs">
-      <span class="usuarios-new-drawer__field-label">Rol</span>
+    <div class="users-new-drawer__role-tabs">
+      <span class="users-new-drawer__field-label">Rol</span>
       <to-segment-control
         layout="drawer"
         ariaLabel="Rol del usuario"
@@ -114,21 +114,21 @@
   </section>
 
   @if (draftRole() === 'staff') {
-    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-modules">
-      <h3 id="usuarios-new-modules" class="fleet-unit-sec__title">Permisos por módulo</h3>
-      <p class="usuarios-new-drawer__hint">
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-new-modules">
+      <h3 id="users-new-modules" class="fleet-unit-sec__title">Permisos por módulo</h3>
+      <p class="users-new-drawer__hint">
         Lectura permite consultar; Escritura permite crear, editar y exportar (p. ej. PDF/Excel en Reportes). Eliminar sigue siendo solo del administrador.
       </p>
-      <app-usuarios-module-permissions-fields
+      <app-users-module-permissions-fields
         [permissions]="draftPermissions()"
         (permissionsChange)="draftPermissions.set($event)"
         [disabled]="saving()"
       />
     </section>
   } @else {
-    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="usuarios-new-admin-perms">
-      <h3 id="usuarios-new-admin-perms" class="fleet-unit-sec__title">Permisos</h3>
-      <p class="usuarios-new-drawer__hint">
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-new-admin-perms">
+      <h3 id="users-new-admin-perms" class="fleet-unit-sec__title">Permisos</h3>
+      <p class="users-new-drawer__hint">
         Los administradores tienen acceso a todos los módulos operativos y a Usuarios.
       </p>
     </section>

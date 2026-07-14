@@ -19,19 +19,6 @@ export function reportsCalendarMonthLabel(month: number): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function reportsCalendarMonthOptions(
-  year: number,
-  now = new Date(),
-): Array<{ value: number; label: string }> {
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const maxMonth = year >= currentYear ? currentMonth : 12;
-  return Array.from({ length: maxMonth }, (_, index) => {
-    const value = index + 1;
-    return { value, label: reportsCalendarMonthLabel(value) };
-  });
-}
-
 export function reportsCalendarYearOptions(
   now = new Date(),
   yearsBack = 10,
@@ -44,28 +31,63 @@ export function reportsCalendarYearOptions(
   );
 }
 
-/** Rango inclusivo del mes calendario; mes en curso termina hoy. */
+export function compareMonthYear(
+  a: { month: number; year: number },
+  b: { month: number; year: number },
+): number {
+  if (a.year !== b.year) {
+    return a.year - b.year;
+  }
+  return a.month - b.month;
+}
+
+/** Primer día del mes de inicio → último día del mes de fin (o hoy si es el mes en curso). */
+export function rangeForMonthYearSpan(
+  fromMonth: number,
+  fromYear: number,
+  toMonth: number,
+  toYear: number,
+  now = new Date(),
+): { from: string; to: string } {
+  let startMonth = fromMonth;
+  let startYear = fromYear;
+  let endMonth = toMonth;
+  let endYear = toYear;
+
+  if (compareMonthYear({ month: startMonth, year: startYear }, { month: endMonth, year: endYear }) > 0) {
+    startMonth = toMonth;
+    startYear = toYear;
+    endMonth = fromMonth;
+    endYear = fromYear;
+  }
+
+  const start = new Date(startYear, startMonth - 1, 1);
+  const lastDay = new Date(endYear, endMonth, 0);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const isCurrentEndMonth =
+    endYear === today.getFullYear() && endMonth - 1 === today.getMonth();
+  const end = isCurrentEndMonth && lastDay.getTime() > today.getTime() ? today : lastDay;
+  return { from: localYmd(start), to: localYmd(end) };
+}
+
+/** @deprecated Prefer `rangeForMonthYearSpan` for reports ranges. */
 export function rangeForCalendarMonth(
   year: number,
   month: number,
   now = new Date(),
 ): { from: string; to: string } {
-  const start = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month, 0);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const isCurrentMonth =
-    year === today.getFullYear() && month - 1 === today.getMonth();
-  const end = isCurrentMonth ? today : lastDay;
-  return { from: localYmd(start), to: localYmd(end) };
+  return rangeForMonthYearSpan(month, year, month, year, now);
 }
 
 export function defaultReportsFilter(now = new Date()): ReportsFilter {
-  const periodMonth = now.getMonth() + 1;
-  const periodYear = now.getFullYear();
-  const range = rangeForCalendarMonth(periodYear, periodMonth, now);
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const range = rangeForMonthYearSpan(month, year, month, year, now);
   return {
-    periodMonth,
-    periodYear,
+    fromMonth: month,
+    fromYear: year,
+    toMonth: month,
+    toYear: year,
     from: range.from,
     to: range.to,
     clientPaymentMethods: [],

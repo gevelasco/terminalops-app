@@ -13,8 +13,8 @@ import {
 } from '@core/services/api/company-users';
 import { SessionService } from '@core/services/state/session';
 import { userTableModuleIcons } from '@shared/utils/staff-module-present';
-import { UsuariosDetailDrawerComponent } from '@features/usuarios/components/usuarios-detail-drawer/usuarios-detail-drawer.component';
-import { UsuariosNewDrawerComponent } from '@features/usuarios/components/usuarios-new-drawer/usuarios-new-drawer.component';
+import { UsersDetailDrawerComponent } from '@features/users/components/users-detail-drawer/users-detail-drawer.component';
+import { UsersNewDrawerComponent } from '@features/users/components/users-new-drawer/users-new-drawer.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
@@ -24,7 +24,7 @@ import {
 } from '@shared/ui/to-table/to-table.component';
 
 @Component({
-  selector: 'app-usuarios-page',
+  selector: 'app-users-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -32,13 +32,13 @@ import {
     ToSkeletonComponent,
     ToTableComponent,
     ToButtonComponent,
-    UsuariosNewDrawerComponent,
-    UsuariosDetailDrawerComponent,
+    UsersNewDrawerComponent,
+    UsersDetailDrawerComponent,
   ],
-  templateUrl: './usuarios-page.component.html',
-  styleUrl: './usuarios-page.component.scss',
+  templateUrl: './users-page.component.html',
+  styleUrl: './users-page.component.scss',
 })
-export class UsuariosPageComponent {
+export class UsersPageComponent {
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
 

@@ -6,14 +6,14 @@ import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 
 @Component({
-  selector: 'app-cuenta-page',
+  selector: 'app-account-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToPageHeaderComponent, ToSkeletonComponent],
-  templateUrl: './cuenta-page.component.html',
-  styleUrl: './cuenta-page.component.scss',
+  templateUrl: './account-page.component.html',
+  styleUrl: './account-page.component.scss',
 })
-export class CuentaPageComponent {
+export class AccountPageComponent {
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
 

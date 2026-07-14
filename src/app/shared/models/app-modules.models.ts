@@ -6,8 +6,8 @@ export const APP_MODULE_CODES = {
   CLIENTS: 'clients',
   EXPENSES: 'expenses',
   REPORTS: 'reports',
-  CUENTA: 'cuenta',
-  USUARIOS: 'usuarios',
+  ACCOUNT: 'account',
+  USERS: 'users',
 } as const;
 
 export type AppModuleCode =
@@ -80,6 +80,6 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
   { path: '/clients', label: 'Comercial', module: APP_MODULE_CODES.CLIENTS, placement: 'main' },
   { path: '/expenses', label: 'Gastos', module: APP_MODULE_CODES.EXPENSES, placement: 'main' },
   { path: '/reports', label: 'Reportes', module: APP_MODULE_CODES.REPORTS, placement: 'main' },
-  { path: '/cuenta', label: 'Cuenta', module: APP_MODULE_CODES.CUENTA, placement: 'bottom' },
-  { path: '/usuarios', label: 'Usuarios', module: APP_MODULE_CODES.USUARIOS, placement: 'bottom' },
+  { path: '/account', label: 'Cuenta', module: APP_MODULE_CODES.ACCOUNT, placement: 'bottom' },
+  { path: '/users', label: 'Usuarios', module: APP_MODULE_CODES.USERS, placement: 'bottom' },
 ] as const;

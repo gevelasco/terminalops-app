@@ -4,5 +4,5 @@
  */
 export const environment = {
   production: true,
-  apiUrl: 'https://api.terminalops.example',
+  apiUrl: 'terminalops-api-production.up.railway.app',
 };

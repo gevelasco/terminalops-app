@@ -18,8 +18,8 @@ export const STAFF_MODULE_ICON_BY_CODE: Record<StaffGrantableModuleCode, ToIconN
 
 const MODULE_ICON_BY_CODE: Partial<Record<AppModuleCode, ToIconName>> = {
   [APP_MODULE_CODES.DASHBOARD]: 'grid',
-  [APP_MODULE_CODES.USUARIOS]: 'person',
-  [APP_MODULE_CODES.CUENTA]: 'document',
+  [APP_MODULE_CODES.USERS]: 'person',
+  [APP_MODULE_CODES.ACCOUNT]: 'document',
   ...STAFF_MODULE_ICON_BY_CODE,
 };
 

@@ -14,9 +14,12 @@ export type ReportsPeriodPreset =
 export type ReportsTripPaymentMethod = TripClientPaymentMethod;
 
 export interface ReportsFilter {
-  /** Mes calendario 1–12. */
-  periodMonth: number;
-  periodYear: number;
+  /** Inicio del rango (mes calendario 1–12). */
+  fromMonth: number;
+  fromYear: number;
+  /** Fin del rango (mes calendario 1–12). */
+  toMonth: number;
+  toYear: number;
   from: string;
   to: string;
   /** Vacío = todos los clientes. */
