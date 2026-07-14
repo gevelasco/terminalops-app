@@ -32,17 +32,21 @@ export class LoginPageComponent {
   tryLogin(form: HTMLFormElement): void {
     this.error.set(null);
     const fd = new FormData(form);
-    const u = String(fd.get('login') ?? '');
-    const p = String(fd.get('password') ?? '');
+    const email = String(fd.get('email') ?? '').trim();
+    const password = String(fd.get('password') ?? '');
+    if (!email || !password) {
+      this.error.set('Indica correo y contraseña.');
+      return;
+    }
     this.submitting.set(true);
-    this.auth.login(u, p).subscribe({
+    this.auth.login(email, password).subscribe({
       next: () => {
         this.submitting.set(false);
         void this.router.navigateByUrl('/dashboard');
       },
       error: () => {
         this.submitting.set(false);
-        this.error.set('Usuario o contraseña incorrectos.');
+        this.error.set('Correo o contraseña incorrectos.');
       },
     });
   }

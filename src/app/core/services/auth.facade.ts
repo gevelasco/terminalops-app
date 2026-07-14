@@ -18,8 +18,8 @@ export class AuthFacade {
   private readonly profiles = inject(UserProfileStore);
   private readonly theme = inject(ThemeService);
 
-  login(login: string, password: string): Observable<void> {
-    return this.auth.login({ login, password }).pipe(
+  login(email: string, password: string): Observable<void> {
+    return this.auth.login({ email, password }).pipe(
       tap((response) => this.applyAuthResponse(response)),
       map(() => void 0),
     );

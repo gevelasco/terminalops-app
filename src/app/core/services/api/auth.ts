@@ -23,7 +23,7 @@ export class AuthService {
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, {
-      login: credentials.login,
+      email: credentials.email,
       password: credentials.password,
     });
   }

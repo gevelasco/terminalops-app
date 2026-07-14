@@ -39,7 +39,7 @@ export interface CreateCompanyUserPayload {
   username: string;
   password: string;
   displayName?: string;
-  email?: string;
+  email: string;
   phone?: string;
   jobTitle?: string;
   photoDataUrl?: string;

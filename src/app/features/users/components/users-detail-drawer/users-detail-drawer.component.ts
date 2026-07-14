@@ -278,6 +278,10 @@ export class UsersDetailDrawerComponent {
       this.toast.show('Indica el usuario.', 'warning');
       return;
     }
+    if (!email || !email.includes('@')) {
+      this.toast.show('Indica un correo electrónico válido.', 'warning');
+      return;
+    }
 
     this.saving.set(true);
     this.api
@@ -285,7 +289,7 @@ export class UsersDetailDrawerComponent {
         displayName,
         username,
         jobTitle,
-        email: email || undefined,
+        email,
         phone,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

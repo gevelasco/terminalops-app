@@ -45,11 +45,12 @@
 
       <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
         <to-input
-          label="Usuario"
-          placeholder="usuario"
-          inputName="login"
+          label="Correo electrónico"
+          type="email"
+          placeholder="correo@empresa.com"
+          inputName="email"
           prefixIcon="user"
-          [autocomplete]="'username'"
+          [autocomplete]="'email'"
           [disabled]="submitting()"
         />
         <to-input

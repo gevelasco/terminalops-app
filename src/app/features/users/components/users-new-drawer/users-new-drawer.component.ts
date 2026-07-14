@@ -147,8 +147,13 @@ export class UsersNewDrawerComponent {
     const username = this.draftUsername().trim();
     const password = this.draftPassword().trim();
     const displayName = this.draftDisplayName().trim();
+    const email = this.draftEmail().trim();
     if (!username || password.length < 8) {
       this.toast.show('Indica usuario y contraseña (mín. 8 caracteres).', 'warning');
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      this.toast.show('Indica un correo electrónico válido.', 'warning');
       return;
     }
     if (!displayName) {
@@ -161,7 +166,7 @@ export class UsersNewDrawerComponent {
         username,
         password,
         displayName,
-        email: this.draftEmail().trim() || undefined,
+        email,
         phone: this.draftPhone().trim() || undefined,
         jobTitle: this.draftJobTitle().trim() || undefined,
         photoDataUrl: this.photoDataUrl().trim() || undefined,
