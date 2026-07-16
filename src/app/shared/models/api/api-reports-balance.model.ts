@@ -25,6 +25,7 @@ export type ReportsBalanceCompositionSlice = {
 export type ReportsBalanceCreditByClient = {
   clientName: string;
   amount: number;
+  tripCount: number;
   nextDueDate: string | null;
 };
 
@@ -60,7 +61,7 @@ export type ReportsBalanceExpenseRubro = {
 };
 
 export type ReportsBalanceDailyActivityEvent = {
-  kind: 'income' | 'expense';
+  kind: 'income' | 'expense' | 'receivable' | 'payable';
   label: string;
   amount: number;
 };
@@ -69,7 +70,18 @@ export type ReportsBalanceDailyActivityDay = {
   date: string;
   incomeCount: number;
   expenseCount: number;
+  receivableCount: number;
+  payableCount: number;
   events: ReportsBalanceDailyActivityEvent[];
+};
+
+export type ReportsBalancePayableItem = {
+  description: string;
+  amount: number;
+  beneficiary: string | null;
+  installmentLabel: string;
+  dueDate: string;
+  status: 'paid' | 'pending' | 'overdue';
 };
 
 export type ReportsBalanceInsights = {
@@ -80,6 +92,7 @@ export type ReportsBalanceInsights = {
   profitability: ReportsBalanceProfitability;
   expensesByRubro: ReportsBalanceExpenseRubro[];
   dailyActivity: ReportsBalanceDailyActivityDay[];
+  payableItems: ReportsBalancePayableItem[];
 };
 
 export type ReportsBalanceData = {
@@ -139,6 +152,7 @@ export function mapApiReportsBalance(raw: Record<string, unknown>): ReportsBalan
     (row) => ({
       clientName: String(row['clientName'] ?? 'Sin cliente'),
       amount: num(row['amount']),
+      tripCount: num(row['tripCount']),
       nextDueDate: row['nextDueDate'] ? String(row['nextDueDate']) : null,
     }),
   );
@@ -176,11 +190,32 @@ export function mapApiReportsBalance(raw: Record<string, unknown>): ReportsBalan
       date: String(row['date'] ?? ''),
       incomeCount: num(row['incomeCount']),
       expenseCount: num(row['expenseCount']),
-      events: ((row['events'] ?? []) as Record<string, unknown>[]).map((event) => ({
-        kind: event['kind'] === 'expense' ? ('expense' as const) : ('income' as const),
-        label: String(event['label'] ?? ''),
-        amount: num(event['amount']),
-      })),
+      receivableCount: num(row['receivableCount']),
+      payableCount: num(row['payableCount']),
+      events: ((row['events'] ?? []) as Record<string, unknown>[]).map((event) => {
+        const rawKind = String(event['kind'] ?? '');
+        const kind: 'income' | 'expense' | 'receivable' | 'payable' =
+          rawKind === 'expense' ? 'expense'
+          : rawKind === 'receivable' ? 'receivable'
+          : rawKind === 'payable' ? 'payable'
+          : 'income';
+        return {
+          kind,
+          label: String(event['label'] ?? ''),
+          amount: num(event['amount']),
+        };
+      }),
+    }),
+  );
+
+  const payableItems = ((insightsRaw['payableItems'] ?? []) as Record<string, unknown>[]).map(
+    (row) => ({
+      description: String(row['description'] ?? ''),
+      amount: num(row['amount']),
+      beneficiary: row['beneficiary'] ? String(row['beneficiary']) : null,
+      installmentLabel: String(row['installmentLabel'] ?? '1/1'),
+      dueDate: String(row['dueDate'] ?? ''),
+      status: (String(row['status'] ?? 'pending') as 'paid' | 'pending' | 'overdue'),
     }),
   );
 
@@ -196,6 +231,7 @@ export function mapApiReportsBalance(raw: Record<string, unknown>): ReportsBalan
       ),
       expensesByRubro,
       dailyActivity,
+      payableItems,
     },
   };
 }

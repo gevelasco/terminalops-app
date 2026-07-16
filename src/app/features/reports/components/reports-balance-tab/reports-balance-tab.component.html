@@ -40,7 +40,7 @@
       [legend]="operatorSpendLegend()"
     />
     <to-kpi-card
-      title="Cuentas por pagar"
+      title="Resumen de Cuentas por pagar en el periodo"
       titleIcon="credit"
       [value]="payableValue()"
       [legend]="payableLegend()"
@@ -101,6 +101,7 @@
               <tr>
                 <th scope="col">Cliente</th>
                 <th scope="col" class="reports-balance-panel__num">Venta total</th>
+                <th scope="col" class="reports-balance-panel__num">Maniobras</th>
                 <th scope="col" class="reports-balance-panel__num">Cobrado</th>
                 <th scope="col" class="reports-balance-panel__num">Por cobrar</th>
                 <th scope="col">Próximo pago</th>
@@ -112,6 +113,7 @@
                 <tr>
                   <td>{{ row.clientName }}</td>
                   <td class="reports-balance-panel__num">{{ formatMoney(row.totalSales) }}</td>
+                  <td class="reports-balance-panel__num">{{ row.tripCount }}</td>
                   <td class="reports-balance-panel__num">{{ formatMoney(row.collected) }}</td>
                   <td class="reports-balance-panel__num">{{ formatMoney(row.receivable) }}</td>
                   <td>{{ row.nextDueLabel }}</td>
@@ -129,6 +131,9 @@
                 <th scope="row">Total</th>
                 <td class="reports-balance-panel__num">
                   {{ formatMoney(portfolioTotals().totalSales) }}
+                </td>
+                <td class="reports-balance-panel__num">
+                  {{ portfolioTotals().tripCount }}
                 </td>
                 <td class="reports-balance-panel__num">
                   {{ formatMoney(portfolioTotals().collected) }}
@@ -188,6 +193,63 @@
       </header>
       <div class="reports-balance-panel__chart">
         <to-echarts-host [option]="rubroOption()" />
+      </div>
+    </section>
+
+    <section class="reports-balance-panel reports-balance-panel--wide">
+      <header class="reports-balance-panel__head">
+        <div>
+          <h2 class="reports-balance-panel__title">Cuentas por pagar</h2>
+          <p class="reports-balance-panel__subtitle">
+            Obligaciones programadas y gastos a crédito · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-balance-panel__table-wrap">
+        @if (hasPayableItems()) {
+          <table class="reports-balance-panel__table">
+            <thead>
+              <tr>
+                <th scope="col">Descripción</th>
+                <th scope="col" class="reports-balance-panel__num">Cantidad</th>
+                <th scope="col">Beneficiario</th>
+                <th scope="col" class="reports-balance-panel__num">Cuota</th>
+                <th scope="col">Fecha de pago</th>
+                <th scope="col">Estatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of payableItems(); track item.description + item.dueDate) {
+                <tr>
+                  <td>{{ item.description }}</td>
+                  <td class="reports-balance-panel__num">{{ formatMoney(item.amount) }}</td>
+                  <td>{{ item.beneficiary ?? '—' }}</td>
+                  <td class="reports-balance-panel__num">{{ item.installmentLabel }}</td>
+                  <td>{{ formatDateShort(item.dueDate) }}</td>
+                  <td>
+                    <span [class]="payableStatusClass(item.status)">
+                      {{ payableStatusLabel(item.status) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="reports-balance-panel__total-row">
+                <th scope="row">Total</th>
+                <td class="reports-balance-panel__num">
+                  {{ formatMoney(payableTotalAmount()) }}
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        } @else {
+          <p class="reports-balance-panel__empty">Sin obligaciones en el periodo.</p>
+        }
       </div>
     </section>
 

@@ -23,6 +23,7 @@ function formatDueLabel(ymd: string | null | undefined): string {
 export interface ReportsBalancePortfolioRow {
   clientName: string;
   totalSales: number;
+  tripCount: number;
   collected: number;
   receivable: number;
   nextDueLabel: string;
@@ -32,6 +33,7 @@ export interface ReportsBalancePortfolioRow {
 
 export interface ReportsBalancePortfolioTotals {
   totalSales: number;
+  tripCount: number;
   collected: number;
   receivable: number;
 }
@@ -60,6 +62,7 @@ export function buildReportsBalancePortfolioTable(
       row = {
         clientName: name,
         totalSales: 0,
+        tripCount: 0,
         collected: 0,
         receivable: 0,
         nextDueLabel: '—',
@@ -72,12 +75,15 @@ export function buildReportsBalancePortfolioTable(
   };
 
   for (const income of incomeByClient) {
-    ensure(income.clientName).collected = income.amount;
+    const row = ensure(income.clientName);
+    row.collected = income.amount;
+    row.tripCount += income.tripCount;
   }
 
   for (const credit of creditByClient) {
     const row = ensure(credit.clientName);
     row.receivable = credit.amount;
+    row.tripCount += credit.tripCount;
     row.nextDueLabel = formatDueLabel(credit.nextDueDate);
   }
 
@@ -112,11 +118,12 @@ export function buildReportsBalancePortfolioTable(
   const totals = rows.reduce<ReportsBalancePortfolioTotals>(
     (acc, row) => {
       acc.totalSales += row.totalSales;
+      acc.tripCount += row.tripCount;
       acc.collected += row.collected;
       acc.receivable += row.receivable;
       return acc;
     },
-    { totalSales: 0, collected: 0, receivable: 0 },
+    { totalSales: 0, tripCount: 0, collected: 0, receivable: 0 },
   );
 
   return { rows, totals };

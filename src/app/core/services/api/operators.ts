@@ -51,9 +51,16 @@ export class OperatorsService {
       .pipe(map((r) => mapApiOperator(r)));
   }
 
-  getOperatorOperationSummary(id: string): Observable<OperatorOperationSummary> {
+  getOperatorOperationSummary(
+    id: string,
+    periodFrom?: string,
+    periodTo?: string,
+  ): Observable<OperatorOperationSummary> {
+    const params: Record<string, string> = {};
+    if (periodFrom) params['from'] = periodFrom;
+    if (periodTo) params['to'] = periodTo;
     return this.http
-      .get<Record<string, unknown>>(resourceByIdUrl('operators', id, 'operation-summary'))
+      .get<Record<string, unknown>>(resourceByIdUrl('operators', id, 'operation-summary'), { params })
       .pipe(map((r) => mapApiOperatorOperationSummary(r)));
   }
 
@@ -64,6 +71,18 @@ export class OperatorsService {
     return this.http
       .post<Record<string, unknown>>(
         resourceByIdUrl('operators', operatorId, `trips/${tripId}/confirm-payment`),
+        {},
+      )
+      .pipe(map((r) => mapApiOperatorOperationSummary(r)));
+  }
+
+  revertOperatorTripPayment(
+    operatorId: string,
+    tripId: string,
+  ): Observable<OperatorOperationSummary> {
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('operators', operatorId, `trips/${tripId}/revert-payment`),
         {},
       )
       .pipe(map((r) => mapApiOperatorOperationSummary(r)));

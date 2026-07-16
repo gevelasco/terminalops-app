@@ -70,6 +70,8 @@ export class ReportsBalanceActivityHeatmapComponent {
         inMonth,
         incomeCount: 0,
         expenseCount: 0,
+        receivableCount: 0,
+        payableCount: 0,
         events: [],
       }
     );
@@ -87,15 +89,22 @@ export class ReportsBalanceActivityHeatmapComponent {
       cell.incomeCount,
       cell.expenseCount,
       this.intensityBounds(),
+      cell.receivableCount,
+      cell.payableCount,
     );
     if (!heat) {
       classes.push('reports-balance-activity-cell--empty');
       return classes.join(' ');
     }
-    if (cell.incomeCount > 0 && cell.expenseCount > 0) {
+    const activeKinds = (cell.incomeCount > 0 ? 1 : 0) + (cell.expenseCount > 0 ? 1 : 0) + (cell.receivableCount > 0 ? 1 : 0) + (cell.payableCount > 0 ? 1 : 0);
+    if (activeKinds > 1) {
       classes.push('reports-balance-activity-cell--mixed');
     } else if (cell.incomeCount > 0) {
       classes.push('reports-balance-activity-cell--income');
+    } else if (cell.receivableCount > 0) {
+      classes.push('reports-balance-activity-cell--receivable');
+    } else if (cell.payableCount > 0) {
+      classes.push('reports-balance-activity-cell--payable');
     } else {
       classes.push('reports-balance-activity-cell--expense');
     }
@@ -111,15 +120,22 @@ export class ReportsBalanceActivityHeatmapComponent {
       cell.incomeCount,
       cell.expenseCount,
       this.intensityBounds(),
+      cell.receivableCount,
+      cell.payableCount,
     );
     if (!heat) {
       classes.push('reports-balance-activity-month-cell--empty');
       return classes.join(' ');
     }
-    if (cell.incomeCount > 0 && cell.expenseCount > 0) {
+    const activeKinds = (cell.incomeCount > 0 ? 1 : 0) + (cell.expenseCount > 0 ? 1 : 0) + (cell.receivableCount > 0 ? 1 : 0) + (cell.payableCount > 0 ? 1 : 0);
+    if (activeKinds > 1) {
       classes.push('reports-balance-activity-month-cell--mixed');
     } else if (cell.incomeCount > 0) {
       classes.push('reports-balance-activity-month-cell--income');
+    } else if (cell.receivableCount > 0) {
+      classes.push('reports-balance-activity-month-cell--receivable');
+    } else if (cell.payableCount > 0) {
+      classes.push('reports-balance-activity-month-cell--payable');
     } else {
       classes.push('reports-balance-activity-month-cell--expense');
     }
@@ -137,6 +153,8 @@ export class ReportsBalanceActivityHeatmapComponent {
       cell.incomeCount,
       cell.expenseCount,
       this.intensityBounds(),
+      cell.receivableCount,
+      cell.payableCount,
     );
     if (!heat) {
       return {};
@@ -152,6 +170,8 @@ export class ReportsBalanceActivityHeatmapComponent {
       cell.incomeCount,
       cell.expenseCount,
       this.intensityBounds(),
+      cell.receivableCount,
+      cell.payableCount,
     );
     if (!heat) {
       return {};
@@ -163,29 +183,13 @@ export class ReportsBalanceActivityHeatmapComponent {
   }
 
   cellCountLabel(cell: ReportsBalanceActivityHeatmapCell): string {
-    if (cell.incomeCount > 0 && cell.expenseCount > 0) {
-      return `${cell.incomeCount}/${cell.expenseCount}`;
-    }
-    if (cell.incomeCount > 0) {
-      return String(cell.incomeCount);
-    }
-    if (cell.expenseCount > 0) {
-      return String(cell.expenseCount);
-    }
-    return '';
+    const total = cell.incomeCount + cell.expenseCount + cell.receivableCount + cell.payableCount;
+    return total > 0 ? String(total) : '';
   }
 
   monthCountLabel(cell: ReportsBalanceActivityHeatmapMonthCell): string {
-    if (cell.incomeCount > 0 && cell.expenseCount > 0) {
-      return `${cell.incomeCount}/${cell.expenseCount}`;
-    }
-    if (cell.incomeCount > 0) {
-      return String(cell.incomeCount);
-    }
-    if (cell.expenseCount > 0) {
-      return String(cell.expenseCount);
-    }
-    return '—';
+    const total = cell.incomeCount + cell.expenseCount + cell.receivableCount + cell.payableCount;
+    return total > 0 ? String(total) : '—';
   }
 
   showTooltip(

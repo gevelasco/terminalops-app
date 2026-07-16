@@ -93,6 +93,7 @@ export class SessionService {
   );
   readonly companyId = computed(() => this.data()?.companyId ?? null);
   readonly companyName = computed(() => this.data()?.companyName ?? null);
+  readonly companyTagline = computed(() => this.data()?.companyTagline ?? null);
   readonly theme = computed(() => this.data()?.theme ?? 'light');
   readonly userId = computed(() => this.data()?.id ?? null);
   readonly username = computed(() => this.data()?.username ?? null);
@@ -247,6 +248,16 @@ export class SessionService {
       return;
     }
     const next = { ...current, companyName };
+    this.data.set(next);
+    saveEncryptedSession(next);
+  }
+
+  setCompanyBranding(companyName: string, companyTagline: string): void {
+    const current = this.data();
+    if (!current) {
+      return;
+    }
+    const next = { ...current, companyName, companyTagline };
     this.data.set(next);
     saveEncryptedSession(next);
   }

@@ -41,6 +41,11 @@ import {
   isAnnualInsuranceCadence,
   showInsurancePaymentSchedule,
 } from '@features/fleet/utils/fleet-insurance-schedule.util';
+import {
+  buildTenurePaymentSchedule,
+  showTenurePaymentSchedule,
+  tenurePaymentBounds,
+} from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
 import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
 import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
@@ -192,6 +197,8 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly saving = signal(false);
   private readonly insurancePaymentExpenses = signal<Expense[]>([]);
   private insurancePaymentExpensesLoadId = 0;
+  private readonly tenurePaymentExpenses = signal<Expense[]>([]);
+  private tenurePaymentExpensesLoadId = 0;
   readonly deleteConfirmOpen = signal(false);
   readonly deleteSubmitting = signal(false);
   readonly maintenanceSubmitting = signal(false);
@@ -252,6 +259,18 @@ export class FleetEquipmentDetailDrawerFacade {
     }),
   );
 
+  readonly showTenurePaymentScheduleTable = computed(() =>
+    showTenurePaymentSchedule(this.meta()),
+  );
+
+  readonly tenurePaymentSchedule = computed(() =>
+    buildTenurePaymentSchedule({
+      meta: this.meta(),
+      expenses: this.tenurePaymentExpenses(),
+      today: new Date(this.today),
+    }),
+  );
+
   readonly equipmentOverride = signal<Partial<Equipment>>({});
   readonly metaOverride = signal<Partial<EquipmentFleetMeta>>({});
   readonly localMaintEntries = signal<MaintenanceEntry[]>([]);
@@ -287,6 +306,7 @@ export class FleetEquipmentDetailDrawerFacade {
       this.equipmentOverride.set({});
       this.metaOverride.set({});
       this.insurancePaymentExpenses.set([]);
+      this.tenurePaymentExpenses.set([]);
       this.editingSection.set(null);
       this.drawerLoading.set(false);
       return;
@@ -1323,12 +1343,22 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly editRecurringAmount = signal('');
   readonly editRecurringDate = signal('');
   readonly editRecurringInstallments = signal('');
+  readonly editRecurringCadence = signal('');
+  readonly editTenureBeneficiary = signal('');
   readonly editOwnerPayout = signal('');
   /** Nombres de documentos de propiedad (copia editable al abrir tenencia). */
   readonly editOwnershipNames = signal<string[]>([]);
   readonly editOwnershipNewFiles = signal<File[]>([]);
 
   readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
+  readonly tenureCadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
+
+  tenureCadenceLabel(): string {
+    const cadence = this.meta()?.trailerRecurringPaymentCadence?.trim();
+    if (!cadence) return '—';
+    const opt = FLEET_PAYMENT_CADENCE_OPTIONS.find((o) => o.value === cadence);
+    return opt?.label ?? cadence;
+  }
 
   tenureRecurringAmountLabel(): string {
     return this.editTenureMode() === 'leased' ? 'Monto de renta' : 'Monto por cuota';
@@ -1359,6 +1389,8 @@ export class FleetEquipmentDetailDrawerFacade {
         ? String(m.trailerRecurringInstallmentCount)
         : '',
     );
+    this.editRecurringCadence.set(m.trailerRecurringPaymentCadence ?? '');
+    this.editTenureBeneficiary.set(m.trailerTenureBeneficiary ?? '');
     this.editOwnerPayout.set(
       m.trailerManagementOwnerPayout != null
         ? String(m.trailerManagementOwnerPayout)
@@ -1409,6 +1441,8 @@ export class FleetEquipmentDetailDrawerFacade {
     let trailerRecurringPaymentAmount: number | undefined;
     let trailerRecurringPaymentDate: string | undefined;
     let trailerRecurringInstallmentCount: number | undefined;
+    let trailerRecurringPaymentCadence: string | undefined;
+    let trailerTenureBeneficiary: string | undefined;
     let trailerManagementOwnerPayout: number | undefined;
     if (mode === 'owned') {
       trailerCommercialValue = commercial === undefined ? undefined : commercial;
@@ -1416,8 +1450,12 @@ export class FleetEquipmentDetailDrawerFacade {
       trailerRecurringPaymentAmount = recAmt === undefined ? undefined : recAmt;
       trailerRecurringPaymentDate = this.editRecurringDate().trim() || undefined;
       trailerRecurringInstallmentCount = recCount === undefined ? undefined : recCount;
+      trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
+      trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
     } else if (mode === 'managed') {
       trailerManagementOwnerPayout = payout === undefined ? undefined : payout;
+      trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
+      trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
     }
     const ownershipMerged = [
       ...this.editOwnershipNames(),
@@ -1431,6 +1469,8 @@ export class FleetEquipmentDetailDrawerFacade {
       trailerRecurringPaymentAmount,
       trailerRecurringPaymentDate,
       trailerRecurringInstallmentCount,
+      trailerRecurringPaymentCadence,
+      trailerTenureBeneficiary,
       trailerManagementOwnerPayout,
       documentOwnershipNames,
     };
@@ -1764,22 +1804,30 @@ export class FleetEquipmentDetailDrawerFacade {
     if (scheduleRow && !scheduleRow.canConfirm) {
       return;
     }
-    const cost = this.meta()?.insuranceCost;
-    if (cost == null || !Number.isFinite(cost) || cost <= 0) {
+    if (!scheduleRow?.expenseId) {
       this.toast.show(
-        'Registra el costo por ciclo del seguro antes de confirmar el pago.',
+        'No se encontró el gasto asociado. Edita la cobertura para regenerar.',
         'warning',
       );
       return;
     }
-    const patch: Partial<EquipmentFleetMeta> = {
-      insuranceLastPaymentDate: normalizedDueDate,
-    };
-    this.persistCurrentEquipment(
-      'Pago de póliza registrado.',
-      { fleetMeta: patch, sparseFleetMeta: true },
-      COB_SECTION_PERSIST_OPTIONS,
-    );
+    this.saving.set(true);
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.show('Pago de póliza registrado.', 'success');
+        this.reloadInsurancePaymentExpenses();
+      },
+      error: () => {
+        this.saving.set(false);
+        this.toast.show('No se pudo registrar el pago.', 'error');
+      },
+    });
+  }
+
+  private reloadInsurancePaymentExpenses(): void {
+    this.subscribeInsurancePaymentExpensesLoad();
   }
 
   private subscribeInsurancePaymentExpensesLoad(): Subscription | null {
@@ -1979,6 +2027,81 @@ export class FleetEquipmentDetailDrawerFacade {
     return fleetInsuranceRenewal(this.meta());
   }
 
+  confirmTenurePaymentCycle(dueDate: string): void {
+    if (!this.canWriteFleet() || this.saving()) {
+      return;
+    }
+    const normalizedDueDate = dueDate.trim();
+    if (!normalizedDueDate) {
+      return;
+    }
+    const scheduleRow = this.tenurePaymentSchedule().find(
+      (row) => row.dueDate === normalizedDueDate,
+    );
+    if (scheduleRow && !scheduleRow.canConfirm) {
+      return;
+    }
+    if (!scheduleRow?.expenseId) {
+      this.toast.show(
+        'No se encontró el gasto asociado. Edita la tenencia para regenerar.',
+        'warning',
+      );
+      return;
+    }
+    this.saving.set(true);
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.show('Cuota de financiamiento registrada.', 'success');
+        this.reloadTenurePaymentExpenses();
+      },
+      error: () => {
+        this.saving.set(false);
+        this.toast.show('No se pudo registrar el pago.', 'error');
+      },
+    });
+  }
+
+  private reloadTenurePaymentExpenses(): void {
+    this.subscribeTenurePaymentExpensesLoad();
+  }
+
+  private subscribeTenurePaymentExpensesLoad(): Subscription | null {
+    const eq = this.equipmentSource();
+    const equipmentId = eq?.id;
+    const meta = eq?.fleetMeta;
+    if (!equipmentId || !showTenurePaymentSchedule(meta)) {
+      this.tenurePaymentExpenses.set([]);
+      return null;
+    }
+    const bounds = tenurePaymentBounds(meta);
+    if (!bounds) {
+      this.tenurePaymentExpenses.set([]);
+      return null;
+    }
+    const requestId = ++this.tenurePaymentExpensesLoadId;
+    return this.expensesApi
+      .getExpensesPage(
+        buildFleetCoverageExpensesPageParams(
+          { resource: 'equipment', equipmentId },
+          'tenure_payment',
+          bounds,
+        ),
+      )
+      .pipe(
+        catchError(() =>
+          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+        ),
+      )
+      .subscribe((res) => {
+        if (requestId !== this.tenurePaymentExpensesLoadId) {
+          return;
+        }
+        this.tenurePaymentExpenses.set(res.items);
+      });
+  }
+
   constructor() {
     registerFleetVersionResetOnBrandChange({
       brandName: () => this.editBrand(),
@@ -2000,6 +2123,14 @@ export class FleetEquipmentDetailDrawerFacade {
       this.detailTab();
       this.equipmentSource();
       const sub = this.subscribeInsurancePaymentExpensesLoad();
+      if (sub) {
+        onCleanup(() => sub.unsubscribe());
+      }
+    });
+
+    effect((onCleanup) => {
+      this.equipmentSource();
+      const sub = this.subscribeTenurePaymentExpensesLoad();
       if (sub) {
         onCleanup(() => sub.unsubscribe());
       }

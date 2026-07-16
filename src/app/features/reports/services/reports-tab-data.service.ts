@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { ExpensesService } from '@core/services/api/expenses';
+import {
+  ExpensesService,
+  type ExpenseCalendarItem,
+} from '@core/services/api/expenses';
 import { ReportsService } from '@core/services/api/reports';
 import {
   buildDashboardUpcomingPayments,
   dashboardUpcomingPaymentsRange,
-  operationalTodayYmd,
   type DashboardUpcomingPaymentRow,
 } from '@features/dashboard/utils/dashboard-upcoming-payments.util';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
@@ -18,6 +20,7 @@ import { catchError, forkJoin, map, Observable, of, shareReplay } from 'rxjs';
 export type ReportsBalanceBundle = {
   balance: ReportsBalanceData;
   upcomingPayments: DashboardUpcomingPaymentRow[];
+  calendarItems: ExpenseCalendarItem[];
 };
 
 type CachedStream<T> = {
@@ -33,8 +36,6 @@ export class ReportsTabDataService {
   private balanceCache: CachedStream<ReportsBalanceData> | null = null;
   private maniobrasCache: CachedStream<ReportsManiobrasData> | null = null;
   private fleetCache: CachedStream<ReportsFleetData> | null = null;
-  private upcomingPaymentsCache: { dayKey: string; stream: Observable<DashboardUpcomingPaymentRow[]> } | null =
-    null;
 
   getBalance(filter: ReportsFilter): Observable<ReportsBalanceData> {
     return this.cachedTab('balance', filter, this.balanceCache, (next) => {
@@ -54,36 +55,34 @@ export class ReportsTabDataService {
     }, () => this.reportsApi.getFleet(filter));
   }
 
-  /** Balance + calendario de pagos (un solo forkJoin por visita al tab). */
+  /** Balance + calendario de pagos (un solo request al calendar endpoint). */
   getBalanceBundle(filter: ReportsFilter): Observable<ReportsBalanceBundle> {
+    const range = dashboardUpcomingPaymentsRange();
+
+    const fromDate = new Date(filter.fromYear, filter.fromMonth - 1 - 12, 1, 12, 0, 0, 0);
+    const lookbackFrom = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const lastDay = new Date(filter.toYear, filter.toMonth, 0).getDate();
+    const fullMonthTo = `${filter.toYear}-${String(filter.toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const from = lookbackFrom < range.fetchFrom ? lookbackFrom : range.fetchFrom;
+    const to = fullMonthTo > range.to ? fullMonthTo : range.to;
+
     return forkJoin({
       balance: this.getBalance(filter),
-      upcomingPayments: this.getUpcomingPayments(),
-    });
-  }
-
-  /** Calendario operativo del mes; no depende del filtro de reportes. */
-  getUpcomingPayments(): Observable<DashboardUpcomingPaymentRow[]> {
-    const dayKey = operationalTodayYmd();
-    if (this.upcomingPaymentsCache?.dayKey !== dayKey) {
-      const range = dashboardUpcomingPaymentsRange();
-      this.upcomingPaymentsCache = {
-        dayKey,
-        stream: this.expensesApi
-          .getExpensesCalendar({
-            from: range.fetchFrom,
-            to: range.to,
-            page: 1,
-            limit: 0,
-          })
-          .pipe(
-            map((response) => buildDashboardUpcomingPayments(response.items, range)),
-            catchError(() => of([] as DashboardUpcomingPaymentRow[])),
-            shareReplay({ bufferSize: 1, refCount: false }),
-          ),
-      };
-    }
-    return this.upcomingPaymentsCache.stream;
+      calendarItems: this.expensesApi
+        .getExpensesCalendar({ from, to, page: 1, limit: 0 })
+        .pipe(
+          map((response) => response.items),
+          catchError(() => of([] as ExpenseCalendarItem[])),
+        ),
+    }).pipe(
+      map(({ balance, calendarItems }) => ({
+        balance,
+        calendarItems,
+        upcomingPayments: buildDashboardUpcomingPayments(calendarItems, range),
+      })),
+    );
   }
 
   /** Limpia cache al cambiar de compañía (opcional, invocado desde tabs si hace falta). */
@@ -91,7 +90,6 @@ export class ReportsTabDataService {
     this.balanceCache = null;
     this.maniobrasCache = null;
     this.fleetCache = null;
-    this.upcomingPaymentsCache = null;
   }
 
   private cachedTab<T>(

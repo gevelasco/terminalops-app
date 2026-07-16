@@ -1,20 +1,53 @@
 .account-card {
   margin-top: 1rem;
-  padding: 1rem 1.1rem;
+  padding: 1.25rem 1.35rem;
   border-radius: var(--to-radius-lg);
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
   background: var(--to-color-surface);
 }
 
-.account-card__title {
-  margin: 0 0 0.85rem;
-  font-size: 1rem;
+.account-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.account-card__section-title {
+  margin: 0;
+  font-size: 0.9375rem;
   font-weight: 700;
+  color: var(--to-color-text);
+}
+
+.account-card__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+  background: var(--to-color-surface);
+  color: var(--to-color-text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--to-color-primary) 10%, var(--to-color-surface));
+    border-color: color-mix(in srgb, var(--to-color-primary) 40%, transparent);
+    color: var(--to-color-primary);
+  }
 }
 
 .account-card__grid {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
   margin: 0;
 
   dt {
@@ -27,16 +60,161 @@
   }
 
   dd {
-    margin: 0.15rem 0 0;
+    margin: 0.2rem 0 0;
     font-size: 0.9375rem;
     font-weight: 600;
     color: var(--to-color-text);
   }
 }
 
+.account-card__grid--readonly {
+  margin-top: 1rem;
+}
+
+.account-card__field {
+  min-width: 0;
+}
+
+/* ── Status badge with dot ── */
+
+.account-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  border: 1px solid transparent;
+}
+
+.account-card__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.account-card__badge--success {
+  color: #15803d;
+  background: color-mix(in srgb, #22c55e 12%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #22c55e 25%, transparent);
+}
+
+.account-card__badge--warning {
+  color: #a16207;
+  background: color-mix(in srgb, #eab308 12%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #eab308 25%, transparent);
+}
+
+.account-card__badge--danger {
+  color: #b91c1c;
+  background: color-mix(in srgb, #ef4444 12%, var(--to-color-surface));
+  border-color: color-mix(in srgb, #ef4444 25%, transparent);
+}
+
+.account-card__badge--neutral {
+  color: var(--to-color-text-muted);
+  background: color-mix(in srgb, var(--to-color-text-muted) 10%, var(--to-color-surface));
+  border-color: color-mix(in srgb, var(--to-color-border) 50%, transparent);
+}
+
+:root[data-app-scheme='dark'] {
+  .account-card__badge--success {
+    color: #86efac;
+    background: color-mix(in srgb, #22c55e 18%, transparent);
+    border-color: color-mix(in srgb, #22c55e 30%, transparent);
+  }
+
+  .account-card__badge--warning {
+    color: #fde047;
+    background: color-mix(in srgb, #eab308 18%, transparent);
+    border-color: color-mix(in srgb, #eab308 30%, transparent);
+  }
+
+  .account-card__badge--danger {
+    color: #fca5a5;
+    background: color-mix(in srgb, #ef4444 18%, transparent);
+    border-color: color-mix(in srgb, #ef4444 30%, transparent);
+  }
+}
+
+/* ── Edit form ── */
+
+.account-card__edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.account-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.account-card__cancel-btn,
+.account-card__save-btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.account-card__cancel-btn {
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  background: var(--to-color-surface);
+  color: var(--to-color-text-muted);
+
+  &:hover {
+    background: var(--to-color-surface-muted, #f3f3f3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.account-card__save-btn {
+  border: 1px solid var(--to-color-primary);
+  background: var(--to-color-primary);
+  color: #fff;
+
+  &:hover {
+    background: color-mix(in srgb, var(--to-color-primary) 88%, #000);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Note ── */
+
 .account-card__note {
-  margin: 1rem 0 0;
+  margin: 1.25rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 45%, transparent);
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--to-color-text-muted);
+}
+
+@media (max-width: 480px) {
+  .account-card__grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
 }

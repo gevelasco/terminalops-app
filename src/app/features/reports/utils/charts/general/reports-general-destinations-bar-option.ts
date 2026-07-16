@@ -1,32 +1,26 @@
 import type { EChartsOption } from 'echarts';
 import type { DashboardTopDestination } from '@shared/models/api/api-dashboard-insights.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
-  type ReportsChartColorOptions,
   reportsChartLabelIsLightFill,
   reportsChartOnFillLabelStyle,
-  reportsChartRotatingColorAt,
   reportsChartTooltip,
   reportsChartValueAxis,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { reportsFintechCategoryAxis } from '../reports-chart-theme.util';
 
 /** Basic Bar — destinos con más maniobras completadas en el periodo. */
 export function buildReportsGeneralDestinationsBarOption(
   rows: readonly DashboardTopDestination[],
-  colorOffset = 0,
-  options?: ReportsChartColorOptions,
 ): EChartsOption {
   const ordered = [...rows].sort((a, b) => b.tripCount - a.tripCount).slice(0, 8);
   const labels = ordered.map((r) => r.destination);
   const values = ordered.map((r) => r.tripCount);
   const max = Math.max(...values, 1);
   const valueAxis = reportsChartValueAxis();
-  const barColor = reportsChartRotatingColorAt(colorOffset, resolveReportsChartPrimary(options));
 
   return {
     animationDuration: 460,
-    color: [barColor],
     grid: { left: 8, right: 8, top: 12, bottom: 4, containLabel: true },
     tooltip: {
       trigger: 'axis',
@@ -56,22 +50,24 @@ export function buildReportsGeneralDestinationsBarOption(
     series: [
       {
         type: 'bar',
-        data: values,
+        data: values.map((v, i) => {
+          const c = STITCH_PALETTE[i % STITCH_PALETTE.length];
+          return {
+            value: v,
+            itemStyle: { color: c, borderRadius: [4, 4, 0, 0] },
+            label: {
+              show: true,
+              position: 'insideTop' as const,
+              padding: [4, 0, 0, 0],
+              ...reportsChartOnFillLabelStyle({
+                fontSize: 10,
+                lightFill: reportsChartLabelIsLightFill(c),
+              }),
+              formatter: () => String(v),
+            },
+          };
+        }),
         barMaxWidth: 40,
-        itemStyle: {
-          color: barColor,
-          borderRadius: [4, 4, 0, 0],
-        },
-        label: {
-          show: true,
-          position: 'insideTop',
-          padding: [4, 0, 0, 0],
-          ...reportsChartOnFillLabelStyle({
-            fontSize: 10,
-            lightFill: reportsChartLabelIsLightFill(barColor),
-          }),
-          formatter: (p) => String(p.value ?? ''),
-        },
       },
     ],
   };

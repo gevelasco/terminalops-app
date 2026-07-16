@@ -353,6 +353,12 @@ export interface UnitFleetMeta {
   trailerRecurringPaymentDate?: string;
   /** Total de cuotas del crédito (financiado) o plazos / meses de contrato (arrendado). */
   trailerRecurringInstallmentCount?: number;
+  /** Periodicidad de cuotas: monthly, quarterly, annual. */
+  trailerRecurringPaymentCadence?: string;
+  /** Fecha del último pago confirmado (para tracking de cuotas). */
+  trailerRecurringLastPaymentDate?: string;
+  /** Beneficiario de cuotas de financiamiento o arrendamiento. */
+  trailerTenureBeneficiary?: string;
   /** Monto pagado al dueño por administración del activo. */
   trailerManagementOwnerPayout?: number;
   transmissionType?: string;
@@ -490,6 +496,9 @@ export interface EquipmentFleetMeta {
   trailerRecurringPaymentAmount?: number;
   trailerRecurringPaymentDate?: string;
   trailerRecurringInstallmentCount?: number;
+  trailerRecurringPaymentCadence?: string;
+  trailerRecurringLastPaymentDate?: string;
+  trailerTenureBeneficiary?: string;
   trailerManagementOwnerPayout?: number;
   /** Capacidad en toneladas (texto libre). */
   equipmentCapacityTons?: string;
@@ -612,6 +621,7 @@ export type ExpenseKind =
   | 'unit_purchase'
   | 'equipment_rent'
   | 'unit_rent'
+  | 'tenure_payment'
   | 'trailer_admin_payout'
   | 'operator_payment'
   | 'operator_commission'
@@ -683,6 +693,8 @@ export interface Expense {
   isOperationalProvision?: boolean;
   /** Si el gasto debe contar con factura fiscal. */
   invoiceRequired?: boolean;
+  /** Fecha en que se pagó (ISO). null = pendiente de pago. */
+  paidAt?: string | null;
 }
 
 /** Icono opcional junto al título en tarjetas KPI / gráficas. */

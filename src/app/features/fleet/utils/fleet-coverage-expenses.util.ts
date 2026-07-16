@@ -5,7 +5,7 @@ import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 /** Tope por consulta filtrada (p. ej. 12 mensualidades + margen). */
 export const FLEET_COVERAGE_EXPENSES_PAGE_LIMIT = 48;
 
-export type FleetCoverageExpenseKind = 'insurance' | 'gps';
+export type FleetCoverageExpenseKind = 'insurance' | 'gps' | 'tenure_payment';
 
 export type FleetCoverageExpenseScope =
   | { resource: 'unit'; unitId: string }
@@ -47,7 +47,7 @@ export function fleetCoverageExpensesQueryRange(today = new Date()): { from: str
 
 function expensesForResource(
   expenses: readonly Expense[],
-  kind: 'insurance' | 'gps',
+  kind: FleetCoverageExpenseKind,
   resourceId: string,
   field: 'relatedUnitId' | 'relatedEquipmentId',
 ): Expense[] {
@@ -76,4 +76,15 @@ export function insuranceExpensesForEquipment(
 
 export function gpsExpensesForUnit(expenses: readonly Expense[], unitId: string): Expense[] {
   return expensesForResource(expenses, 'gps', unitId, 'relatedUnitId');
+}
+
+export function tenureExpensesForUnit(expenses: readonly Expense[], unitId: string): Expense[] {
+  return expensesForResource(expenses, 'tenure_payment', unitId, 'relatedUnitId');
+}
+
+export function tenureExpensesForEquipment(
+  expenses: readonly Expense[],
+  equipmentId: string,
+): Expense[] {
+  return expensesForResource(expenses, 'tenure_payment', equipmentId, 'relatedEquipmentId');
 }

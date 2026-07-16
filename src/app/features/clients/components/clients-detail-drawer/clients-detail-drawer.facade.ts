@@ -26,21 +26,8 @@ import {
 import { clientDeliveryRouteLinkTitle } from '@features/clients/utils/client-delivery-route-link';
 import { deriveClientCommercialHealthFromSummary } from '@features/clients/utils/client-commercial-status.util';
 import { formatClientBalanceMoney } from '@features/clients/utils/client-balance-summary';
-import { buildClientManeuverVolumeSummary } from '@features/clients/utils/client-maneuver-volume-summary';
-import {
-  clientManeuversPeriodFilterTabs,
-  clientManeuversPeriodRangeLabel,
-  clientManeuversRangeForPreset,
-  type ClientManeuversPeriodPreset,
-} from '@features/clients/utils/client-maneuvers-period-filter';
-import {
-  buildClientManeuverPeriodTotals,
-  buildClientManeuverTableRows,
-  filterClientCompletedManeuversInPeriod,
-} from '@features/clients/utils/client-maneuvers-table.util';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
-import { isTripClientCollected } from '@features/reports/utils/reports-trip-helpers';
+import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
 import { clientCommercialPillClass, clientCommercialStatusMod } from '@shared/utils/client-commercial-pill';
 import {
   CLIENT_YES_NO_OPTIONS,
@@ -58,17 +45,15 @@ import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
-import type { Trip } from '@shared/models/logistics.models';
 
 export type ClientDetailEditSection = 'ident' | 'fiscal' | 'delivery' | 'contacts' | 'pay';
-export type ClientDrawerTab = 'details' | 'balance' | 'maneuvers';
+export type ClientDrawerTab = 'details' | 'balance';
 
 @Injectable()
 export class ClientsDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsFeature = inject(ClientsFeatureService);
   private readonly balanceContext = inject(ClientsBalanceContextService);
-  private readonly operationalTrips = inject(OperationalTripsFeatureService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly toast = inject(ToastService);
@@ -76,9 +61,7 @@ export class ClientsDetailDrawerFacade {
 
   private dismissCallback: (() => void) | null = null;
 
-  readonly tripsLoading = computed(() => this.operationalTrips.loading());
   readonly balanceLoading = computed(() => this.balanceContext.clientBalanceLoading());
-  readonly clientTrips = computed(() => this.operationalTrips.trips());
   readonly balanceExpenses = computed(() => this.balanceContext.expenses());
 
   readonly client = computed(() => this.clientsFeature.selectedClient()!);
@@ -98,15 +81,7 @@ export class ClientsDetailDrawerFacade {
       icon: 'settlement',
       htmlId: 'clients-detail-tab-balance',
     },
-    {
-      id: 'maneuvers',
-      label: 'Maniobras',
-      icon: 'route',
-      htmlId: 'clients-detail-tab-maneuvers',
-    },
   ];
-  readonly maneuversPeriodPreset = signal<ClientManeuversPeriodPreset>('month');
-  readonly maneuversPeriodFilterTabs = clientManeuversPeriodFilterTabs();
   readonly editingSection = signal<ClientDetailEditSection | null>(null);
   readonly saving = signal(false);
   readonly collectionConfirming = signal(false);
@@ -164,48 +139,49 @@ export class ClientsDetailDrawerFacade {
 
   readonly paymentMethodOptions = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
 
-  readonly volumeSummary = computed(() =>
-    buildClientManeuverVolumeSummary(this.client().id, this.clientTrips()),
-  );
-
   readonly balanceSummary = computed(() => this.balanceContext.resolvedClientBalance());
 
   readonly derivedCommercialHealth = computed(() =>
     deriveClientCommercialHealthFromSummary(this.balanceSummary()),
   );
 
-  readonly maneuversPeriodRangeLabel = computed(() =>
-    clientManeuversPeriodRangeLabel(this.maneuversPeriodPreset()),
-  );
+  private readonly now = new Date();
+  readonly periodFromMonth = signal(this.now.getMonth() + 1);
+  readonly periodFromYear = signal(this.now.getFullYear());
+  readonly periodToMonth = signal(this.now.getMonth() + 1);
+  readonly periodToYear = signal(this.now.getFullYear());
 
-  readonly filteredManeuverTrips = computed(() => {
-    const range = clientManeuversRangeForPreset(this.maneuversPeriodPreset());
-    return filterClientCompletedManeuversInPeriod(
-      this.client().id,
-      this.clientTrips(),
-      range.from,
-      range.to,
-    );
+  readonly currentMonthYear = computed(() => ({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+  }));
+
+  readonly periodFrom = computed(() => {
+    const m = String(this.periodFromMonth()).padStart(2, '0');
+    return `${this.periodFromYear()}-${m}-01`;
+  });
+  readonly periodTo = computed(() => {
+    const m = this.periodToMonth();
+    const y = this.periodToYear();
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
   });
 
-  readonly maneuverTableRows = computed(() =>
-    buildClientManeuverTableRows(
-      this.filteredManeuverTrips(),
-      (value) => this.balanceMoney(value),
-      this.balanceExpenses(),
-    ),
-  );
+  readonly periodLabel = computed(() => {
+    const fm = this.periodFromMonth();
+    const fy = this.periodFromYear();
+    const tm = this.periodToMonth();
+    const ty = this.periodToYear();
+    const fmt = new Intl.DateTimeFormat('es-MX', { month: 'long' });
+    const fromLabel = fmt.format(new Date(fy, fm - 1, 1, 12));
+    if (fm === tm && fy === ty) {
+      return `${fromLabel.charAt(0).toUpperCase() + fromLabel.slice(1)} ${fy}`;
+    }
+    const toLabel = fmt.format(new Date(ty, tm - 1, 1, 12));
+    return `${fromLabel.charAt(0).toUpperCase() + fromLabel.slice(1)} ${fy} – ${toLabel.charAt(0).toUpperCase() + toLabel.slice(1)} ${ty}`;
+  });
 
-  readonly maneuverTablePageSize = computed(() =>
-    Math.max(this.maneuverTableRows().length, 1),
-  );
-
-  readonly maneuverPeriodTotals = computed(() =>
-    buildClientManeuverPeriodTotals(
-      this.filteredManeuverTrips(),
-      this.balanceExpenses(),
-    ),
-  );
+  readonly periodSummary = computed(() => this.balanceSummary().period);
 
   constructor() {
     effect(() => {
@@ -213,15 +189,17 @@ export class ClientsDetailDrawerFacade {
       if (!c) {
         return;
       }
-      this.balanceContext.ensureTripsLoaded();
       const idChanged = this.priorClientId !== c.id;
       this.priorClientId = c.id;
       this.drawerLoading.set(false);
       if (idChanged) {
         this.drawerTab.set('balance');
-        this.maneuversPeriodPreset.set('month');
         this.editingSection.set(null);
         this.cancelContactForm();
+        this.periodFromMonth.set(this.now.getMonth() + 1);
+        this.periodFromYear.set(this.now.getFullYear());
+        this.periodToMonth.set(this.now.getMonth() + 1);
+        this.periodToYear.set(this.now.getFullYear());
       }
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromClient(c);
@@ -231,14 +209,13 @@ export class ClientsDetailDrawerFacade {
     effect(() => {
       const c = this.clientsFeature.selectedClient();
       const tab = this.drawerTab();
+      const from = this.periodFrom();
+      const to = this.periodTo();
       if (!c) {
         return;
       }
       if (tab === 'balance') {
-        this.balanceContext.ensureClientBalanceLoaded(c.id);
-      } else if (tab === 'maneuvers') {
-        const tripIds = this.filteredManeuverTrips().map((trip) => trip.id);
-        this.balanceContext.ensureExpensesForTrips(tripIds);
+        this.balanceContext.ensureClientBalanceLoaded(c.id, from, to);
       }
     });
 
@@ -247,12 +224,35 @@ export class ClientsDetailDrawerFacade {
       if (!c) {
         return;
       }
-      this.operationalTrips.loadTrips();
       this.operationConfigsFeature.loadOperationConfigurations();
     });
   }
 
   private priorClientId: string | undefined;
+
+  onPeriodFromChange(value: { month: number; year: number }): void {
+    this.periodFromMonth.set(value.month);
+    this.periodFromYear.set(value.year);
+    if (
+      value.year > this.periodToYear() ||
+      (value.year === this.periodToYear() && value.month > this.periodToMonth())
+    ) {
+      this.periodToMonth.set(value.month);
+      this.periodToYear.set(value.year);
+    }
+  }
+
+  onPeriodToChange(value: { month: number; year: number }): void {
+    this.periodToMonth.set(value.month);
+    this.periodToYear.set(value.year);
+    if (
+      value.year < this.periodFromYear() ||
+      (value.year === this.periodFromYear() && value.month < this.periodFromMonth())
+    ) {
+      this.periodFromMonth.set(value.month);
+      this.periodFromYear.set(value.year);
+    }
+  }
 
   bindDismiss(callback: () => void): void {
     this.dismissCallback = callback;
@@ -289,10 +289,6 @@ export class ClientsDetailDrawerFacade {
     this.drawerTab.set(tab);
   }
 
-  onManeuversPeriodSelect(preset: ClientManeuversPeriodPreset): void {
-    this.maneuversPeriodPreset.set(preset);
-  }
-
   healthSummary(): string {
     return clientCommercialHealthLabel(this.derivedCommercialHealth());
   }
@@ -313,48 +309,20 @@ export class ClientsDetailDrawerFacade {
     return `${this.balanceMoney(b.margin)} (${b.marginPct}%)`;
   }
 
-  maneuverMarginLabel(): string {
-    const t = this.maneuverPeriodTotals();
-    if (t.totalPactado <= 0) {
-      return '—';
-    }
-    return `${t.marginPct}%`;
-  }
-
-  maneuverUtilidadLabel(): string {
-    return this.balanceMoney(this.maneuverPeriodTotals().utilidad);
-  }
-
   paymentDueBadgeVariant(v: ClientPaymentDueBadgeVariant): ToBadgeVariant {
     return v;
   }
 
   canConfirmClientCollection(tripId: string): boolean {
-    if (!this.canWriteTrips()) {
-      return false;
-    }
-    const trip = this.tripForCollection(tripId);
-    if (!trip) {
-      return false;
-    }
-    if (isTripClientCollected(trip)) {
-      return false;
-    }
-    return this.tripAllowsClientCollection(trip);
+    if (!this.canWriteTrips()) return false;
+    const id = tripId.trim();
+    return this.balanceSummary().upcomingPayments.some((r) => r.tripId === id);
   }
 
   canRevertClientCollection(tripId: string): boolean {
-    if (!this.canWriteTrips()) {
-      return false;
-    }
-    const trip = this.tripForCollection(tripId);
-    if (!trip) {
-      return false;
-    }
-    if (!isTripClientCollected(trip)) {
-      return false;
-    }
-    return this.tripAllowsClientCollection(trip);
+    if (!this.canWriteTrips()) return false;
+    const id = tripId.trim();
+    return this.balanceSummary().paymentHistory.some((r) => r.tripId === id);
   }
 
   openClientCollectionConfirm(
@@ -424,7 +392,6 @@ export class ClientsDetailDrawerFacade {
         this.balanceContext.invalidateBalances();
         this.balanceContext.ensureClientBalanceLoaded(this.client().id);
         this.balanceContext.ensureOverviewLoaded();
-        this.operationalTrips.refreshTrips();
         this.toast.show(
           collected
             ? `Cobro de ${updated.maneuverCode} confirmado; cuenta como ingreso en reportes.`
@@ -434,47 +401,112 @@ export class ClientsDetailDrawerFacade {
       });
   }
 
-  volumeTotalManeuversLabel(): string {
-    const n = this.volumeSummary().allManeuverCount;
-    if (n === 0) {
-      return '—';
-    }
+  periodVolumeTotalManeuversLabel(): string {
+    const p = this.periodSummary();
+    if (!p) return '—';
+    const n = p.volumeAllCount;
+    if (n === 0) return '—';
     return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
   }
 
-  volumeManeuversPerMonthLabel(): string {
-    const v = this.volumeSummary();
-    if (!v.hasData) {
-      return '—';
-    }
-    const n = v.maneuversPerMonth;
+  periodVolumeManeuversPerMonthLabel(): string {
+    const p = this.periodSummary();
+    if (!p || p.volumeBillableCount === 0) return '—';
+    const n = p.volumeManeuversPerMonth;
     const rounded = n < 10 ? n.toFixed(1) : String(Math.round(n));
-    const meses = v.monthsWindow === 1 ? 'mes' : 'meses';
-    return `${rounded} en promedio (${v.monthsWindow} ${meses} de actividad)`;
+    const meses = p.volumeMonthsWindow === 1 ? 'mes' : 'meses';
+    return `${rounded} en promedio (${p.volumeMonthsWindow} ${meses})`;
   }
 
-  volumeBilledPerMonthLabel(): string {
-    const v = this.volumeSummary();
-    if (!v.hasData) {
-      return '—';
-    }
-    return `${formatClientBalanceMoney(v.billedPerMonth)} / mes (suma de cobros pactados)`;
+  periodVolumeBilledPerMonthLabel(): string {
+    const p = this.periodSummary();
+    if (!p || p.volumeBillableCount === 0) return '—';
+    return `${formatClientBalanceMoney(p.volumeBilledPerMonth)} (cobros pactados)`;
   }
 
-  volumeOperationalPerMonthLabel(): string {
-    const v = this.volumeSummary();
-    if (!v.hasData) {
-      return '—';
-    }
-    return `${formatClientBalanceMoney(v.operationalPerMonth)} / mes (diesel, casetas, operador)`;
+  periodVolumeOperationalPerMonthLabel(): string {
+    const p = this.periodSummary();
+    if (!p || p.volumeBillableCount === 0) return '—';
+    return `${formatClientBalanceMoney(p.volumeOperationalPerMonth)} (diesel, casetas, operador)`;
   }
 
-  volumeProfitPerMonthLabel(): string {
-    const v = this.volumeSummary();
-    if (!v.hasData) {
-      return '—';
+  periodVolumeProfitPerMonthLabel(): string {
+    const p = this.periodSummary();
+    if (!p || p.volumeBillableCount === 0) return '—';
+    return formatClientBalanceMoney(p.volumeProfitPerMonth);
+  }
+
+  avgDelayDaysLabel(): string {
+    const balance = this.balanceSummary();
+    const days = balance.avgDelayDays;
+    if (days == null) {
+      return '— (sin historial de cobro)';
     }
-    return `${formatClientBalanceMoney(v.profitPerMonth)} / mes (facturación aprox. menos costos operativos)`;
+    if (days <= 0) {
+      const abs = Math.abs(days);
+      return abs === 0
+        ? 'Puntual (paga en fecha de vencimiento)'
+        : `−${abs} días (paga antes del vencimiento)`;
+    }
+    return `${days} días de atraso en promedio`;
+  }
+
+  avgDelayDaysMod(): 'success' | 'warning' | 'danger' | '' {
+    const days = this.balanceSummary().avgDelayDays;
+    if (days == null) return '';
+    if (days <= 0) return 'success';
+    if (days <= 7) return 'warning';
+    return 'danger';
+  }
+
+  delayDaysLabel(days: number): string {
+    if (days === 0) return 'Puntual';
+    if (days < 0) return `${Math.abs(days)}d antes`;
+    return `${days}d atraso`;
+  }
+
+  receivableManeuverCount(): number {
+    return this.balanceSummary().upcomingPayments.length;
+  }
+
+  receivableManeuverCountLabel(): string {
+    const n = this.receivableManeuverCount();
+    return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
+  }
+
+  creditExposureStatus(): { label: string; variant: 'success' | 'warning' | 'danger'; icon: ToIconName } {
+    const limit = this.parsedCreditLimit();
+    const receivable = this.balanceSummary().receivable;
+
+    if (limit <= 0) {
+      return { label: 'Sin límite definido', variant: 'success', icon: 'info' };
+    }
+
+    const usage = receivable / limit;
+    if (receivable > limit) {
+      return { label: `Excedido (${Math.round(usage * 100)}% del límite)`, variant: 'danger', icon: 'cancelCircle' };
+    }
+    if (usage >= 0.8) {
+      return { label: `Cerca del límite (${Math.round(usage * 100)}%)`, variant: 'warning', icon: 'warning' };
+    }
+    return { label: `Dentro del límite (${Math.round(usage * 100)}%)`, variant: 'success', icon: 'checkCircle' };
+  }
+
+  historicManeuverCountLabel(): string {
+    const n = this.balanceSummary().volumeAllCount;
+    return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
+  }
+
+  historicMarginPctLabel(): string {
+    const pct = this.balanceSummary().marginPct;
+    return `${pct}%`;
+  }
+
+  private parsedCreditLimit(): number {
+    const raw = this.client().payment?.approximateCreditAmount?.trim() ?? '';
+    const cleaned = raw.replace(/[^0-9.,]/g, '').replace(/,/g, '');
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) && num > 0 ? num : 0;
   }
 
   commercialHealthStatusMod(): string {
@@ -744,20 +776,6 @@ export class ClientsDetailDrawerFacade {
     this.payDefaultPaymentMethod.set(p?.defaultPaymentMethod ?? '');
   }
 
-  private tripForCollection(tripId: string): Trip | undefined {
-    const id = tripId.trim();
-    if (!id) {
-      return undefined;
-    }
-    return this.clientTrips().find((t) => t.id === id);
-  }
-
-  private tripAllowsClientCollection(trip: Trip): boolean {
-    if (trip.hasClientBilling === false) {
-      return false;
-    }
-    return trip.status === 'completed' || trip.status === 'cancelled';
-  }
 
   private formatYmdEs(ymd: string | undefined): string {
     const t = (ymd ?? '').trim();

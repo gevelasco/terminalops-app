@@ -37,9 +37,12 @@ export interface ClientUpcomingPaymentRow {
 export interface ClientPaymentHistoryRow {
   tripId: string;
   maneuverCode: string;
+  dueYmd: string;
+  dueLabel: string;
   collectedYmd: string;
   collectedLabel: string;
   amount: number;
+  delayDays: number;
 }
 
 export interface ClientBalanceSummary {
@@ -60,6 +63,31 @@ export interface ClientBalanceSummary {
   nextDueBadgeVariant: ClientPaymentDueBadgeVariant;
   upcomingPayments: ClientUpcomingPaymentRow[];
   paymentHistory: ClientPaymentHistoryRow[];
+  avgDelayDays: number | null;
+  volumeMonthsWindow: number;
+  volumeBillableCount: number;
+  volumeAllCount: number;
+  volumeManeuversPerMonth: number;
+  volumeBilledPerMonth: number;
+  volumeOperationalPerMonth: number;
+  volumeProfitPerMonth: number;
+  period?: ClientBalancePeriodSummary;
+}
+
+export interface ClientBalancePeriodSummary {
+  from: string;
+  to: string;
+  paymentHistory: ClientPaymentHistoryRow[];
+  statusCounts: ClientManeuverStatusCounts;
+  completedCount: number;
+  totalKm: number;
+  volumeMonthsWindow: number;
+  volumeBillableCount: number;
+  volumeAllCount: number;
+  volumeManeuversPerMonth: number;
+  volumeBilledPerMonth: number;
+  volumeOperationalPerMonth: number;
+  volumeProfitPerMonth: number;
 }
 
 /** Resumen vacío para clientes sin maniobras (p. ej. overview API). */
@@ -87,6 +115,14 @@ export function emptyClientBalanceSummary(): ClientBalanceSummary {
     nextDueBadgeVariant: 'neutral',
     upcomingPayments: [],
     paymentHistory: [],
+    avgDelayDays: null,
+    volumeMonthsWindow: 0,
+    volumeBillableCount: 0,
+    volumeAllCount: 0,
+    volumeManeuversPerMonth: 0,
+    volumeBilledPerMonth: 0,
+    volumeOperationalPerMonth: 0,
+    volumeProfitPerMonth: 0,
   };
 }
 
@@ -194,24 +230,53 @@ export function buildClientBalanceSummary(
   const totalKm = completed.reduce((sum, t) => sum + tripKm(t), 0);
 
   const paymentHistory: ClientPaymentHistoryRow[] = [];
+  const delayDaysSamples: number[] = [];
+
   for (const t of billable) {
-    if (!isTripClientCollected(t)) {
-      continue;
+    const due = tripDueDate(t);
+
+    if (isTripClientCollected(t)) {
+      const iso = (t.clientCollectedAt ?? '').trim();
+      if (!iso) {
+        continue;
+      }
+      const collectedDate = new Date(iso);
+      const collectedYmd = localYmd(collectedDate);
+      const dueYmd = due ? localYmd(due) : asOfYmd;
+      let delayDays = 0;
+
+      if (due) {
+        const diffMs = collectedDate.getTime() - due.getTime();
+        delayDays = Math.round(diffMs / 86400000);
+        delayDaysSamples.push(delayDays);
+      }
+
+      paymentHistory.push({
+        tripId: t.id,
+        maneuverCode: t.maneuverCode,
+        dueYmd,
+        dueLabel: dateLabel(dueYmd),
+        collectedYmd,
+        collectedLabel: dateLabelFromIso(iso),
+        amount: tripRevenue(t),
+        delayDays,
+      });
+    } else if (due) {
+      const diffMs = asOf.getTime() - due.getTime();
+      const overdueDays = Math.round(diffMs / 86400000);
+      if (overdueDays > 0) {
+        delayDaysSamples.push(overdueDays);
+      }
     }
-    const iso = (t.clientCollectedAt ?? '').trim();
-    if (!iso) {
-      continue;
-    }
-    const collectedYmd = localYmd(new Date(iso));
-    paymentHistory.push({
-      tripId: t.id,
-      maneuverCode: t.maneuverCode,
-      collectedYmd,
-      collectedLabel: dateLabelFromIso(iso),
-      amount: tripRevenue(t),
-    });
   }
   paymentHistory.sort((a, b) => b.collectedYmd.localeCompare(a.collectedYmd));
+
+  const avgDelayDays =
+    delayDaysSamples.length > 0
+      ? Math.round(
+          (delayDaysSamples.reduce((s, d) => s + d, 0) / delayDaysSamples.length) * 10,
+        ) / 10
+      : null;
 
   const upcomingPayments: ClientUpcomingPaymentRow[] = [];
   let nextDueYmd: string | null = null;
@@ -259,6 +324,97 @@ export function buildClientBalanceSummary(
     nextDueBadgeVariant: nextDueBadgeVariant,
     upcomingPayments,
     paymentHistory,
+    avgDelayDays,
+    ...computeVolumeSummaryFromTrips(subset, billable),
+  };
+}
+
+function parseMoney(raw: string | undefined): number {
+  if (raw == null || !String(raw).trim()) return 0;
+  const n = Number(String(raw).replace(/\s/g, '').replace(/,/g, ''));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function computeVolumeSummaryFromTrips(
+  allForClient: readonly Trip[],
+  billable: readonly Trip[],
+): {
+  volumeMonthsWindow: number;
+  volumeBillableCount: number;
+  volumeAllCount: number;
+  volumeManeuversPerMonth: number;
+  volumeBilledPerMonth: number;
+  volumeOperationalPerMonth: number;
+  volumeProfitPerMonth: number;
+} {
+  const volumeAllCount = allForClient.length;
+  const volumeBillableCount = billable.length;
+
+  if (volumeBillableCount === 0) {
+    return {
+      volumeMonthsWindow: 0,
+      volumeBillableCount,
+      volumeAllCount,
+      volumeManeuversPerMonth: 0,
+      volumeBilledPerMonth: 0,
+      volumeOperationalPerMonth: 0,
+      volumeProfitPerMonth: 0,
+    };
+  }
+
+  let billedTotal = 0;
+  let opsTotal = 0;
+  const dates: Date[] = [];
+
+  for (const t of billable) {
+    billedTotal += parseMoney(t.clientCharge);
+    opsTotal +=
+      parseMoney(t.dieselAmount) +
+      parseMoney(t.casetasAmount) +
+      parseMoney(t.operatorQuota);
+    const iso = (t.createdAt ?? '').trim();
+    if (iso) {
+      const d = new Date(iso);
+      if (!Number.isNaN(d.getTime())) dates.push(d);
+    }
+  }
+
+  if (dates.length === 0) {
+    return {
+      volumeMonthsWindow: 0,
+      volumeBillableCount,
+      volumeAllCount,
+      volumeManeuversPerMonth: 0,
+      volumeBilledPerMonth: 0,
+      volumeOperationalPerMonth: 0,
+      volumeProfitPerMonth: 0,
+    };
+  }
+
+  const minT = Math.min(...dates.map((d) => d.getTime()));
+  const maxT = Math.max(...dates.map((d) => d.getTime()));
+  const lo = new Date(minT);
+  const hi = new Date(maxT);
+  const volumeMonthsWindow = Math.max(
+    1,
+    (hi.getUTCFullYear() - lo.getUTCFullYear()) * 12 +
+      (hi.getUTCMonth() - lo.getUTCMonth()) +
+      1,
+  );
+
+  const volumeManeuversPerMonth = volumeBillableCount / volumeMonthsWindow;
+  const volumeBilledPerMonth = billedTotal / volumeMonthsWindow;
+  const volumeOperationalPerMonth = opsTotal / volumeMonthsWindow;
+  const volumeProfitPerMonth = volumeBilledPerMonth - volumeOperationalPerMonth;
+
+  return {
+    volumeMonthsWindow,
+    volumeBillableCount,
+    volumeAllCount,
+    volumeManeuversPerMonth: Math.round(volumeManeuversPerMonth * 10) / 10,
+    volumeBilledPerMonth: Math.round(volumeBilledPerMonth),
+    volumeOperationalPerMonth: Math.round(volumeOperationalPerMonth),
+    volumeProfitPerMonth: Math.round(volumeProfitPerMonth),
   };
 }
 

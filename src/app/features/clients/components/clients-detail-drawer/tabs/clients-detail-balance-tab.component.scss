@@ -2,6 +2,44 @@
   gap: 1.25rem;
 }
 
+.clients-balance-period-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--to-color-border);
+  border-radius: var(--to-radius-md);
+  background: var(--to-color-surface-muted);
+}
+
+.clients-balance-period-filter__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+  white-space: nowrap;
+}
+
+.clients-balance-period-filter__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.clients-balance-period-filter__picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.clients-balance-period-filter__sep {
+  color: var(--to-color-text-muted);
+  font-size: 0.875rem;
+}
+
 .clients-balance-pay-table {
   width: 100%;
   margin-top: 0.5rem;

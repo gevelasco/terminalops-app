@@ -4,6 +4,7 @@ import {
   expensesCalendarWeekdayLabels,
   type ExpensesCalendarWeekRow,
 } from '@features/expenses/utils/expenses-calendar.util';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import type {
   ReportsBalanceDailyActivityDay,
   ReportsBalanceDailyActivityEvent,
@@ -23,6 +24,8 @@ export interface ReportsBalanceActivityHeatmapCell {
   inMonth: boolean;
   incomeCount: number;
   expenseCount: number;
+  receivableCount: number;
+  payableCount: number;
   events: readonly ReportsBalanceDailyActivityEvent[];
 }
 
@@ -31,6 +34,8 @@ export interface ReportsBalanceActivityHeatmapMonthCell {
   label: string;
   incomeCount: number;
   expenseCount: number;
+  receivableCount: number;
+  payableCount: number;
   events: readonly ReportsBalanceDailyActivityEvent[];
 }
 
@@ -65,6 +70,8 @@ function cellFromDay(
     inMonth,
     incomeCount: row?.incomeCount ?? 0,
     expenseCount: row?.expenseCount ?? 0,
+    receivableCount: row?.receivableCount ?? 0,
+    payableCount: row?.payableCount ?? 0,
     events: row?.events ?? [],
   };
 }
@@ -136,12 +143,16 @@ function buildMonthCells(
         label: monthLabelFromKey(monthKey),
         incomeCount: 0,
         expenseCount: 0,
+        receivableCount: 0,
+        payableCount: 0,
         events: [],
       };
       byMonth.set(monthKey, bucket);
     }
     bucket.incomeCount += row.incomeCount;
     bucket.expenseCount += row.expenseCount;
+    bucket.receivableCount += row.receivableCount;
+    bucket.payableCount += row.payableCount;
     bucket.events = [...bucket.events, ...row.events];
   }
 
@@ -153,6 +164,8 @@ function buildMonthCells(
         label: monthLabelFromKey(monthKey),
         incomeCount: 0,
         expenseCount: 0,
+        receivableCount: 0,
+        payableCount: 0,
         events: [],
       },
   );
@@ -184,7 +197,7 @@ export function buildReportsBalanceActivityHeatmapModel(
       weeks: [],
       dayCells: [],
       monthCells,
-      hasActivity: monthCells.some((cell) => cell.incomeCount + cell.expenseCount > 0),
+      hasActivity: monthCells.some((cell) => cell.incomeCount + cell.expenseCount + cell.receivableCount > 0),
     };
   }
 
@@ -214,7 +227,7 @@ export function buildReportsBalanceActivityHeatmapModel(
     dayCells,
     monthCells: [],
     hasActivity: dayCells.some(
-      (cell) => cell.inRange && cell.incomeCount + cell.expenseCount > 0,
+      (cell) => cell.inRange && cell.incomeCount + cell.expenseCount + cell.receivableCount > 0,
     ),
   };
 }
@@ -229,12 +242,28 @@ export function formatReportsBalanceActivityTooltip(
   }
 
   const income = events.filter((event) => event.kind === 'income');
+  const receivables = events.filter((event) => event.kind === 'receivable');
+  const payables = events.filter((event) => event.kind === 'payable');
   const expenses = events.filter((event) => event.kind === 'expense');
   const lines: string[] = [dateLabel];
 
   if (income.length > 0) {
     lines.push('Ingresos:');
     for (const event of income) {
+      lines.push(`· ${event.label} — ${formatMoney(event.amount)}`);
+    }
+  }
+
+  if (receivables.length > 0) {
+    lines.push('Por cobrar:');
+    for (const event of receivables) {
+      lines.push(`· ${event.label} — ${formatMoney(event.amount)}`);
+    }
+  }
+
+  if (payables.length > 0) {
+    lines.push('Por pagar:');
+    for (const event of payables) {
       lines.push(`· ${event.label} — ${formatMoney(event.amount)}`);
     }
   }
@@ -249,15 +278,23 @@ export function formatReportsBalanceActivityTooltip(
   return lines.join('\n');
 }
 
-/** Azul explícito para ingresos (no usar `--to-color-primary`, suele ser grisáceo). */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = '#2563eb';
+/** Ingresos cobrados — color 1. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = STITCH_PALETTE[0];
 
-/** Gris explícito para gastos. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = '#64748b';
+/** Cobros por cobrar — color 2. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE = STITCH_PALETTE[1];
+
+/** Cuentas por pagar — color 3. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE = STITCH_PALETTE[2];
+
+/** Gastos confirmados — color 4. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = STITCH_PALETTE[3];
 
 export interface ReportsBalanceActivityHeatIntensityBounds {
   maxIncome: number;
   maxExpense: number;
+  maxReceivable: number;
+  maxPayable: number;
 }
 
 export interface ReportsBalanceActivityHeatCellStyle {
@@ -307,28 +344,46 @@ export function reportsBalanceActivityExpenseColor(intensity: number): string {
   return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE, whiteMix);
 }
 
+export function reportsBalanceActivityReceivableColor(intensity: number): string {
+  const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
+  const whiteMix = 1 - colorStrength * 0.68;
+  return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE, whiteMix);
+}
+
+export function reportsBalanceActivityPayableColor(intensity: number): string {
+  const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
+  const whiteMix = 1 - colorStrength * 0.68;
+  return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE, whiteMix);
+}
+
 export function computeReportsBalanceActivityIntensityBounds(
   model: ReportsBalanceActivityHeatmapModel,
 ): ReportsBalanceActivityHeatIntensityBounds {
   let maxIncome = 0;
   let maxExpense = 0;
+  let maxReceivable = 0;
+  let maxPayable = 0;
 
   for (const cell of model.dayCells) {
-    if (!cell.inRange) {
-      continue;
-    }
+    if (!cell.inRange) continue;
     maxIncome = Math.max(maxIncome, cell.incomeCount);
     maxExpense = Math.max(maxExpense, cell.expenseCount);
+    maxReceivable = Math.max(maxReceivable, cell.receivableCount);
+    maxPayable = Math.max(maxPayable, cell.payableCount);
   }
 
   for (const cell of model.monthCells) {
     maxIncome = Math.max(maxIncome, cell.incomeCount);
     maxExpense = Math.max(maxExpense, cell.expenseCount);
+    maxReceivable = Math.max(maxReceivable, cell.receivableCount);
+    maxPayable = Math.max(maxPayable, cell.payableCount);
   }
 
   return {
     maxIncome: Math.max(maxIncome, 1),
     maxExpense: Math.max(maxExpense, 1),
+    maxReceivable: Math.max(maxReceivable, 1),
+    maxPayable: Math.max(maxPayable, 1),
   };
 }
 
@@ -336,8 +391,10 @@ export function buildReportsBalanceActivityCellStyle(
   incomeCount: number,
   expenseCount: number,
   bounds: ReportsBalanceActivityHeatIntensityBounds,
+  receivableCount = 0,
+  payableCount = 0,
 ): ReportsBalanceActivityHeatCellStyle | null {
-  if (incomeCount <= 0 && expenseCount <= 0) {
+  if (incomeCount <= 0 && expenseCount <= 0 && receivableCount <= 0 && payableCount <= 0) {
     return null;
   }
 
@@ -349,18 +406,47 @@ export function buildReportsBalanceActivityCellStyle(
     expenseCount > 0
       ? reportsBalanceActivityHeatIntensity(expenseCount, bounds.maxExpense)
       : 0;
+  const receivableIntensity =
+    receivableCount > 0
+      ? reportsBalanceActivityHeatIntensity(receivableCount, bounds.maxReceivable)
+      : 0;
+  const payableIntensity =
+    payableCount > 0
+      ? reportsBalanceActivityHeatIntensity(payableCount, bounds.maxPayable)
+      : 0;
   const incomeColor = reportsBalanceActivityIncomeColor(incomeIntensity);
   const expenseColor = reportsBalanceActivityExpenseColor(expenseIntensity);
-  const peakIntensity = Math.max(incomeIntensity, expenseIntensity);
+  const receivableColor = reportsBalanceActivityReceivableColor(receivableIntensity);
+  const payableColor = reportsBalanceActivityPayableColor(payableIntensity);
+  const peakIntensity = Math.max(incomeIntensity, expenseIntensity, receivableIntensity, payableIntensity);
 
-  if (incomeCount > 0 && expenseCount > 0) {
-    const dominant =
-      incomeIntensity >= expenseIntensity
-        ? REPORTS_BALANCE_ACTIVITY_HEAT_INCOME
-        : REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE;
+  const activeKinds = [
+    incomeCount > 0 ? 'income' : null,
+    receivableCount > 0 ? 'receivable' : null,
+    expenseCount > 0 ? 'expense' : null,
+    payableCount > 0 ? 'payable' : null,
+  ].filter(Boolean) as string[];
+
+  if (activeKinds.length >= 2) {
+    const colors: string[] = [];
+    if (incomeCount > 0) colors.push(incomeColor);
+    if (receivableCount > 0) colors.push(receivableColor);
+    if (payableCount > 0) colors.push(payableColor);
+    if (expenseCount > 0) colors.push(expenseColor);
+    const sliceSize = 100 / colors.length;
+    const stops = colors
+      .map((c, i) => `${c} ${Math.round(sliceSize * i)}% ${Math.round(sliceSize * (i + 1))}%`)
+      .join(', ');
+    const intensities = [
+      { hex: REPORTS_BALANCE_ACTIVITY_HEAT_INCOME, val: incomeIntensity },
+      { hex: REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE, val: receivableIntensity },
+      { hex: REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE, val: payableIntensity },
+      { hex: REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE, val: expenseIntensity },
+    ];
+    const dominantHex = intensities.reduce((a, b) => (b.val > a.val ? b : a)).hex;
     return {
-      background: `linear-gradient(135deg, ${incomeColor} 0 50%, ${expenseColor} 50% 100%)`,
-      borderColor: mixHexWithWhite(dominant, 0.78 - peakIntensity * 0.42),
+      background: `linear-gradient(135deg, ${stops})`,
+      borderColor: mixHexWithWhite(dominantHex, 0.78 - peakIntensity * 0.42),
       hot: peakIntensity >= 0.78,
     };
   }
@@ -373,6 +459,28 @@ export function buildReportsBalanceActivityCellStyle(
         0.8 - incomeIntensity * 0.45,
       ),
       hot: incomeIntensity >= 0.78,
+    };
+  }
+
+  if (receivableCount > 0) {
+    return {
+      background: receivableColor,
+      borderColor: mixHexWithWhite(
+        REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE,
+        0.8 - receivableIntensity * 0.45,
+      ),
+      hot: receivableIntensity >= 0.78,
+    };
+  }
+
+  if (payableCount > 0) {
+    return {
+      background: payableColor,
+      borderColor: mixHexWithWhite(
+        REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE,
+        0.8 - payableIntensity * 0.45,
+      ),
+      hot: payableIntensity >= 0.78,
     };
   }
 

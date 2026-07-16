@@ -201,6 +201,30 @@
   }
 }
 
+.operators-op-pay-table__revert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-text-muted) 30%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--to-color-text-muted) 6%, transparent);
+  color: var(--to-color-text-muted);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--to-color-danger) 50%, transparent);
+    background: color-mix(in srgb, var(--to-color-danger) 10%, transparent);
+    color: var(--to-color-danger);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
 .operators-op-pay-table__row--overdue td {
   background: color-mix(in srgb, var(--to-color-danger, #b91c1c) 4%, transparent);
 }

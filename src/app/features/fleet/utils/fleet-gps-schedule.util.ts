@@ -115,6 +115,9 @@ function isGpsPaymentExpense(e: Expense): boolean {
 }
 
 function expensePaidYmd(e: Expense): string {
+  if (e.paidAt) {
+    return expenseIncurredDateInput(e.paidAt);
+  }
   return expenseIncurredDateInput(e.incurredAt);
 }
 
@@ -180,8 +183,8 @@ export function buildGpsPaymentSchedule(params: {
       dueDate,
       status,
       expenseId: matched?.id,
-      paidDate: matched ? expensePaidYmd(matched) : undefined,
-      paidAmount: matched?.amount,
+      paidDate: paid && matched ? expensePaidYmd(matched) : undefined,
+      paidAmount: paid ? matched?.amount : undefined,
       canConfirm: false,
     });
   }

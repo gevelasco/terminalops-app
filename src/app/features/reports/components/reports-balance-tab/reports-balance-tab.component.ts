@@ -21,6 +21,7 @@ import {
   reportsChartPrimary,
 } from '@features/reports/utils/charts/reports-chart-palette';
 import { buildReportsBalancePortfolioTable } from '@features/reports/utils/reports-balance-client-ranking.util';
+import { buildReportsPayableTable } from '@features/reports/utils/reports-balance-payables.util';
 import { buildReportsBalanceActivityHeatmapModel } from '@features/reports/utils/reports-balance-activity-heatmap.util';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
 import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-subtitle.util';
@@ -127,6 +128,25 @@ export class ReportsBalanceTabComponent {
     }),
   );
 
+  private readonly calendarItems = computed(
+    () => this.pageState()?.data?.calendarItems ?? [],
+  );
+  private readonly payableToDate = computed(() => {
+    const f = this.filter();
+    const lastDay = new Date(f.toYear, f.toMonth, 0).getDate();
+    return `${f.toYear}-${String(f.toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  });
+  readonly payableTable = computed(() =>
+    buildReportsPayableTable(
+      this.calendarItems(),
+      this.filter().from,
+      this.payableToDate(),
+    ),
+  );
+  readonly payableItems = computed(() => this.payableTable().rows);
+  readonly hasPayableItems = computed(() => this.payableItems().length > 0);
+  readonly payableTotalAmount = computed(() => this.payableTable().totals.amount);
+
   readonly hasPortfolioRows = computed(() => this.portfolioRows().length > 0);
   readonly hasClientPerformance = computed(
     () => (this.insights()?.marginByClient ?? []).length > 0,
@@ -187,6 +207,29 @@ export class ReportsBalanceTabComponent {
 
   formatMoney(value: number, currency = 'MXN'): string {
     return this.currencyMx.transform(value, currency);
+  }
+
+  formatDateShort(ymd: string): string {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd?.trim() ?? '');
+    if (!match) return ymd ?? '—';
+    const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+    return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  }
+
+  payableStatusLabel(status: string): string {
+    switch (status) {
+      case 'paid': return 'Pagado';
+      case 'overdue': return 'Vencido';
+      default: return 'Pendiente';
+    }
+  }
+
+  payableStatusClass(status: string): string {
+    switch (status) {
+      case 'paid': return 'reports-balance-panel__status-pill reports-balance-panel__status-pill--paid';
+      case 'overdue': return 'reports-balance-panel__status-pill reports-balance-panel__status-pill--overdue';
+      default: return 'reports-balance-panel__status-pill reports-balance-panel__status-pill--pending';
+    }
   }
 
   commercialPillClass = clientCommercialPillClass;

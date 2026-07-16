@@ -12,9 +12,10 @@
             <th scope="col" class="fleet-insurance-schedule__cell--center">Acción</th>
           </tr>
         </thead>
-        <tbody>
-          @for (row of visibleSchedule(); track row.dueDate) {
+        <tbody #scrollBody class="fleet-insurance-schedule__body">
+          @for (row of visibleSchedule(); track row.dueDate; let i = $index) {
             <tr
+              [attr.data-idx]="i"
               [class.fleet-insurance-schedule__row--paid]="row.status === 'paid'"
               [class.fleet-insurance-schedule__row--due]="row.status === 'due'"
               [class.fleet-insurance-schedule__row--overdue]="row.status === 'overdue'"

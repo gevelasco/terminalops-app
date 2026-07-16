@@ -90,6 +90,7 @@ export interface SessionData {
   moduleGrants: import('@shared/models/app-modules.models').StaffModuleGrant[];
   companyId: string;
   companyName?: string;
+  companyTagline?: string;
   theme: ThemeScheme;
   id: string;
   username: string;

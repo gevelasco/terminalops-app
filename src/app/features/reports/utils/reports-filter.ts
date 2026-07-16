@@ -41,13 +41,13 @@ export function compareMonthYear(
   return a.month - b.month;
 }
 
-/** Primer día del mes de inicio → último día del mes de fin (o hoy si es el mes en curso). */
+/** Primer día del mes de inicio → último día del mes de fin. */
 export function rangeForMonthYearSpan(
   fromMonth: number,
   fromYear: number,
   toMonth: number,
   toYear: number,
-  now = new Date(),
+  _now = new Date(),
 ): { from: string; to: string } {
   let startMonth = fromMonth;
   let startYear = fromYear;
@@ -63,11 +63,7 @@ export function rangeForMonthYearSpan(
 
   const start = new Date(startYear, startMonth - 1, 1);
   const lastDay = new Date(endYear, endMonth, 0);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const isCurrentEndMonth =
-    endYear === today.getFullYear() && endMonth - 1 === today.getMonth();
-  const end = isCurrentEndMonth && lastDay.getTime() > today.getTime() ? today : lastDay;
-  return { from: localYmd(start), to: localYmd(end) };
+  return { from: localYmd(start), to: localYmd(lastDay) };
 }
 
 /** @deprecated Prefer `rangeForMonthYearSpan` for reports ranges. */
@@ -99,32 +95,39 @@ export function rangeForPreset(
   preset: ReportsPeriodPreset,
   now = new Date(),
 ): { from: string; to: string } {
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let start: Date;
+  let end: Date;
   switch (preset) {
     case 'today':
-      start = new Date(end);
+      start = new Date(today);
+      end = new Date(today);
       break;
     case 'week':
-      start = new Date(end);
+      start = new Date(today);
       start.setDate(start.getDate() - 6);
+      end = new Date(today);
       break;
     case 'quarter': {
-      const q = Math.floor(end.getMonth() / 3);
-      start = new Date(end.getFullYear(), q * 3, 1);
+      const q = Math.floor(today.getMonth() / 3);
+      start = new Date(today.getFullYear(), q * 3, 1);
+      end = new Date(today.getFullYear(), q * 3 + 3, 0);
       break;
     }
     case 'semester': {
-      const half = end.getMonth() < 6 ? 0 : 6;
-      start = new Date(end.getFullYear(), half, 1);
+      const half = today.getMonth() < 6 ? 0 : 6;
+      start = new Date(today.getFullYear(), half, 1);
+      end = new Date(today.getFullYear(), half + 6, 0);
       break;
     }
     case 'year':
-      start = new Date(end.getFullYear(), 0, 1);
+      start = new Date(today.getFullYear(), 0, 1);
+      end = new Date(today.getFullYear(), 11, 31);
       break;
     case 'month':
     default:
-      start = new Date(end.getFullYear(), end.getMonth(), 1);
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       break;
   }
   return { from: localYmd(start), to: localYmd(end) };

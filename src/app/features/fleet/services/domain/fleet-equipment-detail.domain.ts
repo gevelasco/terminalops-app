@@ -16,6 +16,8 @@ export class FleetEquipmentDetailDomain {
       meta.trailerRecurringPaymentAmount !== undefined ||
       meta.trailerRecurringPaymentDate !== undefined ||
       meta.trailerRecurringInstallmentCount !== undefined ||
+      meta.trailerRecurringPaymentCadence !== undefined ||
+      meta.trailerTenureBeneficiary !== undefined ||
       meta.trailerManagementOwnerPayout !== undefined
     );
   }

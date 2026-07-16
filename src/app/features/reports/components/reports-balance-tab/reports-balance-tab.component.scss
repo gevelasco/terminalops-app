@@ -189,6 +189,33 @@
   font-weight: 600;
 }
 
+.reports-balance-panel__status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.reports-balance-panel__status-pill--paid {
+  background: color-mix(in srgb, var(--to-color-success, #27ae60) 12%, transparent);
+  color: var(--to-color-success, #27ae60);
+}
+
+.reports-balance-panel__status-pill--pending {
+  background: color-mix(in srgb, var(--to-color-warning, #f39c12) 12%, transparent);
+  color: var(--to-color-warning, #f39c12);
+}
+
+.reports-balance-panel__status-pill--overdue {
+  background: color-mix(in srgb, var(--to-color-danger, #c0392b) 12%, transparent);
+  color: var(--to-color-danger, #c0392b);
+}
+
 @media (max-width: 1100px) {
   .reports-balance-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -77,6 +77,8 @@ export interface Client {
   payment?: ClientPaymentTerms;
   /** Total de maniobras vinculadas por `clientId` (solo en listado). */
   maneuverCount?: number;
+  /** Estatus comercial derivado por el backend desde trips (solo en listado). */
+  commercialHealth?: ClientCommercialHealth;
 }
 
 export type CreateClientPayload = Omit<Client, 'id'>;

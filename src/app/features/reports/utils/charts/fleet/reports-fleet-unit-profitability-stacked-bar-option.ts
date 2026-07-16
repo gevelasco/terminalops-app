@@ -1,13 +1,12 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsFleetUnitProfitabilityRow } from '@shared/models/api/api-reports-fleet.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
   REPORTS_CHART_PALETTE,
-  reportsChartFinancialColors,
   reportsChartLegend,
   reportsChartTooltip,
   reportsChartValueAxis,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
@@ -22,10 +21,9 @@ const COST_SERIES = [
 /** Barras apiladas — ingreso desglosado en costos y utilidad real por unidad. */
 export function buildReportsFleetUnitProfitabilityStackedBarOption(
   rows: readonly ReportsFleetUnitProfitabilityRow[],
-  options?: ReportsChartColorOptions,
+  _options?: ReportsChartColorOptions,
 ): EChartsOption {
   const P = REPORTS_CHART_PALETTE;
-  const financial = reportsChartFinancialColors(resolveReportsChartPrimary(options));
   const valueAxis = reportsChartValueAxis();
 
   const ordered = [...rows]
@@ -54,29 +52,23 @@ export function buildReportsFleetUnitProfitabilityStackedBarOption(
     1,
   );
 
-  const costColors = [
-    financial.expense,
-    P.expenseDark,
-    P.warning,
-    REPORTS_CHART_PALETTE.primaryLight,
-    P.axis,
-  ];
-
   const costSeries = COST_SERIES.map((series, index) => ({
     name: series.name,
     type: 'bar' as const,
     stack: 'unit',
     barMaxWidth: 18,
     itemStyle: {
-      color: costColors[index % costColors.length],
+      color: STITCH_PALETTE[index % STITCH_PALETTE.length],
       borderRadius: index === COST_SERIES.length - 1 ? [0, 0, 0, 0] : 0,
     },
     data: ordered.map((row) => row[series.key]),
   }));
 
+  const marginColor = STITCH_PALETTE[COST_SERIES.length % STITCH_PALETTE.length];
+
   return {
     animationDuration: 480,
-    color: [...costColors, financial.margin, financial.revenue],
+    color: [...STITCH_PALETTE],
     grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
     legend: {
       ...reportsChartLegend(),
@@ -147,7 +139,7 @@ export function buildReportsFleetUnitProfitabilityStackedBarOption(
         data: ordered.map((row) => ({
           value: row.netMargin,
           itemStyle: {
-            color: row.netMargin >= 0 ? financial.margin : P.danger,
+            color: row.netMargin >= 0 ? marginColor : P.danger,
             borderRadius: [0, 4, 4, 0],
           },
         })),

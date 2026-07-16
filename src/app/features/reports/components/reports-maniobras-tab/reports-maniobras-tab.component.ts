@@ -160,11 +160,7 @@ export class ReportsManiobrasTabComponent {
       destination: row.destination,
       tripCount: row.tripCount,
     }));
-    return buildReportsGeneralDestinationsBarOption(
-      rows,
-      REPORTS_MANIOBRAS_CHART_COLOR_OFFSET.topDestinations,
-      { primaryColor: this.chartShellColor() },
-    );
+    return buildReportsGeneralDestinationsBarOption(rows);
   });
 
   readonly containerTypeOption = computed(() =>
@@ -178,8 +174,6 @@ export class ReportsManiobrasTabComponent {
   readonly cargoWeightOption = computed(() =>
     buildReportsManiobrasCargoWeightBarOption(
       this.insights()?.cargoWeightByContainer ?? [],
-      REPORTS_MANIOBRAS_CHART_COLOR_OFFSET.cargoWeightByContainer,
-      { primaryColor: this.chartShellColor() },
     ),
   );
 

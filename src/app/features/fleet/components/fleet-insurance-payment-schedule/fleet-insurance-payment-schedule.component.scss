@@ -36,6 +36,24 @@
   }
 }
 
+.fleet-insurance-schedule__body {
+  display: block;
+  max-height: calc(2.2rem * 3);
+  overflow-y: auto;
+
+  tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+}
+
+.fleet-insurance-schedule__table thead {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
 .fleet-insurance-schedule__cell--center {
   text-align: center;
 }

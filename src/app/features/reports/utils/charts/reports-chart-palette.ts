@@ -6,8 +6,10 @@ import {
   CHART_SOFTEN_BLEND,
   DASHBOARD_CHART_PRIMARY_FALLBACK,
   dashboardChartPrimary,
+  hexToRgb,
   rgbaFromHex,
   softenChartColor,
+  STITCH_PALETTE,
 } from '@features/dashboard/utils/dashboard-chart-colors';
 
 /**
@@ -16,56 +18,57 @@ import {
  */
 export const REPORTS_FINTECH_ACCENT = CHART_MUTED_ACCENT;
 
-/** Neutros de UI (slate, como dashboard). */
+/** Neutros de UI — paleta Stitch. */
 export const REPORTS_BRAND = {
-  text: '#0f172a',
-  textMuted: '#64748b',
-  axis: '#94a3b8',
-  grid: '#e2e8f0',
+  text: '#111827',
+  textMuted: '#6B7280',
+  axis: '#9CA3AF',
+  grid: '#E5E7EB',
   surface: '#FFFFFF',
   white: '#FFFFFF',
   /** Mapas / fondos suaves */
-  mapFill: '#f8fafc',
-  mapBorder: '#cbd5e1',
+  mapFill: '#F9FAFB',
+  mapBorder: '#D1D5DB',
   /** @deprecated Alias legacy */
-  navy: '#0f172a',
-  periwinkle: REPORTS_FINTECH_ACCENT.grayMid,
-  sky: REPORTS_FINTECH_ACCENT.sage,
-  cream: '#f8fafc',
-  warmYellow: REPORTS_FINTECH_ACCENT.sand,
-  paleBlueGray: '#e2e8f0',
-  deepTeal: '#0f172a',
-  charcoal: '#0f172a',
-  sage: REPORTS_FINTECH_ACCENT.sage,
-  blue: DASHBOARD_CHART_PRIMARY_FALLBACK,
-  mint: REPORTS_FINTECH_ACCENT.sage,
-  charcoalTeal: '#0f172a',
-  tealMid: '#0f172a',
-  mintStrong: REPORTS_FINTECH_ACCENT.sage,
+  navy: STITCH_PALETTE[0],
+  periwinkle: STITCH_PALETTE[1],
+  sky: STITCH_PALETTE[2],
+  cream: STITCH_PALETTE[4],
+  warmYellow: STITCH_PALETTE[3],
+  paleBlueGray: STITCH_PALETTE[3],
+  deepTeal: STITCH_PALETTE[0],
+  charcoal: STITCH_PALETTE[0],
+  sage: STITCH_PALETTE[2],
+  blue: STITCH_PALETTE[1],
+  mint: STITCH_PALETTE[2],
+  charcoalTeal: STITCH_PALETTE[0],
+  tealMid: STITCH_PALETTE[1],
+  mintStrong: STITCH_PALETTE[2],
 } as const;
 
 export const REPORTS_CHART_PALETTE = {
-  primary: softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK),
-  primaryLight: REPORTS_FINTECH_ACCENT.grayMid,
-  primarySoft: REPORTS_BRAND.mapFill,
-  accent: REPORTS_FINTECH_ACCENT.sand,
-  accentSoft: REPORTS_BRAND.mapFill,
-  revenue: softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK),
-  expense: CHART_MUTED_EXPENSE,
-  expenseDark: REPORTS_FINTECH_ACCENT.grayMid,
-  margin: REPORTS_FINTECH_ACCENT.sage,
-  marginLight: REPORTS_BRAND.mapFill,
-  success: REPORTS_FINTECH_ACCENT.sage,
-  warning: REPORTS_FINTECH_ACCENT.sand,
-  danger: softenChartColor('#c97a7a'),
-  inTransit: CHART_MUTED_IN_TRANSIT,
-  scheduled: CHART_MUTED_SCHEDULED,
-  completed: softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK),
+  primary: STITCH_PALETTE[0],
+  primaryLight: STITCH_PALETTE[1],
+  primarySoft: STITCH_PALETTE[4],
+  accent: STITCH_PALETTE[2],
+  accentSoft: STITCH_PALETTE[4],
+  revenue: STITCH_PALETTE[0],
+  expense: STITCH_PALETTE[1],
+  expenseDark: STITCH_PALETTE[2],
+  margin: STITCH_PALETTE[2],
+  marginLight: STITCH_PALETTE[4],
+  success: STITCH_PALETTE[1],
+  warning: STITCH_PALETTE[3],
+  danger: '#991b1b',
+  inTransit: STITCH_PALETTE[1],
+  scheduled: STITCH_PALETTE[2],
+  completed: STITCH_PALETTE[0],
   series: [
-    softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK),
-    CHART_MUTED_ACCENT.gray,
-    CHART_MUTED_ACCENT.sage,
-    CHART_MUTED_ACCENT.sand,
+    STITCH_PALETTE[0],
+    STITCH_PALETTE[1],
+    STITCH_PALETTE[2],
+    STITCH_PALETTE[3],
+    STITCH_PALETTE[4],
   ] as const,
   axis: REPORTS_BRAND.axis,
   axisLabel: REPORTS_BRAND.textMuted,
@@ -74,7 +77,7 @@ export const REPORTS_CHART_PALETTE = {
   textMuted: REPORTS_BRAND.textMuted,
   surface: REPORTS_BRAND.surface,
   gaugeTrack: REPORTS_BRAND.grid,
-  tooltipBg: 'rgba(15, 23, 42, 0.92)',
+  tooltipBg: 'rgba(17, 24, 39, 0.92)',
   tooltipText: REPORTS_BRAND.white,
   labelOnFill: REPORTS_BRAND.white,
   labelOnLightFill: REPORTS_BRAND.text,
@@ -91,17 +94,17 @@ export type ReportsChartColorOptions = {
   primaryColor?: string;
 };
 
-/** Azul del sidemenu — mismo criterio que dashboard. */
+/** Color primario Stitch. */
 export function reportsChartPrimary(): string {
-  return dashboardChartPrimary();
+  return STITCH_PALETTE[0];
 }
 
 export function resolveReportsChartPrimary(options?: ReportsChartColorOptions): string {
-  return options?.primaryColor ?? reportsChartPrimary();
+  return options?.primaryColor ?? STITCH_PALETTE[0];
 }
 
-/** Colores semánticos con azul dinámico del tema. */
-export function reportsChartSemanticColors(primary?: string): {
+/** Colores semánticos — siempre comienzan desde color 1. */
+export function reportsChartSemanticColors(_primary?: string): {
   primary: string;
   revenue: string;
   expense: string;
@@ -112,26 +115,23 @@ export function reportsChartSemanticColors(primary?: string): {
   warning: string;
   success: string;
 } {
-  const blue = softenChartColor(primary ?? reportsChartPrimary(), CHART_SOFTEN_BLEND * 0.5);
   return {
-    primary: blue,
-    revenue: blue,
-    expense: A.gray,
-    margin: A.sage,
-    completed: blue,
-    inTransit: A.sage,
-    scheduled: A.gray,
-    warning: A.sand,
-    success: A.sage,
+    primary: STITCH_PALETTE[0],
+    revenue: STITCH_PALETTE[0],
+    expense: STITCH_PALETTE[1],
+    margin: STITCH_PALETTE[2],
+    completed: STITCH_PALETTE[0],
+    inTransit: STITCH_PALETTE[1],
+    scheduled: STITCH_PALETTE[2],
+    warning: STITCH_PALETTE[3],
+    success: STITCH_PALETTE[1],
   };
 }
 
-/** Ciclo fintech apagado: azul · gris · sage · sand. */
-export function reportsChartSliceColorAt(index: number, primary?: string): string {
-  const blue = softenChartColor(primary ?? reportsChartPrimary(), CHART_SOFTEN_BLEND * 0.5);
-  const cycle = [blue, A.gray, A.sage, A.sand] as const;
-  const normalized = ((index % cycle.length) + cycle.length) % cycle.length;
-  return cycle[normalized] ?? blue;
+/** Ciclo de paleta: #0F172A · #1D4ED8 · #60A5FA · #E2E8F0 · #F8FAFC. */
+export function reportsChartSliceColorAt(index: number, _primary?: string): string {
+  const normalized = ((index % STITCH_PALETTE.length) + STITCH_PALETTE.length) % STITCH_PALETTE.length;
+  return STITCH_PALETTE[normalized];
 }
 
 export function reportsChartRotatingColorAt(index: number, primary?: string): string {
@@ -154,37 +154,35 @@ export function reportsChartSeriesColors(
 /** @deprecated Prefer reportsChartSeriesColors */
 export const reportsFintechSeriesColors = reportsChartSeriesColors;
 
-/**
- * Desplazamiento de paleta en tab General (4 colores rotativos).
- */
+/** Tab General — todas las gráficas inician en color 1. */
 export const REPORTS_GENERAL_CHART_COLOR_OFFSET = {
-  destinations: 1,
-  operationMix: 2,
-  operators: 3,
+  destinations: 0,
+  operationMix: 0,
+  operators: 0,
 } as const;
 
-/** Rotación categórica en tab Balance. */
+/** Rotación categórica en tab Balance — todas las gráficas inician en color 1. */
 export const REPORTS_BALANCE_CHART_COLOR_OFFSET = {
   creditByClient: 0,
-  incomeByClient: 1,
-  marginByClient: 2,
-  expensesByRubro: 3,
+  incomeByClient: 0,
+  marginByClient: 0,
+  expensesByRubro: 0,
 } as const;
 
-/** Rotación categórica en tab Maniobras. */
+/** Rotación categórica en tab Maniobras — todas las gráficas inician en color 1. */
 export const REPORTS_MANIOBRAS_CHART_COLOR_OFFSET = {
   topOperators: 0,
-  topClients: 1,
-  topDestinations: 2,
-  containerTypeMix: 3,
-  cargoWeightByContainer: 1,
+  topClients: 0,
+  topDestinations: 0,
+  containerTypeMix: 0,
+  cargoWeightByContainer: 0,
 } as const;
 
-/** Rotación categórica en tab Flota. */
+/** Rotación categórica en tab Flota — todas las gráficas inician en color 1. */
 export const REPORTS_FLEET_CHART_COLOR_OFFSET = {
   statusMix: 0,
-  topUnitsByKm: 1,
-  fleetSpendMix: 2,
+  topUnitsByKm: 0,
+  fleetSpendMix: 0,
 } as const;
 
 export function reportsChartFinancialColors(primary?: string): {
@@ -375,17 +373,21 @@ export function reportsChartAdaptiveFillLabelColor(
   return pick as unknown as string;
 }
 
-const LIGHT_FILL_COLORS = new Set(
-  [A.gray, A.grayMid, REPORTS_BRAND.mapFill, REPORTS_BRAND.grid].map((c) =>
-    c.toLowerCase(),
-  ),
-);
+function relativeLuminance(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const [rs, gs, bs] = [rgb.r, rgb.g, rgb.b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
 
 export function reportsChartLabelIsLightFill(color: string | undefined): boolean {
   if (!color) {
     return false;
   }
-  return LIGHT_FILL_COLORS.has(color.toLowerCase());
+  return relativeLuminance(color) > 0.35;
 }
 
 export { rgbaFromHex };

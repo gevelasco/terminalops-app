@@ -24,10 +24,6 @@
   @if (vm.editingSection() !== "operation") {
     <dl class="fleet-unit-detail__dl">
       <div class="fleet-unit-detail__row">
-        <dt>Estado operativo</dt>
-        <dd>{{ vm.operationalStatusLabel() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
         <dt>Registro</dt>
         <dd>{{ vm.resourceVisibilityLabel() }}</dd>
       </div>
@@ -160,17 +156,151 @@
 </section>
 
 @if (vm.editingSection() !== "operation") {
+  <!-- Pagos pendientes — always visible, not affected by period filter -->
+  @if (vm.operationSummary().pendingPaymentRows.length > 0) {
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="operators-dv-pending-pay"
+    >
+      <h3 id="operators-dv-pending-pay" class="fleet-unit-sec__title">
+        Pagos pendientes
+      </h3>
+      <dl class="fleet-unit-detail__dl">
+        <div class="operators-op-pay-metrics">
+          <div class="operators-op-pay-metrics__item">
+            <dt class="operators-op-pay-metrics__label">Maniobras por pagar</dt>
+            <dd class="operators-op-pay-metrics__value">
+              {{ vm.operationSummary().owedTripCount }}
+            </dd>
+          </div>
+          <div class="operators-op-pay-metrics__item">
+            <dt class="operators-op-pay-metrics__label">Saldo pendiente</dt>
+            <dd class="operators-op-pay-metrics__value operators-op-pay-metrics__value--amount">
+              <div class="operators-op-pay-summary">
+                <span class="operators-op-pay-summary__amount">{{
+                  vm.operationMoney(vm.operationSummary().owedAmount)
+                }}</span>
+                @if (vm.operationSummary().owedTripCount > 0) {
+                  <to-badge
+                    [variant]="
+                      vm.payDueBadgeVariant(
+                        vm.operationSummary().nextPayDueBadgeVariant
+                      )
+                    "
+                    >Próximo pago:
+                    {{ vm.operationSummary().nextPayDueLabel }}</to-badge
+                  >
+                }
+              </div>
+            </dd>
+          </div>
+        </div>
+      </dl>
+      <div class="operators-op-pay-scroll">
+        <table
+          class="operators-op-pay-table"
+          aria-label="Pagos pendientes al operador"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Fecha límite</th>
+              <th scope="col">Maniobra</th>
+              <th scope="col">Monto</th>
+              <th scope="col">Estado</th>
+              <th scope="col" class="operators-op-pay-table__action-head">
+                Acción
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (
+              row of vm.operationSummary().pendingPaymentRows;
+              track row.tripId
+            ) {
+              <tr
+                class="operators-op-pay-table__row--pending"
+                [class.operators-op-pay-table__row--overdue]="
+                  row.status === 'overdue'
+                "
+              >
+                <td>{{ row.dueLabel }}</td>
+                <td class="fleet-unit-detail__mono">
+                  {{ row.maneuverCode }}
+                </td>
+                <td class="operators-op-pay-table__amount">
+                  {{ vm.operationMoney(row.balance) }}
+                </td>
+                <td>
+                  <to-badge
+                    [variant]="vm.payDueBadgeVariant(row.badgeVariant)"
+                    >{{ row.statusHint }}</to-badge
+                  >
+                </td>
+                <td class="operators-op-pay-table__action-cell">
+                  @if (row.canConfirm) {
+                    <button
+                      type="button"
+                      class="operators-op-pay-table__confirm"
+                      [disabled]="vm.paymentConfirming() || vm.saving()"
+                      title="Confirmar pago"
+                      [attr.aria-label]="
+                        'Confirmar pago de la maniobra ' + row.maneuverCode
+                      "
+                      (click)="vm.confirmOperatorPayment(row.tripId)"
+                    >
+                      <to-icon name="checkCircle" [size]="16" />
+                    </button>
+                  } @else {
+                    <span class="operators-op-pay-table__action-empty">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <!-- Period filter -->
+  <div class="clients-balance-period-filter" aria-label="Filtro de periodo">
+    <span class="clients-balance-period-filter__label">
+      <to-icon name="calendar" [size]="14" />
+      Periodo
+    </span>
+    <div class="clients-balance-period-filter__controls">
+      <to-month-year-picker
+        class="clients-balance-period-filter__picker"
+        ariaLabel="Desde mes y año"
+        [max]="vm.currentMonthYear()"
+        [value]="{ month: vm.periodFromMonth(), year: vm.periodFromYear() }"
+        (valueChange)="vm.onPeriodFromChange($event)"
+      />
+      <span class="clients-balance-period-filter__sep" aria-hidden="true">–</span>
+      <to-month-year-picker
+        class="clients-balance-period-filter__picker"
+        ariaLabel="Hasta mes y año"
+        [min]="{ month: vm.periodFromMonth(), year: vm.periodFromYear() }"
+        [max]="vm.currentMonthYear()"
+        [value]="{ month: vm.periodToMonth(), year: vm.periodToYear() }"
+        (valueChange)="vm.onPeriodToChange($event)"
+      />
+    </div>
+  </div>
+
   @if (!vm.operationSummary().hasTrips) {
     <p class="operators-op-empty">
       Este operador aún no tiene maniobras asignadas en el sistema.
     </p>
   } @else {
+    <!-- Period-filtered sections -->
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
       aria-labelledby="operators-dv-maneuvers"
     >
       <h3 id="operators-dv-maneuvers" class="fleet-unit-sec__title">
-        Últimos 30 días
+        Maniobras por estado
+        <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
       </h3>
       <dl class="fleet-unit-detail__dl operators-op-status-grid">
         <div class="fleet-unit-detail__row">
@@ -244,52 +374,15 @@
       </section>
     }
 
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="operators-dv-pay"
-    >
-      <h3 id="operators-dv-pay" class="fleet-unit-sec__title">
-        Pagos al operador
-      </h3>
-      @if (
-        vm.operationSummary().pendingPaymentRows.length === 0 &&
-        vm.operationSummary().recentPaymentRows.length === 0
-      ) {
-        <p class="operators-op-empty">
-          Sin maniobras con cuota de operador registradas.
-        </p>
-      } @else {
-        <dl class="fleet-unit-detail__dl">
-          <div class="operators-op-pay-metrics">
-            <div class="operators-op-pay-metrics__item">
-              <dt class="operators-op-pay-metrics__label">Maniobras por pagar</dt>
-              <dd class="operators-op-pay-metrics__value">
-                {{ vm.operationSummary().owedTripCount }}
-              </dd>
-            </div>
-            <div class="operators-op-pay-metrics__item">
-              <dt class="operators-op-pay-metrics__label">Saldo pendiente</dt>
-              <dd class="operators-op-pay-metrics__value operators-op-pay-metrics__value--amount">
-                <div class="operators-op-pay-summary">
-                  <span class="operators-op-pay-summary__amount">{{
-                    vm.operationMoney(vm.operationSummary().owedAmount)
-                  }}</span>
-                  @if (vm.operationSummary().owedTripCount > 0) {
-                    <to-badge
-                      [variant]="
-                        vm.payDueBadgeVariant(
-                          vm.operationSummary().nextPayDueBadgeVariant
-                        )
-                      "
-                      >Próximo pago:
-                      {{ vm.operationSummary().nextPayDueLabel }}</to-badge
-                    >
-                  }
-                </div>
-              </dd>
-            </div>
-          </div>
-        </dl>
+    @if (vm.operationSummary().recentPaymentRows.length > 0) {
+      <section
+        class="fleet-unit-sec fleet-unit-sec--boxed"
+        aria-labelledby="operators-dv-pay"
+      >
+        <h3 id="operators-dv-pay" class="fleet-unit-sec__title">
+          Pagos al operador
+          <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
+        </h3>
         <div class="operators-op-pay-scroll">
           <table
             class="operators-op-pay-table"
@@ -309,21 +402,16 @@
             </thead>
             <tbody>
               @for (
-                row of vm.operationSummary().pendingPaymentRows;
+                row of vm.operationSummary().recentPaymentRows;
                 track row.tripId
               ) {
-                <tr
-                  class="operators-op-pay-table__row--pending"
-                  [class.operators-op-pay-table__row--overdue]="
-                    row.status === 'overdue'
-                  "
-                >
+                <tr class="operators-op-pay-table__row--paid">
                   <td class="fleet-unit-detail__mono">
                     {{ row.maneuverCode }}
                   </td>
                   <td>{{ row.dueLabel }}</td>
                   <td class="operators-op-pay-table__amount">
-                    {{ vm.operationMoney(row.balance) }}
+                    {{ vm.operationMoney(row.quotaAmount) }}
                   </td>
                   <td>
                     <to-badge
@@ -331,20 +419,24 @@
                       >{{ row.statusHint }}</to-badge
                     >
                   </td>
-                  <td>—</td>
+                  <td>
+                    <span class="operators-op-pay-table__paid">
+                      {{ vm.operatorPaymentPaidLabel(row.paidAtYmd) }}
+                    </span>
+                  </td>
                   <td class="operators-op-pay-table__action-cell">
-                    @if (row.canConfirm) {
+                    @if (vm.canWriteOperators()) {
                       <button
                         type="button"
-                        class="operators-op-pay-table__confirm"
+                        class="operators-op-pay-table__revert"
                         [disabled]="vm.paymentConfirming() || vm.saving()"
-                        title="Confirmar pago"
+                        title="Revertir pago"
                         [attr.aria-label]="
-                          'Confirmar pago de la maniobra ' + row.maneuverCode
+                          'Revertir pago de la maniobra ' + row.maneuverCode
                         "
-                        (click)="vm.confirmOperatorPayment(row.tripId)"
+                        (click)="vm.revertOperatorPayment(row.tripId)"
                       >
-                        <to-icon name="checkCircle" [size]="16" />
+                        <to-icon name="cancelCircle" [size]="16" />
                       </button>
                     } @else {
                       <span class="operators-op-pay-table__action-empty">—</span>
@@ -353,46 +445,9 @@
                 </tr>
               }
             </tbody>
-            @if (vm.operationSummary().recentPaymentRows.length > 0) {
-              <tbody>
-                <tr class="operators-op-pay-table__section-row">
-                  <th scope="colgroup" colspan="6">
-                    Resumen de últimos 30 días
-                  </th>
-                </tr>
-                @for (
-                  row of vm.operationSummary().recentPaymentRows;
-                  track row.tripId
-                ) {
-                  <tr class="operators-op-pay-table__row--paid">
-                    <td class="fleet-unit-detail__mono">
-                      {{ row.maneuverCode }}
-                    </td>
-                    <td>{{ row.dueLabel }}</td>
-                    <td class="operators-op-pay-table__amount">
-                      {{ vm.operationMoney(row.quotaAmount) }}
-                    </td>
-                    <td>
-                      <to-badge
-                        [variant]="vm.payDueBadgeVariant(row.badgeVariant)"
-                        >{{ row.statusHint }}</to-badge
-                      >
-                    </td>
-                    <td>
-                      <span class="operators-op-pay-table__paid">
-                        {{ vm.operatorPaymentPaidLabel(row.paidAtYmd) }}
-                      </span>
-                    </td>
-                    <td class="operators-op-pay-table__action-cell">
-                      <span class="operators-op-pay-table__action-empty">—</span>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            }
           </table>
         </div>
-      }
-    </section>
+      </section>
+    }
   }
 }

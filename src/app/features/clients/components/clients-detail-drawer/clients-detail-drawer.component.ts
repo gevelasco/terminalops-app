@@ -10,19 +10,16 @@ import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
-import { OperationalTripsFeatureService } from '@features/trips/services/operational-trips.service';
 import { OPERATION_CONFIGURATION_PROVIDERS } from '@shared/services/operation-configuration.providers';
 import { ClientsDetailDrawerFacade } from './clients-detail-drawer.facade';
 import { ClientsDetailBalanceTabComponent } from './tabs/clients-detail-balance-tab.component';
 import { ClientsDetailDetailsTabComponent } from './tabs/clients-detail-details-tab.component';
-import { ClientsDetailManeuversTabComponent } from './tabs/clients-detail-maneuvers-tab.component';
 
 @Component({
   selector: 'app-clients-detail-drawer',
   standalone: true,
   providers: [
     ClientsDetailDrawerFacade,
-    OperationalTripsFeatureService,
     ...OPERATION_CONFIGURATION_PROVIDERS,
   ],
   imports: [
@@ -32,7 +29,6 @@ import { ClientsDetailManeuversTabComponent } from './tabs/clients-detail-maneuv
     ToStatusPillComponent,
     ClientsDetailDetailsTabComponent,
     ClientsDetailBalanceTabComponent,
-    ClientsDetailManeuversTabComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './clients-detail-drawer.component.html',

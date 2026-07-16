@@ -238,8 +238,20 @@
             }
           </dd>
         </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Periodicidad</dt>
+          <dd>{{ vm.tenureCadenceLabel() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Beneficiario</dt>
+          <dd>{{ vm.meta()?.trailerTenureBeneficiary?.trim() || "—" }}</dd>
+        </div>
       }
       @if (vm.tenureMode() === "managed") {
+        <div class="fleet-unit-detail__row">
+          <dt>Beneficiario</dt>
+          <dd>{{ vm.meta()?.trailerTenureBeneficiary?.trim() || "—" }}</dd>
+        </div>
         <div class="fleet-unit-detail__row">
           <dt>Pago al dueño / administración</dt>
           <dd>
@@ -248,8 +260,22 @@
             }}
           </dd>
         </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Periodicidad</dt>
+          <dd>{{ vm.tenureCadenceLabel() }}</dd>
+        </div>
       }
     </dl>
+    @if (vm.showTenurePaymentScheduleTable()) {
+      <app-fleet-insurance-payment-schedule
+        [schedule]="vm.tenurePaymentSchedule()"
+        [saving]="vm.saving()"
+        [canConfirmPayments]="vm.canWriteFleet()"
+        [formatDate]="vm.formatYmd"
+        [formatAmount]="vm.formatTrackingAmount.bind(vm)"
+        (confirmCycle)="vm.confirmTenurePaymentCycle($event)"
+      />
+    }
     <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
     @if (vm.docNames("ownership").length > 0) {
       <ul
@@ -273,27 +299,41 @@
     }
   } @else {
     <div class="fleet-unit-sec__edit-form">
-      <to-select
-        label="Situación del activo *"
-        [options]="vm.tenureOptions"
-        [value]="vm.editTenureMode()"
-        (valueChange)="vm.setEditTenureMode($event)"
-      />
-      @if (vm.editTenureMode() === "owned") {
-        <to-input
-          label="Valor comercial estimado (opcional)"
-          type="text"
-          [groupThousands]="true"
-          placeholder="Ej. 350,000"
-          [(value)]="vm.editCommercialValue"
+      <div class="fleet-unit-sec__edit-grid">
+        <to-select
+          label="Situación del activo"
+          [options]="vm.tenureOptions"
+          [value]="vm.editTenureMode()"
+          (valueChange)="vm.setEditTenureMode($event)"
         />
-      }
+        @if (vm.editTenureMode() === "owned") {
+          <to-input
+            label="Valor comercial estimado"
+            type="text"
+            [groupThousands]="true"
+            placeholder="Ej. 350,000"
+            [(value)]="vm.editCommercialValue"
+          />
+        }
+        @if (
+          vm.editTenureMode() === "financed" ||
+          vm.editTenureMode() === "leased" ||
+          vm.editTenureMode() === "managed"
+        ) {
+          <to-input
+            label="Beneficiario"
+            type="text"
+            placeholder="Ej. Financiera ABC"
+            [(value)]="vm.editTenureBeneficiary"
+          />
+        }
+      </div>
       @if (
         vm.editTenureMode() === "financed" || vm.editTenureMode() === "leased"
       ) {
         <div class="fleet-unit-sec__edit-grid">
           <to-input
-            [label]="vm.tenureRecurringAmountLabel() + ' (opcional)'"
+            [label]="vm.tenureRecurringAmountLabel()"
             type="text"
             [groupThousands]="true"
             placeholder="Ej. 18,500"
@@ -305,21 +345,37 @@
             [(value)]="vm.editRecurringDate"
           />
         </div>
-        <to-input
-          [label]="vm.tenureInstallmentOrTermLabel() + ' (opcional)'"
-          type="text"
-          placeholder="Ej. 36"
-          [(value)]="vm.editRecurringInstallments"
-        />
+        <div class="fleet-unit-sec__edit-grid">
+          <to-input
+            [label]="vm.tenureInstallmentOrTermLabel()"
+            type="text"
+            placeholder="Ej. 36"
+            [(value)]="vm.editRecurringInstallments"
+          />
+          <to-select
+            label="Periodicidad"
+            [options]="vm.tenureCadenceOptions"
+            [value]="vm.editRecurringCadence()"
+            (valueChange)="vm.editRecurringCadence.set($event)"
+          />
+        </div>
       }
       @if (vm.editTenureMode() === "managed") {
-        <to-input
-          label="Pago al dueño / administración (opcional)"
-          type="text"
-          [groupThousands]="true"
-          placeholder="Ej. 8,000"
-          [(value)]="vm.editOwnerPayout"
-        />
+        <div class="fleet-unit-sec__edit-grid">
+          <to-input
+            label="Pago al dueño / administración"
+            type="text"
+            [groupThousands]="true"
+            placeholder="Ej. 8,000"
+            [(value)]="vm.editOwnerPayout"
+          />
+          <to-select
+            label="Periodicidad"
+            [options]="vm.tenureCadenceOptions"
+            [value]="vm.editRecurringCadence()"
+            (valueChange)="vm.editRecurringCadence.set($event)"
+          />
+        </div>
       }
       <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
 

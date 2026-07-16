@@ -34,11 +34,19 @@
 }
 
 .reports-balance-activity-heatmap__swatch--income {
-  background: #93c5fd;
+  background: #0F172A;
+}
+
+.reports-balance-activity-heatmap__swatch--receivable {
+  background: #1D4ED8;
+}
+
+.reports-balance-activity-heatmap__swatch--payable {
+  background: #60A5FA;
 }
 
 .reports-balance-activity-heatmap__swatch--expense {
-  background: #cbd5e1;
+  background: #E2E8F0;
 }
 
 .reports-balance-activity-heatmap__scale {
@@ -48,11 +56,19 @@
 }
 
 .reports-balance-activity-heatmap__scale--income {
-  background: linear-gradient(to right, #f8fbff, #2563eb);
+  background: linear-gradient(to right, #F8FAFC, #0F172A);
+}
+
+.reports-balance-activity-heatmap__scale--receivable {
+  background: linear-gradient(to right, #F8FAFC, #1D4ED8);
+}
+
+.reports-balance-activity-heatmap__scale--payable {
+  background: linear-gradient(to right, #F8FAFC, #60A5FA);
 }
 
 .reports-balance-activity-heatmap__scale--expense {
-  background: linear-gradient(to right, #f8fafc, #64748b);
+  background: linear-gradient(to right, #F8FAFC, #E2E8F0);
 }
 
 .reports-balance-activity-day {

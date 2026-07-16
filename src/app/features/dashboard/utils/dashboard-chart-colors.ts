@@ -1,15 +1,23 @@
 /**
- * Azul acento del sidemenu (ítem activo / `--palette-primary` en tema oscuro).
- * No usar `--shell-bg`: ese es el fondo oscuro del rail, no el azul.
+ * Paleta principal — 5 colores ordenados: navy, blue, sky, slate, near-white.
+ * Todas las gráficas toman los primeros N colores según su cantidad de series.
  */
-export const DASHBOARD_CHART_PRIMARY_FALLBACK = '#748498';
+export const STITCH_PALETTE = [
+  '#0F172A',
+  '#1D4ED8',
+  '#60A5FA',
+  '#E2E8F0',
+  '#F8FAFC',
+] as const;
 
-/** Acentos apagados — sobrios y profesionales. */
+export const DASHBOARD_CHART_PRIMARY_FALLBACK = STITCH_PALETTE[0];
+
+/** Acentos — mapeados desde la paleta de 5 colores. */
 export const CHART_MUTED_ACCENT = {
-  gray: '#a8b0bd',
-  grayMid: '#b8bec8',
-  sage: '#8fa89a',
-  sand: '#b8aa92',
+  gray: STITCH_PALETTE[2],
+  grayMid: STITCH_PALETTE[1],
+  sage: STITCH_PALETTE[2],
+  sand: STITCH_PALETTE[3],
 } as const;
 
 /** Mezcla hacia gris claro para suavizar cualquier tono de gráfica. */
@@ -24,14 +32,14 @@ export const CHART_MUTED_SCHEDULED = CHART_MUTED_ACCENT.gray;
 /** Gastos / líneas secundarias. */
 export const CHART_MUTED_EXPENSE = CHART_MUTED_ACCENT.grayMid;
 
-/** Grises de contraste para segmentos adicionales en dona. */
+/** Contraste para segmentos adicionales — repite ciclo de paleta. */
 const DASHBOARD_SLICE_CONTRAST = [
-  CHART_MUTED_ACCENT.grayMid,
-  '#c8ced6',
-  CHART_MUTED_ACCENT.gray,
-  '#d4d9e0',
-  '#98a2ae',
-  '#e2e6eb',
+  STITCH_PALETTE[1],
+  STITCH_PALETTE[2],
+  STITCH_PALETTE[3],
+  STITCH_PALETTE[4],
+  '#9CA3AF',
+  '#4B5563',
 ] as const;
 
 function rgbStringToHex(rgb: string): string | null {
@@ -77,35 +85,10 @@ function isUsableChartHex(hex: string | null): hex is string {
 }
 
 /**
- * Azul del sidemenu: `var(--palette-primary, #748498)`.
- * En tema claro `--palette-primary` puede ser negro; entonces usa `--to-color-derived`.
+ * Color primario de gráficas — Stitch #111827.
  */
 export function dashboardChartPrimary(): string {
-  if (typeof document === 'undefined') {
-    return softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK);
-  }
-
-  const palette = resolveCssColor('color', 'var(--palette-primary, #748498)');
-  if (isUsableChartHex(palette)) {
-    return softenChartColor(palette);
-  }
-
-  const derived = resolveCssColor('color', 'var(--to-color-derived, #748498)');
-  if (isUsableChartHex(derived)) {
-    return softenChartColor(derived);
-  }
-
-  const activeNavBg = document.querySelector(
-    '[data-shell-sidebar] .shell-nav-link--active',
-  );
-  if (activeNavBg) {
-    const fromNav = rgbStringToHex(getComputedStyle(activeNavBg).backgroundColor);
-    if (isUsableChartHex(fromNav)) {
-      return softenChartColor(fromNav);
-    }
-  }
-
-  return softenChartColor(DASHBOARD_CHART_PRIMARY_FALLBACK);
+  return STITCH_PALETTE[0];
 }
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -124,13 +107,13 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Mezcla un color sólido hacia un gris claro neutro. */
+/** Mezcla un color sólido hacia el gris claro Stitch (#E5E7EB). */
 export function softenChartColor(hex: string, amount = CHART_SOFTEN_BLEND): string {
   const rgb = hexToRgb(hex);
   if (!rgb) {
     return hex;
   }
-  const target = { r: 236, g: 239, b: 243 };
+  const target = { r: 229, g: 231, b: 235 };
   const t = Math.min(1, Math.max(0, amount));
   return rgbToHex(
     Math.round(rgb.r + (target.r - rgb.r) * t),
@@ -149,16 +132,12 @@ export function rgbaFromHex(hex: string, alpha: number): string {
 
 export function dashboardChartSliceColors(count: number): string[] {
   if (count <= 0) {
-    return [dashboardChartPrimary()];
+    return [STITCH_PALETTE[0]];
   }
-  const primary = dashboardChartPrimary();
-  const cycle = [
-    primary,
-    CHART_MUTED_ACCENT.gray,
-    CHART_MUTED_ACCENT.sage,
-    CHART_MUTED_ACCENT.sand,
-  ] as const;
-  return Array.from({ length: count }, (_, i) => cycle[i % cycle.length] ?? primary);
+  return Array.from(
+    { length: count },
+    (_, i) => STITCH_PALETTE[i % STITCH_PALETTE.length],
+  );
 }
 
 /** Grosor de barra horizontal según cantidad de destinos. */

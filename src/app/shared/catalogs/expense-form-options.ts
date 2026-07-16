@@ -16,6 +16,7 @@ export const EXPENSE_KIND_OPTIONS: ToSelectOption[] = [
   { value: 'unit_purchase', label: 'Compra de unidad' },
   { value: 'equipment_rent', label: 'Arriendo de equipo' },
   { value: 'unit_rent', label: 'Arriendo de unidad' },
+  { value: 'tenure_payment', label: 'Cuota de financiamiento o arrendamiento' },
   {
     value: 'trailer_admin_payout',
     label: 'Pago por administración de equipo / rendimiento',

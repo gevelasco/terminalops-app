@@ -65,5 +65,6 @@ export function fleetCycleIsPaid(
 ): boolean {
   void dueDate;
   void lastPaymentDate;
-  return matchedExpense != null;
+  if (!matchedExpense) return false;
+  return matchedExpense.paidAt != null;
 }

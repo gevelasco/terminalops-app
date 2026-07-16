@@ -8,47 +8,6 @@
   <div class="fleet-unit-detail__section-stack clients-balance-tab__sections">
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="cli-dv-maneuvers"
-    >
-      <h3 id="cli-dv-maneuvers" class="fleet-unit-sec__title">
-        Maniobras por estado
-      </h3>
-      <dl class="fleet-unit-detail__dl clients-balance-status-grid">
-        <div class="fleet-unit-detail__row">
-          <dt>Completadas</dt>
-          <dd>{{ vm.balanceSummary().statusCounts.completed }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>En curso</dt>
-          <dd>{{ vm.balanceSummary().statusCounts.inTransit }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Programadas</dt>
-          <dd>{{ vm.balanceSummary().statusCounts.scheduled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Canceladas</dt>
-          <dd>{{ vm.balanceSummary().statusCounts.cancelled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row clients-balance-status-grid__total">
-          <dt>Total</dt>
-          <dd>{{ vm.balanceSummary().statusCounts.total }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Km en completadas</dt>
-          <dd>
-            {{
-              vm.balanceSummary().totalKm === 0
-                ? "—"
-                : vm.balanceSummary().totalKm.toLocaleString("es-MX") + " km"
-            }}
-          </dd>
-        </div>
-      </dl>
-    </section>
-
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
       aria-labelledby="cli-dv-cartera"
     >
       <h3 id="cli-dv-cartera" class="fleet-unit-sec__title">Cartera</h3>
@@ -75,20 +34,31 @@
             </dd>
           </div>
           <div class="fleet-unit-detail__row">
-            <dt>Ingresos cobrados</dt>
-            <dd>{{ vm.balanceMoney(vm.balanceSummary().collected) }}</dd>
+            <dt>Maniobras pendientes de cobro</dt>
+            <dd>{{ vm.receivableManeuverCountLabel() }}</dd>
           </div>
           <div class="fleet-unit-detail__row">
-            <dt>Ingresos pactados (total)</dt>
-            <dd>{{ vm.balanceMoney(vm.balanceSummary().totalRevenue) }}</dd>
+            <dt>Días de mora promedio</dt>
+            <dd>{{ vm.avgDelayDaysLabel() }}</dd>
           </div>
           <div class="fleet-unit-detail__row">
-            <dt>Costos operativos directos</dt>
-            <dd>{{ vm.balanceMoney(vm.balanceSummary().directCost) }}</dd>
+            <dt>Exposición crediticia</dt>
+            <dd>
+              <to-badge
+                [variant]="vm.creditExposureStatus().variant"
+              >
+                <to-icon [name]="vm.creditExposureStatus().icon" [size]="12" />
+                {{ vm.creditExposureStatus().label }}
+              </to-badge>
+            </dd>
           </div>
           <div class="fleet-unit-detail__row">
-            <dt>Margen estimado</dt>
-            <dd>{{ vm.balanceMarginLabel() }}</dd>
+            <dt>Maniobras históricas</dt>
+            <dd>{{ vm.historicManeuverCountLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Margen histórico</dt>
+            <dd>{{ vm.historicMarginPctLabel() }}</dd>
           </div>
         </dl>
       }
@@ -173,16 +143,43 @@
       }
     </section>
 
+    <div class="clients-balance-period-filter" aria-label="Filtro de periodo">
+      <span class="clients-balance-period-filter__label">
+        <to-icon name="calendar" [size]="14" />
+        Periodo
+      </span>
+      <div class="clients-balance-period-filter__controls">
+        <to-month-year-picker
+          class="clients-balance-period-filter__picker"
+          ariaLabel="Desde mes y año"
+          [max]="vm.currentMonthYear()"
+          [value]="{ month: vm.periodFromMonth(), year: vm.periodFromYear() }"
+          (valueChange)="vm.onPeriodFromChange($event)"
+        />
+        <span class="clients-balance-period-filter__sep" aria-hidden="true">–</span>
+        <to-month-year-picker
+          class="clients-balance-period-filter__picker"
+          ariaLabel="Hasta mes y año"
+          [min]="{ month: vm.periodFromMonth(), year: vm.periodFromYear() }"
+          [max]="vm.currentMonthYear()"
+          [value]="{ month: vm.periodToMonth(), year: vm.periodToYear() }"
+          (valueChange)="vm.onPeriodToChange($event)"
+        />
+      </div>
+    </div>
+
+    @if (vm.periodSummary(); as ps) {
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
       aria-labelledby="cli-dv-payments"
     >
       <h3 id="cli-dv-payments" class="fleet-unit-sec__title">
         Cobros registrados
+        <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
       </h3>
-      @if (vm.balanceSummary().paymentHistory.length === 0) {
+      @if (ps.paymentHistory.length === 0) {
         <p class="clients-contact-empty">
-          Aún no hay cobros confirmados en maniobras de este cliente.
+          No hay cobros confirmados en este periodo.
         </p>
       } @else {
           <table
@@ -191,9 +188,11 @@
           >
             <thead>
               <tr>
-                <th scope="col">Fecha de cobro</th>
                 <th scope="col">Maniobra</th>
+                <th scope="col">Vencimiento</th>
+                <th scope="col">Pago</th>
                 <th scope="col">Monto</th>
+                <th scope="col">Demora</th>
                 @if (vm.canWriteTrips()) {
                   <th scope="col" class="clients-balance-pay-table__action-head">
                     Acción
@@ -202,11 +201,13 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of vm.balanceSummary().paymentHistory; track row.tripId) {
+              @for (row of ps.paymentHistory; track row.tripId) {
                 <tr>
-                  <td>{{ row.collectedLabel }}</td>
                   <td class="fleet-unit-detail__mono">{{ row.maneuverCode }}</td>
+                  <td>{{ row.dueLabel }}</td>
+                  <td>{{ row.collectedLabel }}</td>
                   <td>{{ vm.balanceMoney(row.amount) }}</td>
+                  <td>{{ vm.delayDaysLabel(row.delayDays) }}</td>
                   @if (vm.canWriteTrips()) {
                     <td class="clients-balance-pay-table__action-cell">
                       @if (vm.canRevertClientCollection(row.tripId)) {
@@ -248,34 +249,78 @@
 
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
+      aria-labelledby="cli-dv-maneuvers"
+    >
+      <h3 id="cli-dv-maneuvers" class="fleet-unit-sec__title">
+        Maniobras por estado
+        <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
+      </h3>
+      <dl class="fleet-unit-detail__dl clients-balance-status-grid">
+        <div class="fleet-unit-detail__row">
+          <dt>Completadas</dt>
+          <dd>{{ ps.statusCounts.completed }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>En curso</dt>
+          <dd>{{ ps.statusCounts.inTransit }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Programadas</dt>
+          <dd>{{ ps.statusCounts.scheduled }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Canceladas</dt>
+          <dd>{{ ps.statusCounts.cancelled }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row clients-balance-status-grid__total">
+          <dt>Total</dt>
+          <dd>{{ ps.statusCounts.total }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Km en completadas</dt>
+          <dd>
+            {{
+              ps.totalKm === 0
+                ? "—"
+                : ps.totalKm.toLocaleString("es-MX") + " km"
+            }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section
+      class="fleet-unit-sec fleet-unit-sec--boxed"
       aria-labelledby="cli-dv-volume"
     >
       <h3 id="cli-dv-volume" class="fleet-unit-sec__title">
-        Volumen y rentabilidad (aprox.)
+        Volumen y rentabilidad
+        <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
       </h3>
       <dl class="fleet-unit-detail__dl">
         <div class="fleet-unit-detail__row">
           <dt>Total de maniobras</dt>
-          <dd>{{ vm.volumeTotalManeuversLabel() }}</dd>
+          <dd>{{ vm.periodVolumeTotalManeuversLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Maniobras al mes (aprox.)</dt>
-          <dd>{{ vm.volumeManeuversPerMonthLabel() }}</dd>
+          <dt>Maniobras del periodo</dt>
+          <dd>{{ vm.periodVolumeManeuversPerMonthLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Facturación al mes (aprox.)</dt>
-          <dd>{{ vm.volumeBilledPerMonthLabel() }}</dd>
+          <dt>Facturación del periodo</dt>
+          <dd>{{ vm.periodVolumeBilledPerMonthLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Costos operativos al mes (aprox.)</dt>
-          <dd>{{ vm.volumeOperationalPerMonthLabel() }}</dd>
+          <dt>Costos operativos del periodo</dt>
+          <dd>{{ vm.periodVolumeOperationalPerMonthLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Ganancia neta al mes (aprox.)</dt>
-          <dd>{{ vm.volumeProfitPerMonthLabel() }}</dd>
+          <dt>Ganancia neta del periodo</dt>
+          <dd>{{ vm.periodVolumeProfitPerMonthLabel() }}</dd>
         </div>
       </dl>
     </section>
+    }
   </div>
 }
 

@@ -44,13 +44,11 @@ import {
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
-import { deriveClientCommercialHealth } from '@features/clients/utils/client-commercial-status.util';
 import {
   clientCreditDaysTableCell,
   clientCreditVolumeTableCell,
 } from '@features/clients/utils/client-payload';
 import type { Client } from '@shared/models/client.models';
-import type { Trip } from '@shared/models/logistics.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
@@ -198,10 +196,9 @@ export class ClientsPageComponent implements OnInit {
   });
 
   readonly clientRows = computed(() => {
-    const trips = this.balanceContext.trips();
     return this.clientsFeature
       .clients()
-      .map((c) => ClientsPageComponent.mapClientRow(c, trips));
+      .map((c) => ClientsPageComponent.mapClientRow(c));
   });
   readonly rateRows = computed(() =>
     this.ratesFeature.rates().map((r) => this.mapRateRow(r)),
@@ -353,10 +350,9 @@ export class ClientsPageComponent implements OnInit {
     });
   }
 
-  /** Lazy: clientes + maniobras (estatus comercial; sin gastos completos). */
+  /** Lazy: clientes (estatus comercial viene del backend). */
   private ensureClientsTabLoaded(): void {
     this.clientsFeature.loadClients();
-    this.balanceContext.ensureTripsLoaded();
   }
 
   /** Lazy: tarifas + catálogo operativo al entrar por primera vez a la tab Tarifas. */
@@ -500,11 +496,7 @@ export class ClientsPageComponent implements OnInit {
     return haystack.includes(q);
   }
 
-  private static mapClientRow(
-    c: Client,
-    trips: readonly Trip[],
-  ): Record<string, unknown> {
-    const commercialHealth = deriveClientCommercialHealth(c.id, trips);
+  private static mapClientRow(c: Client): Record<string, unknown> {
     return {
       id: c.id,
       name: c.name,
@@ -512,7 +504,7 @@ export class ClientsPageComponent implements OnInit {
       relationshipLabel: formatRelationshipDateEs(c.relationshipStartedOn),
       creditDaysLabel: clientCreditDaysTableCell(c.payment),
       creditVolumeLabel: clientCreditVolumeTableCell(c.payment),
-      commercialHealth,
+      commercialHealth: c.commercialHealth ?? c.payment?.commercialHealth ?? 'not_evaluated',
       maneuverCount: String(c.maneuverCount ?? 0),
     };
   }

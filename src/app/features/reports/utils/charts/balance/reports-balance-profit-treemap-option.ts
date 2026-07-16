@@ -1,13 +1,12 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsBalanceProfitability } from '@shared/models/api/api-reports-balance.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
   REPORTS_CHART_PALETTE,
-  reportsChartFinancialColors,
   reportsChartAccentLabelStyle,
   reportsChartOnFillLabelStyle,
   reportsChartTooltip,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
@@ -22,7 +21,6 @@ export function buildReportsBalanceProfitTreemapOption(
   options?: ReportsChartColorOptions,
 ): EChartsOption {
   const P = REPORTS_CHART_PALETTE;
-  const financial = reportsChartFinancialColors(resolveReportsChartPrimary(options));
   const revenue = Math.max(data?.revenue ?? 0, 0);
   const directCost = Math.max(data?.directCost ?? 0, 0);
   const tripExpenses = Math.max(data?.tripExpenses ?? 0, 0);
@@ -33,37 +31,33 @@ export function buildReportsBalanceProfitTreemapOption(
     name: string;
     value: number;
     itemStyle?: { color: string };
-    label?: typeof treemapLabelStyle;
-  }[] = [
-    {
-      name: 'Ingreso pactado',
-      value: revenue || 1,
-      itemStyle: { color: financial.revenue },
-      label: treemapLabelStyle,
-    },
-    {
-      name: 'Costo directo',
-      value: directCost || (revenue > 0 ? 0.001 : 1),
-      itemStyle: { color: financial.expense },
-      label: treemapLabelStyle,
-    },
-  ];
+    label?: Record<string, unknown>;
+  }[] = [];
+
+  const pushChild = (
+    name: string,
+    value: number,
+    label: Record<string, unknown>,
+  ): void => {
+    const color = STITCH_PALETTE[children.length % STITCH_PALETTE.length];
+    children.push({ name, value, itemStyle: { color }, label });
+  };
+
+  pushChild('Ingreso pactado', revenue || 1, treemapLabelStyle);
+  pushChild(
+    'Costo directo',
+    directCost || (revenue > 0 ? 0.001 : 1),
+    treemapLabelStyle,
+  );
 
   if (tripExpenses > 0) {
-    children.push({
-      name: 'Gastos de maniobra',
-      value: tripExpenses,
-      itemStyle: { color: P.expenseDark },
-      label: treemapLabelStyle,
-    });
+    pushChild('Gastos de maniobra', tripExpenses, treemapLabelStyle);
   }
 
   if (margin > 0) {
-    children.push({
-      name: 'Utilidad',
-      value: margin,
-      itemStyle: { color: financial.margin },
-      label: { show: true, ...reportsChartAccentLabelStyle({ fontSize: 11 }) },
+    pushChild('Utilidad', margin, {
+      show: true,
+      ...reportsChartAccentLabelStyle({ fontSize: 11 }),
     });
   }
 

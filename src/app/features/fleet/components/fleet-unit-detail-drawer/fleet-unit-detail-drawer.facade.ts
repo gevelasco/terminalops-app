@@ -50,6 +50,11 @@ import {
   gpsPaymentConfirmHint,
   nextGpsPaymentDate,
 } from '@features/fleet/utils/fleet-gps-payment.util';
+import {
+  buildTenurePaymentSchedule,
+  showTenurePaymentSchedule,
+  tenurePaymentBounds,
+} from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
 import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
@@ -199,6 +204,8 @@ export class FleetUnitDetailDrawerFacade {
   private insurancePaymentExpensesLoadId = 0;
   private readonly gpsPaymentExpenses = signal<Expense[]>([]);
   private gpsPaymentExpensesLoadId = 0;
+  private readonly tenurePaymentExpenses = signal<Expense[]>([]);
+  private tenurePaymentExpensesLoadId = 0;
   readonly deleteConfirmOpen = signal(false);
   readonly deleteSubmitting = signal(false);
   readonly maintenanceSubmitting = signal(false);
@@ -273,6 +280,18 @@ export class FleetUnitDetailDrawerFacade {
     }),
   );
 
+  readonly showTenurePaymentScheduleTable = computed(() =>
+    showTenurePaymentSchedule(this.meta()),
+  );
+
+  readonly tenurePaymentSchedule = computed(() =>
+    buildTenurePaymentSchedule({
+      meta: this.meta(),
+      expenses: this.tenurePaymentExpenses(),
+      today: new Date(this.today),
+    }),
+  );
+
   readonly unitOverride = signal<Partial<Unit>>({});
   readonly metaOverride = signal<Partial<UnitFleetMeta>>({});
   readonly localMaintEntries = signal<MaintenanceEntry[]>([]);
@@ -310,6 +329,7 @@ export class FleetUnitDetailDrawerFacade {
       this.metaOverride.set({});
       this.insurancePaymentExpenses.set([]);
       this.gpsPaymentExpenses.set([]);
+      this.tenurePaymentExpenses.set([]);
       this.editingSection.set(null);
       this.drawerLoading.set(false);
       if (prevUnitId) {
@@ -1336,12 +1356,22 @@ export class FleetUnitDetailDrawerFacade {
   readonly editRecurringAmount = signal('');
   readonly editRecurringDate = signal('');
   readonly editRecurringInstallments = signal('');
+  readonly editRecurringCadence = signal('');
+  readonly editTenureBeneficiary = signal('');
   readonly editOwnerPayout = signal('');
   /** Nombres de documentos de propiedad (copia editable al abrir tenencia). */
   readonly editOwnershipNames = signal<string[]>([]);
   readonly editOwnershipNewFiles = signal<File[]>([]);
 
   readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
+  readonly tenureCadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
+
+  tenureCadenceLabel(): string {
+    const cadence = this.meta()?.trailerRecurringPaymentCadence?.trim();
+    if (!cadence) return '—';
+    const opt = FLEET_PAYMENT_CADENCE_OPTIONS.find((o) => o.value === cadence);
+    return opt?.label ?? cadence;
+  }
 
   tenureRecurringAmountLabel(): string {
     return this.editTenureMode() === 'leased' ? 'Monto de renta' : 'Monto por cuota';
@@ -1372,6 +1402,8 @@ export class FleetUnitDetailDrawerFacade {
         ? String(m.trailerRecurringInstallmentCount)
         : '',
     );
+    this.editRecurringCadence.set(m.trailerRecurringPaymentCadence ?? '');
+    this.editTenureBeneficiary.set(m.trailerTenureBeneficiary ?? '');
     this.editOwnerPayout.set(
       m.trailerManagementOwnerPayout != null
         ? String(m.trailerManagementOwnerPayout)
@@ -1422,6 +1454,8 @@ export class FleetUnitDetailDrawerFacade {
     let trailerRecurringPaymentAmount: number | undefined;
     let trailerRecurringPaymentDate: string | undefined;
     let trailerRecurringInstallmentCount: number | undefined;
+    let trailerRecurringPaymentCadence: string | undefined;
+    let trailerTenureBeneficiary: string | undefined;
     let trailerManagementOwnerPayout: number | undefined;
     if (mode === 'owned') {
       trailerCommercialValue = commercial === undefined ? undefined : commercial;
@@ -1429,8 +1463,12 @@ export class FleetUnitDetailDrawerFacade {
       trailerRecurringPaymentAmount = recAmt === undefined ? undefined : recAmt;
       trailerRecurringPaymentDate = this.editRecurringDate().trim() || undefined;
       trailerRecurringInstallmentCount = recCount === undefined ? undefined : recCount;
+      trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
+      trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
     } else if (mode === 'managed') {
       trailerManagementOwnerPayout = payout === undefined ? undefined : payout;
+      trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
+      trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
     }
     const ownershipMerged = [
       ...this.editOwnershipNames(),
@@ -1444,12 +1482,16 @@ export class FleetUnitDetailDrawerFacade {
       trailerRecurringPaymentAmount,
       trailerRecurringPaymentDate,
       trailerRecurringInstallmentCount,
+      trailerRecurringPaymentCadence,
+      trailerTenureBeneficiary,
       trailerManagementOwnerPayout,
       documentOwnershipNames,
     };
     this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
     this.editOwnershipNewFiles.set([]);
-    this.persistCurrentUnit('Propiedad y tenencia actualizadas.', { fleetMeta: fleetMetaDraft });
+    this.persistCurrentUnit('Propiedad y tenencia actualizadas.', {
+      fleetMeta: fleetMetaDraft,
+    });
   }
 
   // -- Tren motriz y capacidad: form signals --
@@ -1825,25 +1867,26 @@ export class FleetUnitDetailDrawerFacade {
     if (scheduleRow && !scheduleRow.canConfirm) {
       return;
     }
-    const cost = this.meta()?.insuranceCost;
-    if (cost == null || !Number.isFinite(cost) || cost <= 0) {
+    if (!scheduleRow?.expenseId) {
       this.toast.show(
-        'Registra el costo por ciclo del seguro antes de confirmar el pago.',
+        'No se encontró el gasto asociado. Edita la cobertura para regenerar.',
         'warning',
       );
       return;
     }
-    const patch: Partial<UnitFleetMeta> = {
-      insuranceLastPaymentDate: normalizedDueDate,
-    };
-    this.persistCurrentUnit(
-      'Pago de póliza registrado.',
-      { fleetMeta: patch, sparseFleetMeta: true },
-      {
-        ...COB_SECTION_PERSIST_OPTIONS,
-        onSuccess: () => this.reloadInsurancePaymentExpenses(),
+    this.saving.set(true);
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.show('Pago de póliza registrado.', 'success');
+        this.reloadInsurancePaymentExpenses();
       },
-    );
+      error: () => {
+        this.saving.set(false);
+        this.toast.show('No se pudo registrar el pago.', 'error');
+      },
+    });
   }
 
   private reloadInsurancePaymentExpenses(): void {
@@ -1969,28 +2012,101 @@ export class FleetUnitDetailDrawerFacade {
     if (scheduleRow && !scheduleRow.canConfirm) {
       return;
     }
-    const price = this.meta()?.gpsPrice;
-    if (price == null || !Number.isFinite(price) || price <= 0) {
+    if (!scheduleRow?.expenseId) {
       this.toast.show(
-        'Registra el precio o cuota del GPS antes de confirmar el pago.',
+        'No se encontró el gasto asociado. Edita la cobertura para regenerar.',
         'warning',
       );
       return;
     }
-    const patch: Partial<UnitFleetMeta> = {
-      gpsLastPaymentDate: normalizedDueDate,
-    };
-    if (gpsFleetMetaIsActive(this.meta())) {
-      patch.hasGps = true;
-    }
-    this.persistCurrentUnit(
-      'Pago de GPS registrado.',
-      { fleetMeta: patch, sparseFleetMeta: true },
-      {
-        ...COB_SECTION_PERSIST_OPTIONS,
-        onSuccess: () => this.reloadGpsPaymentExpenses(),
+    this.saving.set(true);
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.show('Pago de GPS registrado.', 'success');
+        this.reloadGpsPaymentExpenses();
       },
+      error: () => {
+        this.saving.set(false);
+        this.toast.show('No se pudo registrar el pago.', 'error');
+      },
+    });
+  }
+
+  confirmTenurePaymentCycle(dueDate: string): void {
+    if (!this.canWriteFleet() || this.saving()) {
+      return;
+    }
+    const normalizedDueDate = dueDate.trim();
+    if (!normalizedDueDate) {
+      return;
+    }
+    const scheduleRow = this.tenurePaymentSchedule().find(
+      (row) => row.dueDate === normalizedDueDate,
     );
+    if (scheduleRow && !scheduleRow.canConfirm) {
+      return;
+    }
+    if (!scheduleRow?.expenseId) {
+      this.toast.show(
+        'No se encontró el gasto asociado. Edita la tenencia para regenerar.',
+        'warning',
+      );
+      return;
+    }
+    this.saving.set(true);
+    const todayYmd = new Date().toISOString().slice(0, 10);
+    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.toast.show('Cuota de financiamiento registrada.', 'success');
+        this.reloadTenurePaymentExpenses();
+      },
+      error: () => {
+        this.saving.set(false);
+        this.toast.show('No se pudo registrar el pago.', 'error');
+      },
+    });
+  }
+
+  private reloadTenurePaymentExpenses(): void {
+    this.subscribeTenurePaymentExpensesLoad();
+  }
+
+  private subscribeTenurePaymentExpensesLoad(): Subscription | null {
+    const unit = this.unitSource();
+    const unitId = unit?.id;
+    const meta = unit?.fleetMeta;
+    if (!unitId || !showTenurePaymentSchedule(meta)) {
+      this.tenurePaymentExpenses.set([]);
+      return null;
+    }
+    const bounds = tenurePaymentBounds(meta);
+    if (!bounds) {
+      this.tenurePaymentExpenses.set([]);
+      return null;
+    }
+    const requestId = ++this.tenurePaymentExpensesLoadId;
+    return this.expensesApi
+      .getExpensesPage(
+        buildFleetCoverageExpensesPageParams(
+          { resource: 'unit', unitId },
+          'tenure_payment',
+          bounds,
+        ),
+      )
+      .pipe(
+        catchError(() =>
+          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
+        ),
+      )
+      .subscribe((res) => {
+        if (requestId !== this.tenurePaymentExpensesLoadId) {
+          return;
+        }
+        this.tenurePaymentExpenses.set(res.items);
+      });
   }
 
   trackingPortalHref(raw: string | undefined): string {
@@ -2126,6 +2242,14 @@ export class FleetUnitDetailDrawerFacade {
       this.detailTab();
       this.unitSource();
       const sub = this.subscribeGpsPaymentExpensesLoad();
+      if (sub) {
+        onCleanup(() => sub.unsubscribe());
+      }
+    });
+
+    effect((onCleanup) => {
+      this.unitSource();
+      const sub = this.subscribeTenurePaymentExpensesLoad();
       if (sub) {
         onCleanup(() => sub.unsubscribe());
       }

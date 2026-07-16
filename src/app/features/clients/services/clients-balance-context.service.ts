@@ -98,24 +98,37 @@ export class ClientsBalanceContextService {
       });
   }
 
-  ensureClientBalanceLoaded(clientId: string): void {
+  private _lastPeriodKey: string | null = null;
+
+  ensureClientBalanceLoaded(
+    clientId: string,
+    periodFrom?: string,
+    periodTo?: string,
+  ): void {
     const id = clientId.trim();
     if (!id || this.disposed) {
       return;
     }
-    if (this._clientBalanceClientId() === id && this._clientBalance() != null) {
-      return;
-    }
-    if (this._clientBalanceLoading() && this._clientBalanceClientId() === id) {
-      return;
-    }
+    const periodKey = periodFrom && periodTo ? `${periodFrom}:${periodTo}` : '';
+    const cacheHit =
+      this._clientBalanceClientId() === id &&
+      this._lastPeriodKey === periodKey &&
+      this._clientBalance() != null;
+    if (cacheHit) return;
+
+    const alreadyLoading =
+      this._clientBalanceLoading() &&
+      this._clientBalanceClientId() === id &&
+      this._lastPeriodKey === periodKey;
+    if (alreadyLoading) return;
 
     this.clientBalanceSub?.unsubscribe();
     this._clientBalanceClientId.set(id);
+    this._lastPeriodKey = periodKey;
     this._clientBalance.set(null);
     this._clientBalanceLoading.set(true);
     this.clientBalanceSub = this.clientsApi
-      .getClientBalance(id)
+      .getClientBalance(id, periodFrom, periodTo)
       .pipe(
         catchError(() => of(emptyClientBalanceSummary())),
         finalize(() => {
@@ -177,6 +190,7 @@ export class ClientsBalanceContextService {
     this._overviewByClientId.set({});
     this._clientBalance.set(null);
     this._clientBalanceClientId.set(null);
+    this._lastPeriodKey = null;
   }
 
   dispose(): void {

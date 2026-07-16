@@ -1,23 +1,12 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsFleetStatusMixRow } from '@shared/models/api/api-reports-fleet.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
-  REPORTS_FINTECH_ACCENT,
   REPORTS_CHART_PALETTE,
   reportsChartOutsideLabelStyle,
-  reportsChartSeriesColors,
   reportsChartTooltip,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
-
-function fleetStatusColors(primary: string): Record<string, string> {
-  return {
-    in_transit: REPORTS_FINTECH_ACCENT.sage,
-    scheduled: REPORTS_FINTECH_ACCENT.gray,
-    available: primary,
-    maintenance: REPORTS_FINTECH_ACCENT.sand,
-  };
-}
 
 /** Donut — distribución del estado operativo actual de unidades. */
 export function buildReportsFleetStatusDonutOption(
@@ -26,22 +15,19 @@ export function buildReportsFleetStatusDonutOption(
   options?: ReportsChartColorOptions,
 ): EChartsOption {
   const P = REPORTS_CHART_PALETTE;
-  const primary = resolveReportsChartPrimary(options);
-  const statusColors = fleetStatusColors(primary);
   const data = rows
     .filter((row) => row.count > 0)
-    .map((row) => ({
+    .map((row, i) => ({
       name: row.label,
       value: row.count,
       itemStyle: {
-        color:
-          statusColors[row.status] ?? reportsChartSeriesColors(1, colorOffset, primary)[0],
+        color: STITCH_PALETTE[i % STITCH_PALETTE.length],
       },
     }));
 
   return {
     animationDuration: 480,
-    color: reportsChartSeriesColors(Math.max(data.length, 4), colorOffset, primary),
+    color: [...STITCH_PALETTE],
     tooltip: {
       trigger: 'item',
       ...reportsChartTooltip(),

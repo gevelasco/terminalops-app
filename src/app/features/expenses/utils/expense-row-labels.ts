@@ -85,7 +85,8 @@ export function expenseFleetRelationCode(e: Expense): string {
       return '—';
     case 'gps':
     case 'verification':
-      return e.relatedUnitId?.trim() || '—';
+    case 'tenure_payment':
+      return e.relatedUnitId?.trim() || e.relatedEquipmentId?.trim() || '—';
     case 'equipment_purchase':
     case 'equipment_rent':
     case 'trailer_admin_payout':

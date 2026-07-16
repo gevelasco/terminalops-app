@@ -1,13 +1,11 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsManiobrasCargoWeightRow } from '@shared/models/api/api-reports-maniobras.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
-  type ReportsChartColorOptions,
   reportsChartLabelIsLightFill,
   reportsChartOnFillLabelStyle,
-  reportsChartRotatingColorAt,
   reportsChartTooltip,
   reportsChartValueAxis,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { reportsFintechCategoryAxis } from '../reports-chart-theme.util';
 
@@ -18,8 +16,6 @@ function formatTons(value: number): string {
 /** Basic Bar — peso promedio de carga (ton) por tipo de contenedor. */
 export function buildReportsManiobrasCargoWeightBarOption(
   rows: readonly ReportsManiobrasCargoWeightRow[],
-  colorOffset = 0,
-  options?: ReportsChartColorOptions,
 ): EChartsOption {
   const ordered = [...rows]
     .filter((row) => row.avgWeightTons > 0)
@@ -27,12 +23,10 @@ export function buildReportsManiobrasCargoWeightBarOption(
   const labels = ordered.map((row) => row.label);
   const values = ordered.map((row) => row.avgWeightTons);
   const max = Math.max(...values, 0.1);
-  const barColor = reportsChartRotatingColorAt(colorOffset, resolveReportsChartPrimary(options));
   const valueAxis = reportsChartValueAxis();
 
   return {
     animationDuration: 460,
-    color: [barColor],
     grid: { left: 8, right: 8, top: 12, bottom: 4, containLabel: true },
     tooltip: {
       trigger: 'axis',
@@ -69,22 +63,24 @@ export function buildReportsManiobrasCargoWeightBarOption(
     series: [
       {
         type: 'bar',
-        data: values,
+        data: values.map((v, i) => {
+          const c = STITCH_PALETTE[i % STITCH_PALETTE.length];
+          return {
+            value: v,
+            itemStyle: { color: c, borderRadius: [4, 4, 0, 0] },
+            label: {
+              show: true,
+              position: 'insideTop' as const,
+              padding: [4, 0, 0, 0],
+              ...reportsChartOnFillLabelStyle({
+                fontSize: 10,
+                lightFill: reportsChartLabelIsLightFill(c),
+              }),
+              formatter: () => formatTons(v),
+            },
+          };
+        }),
         barMaxWidth: 40,
-        itemStyle: {
-          color: barColor,
-          borderRadius: [4, 4, 0, 0],
-        },
-        label: {
-          show: true,
-          position: 'insideTop',
-          padding: [4, 0, 0, 0],
-          ...reportsChartOnFillLabelStyle({
-            fontSize: 10,
-            lightFill: reportsChartLabelIsLightFill(barColor),
-          }),
-          formatter: (p) => formatTons(Number(p.value ?? 0)),
-        },
       },
     ],
   };

@@ -1,23 +1,22 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsBalanceCompositionSlice } from '@shared/models/api/api-reports-balance.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
   REPORTS_CHART_PALETTE,
   reportsChartOutsideLabelStyle,
   reportsChartSeriesColors,
-  reportsChartSemanticColors,
   reportsChartTooltip,
   resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
-function buildCompositionColorMap(primary: string): Record<string, string> {
-  const sem = reportsChartSemanticColors(primary);
+function buildCompositionColorMap(_primary: string): Record<string, string> {
   return {
-    collected: sem.revenue,
-    expenses: sem.expense,
-    receivable: sem.inTransit,
-    provisions: sem.warning,
+    collected: STITCH_PALETTE[0],
+    receivable: STITCH_PALETTE[1],
+    expenses: STITCH_PALETTE[2],
+    provisions: STITCH_PALETTE[3],
   };
 }
 

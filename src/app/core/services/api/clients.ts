@@ -101,11 +101,19 @@ export class ClientsService {
     );
   }
 
-  getClientBalance(clientId: string): Observable<ClientBalanceSummary> {
+  getClientBalance(
+    clientId: string,
+    periodFrom?: string,
+    periodTo?: string,
+  ): Observable<ClientBalanceSummary> {
     const companyId = requireCompanyId(this.session.companyId());
     const id = clientId.trim();
+    const params: Record<string, string> = {};
+    if (periodFrom) params['from'] = periodFrom;
+    if (periodTo) params['to'] = periodTo;
     return this.http.get<ClientBalanceSummary>(
       companyResourceUrl(companyId, `clients/${id}/balance`),
+      { params },
     );
   }
 }

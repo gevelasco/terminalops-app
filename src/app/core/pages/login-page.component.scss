@@ -243,12 +243,11 @@
   width: 3.25rem;
   height: 3.25rem;
   border-radius: var(--to-radius-lg);
-  background: color-mix(in srgb, var(--to-color-surface) 92%, transparent);
-  backdrop-filter: blur(8px);
-  border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+  background: var(--shell-bg, #111827);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--to-color-border) 40%, transparent),
-    0 12px 40px rgba(15, 23, 42, 0.08);
+    0 1px 0 rgba(0, 0, 0, 0.12),
+    0 12px 40px rgba(15, 23, 42, 0.12);
 }
 
 .login-page__logo-img {

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ToMonthYearPickerComponent } from '@shared/ui/to-month-year-picker/to-month-year-picker.component';
 import { OperatorsDetailDrawerFacade } from '../operators-detail-drawer.facade';
 import {
   OPERATORS_DETAIL_TAB_IMPORTS,
@@ -7,7 +8,7 @@ import {
 
 @Component({
   selector: 'app-operators-detail-operation-tab',
-  imports: [...OPERATORS_DETAIL_TAB_IMPORTS],
+  imports: [...OPERATORS_DETAIL_TAB_IMPORTS, ToMonthYearPickerComponent],
   templateUrl: './operators-detail-operation-tab.component.html',
   styleUrls: [
     './operators-detail-operation-tab.component.scss',

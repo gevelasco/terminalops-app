@@ -12,6 +12,7 @@ export type ExpenseRubro =
   | 'reparacion'
   | 'seguros'
   | 'gps'
+  | 'financiamiento'
   | 'administracion'
   | 'verificaciones'
   | 'servicio'
@@ -26,6 +27,7 @@ export const EXPENSE_RUBRO_OPTIONS: ToSelectOption[] = [
   { value: 'reparacion', label: 'Reparación' },
   { value: 'seguros', label: 'Seguros' },
   { value: 'gps', label: 'GPS' },
+  { value: 'financiamiento', label: 'Financiamiento' },
   { value: 'administracion', label: 'Administración' },
   { value: 'verificaciones', label: 'Verificaciones' },
   { value: 'servicio', label: 'Servicio' },
@@ -118,6 +120,12 @@ export const EXPENSE_CONCEPT_CATALOG: readonly ExpenseConceptDefinition[] = [
     kind: 'equipment_rent',
   },
   {
+    id: 'tenure_payment',
+    label: 'Cuota de financiamiento o arrendamiento',
+    rubro: 'financiamiento',
+    kind: 'tenure_payment',
+  },
+  {
     id: 'trailer_admin_payout',
     label: 'Administración de equipo',
     rubro: 'administracion',
@@ -183,6 +191,7 @@ const RUBRO_LABELS: Record<ExpenseRubro, string> = {
   reparacion: 'Reparación',
   seguros: 'Seguros',
   gps: 'GPS',
+  financiamiento: 'Financiamiento',
   administracion: 'Administración',
   verificaciones: 'Verificaciones',
   servicio: 'Servicio',
@@ -214,6 +223,7 @@ const KIND_DEFAULT_RUBRO = new Map<ExpenseKind, ExpenseRubro>([
   ['verification', 'verificaciones'],
   ['insurance', 'seguros'],
   ['gps', 'gps'],
+  ['tenure_payment', 'financiamiento'],
   ['unit_purchase', 'administracion'],
   ['equipment_purchase', 'administracion'],
   ['unit_rent', 'administracion'],
@@ -251,6 +261,8 @@ export function defaultKindForRubro(rubro: ExpenseRubro): ExpenseKind {
       return 'insurance';
     case 'gps':
       return 'gps';
+    case 'financiamiento':
+      return 'tenure_payment';
     case 'administracion':
       return 'other';
     case 'verificaciones':

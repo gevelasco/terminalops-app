@@ -105,6 +105,9 @@ export function mapApiClient(row: Record<string, unknown>): Client {
       typeof row['maneuverCount'] === 'number' && Number.isFinite(row['maneuverCount'])
         ? row['maneuverCount']
         : undefined,
+    commercialHealth: (row['commercialHealth'] as string | undefined) as
+      | Client['commercialHealth']
+      | undefined,
   };
 }
 

@@ -11,6 +11,7 @@ const SCHEDULED_SOURCES = new Set([
   'gps',
   'verification',
   'operator_payment',
+  'tenure_payment',
 ]);
 
 export interface DashboardUpcomingPaymentsRange {
@@ -98,6 +99,7 @@ function paymentSubjectLabel(projected: ExpenseCalendarProjectedRow): string {
       );
     case 'insurance':
     case 'verification':
+    case 'tenure_payment':
       return (
         trimLabel(projected.relatedUnitLabel) ||
         trimLabel(projected.relatedEquipmentLabel) ||
@@ -122,6 +124,10 @@ function upcomingPaymentDisplayLabel(projected: ExpenseCalendarProjectedRow): st
         return 'Verificación';
       case 'operator_payment':
         return 'Pago';
+      case 'tenure_payment': {
+        const cycleMatch = /\((\d+)\/\d+\)/.exec(projected.hint ?? '');
+        return cycleMatch ? `Pago ${cycleMatch[1]}` : 'Pago';
+      }
       default:
         return paymentTypeMeta(projected.source).typeLabel;
     }
@@ -139,6 +145,8 @@ function paymentTypeMeta(source: string): { typeLabel: string; icon: ToIconName 
       return { typeLabel: 'Verificación', icon: 'maintenance' };
     case 'operator_payment':
       return { typeLabel: 'Pago operador', icon: 'person' };
+    case 'tenure_payment':
+      return { typeLabel: 'Pago', icon: 'settlement' };
     default:
       return { typeLabel: 'Pago', icon: 'settlement' };
   }
@@ -173,6 +181,37 @@ function parseAmount(raw: string | number): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+const SCHEDULED_EXPENSE_KINDS = new Set([
+  'insurance',
+  'gps',
+  'tenure_payment',
+]);
+
+function buildLabelFromExpense(expense: { kind: string; description?: string; relatedUnitLabel?: string; relatedEquipmentLabel?: string; fleetRelationLabel?: string }): string {
+  const subject =
+    expense.relatedUnitLabel?.trim() ||
+    expense.relatedEquipmentLabel?.trim() ||
+    expense.fleetRelationLabel?.trim() ||
+    '';
+  let prefix: string;
+  switch (expense.kind) {
+    case 'gps':
+      prefix = 'GPS';
+      break;
+    case 'insurance':
+      prefix = 'Seguro';
+      break;
+    case 'tenure_payment': {
+      const cycleMatch = /\((?:.*?)(\d+)\/(\d+)\)/.exec(expense.description ?? '');
+      prefix = cycleMatch ? `Pago ${cycleMatch[1]}` : 'Pago';
+      break;
+    }
+    default:
+      prefix = 'Pago';
+  }
+  return subject ? `${prefix} - ${subject}` : prefix;
+}
+
 export function buildDashboardUpcomingPayments(
   items: readonly ExpenseCalendarItem[],
   range = dashboardUpcomingPaymentsRange(),
@@ -180,40 +219,71 @@ export function buildDashboardUpcomingPayments(
   const rows: DashboardUpcomingPaymentRow[] = [];
 
   for (const item of items) {
-    if (item.entryType !== 'projected') {
-      continue;
+    if (item.entryType === 'projected') {
+      const projected = item.projected;
+      if (!projected || projected.nature !== 'scheduled') {
+        continue;
+      }
+      if (!SCHEDULED_SOURCES.has(projected.source)) {
+        continue;
+      }
+      const dueYmd = (projected.dueDate || item.dateYmd || '').trim();
+      if (!dueYmd) {
+        continue;
+      }
+      const overdue = dueYmd < range.today;
+      const upcoming = dueYmd >= range.today && dueYmd <= range.to;
+      if (!overdue && !upcoming) {
+        continue;
+      }
+      const { icon } = paymentTypeMeta(projected.source);
+      const dueLabel = overdue
+        ? `Vencido · ${formatDueLabel(dueYmd)}`
+        : formatDueLabel(dueYmd);
+      rows.push({
+        id: item.id,
+        source: projected.source,
+        displayLabel: upcomingPaymentDisplayLabel(projected),
+        icon,
+        amount: parseAmount(item.amount),
+        currency: item.currency || 'MXN',
+        dueYmd,
+        dueLabel,
+        overdue,
+      });
+    } else if (item.entryType === 'actual' && item.expense) {
+      const expense = item.expense;
+      if (!SCHEDULED_EXPENSE_KINDS.has(expense.kind)) {
+        continue;
+      }
+      if (expense.paidAt != null) {
+        continue;
+      }
+      const dueYmd = (item.dateYmd || '').trim();
+      if (!dueYmd) {
+        continue;
+      }
+      const overdue = dueYmd < range.today;
+      const upcoming = dueYmd >= range.today && dueYmd <= range.to;
+      if (!overdue && !upcoming) {
+        continue;
+      }
+      const { icon } = paymentTypeMeta(expense.kind);
+      const dueLabel = overdue
+        ? `Vencido · ${formatDueLabel(dueYmd)}`
+        : formatDueLabel(dueYmd);
+      rows.push({
+        id: item.id,
+        source: expense.kind,
+        displayLabel: buildLabelFromExpense(expense),
+        icon,
+        amount: parseAmount(item.amount),
+        currency: item.currency || 'MXN',
+        dueYmd,
+        dueLabel,
+        overdue,
+      });
     }
-    const projected = item.projected;
-    if (!projected || projected.nature !== 'scheduled') {
-      continue;
-    }
-    if (!SCHEDULED_SOURCES.has(projected.source)) {
-      continue;
-    }
-    const dueYmd = (projected.dueDate || item.dateYmd || '').trim();
-    if (!dueYmd) {
-      continue;
-    }
-    const overdue = dueYmd < range.today;
-    const upcoming = dueYmd >= range.today && dueYmd <= range.to;
-    if (!overdue && !upcoming) {
-      continue;
-    }
-    const { icon } = paymentTypeMeta(projected.source);
-    const dueLabel = overdue
-      ? `Vencido · ${formatDueLabel(dueYmd)}`
-      : formatDueLabel(dueYmd);
-    rows.push({
-      id: item.id,
-      source: projected.source,
-      displayLabel: upcomingPaymentDisplayLabel(projected),
-      icon,
-      amount: parseAmount(item.amount),
-      currency: item.currency || 'MXN',
-      dueYmd,
-      dueLabel,
-      overdue,
-    });
   }
 
   rows.sort(

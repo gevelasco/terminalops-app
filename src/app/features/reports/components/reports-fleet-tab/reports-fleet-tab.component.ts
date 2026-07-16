@@ -153,8 +153,6 @@ export class ReportsFleetTabComponent {
   readonly topUnitsOption = computed(() =>
     buildReportsFleetUnitsHorizontalBarOption(
       this.insights()?.topUnitsByKm ?? [],
-      REPORTS_FLEET_CHART_COLOR_OFFSET.topUnitsByKm,
-      { primaryColor: this.chartShellColor() },
     ),
   );
 

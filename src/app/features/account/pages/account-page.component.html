@@ -1,27 +1,122 @@
 <to-page-header
   title="Cuenta"
-  subtitle="Licencia, plan y facturación de tu empresa."
+  subtitle="Ficha técnica, licencia y plan de tu empresa."
 />
 
 @if (account.isLoading()) {
-  <to-skeleton height="8rem" />
+  <to-skeleton height="14rem" />
 } @else if (accountData()) {
   <section class="account-card">
-    <h2 class="account-card__title">{{ accountData()!.name }}</h2>
-    <dl class="account-card__grid">
-      <div>
-        <dt>Estado de licencia</dt>
-        <dd>{{ accountData()!.subscriptionStatus }}</dd>
+    <div class="account-card__header">
+      <h2 class="account-card__section-title">Ficha técnica</h2>
+      @if (!editing()) {
+        <button
+          type="button"
+          class="account-card__edit-btn"
+          aria-label="Editar ficha"
+          (click)="startEdit()"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+            />
+          </svg>
+        </button>
+      }
+    </div>
+
+    @if (!editing()) {
+      <dl class="account-card__grid">
+        <div class="account-card__field">
+          <dt>Nombre de la empresa</dt>
+          <dd>{{ accountData()!.name }}</dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Leyenda</dt>
+          <dd>{{ accountData()!.tagline || '—' }}</dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Estado de la licencia</dt>
+          <dd>
+            <span class="account-card__badge account-card__badge--{{ statusVariant() }}">
+              <span class="account-card__dot" aria-hidden="true"></span>
+              {{ statusLabel() }}
+            </span>
+          </dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Plan</dt>
+          <dd>{{ planLabel() }}</dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Inicio</dt>
+          <dd>{{ formattedCreatedAt() }}</dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Vigencia</dt>
+          <dd>{{ formattedEndsAt() }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <div class="account-card__edit-form">
+        <to-input
+          label="Nombre de la empresa"
+          [(value)]="editName"
+          [disabled]="saving()"
+        />
+        <to-input
+          label="Leyenda"
+          placeholder="Ej. Operaciones logísticas"
+          [(value)]="editTagline"
+          [disabled]="saving()"
+        />
+
+        <dl class="account-card__grid account-card__grid--readonly">
+          <div class="account-card__field">
+            <dt>Estado de la licencia</dt>
+            <dd>
+              <span class="account-card__badge account-card__badge--{{ statusVariant() }}">
+                <span class="account-card__dot" aria-hidden="true"></span>
+                {{ statusLabel() }}
+              </span>
+            </dd>
+          </div>
+          <div class="account-card__field">
+            <dt>Plan</dt>
+            <dd>{{ planLabel() }}</dd>
+          </div>
+          <div class="account-card__field">
+            <dt>Inicio</dt>
+            <dd>{{ formattedCreatedAt() }}</dd>
+          </div>
+          <div class="account-card__field">
+            <dt>Vigencia</dt>
+            <dd>{{ formattedEndsAt() }}</dd>
+          </div>
+        </dl>
+
+        <div class="account-card__actions">
+          <button
+            type="button"
+            class="account-card__cancel-btn"
+            (click)="cancelEdit()"
+            [disabled]="saving()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="account-card__save-btn"
+            (click)="saveEdit()"
+            [disabled]="saving()"
+          >
+            {{ saving() ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
       </div>
-      <div>
-        <dt>Plan</dt>
-        <dd>{{ accountData()!.subscriptionPlan || '—' }}</dd>
-      </div>
-      <div>
-        <dt>Vigencia</dt>
-        <dd>{{ accountData()!.subscriptionEndsAt || 'Sin fecha de vencimiento' }}</dd>
-      </div>
-    </dl>
+    }
+
     <p class="account-card__note">
       La gestión de pagos y facturación estará disponible en próximas versiones.
     </p>

@@ -1,13 +1,12 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsManiobrasOperatorRow } from '@shared/models/api/api-reports-maniobras.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
   reportsChartLabelIsLightFill,
   reportsChartOnFillLabelStyle,
-  reportsChartRotatingColorAt,
   reportsChartTooltip,
   reportsChartValueAxis,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 
 function formatKm(value: number): string {
@@ -27,7 +26,6 @@ export function buildReportsManiobrasOperatorsHorizontalBarOption(
   const labels = ordered.map((r) => r.operatorName);
   const values = ordered.map((r) => r.completed);
   const max = Math.max(...values, 1);
-  const barColor = reportsChartRotatingColorAt(colorOffset, resolveReportsChartPrimary(options));
   const valueAxis = reportsChartValueAxis();
 
   return {
@@ -73,21 +71,23 @@ export function buildReportsManiobrasOperatorsHorizontalBarOption(
     series: [
       {
         type: 'bar',
-        data: values,
+        data: values.map((v, i) => {
+          const c = STITCH_PALETTE[i % STITCH_PALETTE.length];
+          return {
+            value: v,
+            itemStyle: { color: c, borderRadius: [0, 4, 4, 0] },
+            label: {
+              show: values.length <= 6,
+              position: 'insideRight' as const,
+              ...reportsChartOnFillLabelStyle({
+                fontSize: 9,
+                lightFill: reportsChartLabelIsLightFill(c),
+              }),
+              formatter: () => String(v),
+            },
+          };
+        }),
         barMaxWidth: 18,
-        itemStyle: {
-          color: barColor,
-          borderRadius: [0, 4, 4, 0],
-        },
-        label: {
-          show: values.length <= 6,
-          position: 'insideRight',
-          ...reportsChartOnFillLabelStyle({
-            fontSize: 9,
-            lightFill: reportsChartLabelIsLightFill(barColor),
-          }),
-          formatter: (p) => String(p.value ?? ''),
-        },
       },
     ],
   };

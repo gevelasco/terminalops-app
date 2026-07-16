@@ -12,6 +12,8 @@ function tenureSnapshot(meta: TenureMeta | undefined): string {
     trailerRecurringPaymentAmount: meta.trailerRecurringPaymentAmount ?? null,
     trailerRecurringPaymentDate: meta.trailerRecurringPaymentDate ?? null,
     trailerRecurringInstallmentCount: meta.trailerRecurringInstallmentCount ?? null,
+    trailerRecurringPaymentCadence: meta.trailerRecurringPaymentCadence ?? null,
+    trailerTenureBeneficiary: meta.trailerTenureBeneficiary ?? null,
     trailerManagementOwnerPayout: meta.trailerManagementOwnerPayout ?? null,
   });
 }

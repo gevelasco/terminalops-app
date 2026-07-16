@@ -180,6 +180,42 @@ export class OperatorsDetailDrawerFacade {
     () => this.operator().status as OperatorOperationalStatus,
   );
 
+  private readonly now = new Date();
+  readonly periodFromMonth = signal(this.now.getMonth() + 1);
+  readonly periodFromYear = signal(this.now.getFullYear());
+  readonly periodToMonth = signal(this.now.getMonth() + 1);
+  readonly periodToYear = signal(this.now.getFullYear());
+
+  readonly currentMonthYear = computed(() => ({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+  }));
+
+  readonly periodFrom = computed(() => {
+    const m = String(this.periodFromMonth()).padStart(2, '0');
+    return `${this.periodFromYear()}-${m}-01`;
+  });
+  readonly periodTo = computed(() => {
+    const m = this.periodToMonth();
+    const y = this.periodToYear();
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  });
+
+  readonly periodLabel = computed(() => {
+    const fm = this.periodFromMonth();
+    const fy = this.periodFromYear();
+    const tm = this.periodToMonth();
+    const ty = this.periodToYear();
+    const fmt = new Intl.DateTimeFormat('es-MX', { month: 'long' });
+    const fromLabel = fmt.format(new Date(fy, fm - 1, 1, 12));
+    if (fm === tm && fy === ty) {
+      return `${fromLabel.charAt(0).toUpperCase() + fromLabel.slice(1)} ${fy}`;
+    }
+    const toLabel = fmt.format(new Date(ty, tm - 1, 1, 12));
+    return `${fromLabel.charAt(0).toUpperCase() + fromLabel.slice(1)} ${fy} – ${toLabel.charAt(0).toUpperCase() + toLabel.slice(1)} ${ty}`;
+  });
+
   private readonly mxMoney0 = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
@@ -187,6 +223,37 @@ export class OperatorsDetailDrawerFacade {
   });
 
   private priorOperatorId: string | undefined;
+
+  onPeriodFromChange(value: { month: number; year: number }): void {
+    this.periodFromMonth.set(value.month);
+    this.periodFromYear.set(value.year);
+    if (
+      value.year > this.periodToYear() ||
+      (value.year === this.periodToYear() && value.month > this.periodToMonth())
+    ) {
+      this.periodToMonth.set(value.month);
+      this.periodToYear.set(value.year);
+    }
+    this.invalidateOperationSummary();
+  }
+
+  onPeriodToChange(value: { month: number; year: number }): void {
+    this.periodToMonth.set(value.month);
+    this.periodToYear.set(value.year);
+    if (
+      value.year < this.periodFromYear() ||
+      (value.year === this.periodFromYear() && value.month < this.periodFromMonth())
+    ) {
+      this.periodFromMonth.set(value.month);
+      this.periodFromYear.set(value.year);
+    }
+    this.invalidateOperationSummary();
+  }
+
+  private invalidateOperationSummary(): void {
+    this.operationSummarySignal.set(null);
+    this.operationSummaryCacheKey = null;
+  }
 
   constructor() {
     effect(() => {
@@ -201,6 +268,10 @@ export class OperatorsDetailDrawerFacade {
         this.editingSection.set(null);
         this.operationSummarySignal.set(null);
         this.operationSummaryCacheKey = null;
+        this.periodFromMonth.set(this.now.getMonth() + 1);
+        this.periodFromYear.set(this.now.getFullYear());
+        this.periodToMonth.set(this.now.getMonth() + 1);
+        this.periodToYear.set(this.now.getFullYear());
       }
       if (idChanged || this.editingSection() === null) {
         this.patchFormFromOperator(o);
@@ -210,6 +281,8 @@ export class OperatorsDetailDrawerFacade {
     effect((onCleanup) => {
       const o = this.operatorsFeature.selectedOperator();
       const tab = this.drawerTab();
+      const from = this.periodFrom();
+      const to = this.periodTo();
       if (!o) {
         this.operationSummarySignal.set(null);
         this.operationSummaryCacheKey = null;
@@ -220,7 +293,7 @@ export class OperatorsDetailDrawerFacade {
         this.drawerLoading.set(false);
         return;
       }
-      const cacheKey = o.id;
+      const cacheKey = `${o.id}:${from}:${to}`;
       if (
         this.operationSummaryCacheKey === cacheKey &&
         this.operationSummarySignal() != null
@@ -230,7 +303,7 @@ export class OperatorsDetailDrawerFacade {
       }
       this.drawerLoading.set(true);
       const sub = this.operatorsApi
-        .getOperatorOperationSummary(o.id)
+        .getOperatorOperationSummary(o.id, from, to)
         .pipe(catchError(() => of(EMPTY_OPERATOR_OPERATION_SUMMARY)))
         .subscribe((summary) => {
           this.operationSummaryCacheKey = cacheKey;
@@ -619,9 +692,36 @@ export class OperatorsDetailDrawerFacade {
           return;
         }
         this.operationSummarySignal.set(summary);
-        this.operationSummaryCacheKey = operatorId;
+        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}`;
         this.syncOperatorListPaymentSummary(operatorId, summary);
         this.toast.show('Pago registrado en la tabla de gastos.', 'success');
+      });
+  }
+
+  revertOperatorPayment(tripId: string): void {
+    const normalizedTripId = tripId.trim();
+    if (!normalizedTripId || this.paymentConfirming() || this.saving()) {
+      return;
+    }
+    const operatorId = this.operator().id;
+    this.paymentConfirming.set(true);
+    this.operatorsApi
+      .revertOperatorTripPayment(operatorId, normalizedTripId)
+      .pipe(
+        catchError(() => {
+          this.toast.show('No se pudo revertir el pago al operador.', 'error');
+          return of(null);
+        }),
+        finalize(() => this.paymentConfirming.set(false)),
+      )
+      .subscribe((summary) => {
+        if (!summary) {
+          return;
+        }
+        this.operationSummarySignal.set(summary);
+        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}`;
+        this.syncOperatorListPaymentSummary(operatorId, summary);
+        this.toast.show('Pago revertido correctamente.', 'success');
       });
   }
 

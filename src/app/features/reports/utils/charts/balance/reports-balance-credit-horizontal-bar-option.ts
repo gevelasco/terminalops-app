@@ -1,30 +1,22 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsBalanceCreditByClient } from '@shared/models/api/api-reports-balance.model';
+import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
-  type ReportsChartColorOptions,
   reportsChartLabelIsLightFill,
   reportsChartOnFillLabelStyle,
-  reportsChartRotatingColorAt,
   reportsChartTooltip,
   reportsChartValueAxis,
-  resolveReportsChartPrimary,
 } from '../reports-chart-palette';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
 /** Horizontal Bar — cartera por cliente. */
 export function buildReportsBalanceCreditHorizontalBarOption(
   rows: readonly ReportsBalanceCreditByClient[],
-  colorOffset = 0,
-  options?: ReportsChartColorOptions,
 ): EChartsOption {
   const ordered = [...rows].sort((a, b) => b.amount - a.amount).slice(0, 8);
   const labels = ordered.map((r) => r.clientName);
   const values = ordered.map((r) => r.amount);
   const max = Math.max(...values, 1);
-  const barColor = reportsChartRotatingColorAt(
-    colorOffset,
-    resolveReportsChartPrimary(options),
-  );
   const valueAxis = reportsChartValueAxis();
 
   return {
@@ -72,21 +64,23 @@ export function buildReportsBalanceCreditHorizontalBarOption(
     series: [
       {
         type: 'bar',
-        data: values,
+        data: values.map((v, i) => {
+          const c = STITCH_PALETTE[i % STITCH_PALETTE.length];
+          return {
+            value: v,
+            itemStyle: { color: c, borderRadius: [0, 4, 4, 0] },
+            label: {
+              show: values.length <= 6,
+              position: 'insideRight' as const,
+              ...reportsChartOnFillLabelStyle({
+                fontSize: 9,
+                lightFill: reportsChartLabelIsLightFill(c),
+              }),
+              formatter: () => formatReportsMoneyMx(v, true),
+            },
+          };
+        }),
         barMaxWidth: 18,
-        itemStyle: {
-          color: barColor,
-          borderRadius: [0, 4, 4, 0],
-        },
-        label: {
-          show: values.length <= 6,
-          position: 'insideRight',
-          ...reportsChartOnFillLabelStyle({
-            fontSize: 9,
-            lightFill: reportsChartLabelIsLightFill(barColor),
-          }),
-          formatter: (p) => formatReportsMoneyMx(Number(p.value ?? 0), true),
-        },
       },
     ],
   };

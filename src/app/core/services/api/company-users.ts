@@ -11,9 +11,16 @@ import { environment } from '../../../../environments/environment';
 export interface CompanyAccount {
   id: number;
   name: string;
+  tagline: string | null;
   subscriptionStatus: string;
   subscriptionPlan: string | null;
   subscriptionEndsAt: string | null;
+  createdAt: string | null;
+}
+
+export interface UpdateCompanyAccountPayload {
+  name?: string;
+  tagline?: string;
 }
 
 export interface CompanyUserRow {
@@ -69,6 +76,16 @@ export class CompanyUsersApiService {
   getAccount(companyId: string | number): Observable<CompanyAccount> {
     return this.http.get<CompanyAccount>(
       `${environment.apiUrl}/companies/${companyId}/account`,
+    );
+  }
+
+  updateAccount(
+    companyId: string | number,
+    payload: UpdateCompanyAccountPayload,
+  ): Observable<CompanyAccount> {
+    return this.http.patch<CompanyAccount>(
+      `${environment.apiUrl}/companies/${companyId}/account`,
+      payload,
     );
   }
 

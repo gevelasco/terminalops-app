@@ -127,6 +127,10 @@ export class ShellComponent implements OnDestroy {
     () => this.session.companyName()?.trim() || 'Mi empresa',
   );
 
+  readonly companyLegend = computed(
+    () => this.session.companyTagline()?.trim() || 'Operaciones Logísticas',
+  );
+
   constructor() {
     if (this.session.username()) {
       this.profiles.hydrateFromSession();
