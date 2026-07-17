@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { EMPTY, expand, map, Observable, reduce } from 'rxjs';
 import type { Expense } from '@shared/models/logistics.models';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url';
@@ -241,9 +241,21 @@ export class ExpensesService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
 
-  /** Listado completo (reportes, drawers). */
-  getExpensesList(): Observable<Expense[]> {
-    return this.getExpensesPage({ limit: 0 }).pipe(map((r) => r.items));
+  /** Exportación/detalle explícito: recorre páginas de 100. */
+  getAllExpenses(
+    params: Omit<ExpensesListParams, 'page' | 'limit'> = {},
+  ): Observable<Expense[]> {
+    const loadPage = (page: number) =>
+      this.getExpensesPage({ ...params, page, limit: 100 });
+
+    return loadPage(1).pipe(
+      expand((response) =>
+        response.page * response.limit < response.total
+          ? loadPage(response.page + 1)
+          : EMPTY,
+      ),
+      reduce((items, response) => [...items, ...response.items], [] as Expense[]),
+    );
   }
 
   getExpensesPage(params: ExpensesListParams): Observable<ExpensesListResponse> {
@@ -278,6 +290,26 @@ export class ExpensesService {
         params: httpParams,
       })
       .pipe(map((res) => mapExpensesCalendarResponse(res)));
+  }
+
+  /** Consume todas las páginas del calendario para reportes que requieren el periodo completo. */
+  getAllExpensesCalendarItems(
+    params: Omit<ExpensesCalendarParams, 'page' | 'limit'>,
+  ): Observable<ExpenseCalendarItem[]> {
+    const loadPage = (page: number) =>
+      this.getExpensesCalendar({ ...params, page, limit: 100 });
+
+    return loadPage(1).pipe(
+      expand((response) =>
+        response.page * response.limit < response.total
+          ? loadPage(response.page + 1)
+          : EMPTY,
+      ),
+      reduce(
+        (items, response) => [...items, ...response.items],
+        [] as ExpenseCalendarItem[],
+      ),
+    );
   }
 
   postExpense(payload: Omit<Expense, 'id'>): Observable<Expense> {

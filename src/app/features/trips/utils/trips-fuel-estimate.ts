@@ -8,15 +8,6 @@ export function fuelConfigurationFromMaxEquipment(maxEquipmentCount: number): 's
   return maxEquipmentCount >= 2 ? 'full' : 'sencillo';
 }
 
-export function optionalPublicNumericId(raw: string): number | null {
-  const t = raw.trim();
-  if (!t) {
-    return null;
-  }
-  const n = Number.parseInt(t, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 export function formatFuelEstimateLiters(value: number): string {
   return value.toLocaleString('es-MX', {
     minimumFractionDigits: 1,
@@ -31,6 +22,11 @@ export function formatFuelEstimateMoney(value: number): string {
   });
 }
 
+/**
+ * Nota: la estimación del backend es heurística (distancia, configuración,
+ * tipo de carga y peso); la unidad/equipos seleccionados no alteran el cálculo,
+ * por eso no forman parte de la petición ni disparan re-estimaciones.
+ */
 export function buildFuelEstimateRequest(params: {
   distanceKm: number | null;
   operationType: string;
@@ -38,9 +34,6 @@ export function buildFuelEstimateRequest(params: {
   loadType: TripLoadType;
   containerType: TripContainerType;
   approximateWeightTons: string;
-  unitId: string;
-  equipmentPrimary: string;
-  equipmentSecondary: string;
   originCoords: LatLon | null;
   destinationCoords: LatLon | null;
 }): FuelEstimateRequest | null {
@@ -49,8 +42,19 @@ export function buildFuelEstimateRequest(params: {
     return null;
   }
 
-  const weight =
-    parseNonNegativeNumber(params.approximateWeightTons) ?? 0;
+  // Sin datos de carga completos la estimación sería especulativa: no estimar
+  // hasta tener configuración, tipo de contenedor, tipo de carga y peso.
+  if (
+    !params.operationType.trim() ||
+    !String(params.loadType).trim() ||
+    !String(params.containerType).trim()
+  ) {
+    return null;
+  }
+  const weight = parseNonNegativeNumber(params.approximateWeightTons);
+  if (weight == null) {
+    return null;
+  }
 
   return {
     distanceKm: km,
@@ -59,9 +63,6 @@ export function buildFuelEstimateRequest(params: {
     approximateWeightTons: weight,
     cargoType: params.loadType,
     containerType: params.containerType,
-    unitId: optionalPublicNumericId(params.unitId),
-    equipment1Id: optionalPublicNumericId(params.equipmentPrimary),
-    equipment2Id: optionalPublicNumericId(params.equipmentSecondary),
     originLatitude: params.originCoords?.lat ?? null,
     originLongitude: params.originCoords?.lon ?? null,
     destinationLatitude: params.destinationCoords?.lat ?? null,

@@ -173,6 +173,9 @@ export class SessionService {
   readonly maintenanceDateControlChangedAt = computed(
     () => this.data()?.maintenanceDateControlChangedAt ?? null,
   );
+  readonly operationalCenterId = computed(
+    () => this.data()?.operationalCenterId ?? null,
+  );
   readonly operationalCenterName = computed(
     () => this.data()?.operationalCenterName ?? null,
   );
@@ -297,6 +300,7 @@ export class SessionService {
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
       maintenanceKmControlChangedAt?: string | null;
       maintenanceDateControlChangedAt?: string | null;
+      operationalCenterId?: string | null;
       operationalCenterName?: string | null;
       operationalCenterPostalCode?: string | null;
       operationalCenterCityMunicipality?: string | null;
@@ -386,6 +390,12 @@ export class SessionService {
       next.maintenanceDateControlChangedAt = dateChangedAt;
     } else if (patch.maintenanceDateControlChangedAt === null) {
       next.maintenanceDateControlChangedAt = undefined;
+    }
+    if (patch.operationalCenterId !== undefined) {
+      next.operationalCenterId =
+        patch.operationalCenterId === null
+          ? undefined
+          : patch.operationalCenterId;
     }
     if (patch.operationalCenterName !== undefined) {
       next.operationalCenterName =
@@ -648,6 +658,8 @@ export class SessionService {
         normalizeApiIsoDate(user.maintenanceDateControlChangedAt) ??
         normalizeApiIsoDate(payload?.maintenanceDateControlChangedAt) ??
         undefined,
+      operationalCenterId:
+        user.operationalCenterId ?? payload?.operationalCenterId,
       operationalCenterName:
         user.operationalCenterName ?? payload?.operationalCenterName,
       operationalCenterPostalCode:

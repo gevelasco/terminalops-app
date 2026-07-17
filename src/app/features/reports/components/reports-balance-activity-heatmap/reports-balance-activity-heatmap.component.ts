@@ -12,9 +12,14 @@ import {
   computeReportsBalanceActivityIntensityBounds,
   formatReportsBalanceActivityDayLabel,
   formatReportsBalanceActivityTooltip,
+  REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE,
+  REPORTS_BALANCE_ACTIVITY_HEAT_INCOME,
+  REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE,
+  REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE,
   type ReportsBalanceActivityHeatmapCell,
   type ReportsBalanceActivityHeatmapMonthCell,
 } from '@features/reports/utils/reports-balance-activity-heatmap.util';
+import { APP_CHART_PALETTE } from '@shared/charts/app-chart-palette';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
 import type { ReportsBalanceDailyActivityDay } from '@shared/models/api/api-reports-balance.model';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
@@ -32,9 +37,22 @@ interface ReportsBalanceActivityTooltipState {
   providers: [CurrencyMxPipe],
   templateUrl: './reports-balance-activity-heatmap.component.html',
   styleUrl: './reports-balance-activity-heatmap.component.scss',
+  host: {
+    '[style.--heat-income]': 'heatIncome',
+    '[style.--heat-receivable]': 'heatReceivable',
+    '[style.--heat-payable]': 'heatPayable',
+    '[style.--heat-expense]': 'heatExpense',
+    '[style.--heat-base]': 'heatBase',
+  },
 })
 export class ReportsBalanceActivityHeatmapComponent {
   private readonly currencyMx = inject(CurrencyMxPipe);
+
+  protected readonly heatIncome = REPORTS_BALANCE_ACTIVITY_HEAT_INCOME;
+  protected readonly heatReceivable = REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE;
+  protected readonly heatPayable = REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE;
+  protected readonly heatExpense = REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE;
+  protected readonly heatBase = APP_CHART_PALETTE[4];
 
   readonly dailyActivity = input<readonly ReportsBalanceDailyActivityDay[]>([]);
   readonly filter = input.required<ReportsFilter>();

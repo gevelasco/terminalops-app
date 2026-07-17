@@ -353,14 +353,12 @@ export class DashboardPageComponent {
     }
     const range = dashboardUpcomingPaymentsRange();
     return this.expensesApi
-      .getExpensesCalendar({
+      .getAllExpensesCalendarItems({
         from: range.fetchFrom,
         to: range.to,
-        page: 1,
-        limit: 0,
       })
       .pipe(
-        map((response) => buildDashboardUpcomingPayments(response.items, range)),
+        map((items) => buildDashboardUpcomingPayments(items, range)),
         catchError(() => of([] as DashboardUpcomingPaymentRow[])),
       );
   }

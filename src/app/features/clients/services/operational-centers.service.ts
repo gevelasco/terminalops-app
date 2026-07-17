@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { OperationalCentersService as OperationalCentersApi } from '@core/services/api/operational-centers';
+import { SessionService } from '@core/services/state/session';
 import type { DashboardDieselSnapshot } from '@shared/models/api/api-dashboard-summary.model';
 import type { OperationalCenter } from '@shared/models/operational-center.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
@@ -7,12 +8,15 @@ import { finalize, tap, type Subscription } from 'rxjs';
 
 /**
  * Catálogo de centros operativos en memoria (signals).
- * GET /companies/{companyId}/operational-centers — lazy al montar un selector o ficha que lo requiera.
+ * Hoy solo hay un centro por empresa: se hidrata desde la sesión (login)
+ * sin GET. El fetch a /operational-centers queda como fallback (p. ej. sin id
+ * en sesión antigua) o para refresh explícito / precio diésel.
  */
 @Injectable()
 export class OperationalCentersFeatureService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(OperationalCentersApi);
+  private readonly session = inject(SessionService);
   private readonly requestGen = createRequestGeneration();
 
   private readonly _centers = signal<readonly OperationalCenter[]>([]);
@@ -38,21 +42,30 @@ export class OperationalCentersFeatureService {
     this.destroyRef.onDestroy(() => this.dispose());
   }
 
-  loadOperationalCenters(): void {
-    if (this.disposed) {
+  /**
+   * Prefiere el centro de la sesión (sin red). Solo hace GET si no hay id en sesión.
+   */
+  ensureLoaded(): void {
+    if (this.disposed || this.initialLoadStarted) {
       return;
     }
-    if (this.initialLoadStarted) {
+    if (this.hydrateFromSession()) {
       return;
     }
     this.initialLoadStarted = true;
     this.runFetch();
   }
 
+  /** @deprecated Preferir `ensureLoaded()` — mantiene compatibilidad con callers existentes. */
+  loadOperationalCenters(): void {
+    this.ensureLoaded();
+  }
+
   refreshOperationalCenters(): void {
     if (this.disposed) {
       return;
     }
+    this.initialLoadStarted = true;
     this.runFetch();
   }
 
@@ -73,6 +86,40 @@ export class OperationalCentersFeatureService {
     this._dieselReferencePrice.set(null);
     this._loading.set(false);
     this.requestGen.invalidate();
+  }
+
+  /** Construye el único centro desde claims de login; true si pudo hidratar. */
+  private hydrateFromSession(): boolean {
+    const id = this.session.operationalCenterId()?.trim();
+    if (!id) {
+      return false;
+    }
+    const companyId = this.session.companyId()?.trim() ?? '';
+    const postal = this.session.operationalCenterPostalCode()?.trim();
+    const city = this.session.operationalCenterCityMunicipality()?.trim();
+    const locality = this.session.operationalCenterLocality()?.trim();
+    const settlementConsId = this.session.operationalCenterSettlementConsId()?.trim();
+    const lat = this.session.operationalCenterLatitude();
+    const lon = this.session.operationalCenterLongitude();
+
+    this._centers.set([
+      {
+        id,
+        companyId,
+        name: this.session.operationalCenterName()?.trim() || 'Centro Principal',
+        code: 'primary',
+        ...(postal ? { postalCode: postal } : {}),
+        ...(city ? { cityMunicipality: city } : {}),
+        ...(locality ? { locality } : {}),
+        ...(settlementConsId ? { settlementConsId } : {}),
+        ...(lat != null && Number.isFinite(lat) ? { latitude: lat } : {}),
+        ...(lon != null && Number.isFinite(lon) ? { longitude: lon } : {}),
+        isDefault: true,
+      },
+    ]);
+    this.initialLoadStarted = true;
+    this._loading.set(false);
+    return true;
   }
 
   private runFetch(): void {

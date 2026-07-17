@@ -1,8 +1,7 @@
 import { computed, DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { catchError, finalize, map, of, Subscription } from 'rxjs';
+import { catchError, finalize, of, Subscription } from 'rxjs';
 import { ClientsService } from '@core/services/api/clients';
 import { ExpensesService } from '@core/services/api/expenses';
-import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import {
   emptyClientBalanceSummary,
   type ClientBalanceSummary,
@@ -19,7 +18,6 @@ export class ClientsBalanceContextService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsApi = inject(ClientsService);
   private readonly expensesApi = inject(ExpensesService);
-  private readonly operationalSync = inject(OperationalFleetSyncService);
 
   private overviewLoadStarted = false;
   private loadedExpensesTripIdsKey: string | null = null;
@@ -51,20 +49,11 @@ export class ClientsBalanceContextService {
   readonly clientBalanceLoading = this._clientBalanceLoading.asReadonly();
   readonly expenses = this._expenses.asReadonly();
   readonly expensesLoading = this._expensesLoading.asReadonly();
-  readonly trips = this.operationalSync.trips;
-  readonly tripsLoading = this.operationalSync.tripsLoading;
 
   readonly resolvedClientBalance = computed(() => {
     const summary = this._clientBalance();
     return summary ?? emptyClientBalanceSummary();
   });
-
-  ensureTripsLoaded(): void {
-    if (this.disposed) {
-      return;
-    }
-    this.operationalSync.ensureTripsLoaded();
-  }
 
   ensureOverviewLoaded(): void {
     if (this.disposed || this.overviewLoadStarted) {
@@ -168,9 +157,8 @@ export class ClientsBalanceContextService {
 
     this._expensesLoading.set(true);
     this.expensesFetchSub = this.expensesApi
-      .getExpensesPage({ tripIds: normalized.join(','), limit: 0 })
+      .getAllExpenses({ tripIds: normalized.join(',') })
       .pipe(
-        map((response) => response.items),
         catchError(() => of([] as Expense[])),
         finalize(() => {
           if (!this.disposed) {

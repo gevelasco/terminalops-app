@@ -164,6 +164,14 @@ export class TripsPageComponent implements OnInit {
     });
 
     effect(() => {
+      if (this.viewMode() !== 'list') {
+        return;
+      }
+      const params = this.listParams();
+      untracked(() => this.listRequest.set(params));
+    });
+
+    effect(() => {
       this.tripsFeature.listEpoch();
       untracked(() => {
         if (this.viewMode() === 'list') {
@@ -232,11 +240,17 @@ export class TripsPageComponent implements OnInit {
 
   readonly exportParams = computed((): TripsListParams => {
     const { page: _page, limit: _limit, ...rest } = this.listParams();
-    return { ...rest, limit: 0 };
+    return rest;
   });
 
+  /**
+   * Conserva la última consulta de Lista al alternar con Ruta.
+   * Solo se reemplaza al volver a Lista con filtros/página distintos.
+   */
+  private readonly listRequest = signal<TripsListParams | undefined>(undefined);
+
   private readonly listResource = resource<TripsListResponse, TripsListParams | undefined>({
-    request: () => (this.viewMode() === 'list' ? this.listParams() : undefined),
+    request: () => this.listRequest(),
     loader: async ({ request }): Promise<TripsListResponse> => {
       if (!request) {
         return {
@@ -362,7 +376,7 @@ export class TripsPageComponent implements OnInit {
     this.exporting.set(true);
     const params = this.exportParams();
     void firstValueFrom(
-      this.tripsApi.getTripsPage(params).pipe(
+      this.tripsApi.getAllTrips(params).pipe(
         catchError(() => {
           this.toast.show('No se pudo exportar el listado.', 'error');
           return of(null);
@@ -373,7 +387,7 @@ export class TripsPageComponent implements OnInit {
       if (!res) {
         return;
       }
-      if (res.items.length === 0) {
+      if (res.length === 0) {
         this.toast.show(
           'No hay maniobras para exportar con los filtros actuales.',
           'warning',
@@ -382,7 +396,7 @@ export class TripsPageComponent implements OnInit {
       }
       const operationLabel = (op: unknown, row?: Record<string, unknown>) =>
         this.opResolver.resolveCellDisplay(op, row).label;
-      const rows = res.items.map((trip) => {
+      const rows = res.map((trip) => {
         const tableRow = maniobraListRowFromTrip(trip);
         return maniobraListExportRowFromTableRow(tableRow, operationLabel);
       });
@@ -390,7 +404,7 @@ export class TripsPageComponent implements OnInit {
       const suffix = status === 'all' ? 'todos' : status;
       const csv = buildManiobrasCsv(rows);
       downloadManiobrasCsv(csv, `maniobras_${suffix}.csv`);
-      this.toast.show(`Exportadas ${res.items.length} maniobras.`, 'success');
+      this.toast.show(`Exportadas ${res.length} maniobras.`, 'success');
     });
   }
 

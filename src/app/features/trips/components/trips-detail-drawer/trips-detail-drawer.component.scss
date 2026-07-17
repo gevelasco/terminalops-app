@@ -168,8 +168,8 @@
   border-radius: 999px;
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--to-color-warning);
   background: color-mix(in srgb, var(--to-color-warning) 14%, transparent);
 }
@@ -589,8 +589,8 @@
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .maniobra-settlement__badge--paid {

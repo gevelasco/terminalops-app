@@ -10,6 +10,7 @@ import {
   model,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -39,6 +40,8 @@ export class ToClientInputComponent {
   /** Si es true, usa `clientsData` y no llama a la API. */
   readonly prefetchMode = input(false);
   readonly clientsData = input<readonly Client[]>([]);
+  /** En prefetch: el padre aún está cargando el catálogo (muestra spinner). */
+  readonly dataLoading = input(false);
 
   readonly value = model('');
 
@@ -80,7 +83,8 @@ export class ToClientInputComponent {
     effect(() => {
       if (this.prefetchMode()) {
         this.allClients.set([...this.clientsData()]);
-        this.loading.set(false);
+        this.loading.set(this.dataLoading());
+        this.syncClientIdFromLoadedData();
         return;
       }
       if (this.fetchedFromApi) {
@@ -154,6 +158,20 @@ export class ToClientInputComponent {
       ev.stopPropagation();
       this.open.set(false);
     }
+  }
+
+  /** Resuelve clientId si el catálogo llegó después de que el usuario escribió el nombre. */
+  private syncClientIdFromLoadedData(): void {
+    untracked(() => {
+      const t = this.value().trim();
+      if (!t || this.clientId().trim() !== '') {
+        return;
+      }
+      const row = this.allClients().find((c) => c.name === t);
+      if (row) {
+        this.clientId.set(row.id);
+      }
+    });
   }
 
   private syncClientIdFromValue(name: string): void {

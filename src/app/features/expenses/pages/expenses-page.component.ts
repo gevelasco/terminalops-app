@@ -152,7 +152,7 @@ export class ExpensesPageComponent implements OnInit {
 
   readonly exportParams = computed((): ExpensesListParams => {
     const { page: _page, limit: _limit, ...rest } = this.listParams();
-    return { ...rest, limit: 0 };
+    return rest;
   });
 
   private readonly listResource = resource<
@@ -420,7 +420,7 @@ export class ExpensesPageComponent implements OnInit {
     this.exporting.set(true);
     const params = this.exportParams();
     void firstValueFrom(
-      this.expensesApi.getExpensesPage(params).pipe(
+      this.expensesApi.getAllExpenses(params).pipe(
         catchError(() => {
           this.toast.show('No se pudo exportar el listado.', 'error');
           return of(null);
@@ -431,17 +431,17 @@ export class ExpensesPageComponent implements OnInit {
       if (!res) {
         return;
       }
-      if (res.items.length === 0) {
+      if (res.length === 0) {
         this.toast.show('No hay gastos para exportar con los filtros actuales.', 'warning');
         return;
       }
       const range = expensesRangeForPreset(this.periodPreset());
       const suffix = range ? `${range.from}_${range.to}` : 'todo';
       const csv = buildExpensesCsv(
-        res.items.map((e) => this.mapExpenseExportRow(e)),
+        res.map((e) => this.mapExpenseExportRow(e)),
       );
       downloadExpensesCsv(csv, `gastos_${suffix}.csv`);
-      this.toast.show(`Exportados ${res.items.length} gastos.`, 'success');
+      this.toast.show(`Exportados ${res.length} gastos.`, 'success');
     });
   }
 

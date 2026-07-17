@@ -120,7 +120,7 @@
                   <td class="reports-balance-panel__status-cell">
                     <span [class]="commercialPillClass(row.commercialHealth)">
                       <span class="to-table-pill__dot" aria-hidden="true"></span>
-                      <span class="to-table-pill__label">{{ row.commercialHealthLabel }}</span>
+                      {{ row.commercialHealthLabel }}
                     </span>
                   </td>
                 </tr>
@@ -199,7 +199,7 @@
     <section class="reports-balance-panel reports-balance-panel--wide">
       <header class="reports-balance-panel__head">
         <div>
-          <h2 class="reports-balance-panel__title">Cuentas por pagar</h2>
+          <h2 class="reports-balance-panel__title">Cuentas por pagar en el periodo</h2>
           <p class="reports-balance-panel__subtitle">
             Obligaciones programadas y gastos a crédito · {{ periodSubtitle() }}
           </p>
@@ -226,8 +226,9 @@
                   <td>{{ item.beneficiary ?? '—' }}</td>
                   <td class="reports-balance-panel__num">{{ item.installmentLabel }}</td>
                   <td>{{ formatDateShort(item.dueDate) }}</td>
-                  <td>
+                  <td class="reports-balance-panel__status-cell">
                     <span [class]="payableStatusClass(item.status)">
+                      <span class="to-table-pill__dot" aria-hidden="true"></span>
                       {{ payableStatusLabel(item.status) }}
                     </span>
                   </td>

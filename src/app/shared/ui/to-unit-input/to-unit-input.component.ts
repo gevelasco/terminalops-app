@@ -48,10 +48,14 @@ export class ToUnitInputComponent {
   readonly prefetchMode = input(false);
   readonly unitsData = input<readonly Unit[]>([]);
   readonly tripsData = input<readonly Trip[]>([]);
+  /** En prefetch: el padre aún está cargando el catálogo (muestra spinner). */
+  readonly dataLoading = input(false);
 
   readonly unitId = model('');
 
   readonly blurNotify = output<void>();
+  /** Primer foco del campo: permite al padre disparar cargas perezosas de catálogo. */
+  readonly focusNotify = output<void>();
   readonly unitPicked = output<UnitPickedEvent>();
 
   readonly inputId = `to-unit-input-${++seq}`;
@@ -87,7 +91,8 @@ export class ToUnitInputComponent {
           buildManeuverAssignableUnitRows(this.unitsData(), this.tripsData()),
         );
         this.syncInputFromUnitId();
-        this.loading.set(false);
+        this.loading.set(this.dataLoading());
+        this.maybeOpenIfFocused();
         return;
       }
       if (this.fetchedFromApi) {
@@ -106,6 +111,14 @@ export class ToUnitInputComponent {
           error: () => this.loading.set(false),
         });
     });
+  }
+
+  /** Si el catálogo llegó mientras el campo tenía foco, abre la lista sin otro clic. */
+  private maybeOpenIfFocused(): void {
+    const el = this.fieldInput()?.nativeElement;
+    if (el && document.activeElement === el && !this.loading() && this.rows().length > 0) {
+      this.open.set(true);
+    }
   }
 
   private syncInputFromUnitId(): void {
@@ -133,6 +146,7 @@ export class ToUnitInputComponent {
   }
 
   onFocus(): void {
+    this.focusNotify.emit();
     if (!this.loading() && this.rows().length > 0) {
       this.open.set(true);
     }

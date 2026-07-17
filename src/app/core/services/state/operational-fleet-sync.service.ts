@@ -4,8 +4,17 @@ import { TripsService as TripsApiService } from '@services/api/trips';
 import type { Trip } from '@shared/models/logistics.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 
+/** Estatus que mantienen una maniobra en la caché operativa compartida. */
+export const OPERATIONAL_TRIP_STATUSES = 'scheduled,in_transit';
+
+export function isOperationalTripStatus(status: Trip['status']): boolean {
+  return status === 'scheduled' || status === 'in_transit';
+}
+
 /**
- * Caché compartida de maniobras + señales de refresco para flota/operadores.
+ * Caché compartida de maniobras ACTIVAS (programadas + en curso) + señales de
+ * refresco para flota/operadores. El histórico (completadas/canceladas) se
+ * consulta paginado por cada vista; aquí solo vive lo operativo.
  * Las mutaciones de maniobra que afectan asignación o estatus operativo deben
  * llamar `notifyTripFleetMutation()`.
  */
@@ -94,7 +103,7 @@ export class OperationalFleetSyncService {
     this.fetchSub?.unsubscribe();
     this._tripsLoading.set(true);
     this.fetchSub = this.tripsApi
-      .getTripsList()
+      .getAllTrips({ status: OPERATIONAL_TRIP_STATUSES })
       .pipe(
         catchError(() => of([] as Trip[])),
         finalize(() => {

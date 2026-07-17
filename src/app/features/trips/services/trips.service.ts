@@ -1,6 +1,9 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, map, of, Subscription, switchMap, type Observable } from 'rxjs';
-import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
+import { map, Subscription, type Observable } from 'rxjs';
+import {
+  OperationalFleetSyncService,
+  isOperationalTripStatus,
+} from '@core/services/state/operational-fleet-sync.service';
 import { TripsService as TripsApiService } from '@services/api/trips';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
 import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
@@ -57,34 +60,74 @@ export class TripsFeatureService {
     this.operationalSync.refreshTrips();
   }
 
+  /**
+   * Selecciona y SIEMPRE revalida contra el servidor: la caché operativa se
+   * carga una vez por sesión y el lifecycle del API puede haber transicionado
+   * la maniobra (p. ej. en curso → completada) sin que la copia local se entere.
+   * La copia cacheada se muestra de inmediato (sin parpadeo) mientras llega la fresca.
+   */
   selectTrip(tripId: string): void {
     const id = tripId.trim();
     if (!id) {
       return;
     }
-    if (this.trips().some((t) => t.id === id)) {
-      this.selectTripSub?.unsubscribe();
-      this._fallbackTrip.set(null);
-      this._selectedTripId.set(id);
-      return;
-    }
-    this._selectedTripId.set(id);
-    this._fallbackTrip.set(null);
+    const cached = this.trips().find((t) => t.id === id) ?? null;
     this.selectTripSub?.unsubscribe();
+    this._selectedTripId.set(id);
+    this._fallbackTrip.set(cached);
     this.selectTripSub = this.tripsApi.getTripById(id).subscribe({
       next: (trip) => {
         if (this._selectedTripId() !== id) {
           return;
         }
-        this._fallbackTrip.set(trip ?? null);
+        if (!trip) {
+          if (!cached) {
+            this.clearSelection();
+          }
+          return;
+        }
+        this.reconcileFetchedTrip(trip);
       },
       error: () => {
         if (this._selectedTripId() !== id) {
           return;
         }
-        this.clearSelection();
+        if (!cached) {
+          this.clearSelection();
+        }
       },
     });
+  }
+
+  /**
+   * Aplica la verdad del servidor sobre la caché compartida:
+   * - Si la maniobra dejó de ser operativa (completada/cancelada por el
+   *   lifecycle), se saca de la caché y se notifica a flota/operadores.
+   * - Si sigue operativa pero cambió, se actualiza en sitio.
+   * - Si no cambió, no se toca la caché (evita recargas de lista innecesarias).
+   */
+  private reconcileFetchedTrip(fresh: Trip): void {
+    const current = this.trips();
+    const cached = current.find((t) => t.id === fresh.id) ?? null;
+    const keepInCache = isOperationalTripStatus(fresh.status);
+
+    if (cached && !keepInCache) {
+      this.operationalSync.publishTripsAfterMutation(
+        current.filter((t) => t.id !== fresh.id),
+      );
+      this._fallbackTrip.set(fresh);
+      return;
+    }
+    if (cached) {
+      if (JSON.stringify(cached) !== JSON.stringify(fresh)) {
+        this.operationalSync.replaceTrips(
+          current.map((t) => (t.id === fresh.id ? fresh : t)),
+        );
+      }
+      this._fallbackTrip.set(null);
+      return;
+    }
+    this._fallbackTrip.set(fresh);
   }
 
   clearSelection(): void {
@@ -117,17 +160,7 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.postTripIncident(tripId, description, postedBy, isIncident).pipe(
-      switchMap((updated) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return updated;
-            }
-            this.applyList(list, keepId, 'list');
-            return this.trips().find((t) => t.id === keepId) ?? updated;
-          }),
-        ),
-      ),
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
     );
   }
 
@@ -135,17 +168,7 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.postTripCancel(tripId, payload).pipe(
-      switchMap((updated) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return updated;
-            }
-            this.applyList(list, keepId, 'fleet');
-            return this.trips().find((t) => t.id === keepId) ?? updated;
-          }),
-        ),
-      ),
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'fleet')),
     );
   }
 
@@ -153,17 +176,7 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.patchTripClientCollected(tripId, collected).pipe(
-      switchMap((updated) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return updated;
-            }
-            this.applyList(list, keepId, 'list');
-            return this.trips().find((t) => t.id === keepId) ?? updated;
-          }),
-        ),
-      ),
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
     );
   }
 
@@ -174,17 +187,7 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.patchTripActualSchedule(tripId, payload).pipe(
-      switchMap((updated) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return updated;
-            }
-            this.applyList(list, keepId, 'fleet');
-            return this.trips().find((t) => t.id === keepId) ?? updated;
-          }),
-        ),
-      ),
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'fleet')),
     );
   }
 
@@ -211,8 +214,34 @@ export class TripsFeatureService {
     return !this.disposed && this.requestGen.isCurrent(requestId);
   }
 
-  private fetchList(): Observable<Trip[]> {
-    return this.tripsApi.getTripsList().pipe(catchError(() => of([] as Trip[])));
+  private applyUpdatedTrip(
+    updated: Trip,
+    selectedId: string,
+    requestId: number,
+    sync: 'list' | 'fleet',
+  ): Trip {
+    if (!this.canApplyResponse(requestId)) {
+      return updated;
+    }
+    const keepInCache = isOperationalTripStatus(updated.status);
+    const current = this.trips();
+    const exists = current.some((trip) => trip.id === updated.id);
+    const list = !keepInCache
+      ? current.filter((trip) => trip.id !== updated.id)
+      : exists
+        ? current.map((trip) => (trip.id === updated.id ? updated : trip))
+        : [updated, ...current];
+    if (sync === 'fleet') {
+      this.operationalSync.publishTripsAfterMutation([...list]);
+    } else {
+      this.operationalSync.replaceTrips([...list]);
+    }
+    if (selectedId === updated.id) {
+      // La caché solo guarda activas; si salió de ella, el drawer sigue vivo vía fallback.
+      this._fallbackTrip.set(keepInCache ? null : updated);
+      this._selectedTripId.set(selectedId);
+    }
+    return updated;
   }
 
   private applyList(

@@ -1,12 +1,10 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { UsersService } from '@core/services/api/users';
 import { ClientsService } from '@services/api/clients';
 import { OperatorsService } from '@services/api/operators';
 import { UnitsService } from '@services/api/units';
-import { EquipmentService } from '@services/api/equipment';
 import { ExpensesService } from '@services/api/expenses';
 import type { Client } from '@shared/models/client.models';
-import type { Equipment, Expense, Operator, Unit } from '@shared/models/logistics.models';
+import type { Expense, Operator, Unit } from '@shared/models/logistics.models';
 import {
   buildFleetCoverageExpensesPageParams,
   fleetCoverageExpensesQueryRange,
@@ -16,52 +14,130 @@ import { catchError, finalize, forkJoin, map, of, Subscription } from 'rxjs';
 
 /**
  * Catálogos para formularios de trips (lazy, scope de `/trips`).
- * Carga bajo demanda al abrir el drawer de nueva maniobra; se reutiliza si se cierra y reabre sin salir del módulo.
+ * Cada catálogo se carga bajo demanda según la interacción del usuario
+ * (autocomplete de cliente, foco en unidad/operador); ninguno se descarga
+ * al abrir el drawer. Se reutilizan si se cierra y reabre sin salir del módulo.
  */
 @Injectable()
 export class TripsFormCatalogService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsApi = inject(ClientsService);
   private readonly unitsApi = inject(UnitsService);
-  private readonly equipmentApi = inject(EquipmentService);
   private readonly expensesApi = inject(ExpensesService);
   private readonly operatorsApi = inject(OperatorsService);
-  private readonly usersApi = inject(UsersService);
   private readonly requestGen = createRequestGeneration();
 
   private readonly _clients = signal<readonly Client[]>([]);
   private readonly _units = signal<readonly Unit[]>([]);
-  private readonly _equipment = signal<readonly Equipment[]>([]);
   private readonly _fleetCoverageExpenses = signal<readonly Expense[]>([]);
   private readonly _operators = signal<readonly Operator[]>([]);
-  private readonly _currentUsername = signal<string | null>(null);
-  private readonly _ready = signal(false);
-  private readonly _loading = signal(false);
+  private readonly _clientsLoading = signal(false);
+  private readonly _fleetLoading = signal(false);
+  private readonly _operatorsLoading = signal(false);
 
   private disposed = false;
-  private loadSub: Subscription | null = null;
+  private clientsStarted = false;
+  private fleetStarted = false;
+  private operatorsStarted = false;
+  private readonly loadSubs: Subscription[] = [];
   private complianceSub: Subscription | null = null;
   private complianceKey = '';
 
   readonly clients = this._clients.asReadonly();
   readonly units = this._units.asReadonly();
-  readonly equipment = this._equipment.asReadonly();
   readonly fleetCoverageExpenses = this._fleetCoverageExpenses.asReadonly();
   readonly operators = this._operators.asReadonly();
-  readonly currentUsername = this._currentUsername.asReadonly();
-  readonly ready = this._ready.asReadonly();
-  readonly loading = this._loading.asReadonly();
+  readonly clientsLoading = this._clientsLoading.asReadonly();
+  readonly fleetLoading = this._fleetLoading.asReadonly();
+  readonly operatorsLoading = this._operatorsLoading.asReadonly();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
   }
 
-  /** Carga bajo demanda; idempotente mientras el usuario permanezca en `/trips`. */
-  ensureLoaded(): void {
-    if (this.disposed || this._ready() || this._loading()) {
+  /** Clientes; se dispara cuando el usuario escribe ≥3 caracteres en el autocomplete. */
+  ensureClientsLoaded(): void {
+    if (this.disposed || this.clientsStarted) {
       return;
     }
-    this.runLoad();
+    this.clientsStarted = true;
+    const requestId = this.requestGen.next();
+    this._clientsLoading.set(true);
+    this.loadSubs.push(
+      this.clientsApi
+        .getClientsList()
+        .pipe(
+          catchError(() => of([] as Client[])),
+          finalize(() => {
+            if (this.requestGen.isCurrent(requestId)) {
+              this._clientsLoading.set(false);
+            }
+          }),
+        )
+        .subscribe((rows) => {
+          if (this.canApplyResponse(requestId)) {
+            this._clients.set(rows);
+          }
+        }),
+    );
+  }
+
+  /**
+   * Unidades disponibles; se dispara al enfocar el input de unidad.
+   * Cada unidad ya incluye sus equipos enganchados (`hitchedEquipment`),
+   * por lo que no se necesita el catálogo de /equipment.
+   */
+  ensureUnitsLoaded(): void {
+    if (this.disposed || this.fleetStarted) {
+      return;
+    }
+    this.fleetStarted = true;
+    const requestId = this.requestGen.next();
+    this._fleetLoading.set(true);
+    this.loadSubs.push(
+      this.unitsApi
+        .getUnitsList({ available: true })
+        .pipe(
+          catchError(() => of([] as Unit[])),
+          finalize(() => {
+            if (this.requestGen.isCurrent(requestId)) {
+              this._fleetLoading.set(false);
+            }
+          }),
+        )
+        .subscribe((rows) => {
+          if (this.canApplyResponse(requestId)) {
+            this._units.set(rows);
+          }
+        }),
+    );
+  }
+
+  /** Operadores disponibles; se dispara al enfocar el input de operador. */
+  ensureOperatorsLoaded(): void {
+    if (this.disposed || this.operatorsStarted) {
+      return;
+    }
+    this.operatorsStarted = true;
+    const requestId = this.requestGen.next();
+    this._operatorsLoading.set(true);
+    this.loadSubs.push(
+      this.operatorsApi
+        .getOperatorsList({ available: true })
+        .pipe(
+          catchError(() => of([] as Operator[])),
+          finalize(() => {
+            if (this.requestGen.isCurrent(requestId)) {
+              this._operatorsLoading.set(false);
+            }
+          }),
+        )
+        .subscribe((rows) => {
+          if (this.canApplyResponse(requestId)) {
+            this._operators.set(rows);
+          }
+        }),
+    );
   }
 
   /**
@@ -133,55 +209,6 @@ export class TripsFormCatalogService {
       });
   }
 
-  private runLoad(): void {
-    if (this.disposed) {
-      return;
-    }
-    const requestId = this.requestGen.next();
-    this.loadSub?.unsubscribe();
-    this._loading.set(true);
-    this.loadSub = forkJoin({
-      clients: this.clientsApi.getClientsList().pipe(catchError(() => of([] as Client[]))),
-      units: this.unitsApi
-        .getUnitsList({ available: true })
-        .pipe(catchError(() => of([] as Unit[]))),
-      equipment: this.equipmentApi
-        .getEquipmentList()
-        .pipe(catchError(() => of([] as Equipment[]))),
-      operators: this.operatorsApi
-        .getOperatorsList({ available: true })
-        .pipe(catchError(() => of([] as Operator[]))),
-      me: this.usersApi.getMe().pipe(catchError(() => of(null))),
-    })
-      .pipe(
-        finalize(() => {
-          if (this.requestGen.isCurrent(requestId)) {
-            this._loading.set(false);
-          }
-        }),
-      )
-      .subscribe({
-        next: (bundle) => {
-          if (!this.canApplyResponse(requestId)) {
-            return;
-          }
-          this._clients.set(bundle.clients);
-          this._units.set(bundle.units);
-          this._equipment.set(bundle.equipment);
-          this._operators.set(bundle.operators);
-          const username = bundle.me?.username?.trim();
-          this._currentUsername.set(username || null);
-          this._ready.set(true);
-        },
-        error: () => {
-          if (!this.canApplyResponse(requestId)) {
-            return;
-          }
-          this.clearCatalogSignals();
-        },
-      });
-  }
-
   private canApplyResponse(requestId: number): boolean {
     return !this.disposed && this.requestGen.isCurrent(requestId);
   }
@@ -189,11 +216,8 @@ export class TripsFormCatalogService {
   private clearCatalogSignals(): void {
     this._clients.set([]);
     this._units.set([]);
-    this._equipment.set([]);
     this._fleetCoverageExpenses.set([]);
     this._operators.set([]);
-    this._currentUsername.set(null);
-    this._ready.set(false);
     this.complianceKey = '';
   }
 
@@ -204,11 +228,15 @@ export class TripsFormCatalogService {
     }
     this.disposed = true;
     this.requestGen.invalidate();
-    this.loadSub?.unsubscribe();
-    this.loadSub = null;
+    for (const sub of this.loadSubs) {
+      sub.unsubscribe();
+    }
+    this.loadSubs.length = 0;
     this.complianceSub?.unsubscribe();
     this.complianceSub = null;
     this.clearCatalogSignals();
-    this._loading.set(false);
+    this._clientsLoading.set(false);
+    this._fleetLoading.set(false);
+    this._operatorsLoading.set(false);
   }
 }

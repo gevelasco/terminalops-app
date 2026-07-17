@@ -39,6 +39,28 @@ export class DestinationRatesService {
       );
   }
 
+  /** Match fino para nueva maniobra: evita descargar el catálogo completo de tarifas. */
+  matchManeuverDestinationRate(params: {
+    originOperationalCenterId: string;
+    postalCode: string;
+    locality: string;
+    clientDestinationRateId?: string;
+  }): Observable<DestinationRate | null> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http
+      .get<{ rate: Record<string, unknown> | null }>(
+        companyResourceUrl(companyId, 'destination-rates/match', {
+          originOperationalCenterId: params.originOperationalCenterId.trim(),
+          postalCode: normalizeMxPostalCodeDigits(params.postalCode),
+          locality: params.locality.trim(),
+          ...(params.clientDestinationRateId?.trim()
+            ? { clientDestinationRateId: params.clientDestinationRateId.trim() }
+            : {}),
+        }),
+      )
+      .pipe(map((res) => (res.rate ? mapApiDestinationRate(res.rate) : null)));
+  }
+
   getDestinationRateById(id: string): Observable<DestinationRate> {
     return this.http
       .get<Record<string, unknown>>(resourceByIdUrl('destination-rates', id))

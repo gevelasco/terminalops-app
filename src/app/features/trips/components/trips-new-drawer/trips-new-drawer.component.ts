@@ -15,7 +15,6 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
   formatManeuverEquipmentLabel,
-  resolveUnitHitchedEquipment,
   unitHitchedEquipment,
   unitMatchesManeuverOperationCode,
 } from '@features/trips/utils/assignable-fleet-for-maneuver';
@@ -79,8 +78,8 @@ import {
 } from '@shared/models/logistics.models';
 import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 import { TripsService as TripsApiService } from '@core/services/api/trips';
+import { DestinationRatesService as DestinationRatesApiService } from '@core/services/api/destination-rates';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
-import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
@@ -90,7 +89,6 @@ import {
   destinationRateHasClientChargeForOperation,
   destinationRateHasEstimatedTime,
   destinationRateHasRouteCache,
-  resolveManeuverDestinationRate,
   suggestedClientChargeFromDestinationRate,
   suggestedEstimatedTollFromDestinationRate,
   suggestedOperatorPaymentFromDestinationRate,
@@ -187,7 +185,7 @@ export class TripsNewDrawerComponent {
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
   private readonly tripsFeature = inject(TripsFeatureService);
-  private readonly destinationRatesFeature = inject(DestinationRatesFeatureService);
+  private readonly destinationRatesApi = inject(DestinationRatesApiService);
   private readonly operationalCentersFeature = inject(OperationalCentersFeatureService);
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly tripEvaluation = inject(TripEvaluationService);
@@ -202,12 +200,12 @@ export class TripsNewDrawerComponent {
   readonly autoRecognitionEnabled = computed(() => this.session.tripAssistPrefillEnabled());
   readonly dieselLitersPlaceholder = computed(() =>
     this.dieselControlEnabled()
-      ? 'Se estima al tener distancia y configuración'
+      ? 'Se estima al tener distancia y datos de carga'
       : 'Captura manualmente',
   );
   readonly dieselAmountPlaceholder = computed(() =>
     this.dieselControlEnabled()
-      ? 'Se estima al tener distancia y configuración'
+      ? 'Se estima al tener distancia y datos de carga'
       : 'Captura manualmente',
   );
   /** Si el usuario editó diesel tras la última estimación automática. */
@@ -236,6 +234,49 @@ export class TripsNewDrawerComponent {
   readonly originOperationalCenterId = model('');
   private readonly matchedDestinationRateId = signal<string | null>(null);
   private readonly routeCacheActive = signal(false);
+
+  /**
+   * Resultado del match fino de tarifa (GET destination-rates/match).
+   * `key` identifica la ruta consultada; si no coincide con el contexto actual, se ignora.
+   */
+  private readonly rateMatchResult = signal<{
+    key: string;
+    rate: DestinationRate | null;
+  } | null>(null);
+
+  /** Ruta candidata a tarifa; null mientras falte origen, CP o localidad de destino. */
+  private readonly rateMatchContext = computed(() => {
+    const originId = this.originOperationalCenterId().trim();
+    const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
+    const cp = normalizeMxPostalCodeDigits(this.destinationCp());
+    const destLocality = this.destinationLocalityName();
+    if (!rateOriginId || cp.length !== 5 || !destLocality) {
+      return null;
+    }
+    const clientId = this.clientId().trim();
+    const client = clientId
+      ? this.catalog.clients().find((c) => c.id === clientId)
+      : undefined;
+    const clientRateId = client?.delivery?.destinationRateId?.trim() ?? '';
+    return {
+      rateOriginId,
+      cp,
+      destLocality,
+      clientRateId,
+      key: `${rateOriginId}|${cp}|${destLocality}|${clientRateId}`,
+    };
+  });
+
+  /** Nombre de la localidad de destino seleccionada (para match de tarifa). */
+  private readonly destinationLocalityName = computed(() => {
+    const key = this.destinationLocalityKey().trim();
+    const rows = this.destinationSettlements();
+    if (!key || rows.length === 0) {
+      return '';
+    }
+    const settlement = rows.find((r) => localityKey(r) === key);
+    return settlement?.settlement.trim() ?? '';
+  });
 
   /** Sugerencia UX de fechas planificadas desde tiempos referenciales de tarifa. */
   readonly plannedScheduleSuggestionUi = signal<'none' | 'auto' | 'manual'>('none');
@@ -304,7 +345,8 @@ export class TripsNewDrawerComponent {
       return [];
     }
     const unit = this.catalog.units().find((u) => u.id === id);
-    return resolveUnitHitchedEquipment(unit, this.catalog.equipment());
+    // El listado de unidades ya trae los equipos enganchados embebidos.
+    return unit ? unitHitchedEquipment(unit) : [];
   });
 
   readonly equipmentPrimaryReadonly = computed(() => {
@@ -464,7 +506,8 @@ export class TripsNewDrawerComponent {
   readonly unitPlaceholder = 'Buscar unidad disponible…';
 
   readonly creating = signal(false);
-  readonly drawerLoading = computed(() => !this.catalog.ready());
+  /** Solo lo esencial bloquea el drawer: centros operativos (prefill de origen). */
+  readonly drawerLoading = computed(() => this.operationalCentersFeature.loading());
   readonly drawerBusy = computed(() => this.drawerLoading() || this.creating());
 
   /** Confirmación cuando las fechas planeadas ya pasaron (maniobra completada). */
@@ -619,10 +662,52 @@ export class TripsNewDrawerComponent {
   });
 
   constructor() {
-    this.destinationRatesFeature.loadDestinationRates();
+    // Al abrir solo lo esencial: centros operativos (prefill de origen).
+    // El resto de catálogos se carga según interacción del usuario.
     this.operationalCentersFeature.loadOperationalCenters();
-    this.operationConfigsFeature.loadOperationConfigurations();
-    this.catalog.ensureLoaded();
+
+    // /clients hasta que el usuario escribe ≥3 caracteres en el autocomplete.
+    effect(() => {
+      if (this.clientName().trim().length >= 3) {
+        this.catalog.ensureClientsLoaded();
+      }
+    });
+
+    // Configuraciones de operación al elegir cliente (sugerencias por tipo de maniobra).
+    effect(() => {
+      if (this.clientId().trim()) {
+        this.operationConfigsFeature.loadOperationConfigurations();
+      }
+    });
+
+    // Match fino de tarifa: una consulta puntual por ruta en lugar del catálogo completo.
+    toObservable(this.rateMatchContext)
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged((a, b) => (a?.key ?? '') === (b?.key ?? '')),
+        switchMap((ctx) => {
+          if (!ctx) {
+            this.rateMatchResult.set(null);
+            return EMPTY;
+          }
+          return this.destinationRatesApi
+            .matchManeuverDestinationRate({
+              originOperationalCenterId: ctx.rateOriginId,
+              postalCode: ctx.cp,
+              locality: ctx.destLocality,
+              ...(ctx.clientRateId
+                ? { clientDestinationRateId: ctx.clientRateId }
+                : {}),
+            })
+            .pipe(
+              map((rate) => ({ key: ctx.key, rate })),
+              catchError(() => of({ key: ctx.key, rate: null })),
+            );
+        }),
+        tap((res) => this.rateMatchResult.set(res)),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
 
     effect(() => {
       const unitId = this.unitId().trim();
@@ -640,9 +725,6 @@ export class TripsNewDrawerComponent {
       toObservable(this.loadType),
       toObservable(this.containerType),
       toObservable(this.approximateWeightTons),
-      toObservable(this.unitId),
-      toObservable(this.equipmentPrimary),
-      toObservable(this.equipmentSecondary),
       toObservable(this.originCoords),
       toObservable(this.destinationCoords),
     ]).pipe(
@@ -655,9 +737,6 @@ export class TripsNewDrawerComponent {
           loadType,
           containerType,
           approximateWeightTons,
-          unitId,
-          equipmentPrimary,
-          equipmentSecondary,
           originCoords,
           destinationCoords,
         ]) =>
@@ -672,9 +751,6 @@ export class TripsNewDrawerComponent {
             loadType,
             containerType,
             approximateWeightTons,
-            unitId,
-            equipmentPrimary,
-            equipmentSecondary,
             originCoords,
             destinationCoords,
           }),
@@ -806,7 +882,7 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
-      if (!this.catalog.ready() || this.originPrefillApplied()) {
+      if (this.originPrefillApplied()) {
         return;
       }
       const centers = this.operationalCentersFeature.centers();
@@ -1085,24 +1161,11 @@ export class TripsNewDrawerComponent {
       }
       const originId = this.originOperationalCenterId().trim();
       const clientId = this.clientId().trim();
-      const client = clientId
-        ? this.catalog.clients().find((c) => c.id === clientId)
-        : undefined;
-      const clientDestinationRateId = client?.delivery?.destinationRateId;
       const cp = normalizeMxPostalCodeDigits(this.destinationCp());
-      const destLocality = (() => {
-        const key = this.destinationLocalityKey().trim();
-        const rows = this.destinationSettlements();
-        if (!key || rows.length === 0) {
-          return '';
-        }
-        const settlement = rows.find((r) => localityKey(r) === key);
-        return settlement?.settlement.trim() ?? '';
-      })();
+      const destLocality = this.destinationLocalityName();
       const op = this.operationType();
       const billing = this.includeClientBilling();
       const fp = `${originId}|${cp}|${destLocality}|${op}|${billing ? '1' : '0'}`;
-      const rates = this.destinationRatesFeature.rates();
 
       if (fp !== this.lastDestinationRateInputFp) {
         this.lastDestinationRateInputFp = fp;
@@ -1112,14 +1175,11 @@ export class TripsNewDrawerComponent {
       }
 
       const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
+      const matchCtx = this.rateMatchContext();
+      const matchRes = this.rateMatchResult();
       const rate =
-        rateOriginId && cp.length === 5 && destLocality
-          ? resolveManeuverDestinationRate(rates, {
-              originOperationalCenterId: rateOriginId,
-              destinationPostalCode: cp,
-              destinationLocality: destLocality,
-              clientDestinationRateId,
-            })
+        matchCtx && matchRes && matchRes.key === matchCtx.key
+          ? (matchRes.rate ?? undefined)
           : undefined;
 
       const departure = this.plannedDepartureDateTime().trim();
@@ -1584,6 +1644,20 @@ export class TripsNewDrawerComponent {
   onUnitPicked(ev: UnitPickedEvent): void {
     this.equipmentPrimary.set(ev.equipmentIds[0] ?? '');
     this.equipmentSecondary.set(ev.equipmentIds[1] ?? '');
+  }
+
+  /** Carga perezosa: unidades (y configs, la compatibilidad depende de ellas). */
+  onUnitInputFocus(): void {
+    this.catalog.ensureUnitsLoaded();
+    this.operationConfigsFeature.loadOperationConfigurations();
+  }
+
+  onOperatorInputFocus(): void {
+    this.catalog.ensureOperatorsLoaded();
+  }
+
+  onOperationConfigFocus(): void {
+    this.operationConfigsFeature.loadOperationConfigurations();
   }
 
   private unitConfigurationMismatchMessage(): string {
@@ -2215,11 +2289,12 @@ export class TripsNewDrawerComponent {
     if (!departure || !dateTimeLocalValueToIso(departure)) {
       return;
     }
+    const lastMatch = this.rateMatchResult()?.rate ?? null;
     const matched =
       rate ??
-      this.destinationRatesFeature
-        .rates()
-        .find((r) => r.id === this.matchedDestinationRateId());
+      (lastMatch && lastMatch.id === this.matchedDestinationRateId()
+        ? lastMatch
+        : undefined);
     if (!matched || !destinationRateHasEstimatedTime(matched)) {
       return;
     }

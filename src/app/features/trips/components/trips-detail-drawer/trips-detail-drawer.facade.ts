@@ -112,10 +112,14 @@ export class TripsDetailDrawerFacade {
   readonly justificationDraft = signal('');
   readonly realDatesSaving = signal(false);
   readonly detailTab = signal<TripsDetailTab>('maneuver');
-  readonly showsSettlementTab = computed(() => this.trip().status === 'completed');
+  // Lectura nullable: estos computed corren desde effects que pueden evaluarse
+  // justo después de limpiar la selección (p. ej. al eliminar la maniobra).
+  readonly showsSettlementTab = computed(
+    () => this.tripsFeature.selectedTrip()?.status === 'completed',
+  );
   readonly canDeleteManiobra = computed(() => isAdminRole(this.session.role()));
   readonly deleteRequiresInTransitAck = computed(
-    () => this.trip().status === 'in_transit',
+    () => this.tripsFeature.selectedTrip()?.status === 'in_transit',
   );
   readonly canConfirmDeleteManiobra = computed(
     () =>
@@ -150,7 +154,9 @@ export class TripsDetailDrawerFacade {
     buildManiobraSettlementSummary(this.trip(), this.expensesForSettlement()),
   );
   readonly canEditRealDates = computed(
-    () => this.canWriteTrips() && this.trip().status === 'in_transit',
+    () =>
+      this.canWriteTrips() &&
+      this.tripsFeature.selectedTrip()?.status === 'in_transit',
   );
   readonly realScheduleDrafts = computed(
     (): ActualScheduleDrafts => ({
@@ -193,11 +199,8 @@ export class TripsDetailDrawerFacade {
         return;
       }
       const sub = this.expensesApi
-        .getExpensesPage({ tripId: t.id, limit: 0 })
-        .pipe(
-          map((response) => response.items),
-          catchError(() => of([] as Expense[])),
-        )
+        .getAllExpenses({ tripId: t.id })
+        .pipe(catchError(() => of([] as Expense[])))
         .subscribe((rows) => this.expensesForSettlement.set(rows));
       onCleanup(() => sub.unsubscribe());
     });

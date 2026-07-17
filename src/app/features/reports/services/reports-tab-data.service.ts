@@ -71,11 +71,8 @@ export class ReportsTabDataService {
     return forkJoin({
       balance: this.getBalance(filter),
       calendarItems: this.expensesApi
-        .getExpensesCalendar({ from, to, page: 1, limit: 0 })
-        .pipe(
-          map((response) => response.items),
-          catchError(() => of([] as ExpenseCalendarItem[])),
-        ),
+        .getAllExpensesCalendarItems({ from, to })
+        .pipe(catchError(() => of([] as ExpenseCalendarItem[]))),
     }).pipe(
       map(({ balance, calendarItems }) => ({
         balance,

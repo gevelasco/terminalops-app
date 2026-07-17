@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { EMPTY, expand, map, Observable, reduce } from 'rxjs';
 import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
 import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
 import type {
@@ -85,9 +85,19 @@ export class TripsService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
 
-  /** Listado completo (cachés, formularios). */
-  getTripsList(): Observable<Trip[]> {
-    return this.getTripsPage({ limit: 0 }).pipe(map((r) => r.items));
+  /** Exportación explícita: recorre páginas de 100 sin abrir un endpoint ilimitado. */
+  getAllTrips(params: Omit<TripsListParams, 'page' | 'limit'> = {}): Observable<Trip[]> {
+    const loadPage = (page: number) =>
+      this.getTripsPage({ ...params, page, limit: 100 });
+
+    return loadPage(1).pipe(
+      expand((response) =>
+        response.page * response.limit < response.total
+          ? loadPage(response.page + 1)
+          : EMPTY,
+      ),
+      reduce((items, response) => [...items, ...response.items], [] as Trip[]),
+    );
   }
 
   getTripsPage(params: TripsListParams): Observable<TripsListResponse> {

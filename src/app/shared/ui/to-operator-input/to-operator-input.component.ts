@@ -73,11 +73,15 @@ export class ToOperatorInputComponent {
   readonly prefetchMode = input(false);
   readonly operatorsData = input<readonly Operator[]>([]);
   readonly tripsData = input<readonly Trip[]>([]);
+  /** En prefetch: el padre aún está cargando el catálogo (muestra spinner). */
+  readonly dataLoading = input(false);
 
   /** Identificador del operador seleccionado (vacío si no hay elección válida). */
   readonly operatorId = model('');
 
   readonly blurNotify = output<void>();
+  /** Primer foco del campo: permite al padre disparar cargas perezosas de catálogo. */
+  readonly focusNotify = output<void>();
 
   readonly inputId = `to-operator-input-${++seq}`;
   readonly listId = `${this.inputId}-list`;
@@ -115,7 +119,8 @@ export class ToOperatorInputComponent {
         this.availableOperators.set(
           pickAvailableOperators(this.operatorsData(), this.tripsData()),
         );
-        this.loading.set(false);
+        this.loading.set(this.dataLoading());
+        this.maybeOpenIfFocused();
         return;
       }
       if (this.fetchedFromApi) {
@@ -135,6 +140,19 @@ export class ToOperatorInputComponent {
     });
   }
 
+  /** Si el catálogo llegó mientras el campo tenía foco, abre la lista sin otro clic. */
+  private maybeOpenIfFocused(): void {
+    const el = this.fieldInput()?.nativeElement;
+    if (
+      el &&
+      document.activeElement === el &&
+      !this.loading() &&
+      this.availableOperators().length > 0
+    ) {
+      this.open.set(true);
+    }
+  }
+
   onInput(ev: Event): void {
     const v = (ev.target as HTMLInputElement).value;
     this.inputText.set(v);
@@ -149,6 +167,7 @@ export class ToOperatorInputComponent {
   }
 
   onFocus(): void {
+    this.focusNotify.emit();
     if (!this.loading() && this.availableOperators().length > 0) {
       this.open.set(true);
     }

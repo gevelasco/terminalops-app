@@ -59,6 +59,7 @@
           placeholder="Buscar o elegir cliente…"
           [prefetchMode]="true"
           [clientsData]="pickerClients()"
+          [dataLoading]="catalog.clientsLoading()"
           [(value)]="clientName"
           [(clientId)]="clientId"
           (blurNotify)="onClientBlur()"
@@ -219,6 +220,7 @@
         label="Configuración"
         [options]="operationOptions()"
         [(value)]="operationType"
+        (focusin)="onOperationConfigFocus()"
       />
       <to-select
         label="Tipo de contenedor"
@@ -267,7 +269,9 @@
       [prefetchMode]="true"
       [operatorsData]="pickerOperators()"
       [tripsData]="pickerActiveTrips()"
+      [dataLoading]="catalog.operatorsLoading()"
       [(operatorId)]="assignedOperatorId"
+      (focusNotify)="onOperatorInputFocus()"
       (blurNotify)="onAssignedOperatorBlur()"
     />
     <div class="maniobra-drawer__grid2">
@@ -291,7 +295,9 @@
         [prefetchMode]="true"
         [unitsData]="pickerUnits()"
         [tripsData]="pickerActiveTrips()"
+        [dataLoading]="catalog.fleetLoading()"
         [(unitId)]="unitId"
+        (focusNotify)="onUnitInputFocus()"
         (unitPicked)="onUnitPicked($event)"
         (blurNotify)="onUnitBlur()"
       />

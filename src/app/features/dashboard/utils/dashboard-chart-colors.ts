@@ -1,14 +1,10 @@
+import { APP_CHART_PALETTE } from '@shared/charts/app-chart-palette';
+
 /**
- * Paleta principal — 5 colores ordenados: navy, blue, sky, slate, near-white.
- * Todas las gráficas toman los primeros N colores según su cantidad de series.
+ * Alias de la paleta global (`@shared/charts/app-chart-palette`).
+ * Edita los colores allá; toda la app los toma de ese único objeto.
  */
-export const STITCH_PALETTE = [
-  '#0F172A',
-  '#1D4ED8',
-  '#60A5FA',
-  '#E2E8F0',
-  '#F8FAFC',
-] as const;
+export const STITCH_PALETTE = APP_CHART_PALETTE;
 
 export const DASHBOARD_CHART_PRIMARY_FALLBACK = STITCH_PALETTE[0];
 
@@ -107,13 +103,13 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Mezcla un color sólido hacia el gris claro Stitch (#E5E7EB). */
+/** Mezcla un color sólido hacia el tono claro de la paleta global (color 4). */
 export function softenChartColor(hex: string, amount = CHART_SOFTEN_BLEND): string {
   const rgb = hexToRgb(hex);
   if (!rgb) {
     return hex;
   }
-  const target = { r: 229, g: 231, b: 235 };
+  const target = hexToRgb(APP_CHART_PALETTE[3]) ?? { r: 226, g: 232, b: 240 };
   const t = Math.min(1, Math.max(0, amount));
   return rgbToHex(
     Math.round(rgb.r + (target.r - rgb.r) * t),
