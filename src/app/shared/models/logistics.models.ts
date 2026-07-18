@@ -80,6 +80,14 @@ export interface Trip {
   containerType: TripContainerType;
   /** Qué transporta el contenedor (mercancía, producto, referencia del cliente). */
   cargoDescription?: string;
+  /** Fecha y hora de carga (ISO 8601). */
+  loadDate?: string;
+  /** Lugar de carga (texto libre; catálogo por empresa). */
+  loadPlace?: string;
+  /** Entrega de vacío: fecha/hora ISO (≥ fin planeado y fin real). */
+  emptyDeliveryAt?: string;
+  /** Entrega de vacío: lugar (catálogo de lugares por empresa). */
+  emptyDeliveryPlace?: string;
   /** Peso aproximado en toneladas (texto libre, ej. decimales). */
   approximateWeightTons: string;
   /** Nombres o códigos de equipo visibles en tabla (1 o hasta 2 si es full). */
@@ -552,6 +560,8 @@ export interface EquipmentFleetMeta {
 export interface Unit {
   id: string;
   plate: string;
+  /** Configuración del vehículo motriz: tractocamión, unitario, torton, etc. */
+  transportType?: string;
   capacityKg: number;
   status: string;
   /** Soft delete lógico: inactivo = oculto en asignaciones operativas. */

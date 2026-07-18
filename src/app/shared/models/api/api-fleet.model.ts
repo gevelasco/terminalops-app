@@ -6,6 +6,7 @@ import type {
 
 export interface CreateUnitPayload {
   plate: string;
+  transportType?: string;
   capacityKg: number;
   isActive?: boolean;
   trailerBrandAbbr?: string;

@@ -37,6 +37,7 @@ import {
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TIRE_CONDITION_OPTIONS,
+  FLEET_TRANSPORT_TYPE_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
@@ -150,6 +151,7 @@ export class FleetNewUnitDrawerComponent {
   readonly trailerVersion = model('');
   readonly modelYear = model('');
   readonly plate = model('');
+  readonly transportType = model('tractocamion');
   readonly trailerColor = model('');
   readonly serviceModality = model('');
   readonly transmissionType = model('automatic');
@@ -214,6 +216,8 @@ export class FleetNewUnitDrawerComponent {
   readonly speedOptions = FLEET_TRANSMISSION_SPEED_OPTIONS;
 
   readonly serviceModalityOptions = FLEET_SERVICE_MODALITY_OPTIONS;
+
+  readonly transportTypeOptions = FLEET_TRANSPORT_TYPE_OPTIONS;
 
   readonly maintenanceTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
@@ -552,6 +556,7 @@ export class FleetNewUnitDrawerComponent {
     this.unitsFeature
       .createUnit({
         plate,
+        transportType: this.transportType().trim() || undefined,
         capacityKg,
         capacityTons,
         motorNumber,

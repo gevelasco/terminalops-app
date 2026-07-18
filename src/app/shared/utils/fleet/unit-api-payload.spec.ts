@@ -25,6 +25,13 @@ describe('unit-api-payload (A6)', () => {
     expect(payload.isActive).toBe(false);
   });
 
+  it('includes the transport type in write payloads', () => {
+    const payload = buildUnitWritePayload(
+      baseUnit({ transportType: 'tractocamion' }),
+    );
+    expect(payload.transportType).toBe('tractocamion');
+  });
+
   it('sends sparse fleetMeta without merging base meta', () => {
     const payload = buildUnitWritePayload(
       baseUnit({

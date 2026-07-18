@@ -69,6 +69,43 @@ export const FLEET_SERVICE_MODALITY_OPTIONS: ToSelectOption[] = [
   { value: 'fondos_valores', label: 'Fondos y valores' },
 ];
 
+/**
+ * Configuración del vehículo motriz de carga.
+ * Basada en la NOM-012-SCT-2-2017 y la clasificación federal mexicana.
+ */
+export const FLEET_TRANSPORT_TYPE_OPTIONS: ToSelectOption[] = [
+  {
+    value: 'tractocamion',
+    label: 'Tractocamión (para remolque o semirremolque)',
+  },
+  {
+    value: 'rabon_plataforma',
+    label: 'Rabón con plataforma integrada',
+  },
+  {
+    value: 'camion_pipa',
+    label: 'Camión pipa (tanque integrado)',
+  },
+  {
+    value: 'maroma_volteo',
+    label: 'Maroma / volteo',
+  },
+];
+
+/** Badge corto en tarjetas de flota para unidades que no son tractocamión. */
+const FLEET_TRANSPORT_TYPE_BADGE_LABELS: Record<string, string> = {
+  rabon_plataforma: 'Rabón',
+  camion_pipa: 'Pipa',
+  maroma_volteo: 'Volteo',
+};
+
+/** Etiqueta corta del tipo de transporte; null para tractocamión o tipos desconocidos. */
+export function fleetTransportTypeBadgeLabel(
+  transportType?: string | null,
+): string | null {
+  return FLEET_TRANSPORT_TYPE_BADGE_LABELS[transportType?.trim() ?? ''] ?? null;
+}
+
 /** Tipo de transmisión (unidad tractora). */
 export const FLEET_TRANSMISSION_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'automatic', label: 'Automática' },
@@ -120,6 +157,42 @@ export const EQUIPMENT_OPERATION_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'modular', label: 'Modular / plataforma step-deck' },
   { value: 'otro', label: 'Otro' },
 ];
+
+/** Nombre corto del tipo de equipo (badges, buscador de enganche). */
+const EQUIPMENT_TYPE_SHORT_LABELS: Record<string, string> = {
+  portacontenedor: 'Chasis',
+  plataforma: 'Plataforma',
+  caja_seca: 'Caja seca',
+  refrigerado: 'Refrigerado',
+  gondola: 'Góndola',
+  cama_baja: 'Cama baja',
+  cuello_ganso: 'Cuello de ganso',
+  colectora: 'Colectora',
+  tolva: 'Tolva',
+  pipa: 'Pipa',
+  cortina: 'Cortina',
+  modular: 'Modular',
+  otro: 'Otro',
+};
+
+/** Nombre corto del tipo de equipo desde valor API o etiqueta de catálogo; null si no se reconoce. */
+export function fleetEquipmentTypeShortLabel(
+  type?: string | null,
+): string | null {
+  const trimmed = type?.trim() ?? '';
+  if (!trimmed) {
+    return null;
+  }
+  const byValue = EQUIPMENT_TYPE_SHORT_LABELS[trimmed];
+  if (byValue) {
+    return byValue;
+  }
+  const t = trimmed.toLowerCase();
+  const option = EQUIPMENT_OPERATION_TYPE_OPTIONS.find(
+    (o) => o.label.trim().toLowerCase() === t,
+  );
+  return option ? (EQUIPMENT_TYPE_SHORT_LABELS[option.value] ?? null) : null;
+}
 
 /** Configuración de vanos ISO, chasis o longitud en pies según tipo de equipo. */
 export const EQUIPMENT_CONTAINER_SLOT_OPTIONS: ToSelectOption[] = [

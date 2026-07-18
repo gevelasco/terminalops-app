@@ -60,10 +60,10 @@
             <div class="fleet-overview__segment">
               <img
                 class="fleet-overview__convoy-part fleet-overview__convoy-part--tracto"
-                [src]="schemaTractoAsset"
+                [src]="unitAsset(entry())"
                 loading="lazy"
                 decoding="async"
-                alt="Unidad tractora"
+                alt="Unidad motriz"
               />
               @if (convoyInteractive()) {
                 <div
@@ -99,12 +99,7 @@
           @if (entry().hitched.length > 0) {
             <div class="fleet-overview__segment">
               <img
-                class="fleet-overview__convoy-part"
-                [class.fleet-overview__convoy-part--plana]="usesPlataformaAt(entry(), 0)"
-                [class.fleet-overview__convoy-part--caja-seca]="usesCajaSecaAt(entry(), 0)"
-                [class.fleet-overview__convoy-part--remolque]="
-                  !usesPlataformaAt(entry(), 0) && !usesCajaSecaAt(entry(), 0)
-                "
+                [class]="trailerClassAt(entry(), 0)"
                 [src]="assetAt(entry(), 0)"
                 loading="lazy"
                 decoding="async"
@@ -149,12 +144,7 @@
           @if (isFull(entry())) {
             <div class="fleet-overview__segment">
               <img
-                class="fleet-overview__convoy-part"
-                [class.fleet-overview__convoy-part--plana]="usesPlataformaAt(entry(), 1)"
-                [class.fleet-overview__convoy-part--caja-seca]="usesCajaSecaAt(entry(), 1)"
-                [class.fleet-overview__convoy-part--remolque]="
-                  !usesPlataformaAt(entry(), 1) && !usesCajaSecaAt(entry(), 1)
-                "
+                [class]="trailerClassAt(entry(), 1)"
                 [src]="assetAt(entry(), 1)"
                 loading="lazy"
                 decoding="async"

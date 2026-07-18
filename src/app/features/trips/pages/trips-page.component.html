@@ -1,4 +1,7 @@
-<to-page-header title="Maniobras" subtitle="Control de rutas y estados">
+<to-page-header
+  title="Maniobras"
+  [subtitle]="isMobileViewport() ? '' : 'Control de rutas y estados'"
+>
   @if (canWriteTrips()) {
     <to-button
       type="button"
@@ -92,8 +95,7 @@
             size="sm"
             class="maniobra-toolbar__export"
             ariaLabel="Exportar CSV"
-            [loading]="exporting()"
-            [disabled]="exporting() || initialListLoading()"
+            [disabled]="initialListLoading()"
             (click)="exportFiltered()"
           >
             <to-icon name="download" [size]="18" />

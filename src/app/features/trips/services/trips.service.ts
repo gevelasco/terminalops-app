@@ -5,7 +5,12 @@ import {
   isOperationalTripStatus,
 } from '@core/services/state/operational-fleet-sync.service';
 import { TripsService as TripsApiService } from '@services/api/trips';
-import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type {
+  CancelTripPayload,
+  CreateTripPayload,
+  TripEmptyDeliveryPayload,
+  TripLoadInfoPayload,
+} from '@shared/models/api/api-trips.model';
 import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
 import type { Trip } from '@shared/models/logistics.models';
 import { createRequestGeneration } from '@shared/utils/request-generation';
@@ -176,6 +181,25 @@ export class TripsFeatureService {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.patchTripClientCollected(tripId, collected).pipe(
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
+    );
+  }
+
+  updateLoadInfo(tripId: string, payload: TripLoadInfoPayload): Observable<Trip> {
+    const keepId = this._selectedTripId() ?? tripId;
+    const requestId = this.requestGen.next();
+    return this.tripsApi.patchTripLoadInfo(tripId, payload).pipe(
+      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
+    );
+  }
+
+  updateEmptyDelivery(
+    tripId: string,
+    payload: TripEmptyDeliveryPayload,
+  ): Observable<Trip> {
+    const keepId = this._selectedTripId() ?? tripId;
+    const requestId = this.requestGen.next();
+    return this.tripsApi.patchTripEmptyDelivery(tripId, payload).pipe(
       map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
     );
   }

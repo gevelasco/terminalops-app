@@ -18,9 +18,11 @@
 .expenses-page-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem 1rem;
   margin-bottom: 1rem;
+  --expenses-toolbar-control-height: calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px);
+  --toolbar-segment-min-height: var(--expenses-toolbar-control-height);
 }
 
 .expenses-calendar-panel {
@@ -37,16 +39,6 @@
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
-}
-
-.expenses-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-  margin-bottom: 0.35rem;
-  --expenses-toolbar-control-height: calc(0.2rem * 2 + 0.5rem * 2 + 1.125rem + 2px);
-  --toolbar-filter-tabs-height: var(--expenses-toolbar-control-height);
 }
 
 .expenses-toolbar__search-wrap {
@@ -94,27 +86,125 @@
   max-width: 100%;
 }
 
-.expenses-toolbar__period-badge {
+/* Card de periodo como en Reportes: icono + label "Periodo" + pickers. */
+.expenses-toolbar__period-card {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
+  gap: 0.5rem 0.85rem;
+  flex: 0 0 auto;
+  min-width: 0;
   min-height: var(--expenses-toolbar-control-height);
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--to-color-primary) 22%, var(--to-color-border));
-  background: color-mix(in srgb, var(--to-color-primary) 10%, var(--to-color-surface));
-  font-size: 0.6875rem;
+  box-sizing: border-box;
+  padding: 0.2rem 0.75rem;
+  border-radius: var(--to-radius-lg);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 75%, transparent);
+}
+
+.expenses-toolbar__period-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
   color: var(--to-color-text-muted);
   white-space: nowrap;
+  line-height: 1;
+}
+
+.expenses-toolbar__period-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.78;
+  color: currentColor;
+}
+
+.expenses-toolbar__period-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.expenses-toolbar__month-year {
+  position: relative;
+  z-index: 0;
+  width: 6.75rem;
+  max-width: 6.75rem;
+}
+
+.expenses-toolbar__period-sep {
+  flex-shrink: 0;
+  color: var(--to-color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .expenses-toolbar__export-wrap {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
+}
+
+/* Mobile: cada control del toolbar en su propia fila a ancho completo. */
+@media (max-width: 767px) {
+  /* El contenido fluye a altura natural y la página hace scroll. */
+  :host {
+    overflow-y: auto;
+  }
+
+  .expenses-calendar-panel {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  .expenses-page-toolbar > to-segment-control {
+    flex: 1 1 100%;
+
+    /* El pill llena la fila y sus botones se reparten el ancho. */
+    ::ng-deep .to-segment-control--toolbar {
+      width: 100%;
+    }
+
+    ::ng-deep .to-segment-control--toolbar .to-segment-control__btn {
+      flex: 1 1 0;
+    }
+  }
+
+  .expenses-toolbar__search-wrap {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* El input ocupa toda la fila; el estado "Buscando…" no debe restarle ancho. */
+  .expenses-toolbar__search {
+    flex: 1 1 100%;
+  }
+
+  .expenses-toolbar__search-status {
+    display: none;
+  }
+
+  .expenses-toolbar__right {
+    margin-left: 0;
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .expenses-toolbar__period-card {
+    flex: 1 1 auto;
+  }
+
+  .expenses-toolbar__month-year {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
 }
 
 .expenses-toolbar__export-wrap::after,

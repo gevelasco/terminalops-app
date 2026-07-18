@@ -35,6 +35,7 @@ import {
   convoyTrailerVisualFromType,
   schemaPrimaryAssetForVisual,
   schemaSecondaryAssetForVisual,
+  schemaUnitAssetForTransportType,
   SCHEMA_TRACTO_ASSET,
   type ConvoyTrailerVisual,
 } from '@features/trips/utils/maniobra-schema-convoy-assets';
@@ -47,6 +48,8 @@ export type FleetOverviewCardEntry = {
   unitName: string;
   unitAlias: string;
   unitPlate: string;
+  /** Tipo de transporte de la unidad; define la imagen del vehículo motriz. */
+  unitTransportType?: string;
   operational: FleetOperationalKey;
   panelMode: 'maneuver' | 'parked';
   statusPill: { className: string; label: string };
@@ -145,7 +148,10 @@ export function overviewUnitConvoyLabel(item: FleetOverviewItemDto): string {
   if (item.equipment.type === 'full' && item.hitchedEquipment.length < 2) {
     return 'Doble articulado';
   }
-  return fleetUnitConvoyTableLabel(item.hitchedEquipment.length);
+  return fleetUnitConvoyTableLabel(
+    item.hitchedEquipment.length,
+    item.unitTransportType,
+  );
 }
 
 export function overviewCardEntryFromDto(item: FleetOverviewItemDto): FleetOverviewCardEntry {
@@ -173,6 +179,7 @@ export function overviewCardEntryFromDto(item: FleetOverviewItemDto): FleetOverv
     unitName: item.unitName,
     unitAlias: item.unitAlias?.trim() || '',
     unitPlate: item.unitPlate,
+    unitTransportType: item.unitTransportType,
     operational,
     panelMode,
     statusPill,
@@ -270,6 +277,11 @@ export function overviewSecondaryAsset(entry: FleetOverviewCardEntry): string {
 }
 
 export const SCHEMA_TRACTO = SCHEMA_TRACTO_ASSET;
+
+/** Imagen de la unidad motriz de la tarjeta según su tipo de transporte. */
+export function overviewUnitAsset(entry: FleetOverviewCardEntry): string {
+  return schemaUnitAssetForTransportType(entry.unitTransportType);
+}
 
 export type FleetOverviewConvoySortKind =
   | 'doble-articulado'

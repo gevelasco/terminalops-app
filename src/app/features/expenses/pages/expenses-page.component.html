@@ -1,6 +1,8 @@
 <to-page-header
   title="Gastos"
-  subtitle="Registro operativo y vínculos con flota y maniobras"
+  [subtitle]="
+    isMobileViewport() ? '' : 'Registro operativo y vínculos con flota y maniobras'
+  "
 >
   @if (!initialLoading() && canWriteExpenses()) {
     <to-button
@@ -46,6 +48,82 @@
     [activeId]="pageTab()"
     (tabSelect)="onPageTabSelect($event)"
   />
+
+  @if (pageTab() === 'list') {
+    <div
+      class="expenses-toolbar__search-wrap"
+      (focusin)="onSearchFocusIn()"
+      (focusout)="onSearchFocusOut($event)"
+    >
+      <div class="expenses-toolbar__search">
+        <to-input
+          #searchField
+          type="search"
+          prefixIcon="search"
+          ariaLabel="Buscar en el listado de gastos"
+          placeholder="Rubro, concepto, maniobra, flota, pago, fecha…"
+          [(value)]="searchInput"
+        />
+      </div>
+      <span
+        class="expenses-toolbar__search-status"
+        [class.expenses-toolbar__search-status--hidden]="!searchBusy()"
+        aria-live="polite"
+      >
+        Buscando…
+      </span>
+    </div>
+
+    @if (!initialLoading()) {
+      <div class="expenses-toolbar__right">
+        <div class="expenses-toolbar__period-card">
+          <span class="expenses-toolbar__period-label" id="expenses-period-label">
+            <span class="expenses-toolbar__period-icon" aria-hidden="true">
+              <to-icon name="calendar" [size]="15" />
+            </span>
+            Periodo
+          </span>
+          <div
+            class="expenses-toolbar__period-controls"
+            aria-labelledby="expenses-period-label"
+          >
+            <to-month-year-picker
+              class="expenses-toolbar__month-year"
+              ariaLabel="Desde mes y año"
+              [max]="currentMonthYear()"
+              [value]="periodFrom()"
+              (valueChange)="onPeriodFromChange($event)"
+            />
+            <span class="expenses-toolbar__period-sep" aria-hidden="true">–</span>
+            <to-month-year-picker
+              class="expenses-toolbar__month-year"
+              ariaLabel="Hasta mes y año"
+              [min]="periodFrom()"
+              [max]="currentMonthYear()"
+              [value]="periodTo()"
+              (valueChange)="onPeriodToChange($event)"
+            />
+          </div>
+        </div>
+        <span
+          class="expenses-toolbar__export-wrap"
+          data-tooltip="Exportar CSV"
+        >
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="expenses-toolbar__export"
+            ariaLabel="Exportar CSV"
+            [disabled]="initialLoading()"
+            (click)="exportFiltered()"
+          >
+            <to-icon name="download" [size]="18" />
+          </to-button>
+        </span>
+      </div>
+    }
+  }
 </div>
 
 @if (pageTab() === 'calendar') {
@@ -56,65 +134,6 @@
   />
 } @else {
   <div class="expenses-table-block">
-    <div class="expenses-toolbar">
-      <div
-        class="expenses-toolbar__search-wrap"
-        (focusin)="onSearchFocusIn()"
-        (focusout)="onSearchFocusOut($event)"
-      >
-        <div class="expenses-toolbar__search">
-          <to-input
-            #searchField
-            type="search"
-            prefixIcon="search"
-            ariaLabel="Buscar en el listado de gastos"
-            placeholder="Rubro, concepto, maniobra, flota, pago, fecha…"
-            [(value)]="searchInput"
-          />
-        </div>
-        <span
-          class="expenses-toolbar__search-status"
-          [class.expenses-toolbar__search-status--hidden]="!searchBusy()"
-          aria-live="polite"
-        >
-          Buscando…
-        </span>
-      </div>
-
-      @if (!initialLoading()) {
-        <div class="expenses-toolbar__right">
-          @if (periodRangeLabel()) {
-            <span class="expenses-toolbar__period-badge" role="status">{{
-              periodRangeLabel()
-            }}</span>
-          }
-          <to-filter-tabs
-            [tabs]="periodFilterTabs"
-            [activeId]="periodPreset()"
-            ariaLabel="Filtrar gastos por periodo"
-            (tabSelect)="onPeriodFilterSelect($event)"
-          />
-          <span
-            class="expenses-toolbar__export-wrap"
-            data-tooltip="Exportar CSV"
-          >
-            <to-button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="expenses-toolbar__export"
-              ariaLabel="Exportar CSV"
-              [loading]="exporting()"
-              [disabled]="exporting()"
-              (click)="exportFiltered()"
-            >
-              <to-icon name="download" [size]="18" />
-            </to-button>
-          </span>
-        </div>
-      }
-    </div>
-
     @if (initialLoading()) {
       <to-skeleton [lines]="5" />
     } @else {
@@ -143,7 +162,7 @@
 
       @if (showEmptyHint()) {
         <p class="expenses-empty-hint">
-          @if (searchQuery().trim() || periodPreset() !== 'month') {
+          @if (searchQuery().trim() || !periodIsCurrentMonth()) {
             Ningún gasto coincide con los filtros actuales.
           } @else {
             No hay gastos registrados en este periodo.

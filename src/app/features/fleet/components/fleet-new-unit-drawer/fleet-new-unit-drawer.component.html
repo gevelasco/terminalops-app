@@ -66,13 +66,19 @@
         [(value)]="motorNumber"
       />
     </div>
-    <div class="fleet-unit-sec__grid2">
+    <div class="fleet-unit-sec__grid3 fleet-unit-sec__grid3--always-3">
       <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [uppercase]="true" [(value)]="plate" />
       <to-select
         label="Modalidad"
         placeholder="Selecciona modalidad"
         [options]="serviceModalityOptions"
         [(value)]="serviceModality"
+      />
+      <to-select
+        label="Tipo de transporte"
+        placeholder="Selecciona tipo"
+        [options]="transportTypeOptions"
+        [(value)]="transportType"
       />
     </div>
     <div class="fleet-unit-sec__grid2">

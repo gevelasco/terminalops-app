@@ -28,3 +28,10 @@
   width: 100%;
   min-height: 0;
 }
+
+/* Mobile: el subtítulo del header no aporta y resta espacio vertical. */
+@media (max-width: 767px) {
+  :host.reports-page-host to-page-header ::ng-deep .to-page-header__subtitle {
+    display: none;
+  }
+}

@@ -44,6 +44,7 @@ import {
 } from '@features/fleet/utils/unit-hitched-equipment';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { labelForUnitId } from '@shared/utils/fleet/unit-label';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import type { Equipment } from '@shared/models/logistics.models';
 import {
   overviewCardEntryFromDto,
@@ -123,6 +124,7 @@ export class FleetPageComponent implements OnInit {
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
+  protected readonly isMobileViewport = injectIsMobileViewport();
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -298,7 +300,7 @@ export class FleetPageComponent implements OnInit {
             row['fleetBrand'],
             row['fleetModel'],
             row['fleetPlate'],
-            fleetUnitConvoyTableLabel(hitched.length),
+            fleetUnitConvoyTableLabel(hitched.length, u.transportType),
             u.id,
             u.status,
             u.serialNumber,

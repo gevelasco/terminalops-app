@@ -96,6 +96,8 @@ import {
   equipmentHitchAddActionLabel,
   equipmentSelectableForUnitHitch,
   hitchPositionForNewEquipmentOnUnit,
+  UNIT_HITCH_NOT_TRACTOR_MESSAGE,
+  unitCanHitchEquipment,
   unitHasHitchSlot,
   validateEquipmentHitchAssignment,
 } from '@shared/utils/fleet/equipment-hitch-assignment';
@@ -124,6 +126,7 @@ import {
 import {
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_SERVICE_MODALITY_OPTIONS,
+  FLEET_TRANSPORT_TYPE_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
@@ -618,15 +621,23 @@ export class FleetUnitDetailDrawerFacade {
     }));
   });
 
+  readonly unitAllowsHitch = computed(() => unitCanHitchEquipment(this.effUnit()));
+
   readonly canAddHitch = computed(
     () =>
-      !this.onRoute() && unitHasHitchSlot(this.equipmentCatalog(), this.unit().id),
+      this.unitAllowsHitch() &&
+      !this.onRoute() &&
+      unitHasHitchSlot(this.equipmentCatalog(), this.unit().id),
   );
 
   private readonly hitchBlockedMessage =
     'No puede enganchar ni desenganchar equipos mientras la unidad está en curso.';
 
   private hitchBlocked(): boolean {
+    if (!this.unitAllowsHitch()) {
+      this.toast.show(UNIT_HITCH_NOT_TRACTOR_MESSAGE, 'warning');
+      return true;
+    }
     if (!this.onRoute()) {
       return false;
     }
@@ -1258,6 +1269,7 @@ export class FleetUnitDetailDrawerFacade {
   readonly editPlate = signal('');
   readonly editColor = signal('');
   readonly editServiceModality = signal('');
+  readonly editTransportType = signal('');
   readonly editVisibility = signal<'active' | 'inactive'>('active');
   readonly editSerial = signal('');
   readonly editMotorNumber = signal('');
@@ -1269,6 +1281,16 @@ export class FleetUnitDetailDrawerFacade {
   );
   readonly visibilityOptions = FLEET_RESOURCE_VISIBILITY_OPTIONS;
   readonly serviceModalityOptions = FLEET_SERVICE_MODALITY_OPTIONS;
+  readonly transportTypeOptions = FLEET_TRANSPORT_TYPE_OPTIONS;
+
+  transportTypeLabel(): string {
+    const value = this.effUnit().transportType?.trim();
+    return (
+      this.transportTypeOptions.find((option) => option.value === value)?.label ||
+      value ||
+      '—'
+    );
+  }
 
   resourceVisibilityLabel(): string {
     return fleetResourceActiveLabel(this.effUnit().isActive);
@@ -1291,6 +1313,7 @@ export class FleetUnitDetailDrawerFacade {
         m.serviceModality?.trim() ||
         '',
     );
+    this.editTransportType.set(u.transportType?.trim() || '');
     this.editVisibility.set(u.isActive === false ? 'inactive' : 'active');
     this.editSerial.set(u.serialNumber?.trim() || '');
     this.editMotorNumber.set(u.motorNumber?.trim() || '');
@@ -1320,6 +1343,7 @@ export class FleetUnitDetailDrawerFacade {
     const brandAbbr = deriveFleetBrandAbbr(brandName);
     const unitDraft: Partial<Unit> = {
       plate,
+      transportType: this.editTransportType().trim() || undefined,
       isActive: this.editVisibility() === 'active',
       trailerBrandAbbr: brandAbbr || undefined,
       trailerYear: yearParsed,

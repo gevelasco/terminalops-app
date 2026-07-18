@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { buildOperationTypeSlicesFromTrips } from '@features/reports/utils/dashboard-charts-from-trips';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import type { OperationConfiguration } from '@shared/models/operation-configuration.models';
 import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
@@ -74,10 +73,6 @@ describe('TripEvaluationService', () => {
     const first = svc.evaluateTrip(PERSISTED_TRIP);
     const second = svc.evaluateTrip(PERSISTED_TRIP);
     expect(first).toEqual(second);
-
-    const fromReports = buildOperationTypeSlicesFromTrips([PERSISTED_TRIP as never], svc);
-    const fromDashboard = buildOperationTypeSlicesFromTrips([PERSISTED_TRIP as never], svc);
-    expect(fromReports).toEqual(fromDashboard);
   });
 });
 

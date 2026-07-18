@@ -198,3 +198,79 @@
     flex-wrap: wrap;
   }
 }
+
+/* Mobile: tabs a ancho completo y filtros apilados, cada uno en su fila. */
+@media (max-width: 767px) {
+  .reports-shell__tabs {
+    width: 100%;
+
+    to-segment-control {
+      flex: 1 1 100%;
+      width: 100%;
+
+      /* El pill llena la fila y sus botones se reparten el ancho. */
+      ::ng-deep .to-segment-control--toolbar {
+        width: 100%;
+      }
+
+      ::ng-deep .to-segment-control--toolbar .to-segment-control__btn {
+        flex: 1 1 0;
+      }
+    }
+  }
+
+  .reports-shell__filters {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .reports-shell__field {
+    width: 100%;
+  }
+
+  /* Etiquetas con ancho uniforme para que los controles queden alineados. */
+  .reports-shell__label {
+    min-width: 4.5rem;
+  }
+
+  .reports-shell__period-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .reports-shell__month-year {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .reports-shell__clients-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .reports-shell__control,
+  .reports-shell__field--clients .reports-shell__control,
+  .reports-shell__field--payment-methods .reports-shell__control {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+
+    &.to-field__control {
+      width: auto;
+      max-width: none;
+    }
+  }
+
+  :host ::ng-deep .reports-shell__field--clients .to-clients-multi__wrap,
+  :host ::ng-deep .reports-shell__field--payment-methods .to-payment-methods-multi__wrap {
+    width: 100%;
+    max-width: none;
+  }
+}

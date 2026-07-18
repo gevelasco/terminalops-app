@@ -1,5 +1,8 @@
 <div class="fleet-sticky-chrome">
-  <to-page-header title="Flota" subtitle="Unidades y equipamiento">
+  <to-page-header
+    title="Flota"
+    [subtitle]="isMobileViewport() ? '' : 'Unidades y equipamiento'"
+  >
     @if (canWriteFleet() && tab() === 'units') {
       <to-button type="button" variant="primary" (click)="newUnitOpen.set(true)">
         <to-icon name="unit" [size]="18" />

@@ -84,6 +84,10 @@
           Detalles de Carga
         </h3>
         <dl class="maniobra-detail__dl">
+          <dt>Fecha de carga</dt>
+          <dd>{{ vm.plannedScheduleDisplay(vm.trip().loadDate) }}</dd>
+          <dt>Lugar de carga</dt>
+          <dd>{{ vm.loadPlaceDisplay() }}</dd>
           <dt>Configuración</dt>
           <dd>{{ vm.operationLabel() }}</dd>
           <dt>Tipo de carga</dt>

@@ -1,4 +1,7 @@
-import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
+import {
+  EQUIPMENT_OPERATION_TYPE_OPTIONS,
+  fleetTransportTypeBadgeLabel,
+} from '@shared/catalogs/fleet-form-options';
 import {
   equipmentAssignedToUnit,
   equipmentHitchPositionDisplayLabel,
@@ -72,14 +75,25 @@ export function unitConvoyConfigDisplayLabel(hitchedCount: number): string {
 }
 
 /** Misma regla que `overviewUnitConvoyLabel`, desde equipos enganchados locales. */
-export function fleetUnitConvoyTableLabel(hitchedCount: number): string {
+export function fleetUnitConvoyTableLabel(
+  hitchedCount: number,
+  transportType?: string | null,
+): string {
+  if (hitchedCount === 0) {
+    // Unidades que no son tractocamión no llevan enganches: badge por tipo.
+    const typeLabel = fleetTransportTypeBadgeLabel(transportType);
+    if (typeLabel) {
+      return typeLabel;
+    }
+  }
   return unitConvoyConfigDisplayLabel(hitchedCount);
 }
 
 export function fleetUnitConvoyTableBadges(
   hitched: readonly Equipment[],
+  transportType?: string | null,
 ): readonly { label: string; badgeClass: string }[] {
-  const label = fleetUnitConvoyTableLabel(hitched.length);
+  const label = fleetUnitConvoyTableLabel(hitched.length, transportType);
   return [{ label, badgeClass: operationConfigBadgeClass(label) }];
 }
 

@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, finalize, firstValueFrom, of } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { SessionService } from '@core/services/state/session';
@@ -35,18 +35,20 @@ import {
   downloadExpensesCsv,
 } from '@features/expenses/utils/expenses-export-csv';
 import {
-  type ExpensesPeriodPreset,
-  expensesPeriodFilterTabs,
-  expensesPeriodRangeLabel,
-  expensesRangeForPreset,
-} from '@features/expenses/utils/expenses-period-filter';
+  compareMonthYear,
+  rangeForMonthYearSpan,
+} from '@features/reports/utils/reports-filter';
 import { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import { formatExpenseIncurredDateDisplay } from '@features/expenses/utils/expenses-form.util';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import {
+  ToMonthYearPickerComponent,
+  type ToMonthYearValue,
+} from '@shared/ui/to-month-year-picker/to-month-year-picker.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import {
   ToSegmentControlComponent,
@@ -65,6 +67,10 @@ import {
 
 export type ExpensesPageTab = 'calendar' | 'list';
 
+function currentMonthYearValue(now = new Date()): ToMonthYearValue {
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
 @Component({
   selector: 'app-expenses-page',
   standalone: true,
@@ -75,7 +81,7 @@ export type ExpensesPageTab = 'calendar' | 'list';
     ToButtonComponent,
     ToIconComponent,
     ToInputComponent,
-    ToFilterTabsComponent,
+    ToMonthYearPickerComponent,
     ToSegmentControlComponent,
     ToTableComponent,
     ToSkeletonComponent,
@@ -97,6 +103,7 @@ export class ExpensesPageComponent implements OnInit {
   private readonly session = inject(SessionService);
   private readonly searchField = viewChild<ToInputComponent>('searchField');
   private readonly searchKeepFocus = signal(false);
+  protected readonly isMobileViewport = injectIsMobileViewport();
 
   readonly pageTab = signal<ExpensesPageTab>('calendar');
   readonly viewSegmentTabs: readonly ToSegmentTab<ExpensesPageTab>[] = [
@@ -114,19 +121,32 @@ export class ExpensesPageComponent implements OnInit {
     },
   ];
 
-  readonly periodPreset = signal<ExpensesPeriodPreset>('month');
+  /** Periodo consultado: mes/año inicial y final; default mes en curso. */
+  readonly periodFrom = signal<ToMonthYearValue>(currentMonthYearValue());
+  readonly periodTo = signal<ToMonthYearValue>(currentMonthYearValue());
+  readonly currentMonthYear = computed(
+    (): ToMonthYearValue => currentMonthYearValue(),
+  );
   readonly pageIndex = model(0);
   readonly pageSize = model(15);
   readonly searchInput = model('');
   readonly searchQuery = signal('');
 
   readonly pageSizeOptions = [10, 15, 25, 50, 100] as const;
-  readonly periodFilterTabs = expensesPeriodFilterTabs();
-  readonly exporting = signal(false);
 
-  readonly periodRangeLabel = computed(() =>
-    expensesPeriodRangeLabel(this.periodPreset()),
-  );
+  readonly periodRange = computed(() => {
+    const from = this.periodFrom();
+    const to = this.periodTo();
+    return rangeForMonthYearSpan(from.month, from.year, to.month, to.year);
+  });
+
+  readonly periodIsCurrentMonth = computed(() => {
+    const now = currentMonthYearValue();
+    return (
+      compareMonthYear(this.periodFrom(), now) === 0 &&
+      compareMonthYear(this.periodTo(), now) === 0
+    );
+  });
 
   readonly searchPending = computed(
     () => this.searchInput().trim() !== this.searchQuery(),
@@ -141,18 +161,14 @@ export class ExpensesPageComponent implements OnInit {
   );
 
   readonly listParams = computed(() => {
-    const range = expensesRangeForPreset(this.periodPreset());
+    const range = this.periodRange();
     return {
       page: this.pageIndex() + 1,
       limit: this.pageSize(),
-      ...(range ? { from: range.from, to: range.to } : {}),
+      from: range.from,
+      to: range.to,
       ...(this.searchQuery() ? { q: this.searchQuery() } : {}),
     };
-  });
-
-  readonly exportParams = computed((): ExpensesListParams => {
-    const { page: _page, limit: _limit, ...rest } = this.listParams();
-    return rest;
   });
 
   private readonly listResource = resource<
@@ -195,7 +211,7 @@ export class ExpensesPageComponent implements OnInit {
       .subscribe((q) => this.searchQuery.set(q));
 
     effect(() => {
-      this.periodPreset();
+      this.periodRange();
       this.searchQuery();
       this.pageSize();
       untracked(() => this.pageIndex.set(0));
@@ -333,8 +349,18 @@ export class ExpensesPageComponent implements OnInit {
     void this.listResource.reload();
   }
 
-  onPeriodFilterSelect(preset: ExpensesPeriodPreset): void {
-    this.periodPreset.set(preset);
+  onPeriodFromChange(value: ToMonthYearValue): void {
+    this.periodFrom.set(value);
+    if (compareMonthYear(value, this.periodTo()) > 0) {
+      this.periodTo.set({ ...value });
+    }
+  }
+
+  onPeriodToChange(value: ToMonthYearValue): void {
+    this.periodTo.set(value);
+    if (compareMonthYear(value, this.periodFrom()) < 0) {
+      this.periodFrom.set({ ...value });
+    }
   }
 
   onPageTabSelect(tab: ExpensesPageTab): void {
@@ -414,35 +440,18 @@ export class ExpensesPageComponent implements OnInit {
   }
 
   exportFiltered(): void {
-    if (this.exporting()) {
+    const expenses = this.expenses();
+    if (expenses.length === 0) {
+      this.toast.show('No hay gastos para exportar con los filtros actuales.', 'warning');
       return;
     }
-    this.exporting.set(true);
-    const params = this.exportParams();
-    void firstValueFrom(
-      this.expensesApi.getAllExpenses(params).pipe(
-        catchError(() => {
-          this.toast.show('No se pudo exportar el listado.', 'error');
-          return of(null);
-        }),
-        finalize(() => this.exporting.set(false)),
-      ),
-    ).then((res) => {
-      if (!res) {
-        return;
-      }
-      if (res.length === 0) {
-        this.toast.show('No hay gastos para exportar con los filtros actuales.', 'warning');
-        return;
-      }
-      const range = expensesRangeForPreset(this.periodPreset());
-      const suffix = range ? `${range.from}_${range.to}` : 'todo';
-      const csv = buildExpensesCsv(
-        res.map((e) => this.mapExpenseExportRow(e)),
-      );
-      downloadExpensesCsv(csv, `gastos_${suffix}.csv`);
-      this.toast.show(`Exportados ${res.length} gastos.`, 'success');
-    });
+    const range = this.periodRange();
+    const suffix = `${range.from}_${range.to}`;
+    const csv = buildExpensesCsv(
+      expenses.map((e) => this.mapExpenseExportRow(e)),
+    );
+    downloadExpensesCsv(csv, `gastos_${suffix}.csv`);
+    this.toast.show(`Exportados ${expenses.length} gastos.`, 'success');
   }
 
   private mapExpenseRow(e: Expense): Record<string, unknown> {

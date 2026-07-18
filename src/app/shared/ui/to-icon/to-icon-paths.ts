@@ -109,6 +109,18 @@ export const TO_ICON_STROKE = {
       { d: 'M8 5h8v4H8V5z' },
     ],
   },
+  /** Contenedor marítimo (vista lateral con corrugado vertical). */
+  container: {
+    strokeWidth: 2,
+    paths: [
+      {
+        d: 'M4 6.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z',
+      },
+      { d: 'M7.5 9.5v5' },
+      { d: 'M12 9.5v5' },
+      { d: 'M16.5 9.5v5' },
+    ],
+  },
 } as const satisfies Record<string, ToIconStrokeDef>;
 
 export type ToIconStrokeName = keyof typeof TO_ICON_STROKE;

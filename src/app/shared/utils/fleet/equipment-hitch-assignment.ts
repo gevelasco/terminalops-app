@@ -7,6 +7,18 @@ import { equipmentAssignedToUnit, hitchPositionForEquipmentWrite } from '@shared
 import type { EquipmentHitchPosition } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
+/**
+ * Solo los tractocamiones llevan remolques/equipos. Unidades sin tipo (legado)
+ * se tratan como tractocamión.
+ */
+export function unitCanHitchEquipment(unit: Pick<Unit, 'transportType'>): boolean {
+  const t = unit.transportType?.trim();
+  return !t || t === 'tractocamion';
+}
+
+export const UNIT_HITCH_NOT_TRACTOR_MESSAGE =
+  'Solo las unidades tipo tractocamión pueden llevar remolques o equipos enganchados.';
+
 /** Remolques sin tractora o ya asignados a esta unidad (candidatos para enganchar). */
 export function equipmentSelectableForUnitHitch(
   catalog: readonly Equipment[],
@@ -107,6 +119,9 @@ export function unitEligibleForEquipmentHitch(
   equipmentCatalog: readonly Equipment[],
   excludeEquipmentId?: string,
 ): boolean {
+  if (!unitCanHitchEquipment(unit)) {
+    return false;
+  }
   if (fleetUnitIsOnRoute(unit)) {
     return false;
   }

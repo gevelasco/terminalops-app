@@ -275,6 +275,7 @@ export function mapApiUnit(row: Record<string, unknown>): Unit {
   return {
     id: unitId,
     plate: String(row['plate'] ?? ''),
+    transportType: row['transportType'] as string | undefined,
     capacityKg: typeof capacity === 'number' ? capacity : Number(capacity) || 0,
     status: String(row['status'] ?? ''),
     isActive: row['isActive'] !== false,
@@ -363,6 +364,12 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
     plannedDepartureAt: String(row['plannedDepartureAt'] ?? trip.plannedDepartureAt ?? ''),
     plannedArrivalAt: String(row['plannedArrivalAt'] ?? trip.plannedArrivalAt ?? ''),
     plannedCompletionAt: String(row['plannedCompletionAt'] ?? trip.plannedCompletionAt ?? ''),
+    loadDate: String(row['loadDate'] ?? trip.loadDate ?? '').trim() || undefined,
+    loadPlace: String(row['loadPlace'] ?? trip.loadPlace ?? '').trim() || undefined,
+    emptyDeliveryAt:
+      String(row['emptyDeliveryAt'] ?? trip.emptyDeliveryAt ?? '').trim() || undefined,
+    emptyDeliveryPlace:
+      String(row['emptyDeliveryPlace'] ?? trip.emptyDeliveryPlace ?? '').trim() || undefined,
     destinationRateId:
       row['destinationRateId'] != null
         ? resourceIdKey(row['destinationRateId'] as string | number)

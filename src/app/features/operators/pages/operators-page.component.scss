@@ -36,6 +36,27 @@
   flex-shrink: 0;
 }
 
+/* Mobile: cada control del toolbar en su propia fila a ancho completo. */
+@media (max-width: 767px) {
+  .operators-toolbar > to-segment-control {
+    flex: 1 1 100%;
+
+    /* El pill llena la fila y sus botones se reparten el ancho. */
+    ::ng-deep .to-segment-control--toolbar {
+      width: 100%;
+    }
+
+    ::ng-deep .to-segment-control--toolbar .to-segment-control__btn {
+      flex: 1 1 0;
+    }
+  }
+
+  .operators-toolbar__search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
+
 .operators-toolbar__export-wrap {
   position: relative;
   display: inline-flex;

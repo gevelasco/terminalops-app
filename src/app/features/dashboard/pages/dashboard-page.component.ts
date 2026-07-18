@@ -29,6 +29,7 @@ import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { canAccessModule, isAdminRole } from '@shared/utils/access-control';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import {
   maneuverStatusPillClass,
   maneuverStatusPillLabel,
@@ -77,12 +78,19 @@ export class DashboardPageComponent {
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly toast = inject(ToastService);
 
+  /**
+   * En mobile solo se muestran KPIs y próximos pagos; las gráficas quedan
+   * ocultas y el request de insights no se ejecuta para ahorrar recursos.
+   */
+  readonly isMobileViewport = injectIsMobileViewport();
+
   private readonly pageResource = resource({
-    loader: () =>
+    request: () => ({ mobile: this.isMobileViewport() }),
+    loader: ({ request }) =>
       firstValueFrom(
         forkJoin({
           summary: this.dashboardApi.getSummary(),
-          insights: this.dashboardApi.getInsights(),
+          insights: request.mobile ? of(null) : this.dashboardApi.getInsights(),
           upcomingPayments: this.loadUpcomingPayments(),
         }),
       ),

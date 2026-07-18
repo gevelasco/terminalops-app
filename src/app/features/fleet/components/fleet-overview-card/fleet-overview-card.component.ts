@@ -5,7 +5,7 @@ import {
   overviewTrailerVisualAt,
   overviewTripArrivalLine,
   overviewTripDepartureLine,
-  SCHEMA_TRACTO,
+  overviewUnitAsset,
   type FleetOverviewCardEntry,
 } from '@features/fleet/utils/fleet-overview-view';
 import {
@@ -49,7 +49,9 @@ export class FleetOverviewCardComponent {
   readonly unitActivate = output<FleetOverviewCardEntry>();
   readonly equipmentActivate = output<number>();
 
-  readonly schemaTractoAsset = SCHEMA_TRACTO;
+  unitAsset(entry: FleetOverviewCardEntry): string {
+    return overviewUnitAsset(entry);
+  }
 
   onCardActivate(): void {
     if (!this.tripSelectable()) {
@@ -143,26 +145,41 @@ export class FleetOverviewCardComponent {
     return entry.usesPlataforma;
   }
 
-  usesPlataformaAt(entry: FleetOverviewCardEntry, index: number): boolean {
-    return overviewTrailerVisualAt(entry, index) === 'plataforma';
-  }
-
   usesCajaSeca(entry: FleetOverviewCardEntry): boolean {
     return entry.usesCajaSeca;
   }
 
-  usesCajaSecaAt(entry: FleetOverviewCardEntry, index: number): boolean {
-    return overviewTrailerVisualAt(entry, index) === 'caja_seca';
+  /** Clase de tamaño de la imagen del equipo según su tipo visual. */
+  trailerClassAt(entry: FleetOverviewCardEntry, index: number): string {
+    const visual = overviewTrailerVisualAt(entry, index);
+    const modifier: Record<string, string> = {
+      plataforma: 'plana',
+      caja_seca: 'caja-seca',
+      pipa: 'pipa',
+      cortina: 'cortina',
+      gondola: 'gondola',
+      cama_baja: 'cama-baja',
+      tolva: 'tolva',
+      remolque: 'remolque',
+    };
+    return `fleet-overview__convoy-part fleet-overview__convoy-part--${modifier[visual] ?? 'remolque'}`;
   }
 
   trailerAlt(entry: FleetOverviewCardEntry, position: 'primary' | 'secondary'): string {
     const index = position === 'primary' ? 0 : 1;
     const visual = overviewTrailerVisualAt(entry, index);
-    if (visual === 'plataforma') {
-      return position === 'primary' ? 'Plataforma (primer equipo)' : 'Plataforma (segundo equipo)';
-    }
-    if (visual === 'caja_seca') {
-      return position === 'primary' ? 'Caja seca (primer equipo)' : 'Caja seca (segundo equipo)';
+    const nameByVisual: Record<string, string> = {
+      plataforma: 'Plataforma',
+      caja_seca: 'Caja seca',
+      pipa: 'Pipa',
+      cortina: 'Lona / cortina',
+      gondola: 'Góndola',
+      cama_baja: 'Cama baja',
+      tolva: 'Tolva',
+    };
+    const name = nameByVisual[visual];
+    if (name) {
+      return position === 'primary' ? `${name} (primer equipo)` : `${name} (segundo equipo)`;
     }
     return position === 'primary' ? 'Equipo (delantero)' : 'Equipo (trasero)';
   }

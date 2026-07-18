@@ -3,24 +3,26 @@
         class="maniobra-drawer__section maniobra-drawer__section--boxed"
         aria-labelledby="maniobra-detail-updates"
       >
-        <h3
-          id="maniobra-detail-updates"
-          class="maniobra-drawer__section-title"
-        >
-          <svg
-            class="maniobra-drawer__section-icon"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
+        <div class="fleet-unit-sec__header">
+          <h3
+            id="maniobra-detail-updates"
+            class="maniobra-drawer__section-title"
           >
-            <path
-              fill="currentColor"
-              d="M3 17h18v2H3v-2zm0-5h18v2H3v-2zm0-5h18v2H3V7zm0-4h18v2H3V3z"
-            />
-          </svg>
-          Actualizaciones
-        </h3>
+            <svg
+              class="maniobra-drawer__section-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                fill="currentColor"
+                d="M3 17h18v2H3v-2zm0-5h18v2H3v-2zm0-5h18v2H3V7zm0-4h18v2H3V3z"
+              />
+            </svg>
+            Actualizaciones
+          </h3>
+        </div>
 
         @if (vm.canEditRealDates()) {
           <div
@@ -31,7 +33,7 @@
             <span
               id="maniobra-detail-schedule-edit-label"
               class="maniobra-detail__schedule-edit-label"
-              >Editar fechas reales</span
+              >{{ vm.datesEditLabel() }}</span
             >
             <button
               type="button"
@@ -49,6 +51,14 @@
         }
 
         <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+          @if (vm.trip().loadDate) {
+            <dt>Fecha de carga</dt>
+            <dd>{{ vm.plannedScheduleDisplay(vm.trip().loadDate) }}</dd>
+          }
+          @if (vm.trip().loadPlace) {
+            <dt>Lugar de carga</dt>
+            <dd>{{ vm.trip().loadPlace }}</dd>
+          }
           <dt>Registrada</dt>
           <dd>{{ vm.fmt(vm.trip().createdAt) }}</dd>
           <dt>Salida planeada</dt>
@@ -76,6 +86,46 @@
             }}</dd>
           }
         </dl>
+
+        @if (vm.editingPlannedDates() && vm.realDatesEditEnabled()) {
+          <div class="maniobra-detail__empty-delivery-form">
+            <div class="maniobra-drawer__grid2">
+              <to-input
+                label="Fecha de carga"
+                type="datetime-local"
+                [value]="vm.loadDateDraft()"
+                (valueChange)="vm.loadDateDraft.set($event)"
+              />
+              <to-fleet-brand-combobox
+                label="Lugar de carga"
+                placeholder="Ej. Patio Manzanillo, Bodega cliente…"
+                newEntryLabel="lugar nuevo"
+                [suggestionsSource]="vm.loadPlacesCatalog.places()"
+                [(brandName)]="vm.loadPlaceDraft"
+              />
+              <to-input
+                label="Salida planeada"
+                type="datetime-local"
+                [value]="vm.realDepartureDraft()"
+                (valueChange)="vm.realDepartureDraft.set($event)"
+              />
+              <to-input
+                label="Llegada cliente planeada"
+                type="datetime-local"
+                [min]="vm.realDepartureDraft() || undefined"
+                [value]="vm.realArrivalDraft()"
+                (valueChange)="vm.realArrivalDraft.set($event)"
+              />
+              <to-input
+                label="Fin planeado"
+                type="datetime-local"
+                [min]="vm.realArrivalDraft() || undefined"
+                [value]="vm.realCompletionDraft()"
+                (valueChange)="vm.realCompletionDraft.set($event)"
+              />
+            </div>
+          </div>
+        }
 
         @if (vm.canEditRealScheduleField('departureAt')) {
           <div class="maniobra-detail__schedule-input">
@@ -109,7 +159,7 @@
           </div>
         }
 
-        @if (vm.realDatesEditEnabled()) {
+        @if (vm.realDatesEditEnabled() && !vm.editingPlannedDates()) {
           <div class="maniobra-detail__schedule-justification">
             <label
               class="maniobra-detail__incident-label"
@@ -135,6 +185,125 @@
               Actualizar fechas
             </to-button>
           </div>
+        }
+        @if (vm.realDatesEditEnabled() && vm.editingPlannedDates()) {
+          <div class="maniobra-detail__schedule-justification">
+            <label
+              class="maniobra-detail__incident-label"
+              for="maniobra-planned-schedule-justification"
+              >Justificación</label
+            >
+            <textarea
+              id="maniobra-planned-schedule-justification"
+              class="maniobra-detail__incident-textarea"
+              rows="2"
+              [value]="vm.justificationDraft()"
+              (input)="vm.onJustificationDraftInput($event)"
+              placeholder="Describe el motivo del cambio…"
+              [disabled]="vm.realDatesSaving()"
+            ></textarea>
+            <to-button
+              type="button"
+              variant="primary"
+              [disabled]="vm.realDatesSaving()"
+              (click)="vm.saveRealSchedule()"
+            >
+              <to-icon name="updates" [size]="16" />
+              Actualizar fechas
+            </to-button>
+          </div>
+        }
+
+        @if (
+          !vm.realDatesEditEnabled() &&
+          (vm.hasEmptyDelivery() || vm.canRegisterEmptyDelivery())
+        ) {
+          <hr class="maniobra-detail__schedule-divider" aria-hidden="true" />
+        }
+
+        @if (!vm.realDatesEditEnabled() && vm.canRegisterEmptyDelivery()) {
+          <div
+            class="maniobra-detail__schedule-edit-toggle"
+            role="group"
+            aria-labelledby="maniobra-detail-empty-delivery-label"
+          >
+            <span
+              id="maniobra-detail-empty-delivery-label"
+              class="maniobra-detail__schedule-edit-label"
+              >{{ vm.emptyDeliveryToggleLabel() }}</span
+            >
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="vm.emptyDeliveryFormOpen()"
+              role="switch"
+              [attr.aria-checked]="vm.emptyDeliveryFormOpen()"
+              aria-labelledby="maniobra-detail-empty-delivery-label"
+              [disabled]="vm.emptyDeliverySaving()"
+              (click)="vm.toggleEmptyDeliveryForm()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+        }
+
+        @if (!vm.realDatesEditEnabled() && vm.hasEmptyDelivery()) {
+          <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
+            <dt>Entrega de vacío</dt>
+            <dd>{{ vm.plannedScheduleDisplay(vm.trip().emptyDeliveryAt) }}</dd>
+            <dt>Lugar de entrega</dt>
+            <dd>{{ vm.trip().emptyDeliveryPlace || '—' }}</dd>
+          </dl>
+        }
+
+        @if (!vm.realDatesEditEnabled() && vm.emptyDeliveryFormOpen()) {
+          <div class="maniobra-detail__empty-delivery-form">
+              <div class="maniobra-drawer__grid2">
+                <to-input
+                  label="Fecha de entrega de vacío"
+                  type="datetime-local"
+                  [min]="vm.emptyDeliveryMinLocal()"
+                  [value]="vm.emptyDeliveryAtDraft()"
+                  (valueChange)="vm.emptyDeliveryAtDraft.set($event)"
+                />
+                <to-fleet-brand-combobox
+                  label="Lugar de entrega de vacío"
+                  placeholder="Ej. Patio Manzanillo, Terminal…"
+                  newEntryLabel="lugar nuevo"
+                  [suggestionsSource]="vm.loadPlacesCatalog.places()"
+                  [(brandName)]="vm.emptyDeliveryPlaceDraft"
+                />
+              </div>
+              @if (vm.hasEmptyDelivery()) {
+                <div class="maniobra-detail__schedule-justification">
+                  <label
+                    class="maniobra-detail__incident-label"
+                    for="maniobra-empty-delivery-justification"
+                    >Justificación</label
+                  >
+                  <textarea
+                    id="maniobra-empty-delivery-justification"
+                    class="maniobra-detail__incident-textarea"
+                    rows="2"
+                    [value]="vm.emptyDeliveryJustificationDraft()"
+                    (input)="vm.onEmptyDeliveryJustificationInput($event)"
+                    placeholder="Describe el motivo de la actualización…"
+                    [disabled]="vm.emptyDeliverySaving()"
+                  ></textarea>
+                </div>
+              }
+              <div class="maniobra-detail__empty-delivery-actions">
+                <to-button
+                  type="button"
+                  variant="primary"
+                  [disabled]="vm.emptyDeliverySaving()"
+                  (click)="vm.saveEmptyDelivery()"
+                >
+                  <to-icon name="updates" [size]="16" />
+                  {{ vm.hasEmptyDelivery() ? "Actualizar entrega" : "Guardar" }}
+                </to-button>
+              </div>
+            </div>
         }
 
         @if (vm.trip().falseManeuver === true) {

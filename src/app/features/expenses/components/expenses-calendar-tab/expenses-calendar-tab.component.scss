@@ -359,3 +359,34 @@
     min-height: 8rem;
   }
 }
+
+/* Mobile: contenido apilado a altura natural; la página hace scroll. */
+@media (max-width: 767px) {
+  :host {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  .expenses-calendar-layout {
+    flex: 0 0 auto;
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .expenses-calendar-sidebar {
+    min-width: 100%;
+  }
+
+  .expenses-cal-card,
+  .expenses-calendar-main {
+    padding: 0.85rem 0.8rem;
+  }
+
+  .expenses-cal-day {
+    max-height: none;
+  }
+
+  .expenses-calendar-main__table {
+    --to-table-max-height: 60dvh;
+  }
+}

@@ -208,6 +208,20 @@
       </svg>
       Detalles de Carga
     </h3>
+    <div class="maniobra-drawer__grid2">
+      <to-input
+        label="Fecha de carga"
+        type="datetime-local"
+        [(value)]="loadDate"
+      />
+      <to-fleet-brand-combobox
+        label="Lugar de carga"
+        placeholder="Ej. Patio Manzanillo, Bodega cliente…"
+        newEntryLabel="lugar nuevo"
+        [suggestionsSource]="loadPlacesCatalog.places()"
+        [(brandName)]="loadPlace"
+      />
+    </div>
     <app-cargo-description-combobox
       label="Descripción"
       placeholder="Ej. Bebidas embotelladas, autopartes, contenedor vacío para devolución…"
@@ -349,7 +363,10 @@
       </svg>
       Costos operativos
     </h3>
-    <div class="maniobra-drawer__diesel-row">
+    <div
+      class="maniobra-drawer__diesel-row"
+      [class.maniobra-drawer__diesel-row--with-price]="dieselPriceLabel()"
+    >
       @if (dieselPriceLabel(); as priceLabel) {
         <div class="maniobra-drawer__diesel-price" aria-label="Precio de diesel por litro">
           <span class="maniobra-drawer__diesel-price-value">{{ priceLabel }}</span>

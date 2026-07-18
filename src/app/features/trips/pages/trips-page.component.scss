@@ -111,6 +111,54 @@
   gap: 0.5rem;
 }
 
+/* Mobile: cada control del toolbar en su propia fila a ancho completo. */
+@media (max-width: 767px) {
+  .maniobra-toolbar > to-segment-control {
+    flex: 1 1 100%;
+
+    /* El pill llena la fila y sus botones se reparten el ancho. */
+    ::ng-deep .to-segment-control--toolbar {
+      width: 100%;
+    }
+
+    ::ng-deep .to-segment-control--toolbar .to-segment-control__btn {
+      flex: 1 1 0;
+    }
+  }
+
+  .maniobra-toolbar__search-wrap {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* El input ocupa toda la fila; el estado "Cargando…" no debe restarle ancho. */
+  .maniobra-toolbar__search {
+    flex: 1 1 100%;
+  }
+
+  .maniobra-toolbar__search-status {
+    display: none;
+  }
+
+  .maniobra-toolbar__filters {
+    margin-left: 0;
+    flex: 1 1 100%;
+    justify-content: space-between;
+
+    /* Los filtros de estado no caben completos: scroll horizontal. */
+    to-filter-tabs {
+      display: block;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+
+      ::ng-deep .maniobra-filters--status {
+        min-width: max-content;
+      }
+    }
+  }
+}
+
 .maniobra-toolbar__export-wrap {
   position: relative;
   display: inline-flex;

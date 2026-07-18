@@ -58,6 +58,10 @@
         <dd>{{ vm.meta()?.serviceModality?.trim() || "—" }}</dd>
       </div>
       <div class="fleet-unit-detail__row">
+        <dt>Tipo de transporte</dt>
+        <dd>{{ vm.transportTypeLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
         <dt>Color</dt>
         <dd>{{ vm.meta()?.trailerColor?.trim() || "—" }}</dd>
       </div>
@@ -72,27 +76,25 @@
     </dl>
   } @else {
     <div class="fleet-unit-sec__edit-form">
-      <div class="fleet-unit-sec__edit-grid">
+      <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
         <to-fleet-brand-combobox
           label="Marca *"
           placeholder="Escribe o selecciona"
           [suggestionsSource]="vm.unitBrandNames()"
           [(brandName)]="vm.editBrand"
         />
-        <to-input
-          label="Modelo (año) *"
-          type="text"
-          placeholder="Ej. 2022"
-          [(value)]="vm.editYear"
-        />
-      </div>
-      <div class="fleet-unit-sec__edit-grid">
         <to-fleet-version-combobox
           label="Versión"
           placeholder="Escribe o selecciona"
           [disabled]="!vm.editBrand().trim()"
           [suggestionsSource]="vm.editUnitVersionNames()"
           [(versionName)]="vm.editVersion"
+        />
+        <to-input
+          label="Modelo (año) *"
+          type="text"
+          placeholder="Ej. 2022"
+          [(value)]="vm.editYear"
         />
       </div>
       <div class="fleet-unit-sec__edit-grid">
@@ -109,7 +111,7 @@
           [(value)]="vm.editMotorNumber"
         />
       </div>
-      <div class="fleet-unit-sec__edit-grid">
+      <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
         <to-input
           label="Placa *"
           placeholder="Ej. 12-AB-3C"
@@ -121,6 +123,12 @@
           placeholder="Selecciona modalidad"
           [options]="vm.serviceModalityOptions"
           [(value)]="vm.editServiceModality"
+        />
+        <to-select
+          label="Tipo de transporte"
+          placeholder="Selecciona tipo"
+          [options]="vm.transportTypeOptions"
+          [(value)]="vm.editTransportType"
         />
       </div>
       <div class="fleet-unit-sec__edit-grid">
@@ -570,6 +578,7 @@
   }
 </section>
 
+@if (vm.unitAllowsHitch() || vm.hitchedEquipmentRows().length > 0) {
 <section
   class="fleet-unit-sec fleet-unit-sec--boxed fleet-unit-hitch"
   aria-labelledby="fleet-udv-hitch"
@@ -718,6 +727,7 @@
     </p>
   }
 </section>
+}
 
 <to-confirm-dialog
   [open]="vm.hitchLeadUnhitchConfirmOpen()"

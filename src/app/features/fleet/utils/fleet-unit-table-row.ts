@@ -723,7 +723,7 @@ export function buildFleetUnitTableRow(
     fleetBrand: trailerBrandLabel(u),
     fleetModel: modelLabel(u),
     fleetPlate: u.plate.trim() || '—',
-    fleetConfigBadges: fleetUnitConvoyTableBadges(hitched),
+    fleetConfigBadges: fleetUnitConvoyTableBadges(hitched, u.transportType),
     fleetOperational:
       options.operationalOverride ?? operationalKey(u, options.onRoute),
     fleetMaint: maintenanceBucket(meta),

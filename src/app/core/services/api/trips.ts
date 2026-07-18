@@ -1,7 +1,12 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, expand, map, Observable, reduce } from 'rxjs';
-import type { CancelTripPayload, CreateTripPayload } from '@shared/models/api/api-trips.model';
+import type {
+  CancelTripPayload,
+  CreateTripPayload,
+  TripEmptyDeliveryPayload,
+  TripLoadInfoPayload,
+} from '@shared/models/api/api-trips.model';
 import type { UpdateActualSchedulePayload } from '@shared/models/api/api-trips-actual-schedule.model';
 import type {
   FuelEstimateRequest,
@@ -176,6 +181,26 @@ export class TripsService {
       .pipe(map((r) => mapApiTrip(r)));
   }
 
+  /** Actualiza fecha y lugar de carga de la maniobra. */
+  patchTripLoadInfo(
+    tripId: string,
+    payload: TripLoadInfoPayload,
+  ): Observable<Trip> {
+    return this.http
+      .patch<Record<string, unknown>>(resourceByIdUrl('trips', tripId), payload)
+      .pipe(map((r) => mapApiTrip(r)));
+  }
+
+  /** Registra o actualiza la entrega de vacío de la maniobra. */
+  patchTripEmptyDelivery(
+    tripId: string,
+    payload: TripEmptyDeliveryPayload,
+  ): Observable<Trip> {
+    return this.http
+      .patch<Record<string, unknown>>(resourceByIdUrl('trips', tripId), payload)
+      .pipe(map((r) => mapApiTrip(r)));
+  }
+
   patchTripActualSchedule(
     tripId: string,
     payload: UpdateActualSchedulePayload,
@@ -194,6 +219,14 @@ export class TripsService {
     return this.http
       .delete<{ id: number; deleted: boolean }>(resourceByIdUrl('trips', id))
       .pipe(map((res) => res));
+  }
+
+  /** Lugares de carga capturados en maniobras (catálogo por empresa). */
+  getTripLoadPlaces(): Observable<{ places: string[] }> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http.get<{ places: string[] }>(
+      companyResourceUrl(companyId, 'trips/load-places'),
+    );
   }
 
   getClientCargoHistory(clientId: string): Observable<ClientCargoHistoryResponse> {

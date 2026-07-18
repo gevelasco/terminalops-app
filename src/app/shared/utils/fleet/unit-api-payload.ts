@@ -48,6 +48,7 @@ export function buildUnitWritePayload(unit: Unit, draft?: UnitPersistDraft): Cre
 
   return withoutFleetOperationalStatus({
     plate: mergedUnit.plate.trim(),
+    transportType: mergedUnit.transportType?.trim() || undefined,
     capacityKg: mergedUnit.capacityKg,
     isActive: mergedUnit.isActive !== false,
     serialNumber: mergedUnit.serialNumber?.trim() || undefined,

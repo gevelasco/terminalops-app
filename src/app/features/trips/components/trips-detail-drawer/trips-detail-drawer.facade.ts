@@ -25,7 +25,11 @@ import {
   type ActualScheduleDrafts,
   type ActualScheduleFieldKey,
 } from '@features/trips/utils/actual-schedule-edit';
-import { isoToDateTimeLocalValue } from '@features/trips/utils/datetime-local';
+import {
+  dateTimeLocalValueToIso,
+  isoToDateTimeLocalValue,
+} from '@features/trips/utils/datetime-local';
+import { TripLoadPlacesFeatureService } from '@features/trips/services/trip-load-places.service';
 import { tripCargoDescriptionDisplay } from '@features/trips/utils/trip-cargo-description';
 import {
   buildManiobraSettlementSummary,
@@ -78,6 +82,7 @@ export class TripsDetailDrawerFacade {
   private readonly equipmentApi = inject(EquipmentService);
   private readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly destinationRatesFeature = inject(DestinationRatesFeatureService);
+  readonly loadPlacesCatalog = inject(TripLoadPlacesFeatureService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly equipmentCatalog = signal<readonly Equipment[]>([]);
@@ -111,6 +116,13 @@ export class TripsDetailDrawerFacade {
   readonly realCompletionDraft = signal('');
   readonly justificationDraft = signal('');
   readonly realDatesSaving = signal(false);
+  readonly emptyDeliveryFormOpen = signal(false);
+  readonly emptyDeliveryAtDraft = signal('');
+  readonly emptyDeliveryPlaceDraft = signal('');
+  readonly emptyDeliveryJustificationDraft = signal('');
+  readonly emptyDeliverySaving = signal(false);
+  readonly loadDateDraft = signal('');
+  readonly loadPlaceDraft = signal('');
   readonly detailTab = signal<TripsDetailTab>('maneuver');
   // Lectura nullable: estos computed corren desde effects que pueden evaluarse
   // justo después de limpiar la selección (p. ej. al eliminar la maniobra).
@@ -153,11 +165,37 @@ export class TripsDetailDrawerFacade {
   readonly settlementSummary = computed(() =>
     buildManiobraSettlementSummary(this.trip(), this.expensesForSettlement()),
   );
-  readonly canEditRealDates = computed(
-    () =>
+  /** Programada: fechas planeadas/carga. En curso: únicamente fechas reales. */
+  readonly canEditRealDates = computed(() => {
+    const status = this.tripsFeature.selectedTrip()?.status;
+    return (
       this.canWriteTrips() &&
-      this.tripsFeature.selectedTrip()?.status === 'in_transit',
-  );
+      (status === 'scheduled' || status === 'in_transit')
+    );
+  });
+  /**
+   * Entrega de vacío: solo maniobras en curso o completadas y
+   * con contenedor de por medio (tipo de contenedor distinto de «No aplica»).
+   */
+  readonly canRegisterEmptyDelivery = computed(() => {
+    const trip = this.tripsFeature.selectedTrip();
+    const status = trip?.status;
+    const containerType = trip?.containerType
+      ?.trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const noContainer =
+      !containerType ||
+      containerType === 'na' ||
+      containerType === 'n/a' ||
+      containerType === 'no aplica';
+    return (
+      this.canWriteTrips() &&
+      !noContainer &&
+      (status === 'in_transit' || status === 'completed')
+    );
+  });
   readonly realScheduleDrafts = computed(
     (): ActualScheduleDrafts => ({
       departureAt: this.realDepartureDraft(),
@@ -185,6 +223,7 @@ export class TripsDetailDrawerFacade {
       if (t.id !== this.detailTabTripId) {
         this.detailTabTripId = t.id;
         this.detailTab.set(defaultDetailTabForTrip(t));
+        this.closeEmptyDeliveryForm();
       }
       this.ensureEquipmentCatalogLoaded();
       this.centersFeature.loadOperationalCenters();
@@ -216,7 +255,11 @@ export class TripsDetailDrawerFacade {
       if (!t) {
         return;
       }
-      if (t.status !== 'in_transit' && this.realDatesEditEnabled()) {
+      if (
+        t.status !== 'scheduled' &&
+        t.status !== 'in_transit' &&
+        this.realDatesEditEnabled()
+      ) {
         this.resetRealScheduleEdit();
       }
     });
@@ -364,6 +407,9 @@ export class TripsDetailDrawerFacade {
 
   showRealScheduleField(field: ActualScheduleFieldKey): boolean {
     const t = this.trip();
+    if (t.status === 'scheduled') {
+      return false;
+    }
     const persisted = Boolean(t[field]?.trim());
     if (!persisted) {
       return false;
@@ -377,6 +423,8 @@ export class TripsDetailDrawerFacade {
   canEditRealScheduleField(field: ActualScheduleFieldKey): boolean {
     return (
       this.realDatesEditEnabled() &&
+      // Programada: aún no hay fechas reales; se editan las planeadas.
+      !this.editingPlannedDates() &&
       isActualScheduleFieldEditable(this.trip().status, field)
     );
   }
@@ -388,11 +436,21 @@ export class TripsDetailDrawerFacade {
     return local || undefined;
   }
 
+  editingPlannedDates(): boolean {
+    return this.trip().status === 'scheduled';
+  }
+
+  datesEditLabel(): string {
+    return this.editingPlannedDates() ? 'Editar fechas' : 'Editar fechas reales';
+  }
+
   resetRealScheduleEdit(): void {
     this.realDatesEditEnabled.set(false);
     this.realDepartureDraft.set('');
     this.realArrivalDraft.set('');
     this.realCompletionDraft.set('');
+    this.loadDateDraft.set('');
+    this.loadPlaceDraft.set('');
     this.justificationDraft.set('');
   }
 
@@ -403,10 +461,27 @@ export class TripsDetailDrawerFacade {
     const next = !this.realDatesEditEnabled();
     this.realDatesEditEnabled.set(next);
     if (next) {
-      const seeded = seedActualScheduleDrafts(this.trip());
-      this.realDepartureDraft.set(seeded.departureAt);
-      this.realArrivalDraft.set(seeded.arrivedAt);
-      this.realCompletionDraft.set(seeded.returnAt);
+      this.closeEmptyDeliveryForm();
+      const trip = this.trip();
+      if (trip.status === 'scheduled') {
+        this.realDepartureDraft.set(
+          isoToDateTimeLocalValue(trip.plannedDepartureAt),
+        );
+        this.realArrivalDraft.set(
+          isoToDateTimeLocalValue(trip.plannedArrivalAt),
+        );
+        this.realCompletionDraft.set(
+          isoToDateTimeLocalValue(trip.plannedCompletionAt),
+        );
+        this.loadDateDraft.set(isoToDateTimeLocalValue(trip.loadDate));
+        this.loadPlaceDraft.set(trip.loadPlace?.trim() ?? '');
+        this.loadPlacesCatalog.ensureLoaded();
+      } else {
+        const seeded = seedActualScheduleDrafts(trip);
+        this.realDepartureDraft.set(seeded.departureAt);
+        this.realArrivalDraft.set(seeded.arrivedAt);
+        this.realCompletionDraft.set(seeded.returnAt);
+      }
       this.justificationDraft.set('');
       return;
     }
@@ -419,6 +494,11 @@ export class TripsDetailDrawerFacade {
 
   saveRealSchedule(): void {
     if (!this.canEditRealDates() || this.realDatesSaving() || !this.realDatesEditEnabled()) {
+      return;
+    }
+
+    if (this.editingPlannedDates()) {
+      this.savePlannedDates();
       return;
     }
 
@@ -461,6 +541,192 @@ export class TripsDetailDrawerFacade {
           );
         },
       });
+  }
+
+  private savePlannedDates(): void {
+    const departureIso = dateTimeLocalValueToIso(this.realDepartureDraft());
+    const arrivalIso = dateTimeLocalValueToIso(this.realArrivalDraft());
+    const completionIso = dateTimeLocalValueToIso(this.realCompletionDraft());
+    if (!departureIso || !arrivalIso || !completionIso) {
+      this.toast.show('Captura todas las fechas planeadas.', 'warning');
+      return;
+    }
+    if (
+      new Date(arrivalIso).getTime() < new Date(departureIso).getTime() ||
+      new Date(completionIso).getTime() < new Date(arrivalIso).getTime()
+    ) {
+      this.toast.show(
+        'Las fechas deben respetar el orden: salida, llegada y fin.',
+        'warning',
+      );
+      return;
+    }
+
+    const loadDateIso = dateTimeLocalValueToIso(this.loadDateDraft());
+    const place = this.loadPlaceDraft().trim();
+    const justification = this.justificationDraft().trim();
+    if (!justification) {
+      this.toast.show(
+        'La justificación es obligatoria al actualizar las fechas.',
+        'warning',
+      );
+      return;
+    }
+    this.realDatesSaving.set(true);
+    this.tripsFeature
+      .updateLoadInfo(this.trip().id, {
+        plannedDepartureAt: departureIso,
+        plannedArrivalAt: arrivalIso,
+        plannedCompletionAt: completionIso,
+        ...(loadDateIso ? { loadDate: loadDateIso } : {}),
+        ...(place ? { loadPlace: place } : {}),
+        plannedDatesJustification: justification,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.realDatesSaving.set(false);
+          if (place) {
+            this.loadPlacesCatalog.registerLocalPlace(place);
+          }
+          this.resetRealScheduleEdit();
+          this.toast.show('Fechas de la maniobra actualizadas.', 'success');
+        },
+        error: (err: unknown) => {
+          this.realDatesSaving.set(false);
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ||
+              'No se pudieron actualizar las fechas. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
+  }
+
+  hasEmptyDelivery(): boolean {
+    return Boolean(this.trip().emptyDeliveryAt?.trim());
+  }
+
+  /** Piso del datepicker: la mayor entre fin planeado y fin real. */
+  emptyDeliveryMinLocal(): string | undefined {
+    const iso = this.emptyDeliveryMinIso();
+    const local = isoToDateTimeLocalValue(iso);
+    return local || undefined;
+  }
+
+  openEmptyDeliveryForm(): void {
+    if (!this.canRegisterEmptyDelivery() || this.emptyDeliverySaving()) {
+      return;
+    }
+    const t = this.trip();
+    this.emptyDeliveryAtDraft.set(isoToDateTimeLocalValue(t.emptyDeliveryAt));
+    this.emptyDeliveryPlaceDraft.set(t.emptyDeliveryPlace?.trim() ?? '');
+    this.emptyDeliveryJustificationDraft.set('');
+    this.loadPlacesCatalog.ensureLoaded();
+    this.emptyDeliveryFormOpen.set(true);
+  }
+
+  toggleEmptyDeliveryForm(): void {
+    if (this.emptyDeliveryFormOpen()) {
+      this.closeEmptyDeliveryForm();
+      return;
+    }
+    this.openEmptyDeliveryForm();
+  }
+
+  emptyDeliveryToggleLabel(): string {
+    return this.hasEmptyDelivery()
+      ? 'Editar entrega de vacío'
+      : 'Agregar entrega de vacío';
+  }
+
+  onEmptyDeliveryJustificationInput(ev: Event): void {
+    this.emptyDeliveryJustificationDraft.set(
+      (ev.target as HTMLTextAreaElement).value,
+    );
+  }
+
+  closeEmptyDeliveryForm(): void {
+    this.emptyDeliveryFormOpen.set(false);
+    this.emptyDeliveryAtDraft.set('');
+    this.emptyDeliveryPlaceDraft.set('');
+    this.emptyDeliveryJustificationDraft.set('');
+  }
+
+  saveEmptyDelivery(): void {
+    if (
+      !this.canRegisterEmptyDelivery() ||
+      this.emptyDeliverySaving() ||
+      !this.emptyDeliveryFormOpen()
+    ) {
+      return;
+    }
+    const iso = dateTimeLocalValueToIso(this.emptyDeliveryAtDraft());
+    if (!iso) {
+      this.toast.show('Captura la fecha de entrega de vacío.', 'warning');
+      return;
+    }
+    const place = this.emptyDeliveryPlaceDraft().trim();
+    if (!place) {
+      this.toast.show('Captura el lugar de entrega de vacío.', 'warning');
+      return;
+    }
+    const justification = this.emptyDeliveryJustificationDraft().trim();
+    if (this.hasEmptyDelivery() && !justification) {
+      this.toast.show(
+        'La justificación es obligatoria al actualizar una entrega de vacío.',
+        'warning',
+      );
+      return;
+    }
+    const minIso = this.emptyDeliveryMinIso();
+    if (minIso && new Date(iso).getTime() < new Date(minIso).getTime()) {
+      this.toast.show(
+        'La entrega de vacío no puede ser anterior al fin planeado ni al fin real.',
+        'warning',
+      );
+      return;
+    }
+
+    this.emptyDeliverySaving.set(true);
+    this.tripsFeature
+      .updateEmptyDelivery(this.trip().id, {
+        emptyDeliveryAt: iso,
+        emptyDeliveryPlace: place,
+        ...(justification
+          ? { emptyDeliveryJustification: justification }
+          : {}),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.emptyDeliverySaving.set(false);
+          this.loadPlacesCatalog.registerLocalPlace(place);
+          this.closeEmptyDeliveryForm();
+          this.toast.show('Entrega de vacío registrada.', 'success');
+        },
+        error: (err: unknown) => {
+          this.emptyDeliverySaving.set(false);
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ||
+              'No se pudo registrar la entrega de vacío. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
+  }
+
+  private emptyDeliveryMinIso(): string | null {
+    const t = this.trip();
+    const candidates = [t.plannedCompletionAt, t.returnAt]
+      .map((iso) => iso?.trim())
+      .filter((iso): iso is string => Boolean(iso))
+      .map((iso) => new Date(iso).getTime())
+      .filter((ms) => Number.isFinite(ms));
+    if (candidates.length === 0) {
+      return null;
+    }
+    return new Date(Math.max(...candidates)).toISOString();
   }
 
   unitDisplay(): string {
@@ -683,6 +949,10 @@ export class TripsDetailDrawerFacade {
 
   cargoDescriptionDisplay(): string {
     return tripCargoDescriptionDisplay(this.trip().cargoDescription);
+  }
+
+  loadPlaceDisplay(): string {
+    return tripCargoDescriptionDisplay(this.trip().loadPlace);
   }
 
   paymentLabel(method?: Trip['paymentMethod']): string {

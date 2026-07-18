@@ -7,6 +7,12 @@
   --fleet-overview-remolque-scale: 0.58;
   --fleet-overview-caja-seca-scale: 1.05;
   --fleet-overview-caja-seca-standalone-scale: 1.08;
+  /* Escalas por tipo de equipo según la altura del dibujo en el PNG recortado. */
+  --fleet-overview-pipa-scale: 1.1;
+  --fleet-overview-cortina-scale: 1.1;
+  --fleet-overview-gondola-scale: 1.1;
+  --fleet-overview-cama-baja-scale: 0.62;
+  --fleet-overview-tolva-scale: 1.1;
   --fleet-overview-convoy-offset-y: 0.2rem;
   --fleet-overview-identity-row-code: 1.25rem;
   --fleet-overview-identity-row-route: 1.1rem;
@@ -555,6 +561,49 @@
   );
   max-height: calc(
     var(--fleet-overview-icon-h) * var(--fleet-overview-caja-seca-scale)
+  );
+}
+
+.fleet-overview__convoy-part--pipa {
+  height: calc(var(--fleet-overview-icon-h) * var(--fleet-overview-pipa-scale));
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-pipa-scale)
+  );
+}
+
+.fleet-overview__convoy-part--cortina {
+  height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-cortina-scale)
+  );
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-cortina-scale)
+  );
+}
+
+.fleet-overview__convoy-part--gondola {
+  height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-gondola-scale)
+  );
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-gondola-scale)
+  );
+}
+
+.fleet-overview__convoy-part--cama-baja {
+  height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-cama-baja-scale)
+  );
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-cama-baja-scale)
+  );
+}
+
+.fleet-overview__convoy-part--tolva {
+  height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-tolva-scale)
+  );
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-tolva-scale)
   );
 }
 

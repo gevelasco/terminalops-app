@@ -29,14 +29,13 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 2.375rem;
+  min-height: 2.625rem;
   margin: 0;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--to-color-border, #e2e8f0);
   border-radius: var(--to-radius-md, 6px);
   font: inherit;
   font-size: inherit;
-  line-height: 1.25;
   background: var(--to-color-surface, #fff);
   color: var(--to-color-text, #0f172a);
 
@@ -50,6 +49,19 @@
     cursor: not-allowed;
     background: color-mix(in srgb, var(--to-color-surface, #fff) 88%, #cbd5e1);
   }
+}
+
+.dr-maneuver-combobox__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.7rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.dr-maneuver-combobox__control--with-icon {
+  padding-left: 2.15rem;
 }
 
 .dr-maneuver-combobox__list {

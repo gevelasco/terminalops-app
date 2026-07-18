@@ -34,6 +34,7 @@ import {
 } from '@shared/catalogs/operator-form-options';
 import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
 import { compareByOperatorOperationalStatus } from '@shared/utils/operator-operational-status-sort';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -90,6 +91,7 @@ export class OperatorsPageComponent implements OnInit {
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
+  protected readonly isMobileViewport = injectIsMobileViewport();
 
   constructor() {
     this.destroyRef.onDestroy(() => {

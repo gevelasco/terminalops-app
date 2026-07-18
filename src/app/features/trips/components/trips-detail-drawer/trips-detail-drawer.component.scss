@@ -752,5 +752,40 @@
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--to-color-border, rgba(148, 163, 184, 0.25));
+
+  to-button {
+    align-self: flex-end;
+  }
+}
+
+.maniobra-detail__schedule-divider {
+  margin: 0.85rem 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.maniobra-detail__load-info-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.maniobra-detail__empty-delivery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.maniobra-detail__empty-delivery-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 

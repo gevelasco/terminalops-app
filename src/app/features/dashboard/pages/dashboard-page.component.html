@@ -1,12 +1,14 @@
 <to-page-header
   title="Dashboard"
-  subtitle="Resumen operativo del día"
+  [subtitle]="isMobileViewport() ? '' : 'Resumen operativo del día'"
   class="dashboard-header"
 >
   @if (!loading() && showFinancialInsights() && dieselSnapshot()?.enabled) {
     <div class="dashboard-diesel" aria-label="Precio referencia de diesel">
       @if (!dieselEditOpen()) {
-        <span class="dashboard-diesel__label">Diesel referencia</span>
+        <span class="dashboard-diesel__label">{{
+          isMobileViewport() ? 'Diesel' : 'Diesel referencia'
+        }}</span>
         @if (dieselChip(); as label) {
           <span class="dashboard-diesel__value">{{ label }}</span>
         }
@@ -56,7 +58,7 @@
 
 @if (loading()) {
   <to-skeleton [lines]="6" />
-} @else if (summary() && insights()) {
+} @else if (summary()) {
   <div
     class="dashboard-kpis"
     [class.dashboard-kpis--three]="!showFinancialInsights()"
@@ -99,6 +101,7 @@
     class="dashboard-body"
     [class.dashboard-body--with-upcoming]="showUpcomingPayments()"
   >
+    @if (!isMobileViewport()) {
     <section class="dashboard-panel dashboard-panel--flow">
       @if (showFinancialInsights()) {
         <header class="dashboard-panel__head">
@@ -136,6 +139,7 @@
         <to-echarts-host [option]="topDestinationsOption()" />
       </div>
     </section>
+    }
 
     @if (showUpcomingPayments()) {
       <section
@@ -173,6 +177,7 @@
       </section>
     }
 
+    @if (!isMobileViewport()) {
     <section class="dashboard-panel dashboard-panel--recent">
       <header class="dashboard-panel__head">
         <div>
@@ -238,5 +243,6 @@
         <to-echarts-host [option]="operationMixOption()" />
       </div>
     </section>
+    }
   </div>
 }

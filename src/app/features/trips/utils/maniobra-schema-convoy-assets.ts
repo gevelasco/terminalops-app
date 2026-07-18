@@ -6,14 +6,44 @@ import type { OperationConfigurationResolver } from '@shared/services/operation-
 import type { Equipment, Trip } from '@shared/models/logistics.models';
 
 export const SCHEMA_TRACTO_ASSET = 'maniobra-schema-tracto.png';
+export const SCHEMA_RABON_PLATAFORMA_ASSET = 'maniobra-schema-rabon-plataforma.png';
+export const SCHEMA_CAMION_PIPA_ASSET = 'maniobra-schema-camion-pipa.png';
+export const SCHEMA_MAROMA_VOLTEO_ASSET = 'maniobra-schema-maroma-volteo.png';
 export const SCHEMA_REMOLQUE_ASSET = 'maniobra-schema-remolque.png';
 export const SCHEMA_CAJA_SECA_ASSET = 'maniobra-schema-caja-seca.png';
 export const SCHEMA_ENGANCHE_ASSET = 'maniobra-schema-enganche.png';
 export const SCHEMA_PLANA_ASSET = 'maniobra-schema-plana.png';
+export const SCHEMA_PIPA_ASSET = 'maniobra-schema-pipa.png';
+export const SCHEMA_CORTINA_ASSET = 'maniobra-schema-cortina.png';
+export const SCHEMA_GONDOLA_ASSET = 'maniobra-schema-gondola.png';
+export const SCHEMA_CAMA_BAJA_ASSET = 'maniobra-schema-cama-baja.png';
+export const SCHEMA_TOLVA_ASSET = 'maniobra-schema-tolva.png';
 /** @deprecated Usar {@link SCHEMA_PLANA_ASSET} */
 export const SCHEMA_PLANA_PRIMERA_ASSET = SCHEMA_PLANA_ASSET;
 
-export type ConvoyTrailerVisual = 'plataforma' | 'caja_seca' | 'remolque';
+export type ConvoyTrailerVisual =
+  | 'plataforma'
+  | 'caja_seca'
+  | 'pipa'
+  | 'cortina'
+  | 'gondola'
+  | 'cama_baja'
+  | 'tolva'
+  | 'remolque';
+
+/** Imagen de la unidad motriz según su tipo de transporte (alta de unidad). */
+export function schemaUnitAssetForTransportType(transportType?: string | null): string {
+  switch (transportType?.trim()) {
+    case 'rabon_plataforma':
+      return SCHEMA_RABON_PLATAFORMA_ASSET;
+    case 'camion_pipa':
+      return SCHEMA_CAMION_PIPA_ASSET;
+    case 'maroma_volteo':
+      return SCHEMA_MAROMA_VOLTEO_ASSET;
+    default:
+      return SCHEMA_TRACTO_ASSET;
+  }
+}
 
 export function isCajaSecaEquipmentType(type: string): boolean {
   const v = type.trim().toLowerCase();
@@ -32,16 +62,39 @@ export function convoyTrailerVisualFromEquipment(eq: Equipment): ConvoyTrailerVi
   if (isCajaSecaEquipment(eq)) {
     return 'caja_seca';
   }
-  return 'remolque';
+  return convoyTrailerVisualFromType(eq.type ?? '');
 }
 
 export function convoyTrailerVisualFromType(type: string): ConvoyTrailerVisual {
-  const v = type.trim().toLowerCase();
+  const v = type
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
   if (v === 'plataforma' || v.includes('plana') || v.includes('flatbed')) {
     return 'plataforma';
   }
   if (isCajaSecaEquipmentType(type)) {
     return 'caja_seca';
+  }
+  // Refrigerado (reefer): caja cerrada; comparte imagen con caja seca.
+  if (v.includes('refrigerado') || v.includes('reefer')) {
+    return 'caja_seca';
+  }
+  if (v === 'pipa' || v.includes('pipa') || v.includes('tanque') || v.includes('tank')) {
+    return 'pipa';
+  }
+  if (v === 'cortina' || v.includes('cortina') || v.includes('lona') || v.includes('curtain')) {
+    return 'cortina';
+  }
+  if (v === 'gondola' || v.includes('gondola') || v.includes('baranda')) {
+    return 'gondola';
+  }
+  if (v === 'cama_baja' || v.includes('cama baja') || v.includes('lowboy')) {
+    return 'cama_baja';
+  }
+  if (v === 'tolva' || v.includes('tolva') || v.includes('hopper')) {
+    return 'tolva';
   }
   return 'remolque';
 }
@@ -52,6 +105,16 @@ export function schemaPrimaryAssetForVisual(visual: ConvoyTrailerVisual): string
       return SCHEMA_PLANA_ASSET;
     case 'caja_seca':
       return SCHEMA_CAJA_SECA_ASSET;
+    case 'pipa':
+      return SCHEMA_PIPA_ASSET;
+    case 'cortina':
+      return SCHEMA_CORTINA_ASSET;
+    case 'gondola':
+      return SCHEMA_GONDOLA_ASSET;
+    case 'cama_baja':
+      return SCHEMA_CAMA_BAJA_ASSET;
+    case 'tolva':
+      return SCHEMA_TOLVA_ASSET;
     default:
       return SCHEMA_REMOLQUE_ASSET;
   }

@@ -10,10 +10,20 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { fleetEquipmentTypeShortLabel } from '@shared/catalogs/fleet-form-options';
 import type { Equipment } from '@shared/models/logistics.models';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 
 let fleetEquipmentInputSeq = 0;
+
+/** Búsqueda insensible a mayúsculas y acentos (Góndola ↔ gondola). */
+function normalizeSearchText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
 
 @Component({
   selector: 'to-fleet-equipment-input',
@@ -39,19 +49,24 @@ export class ToFleetEquipmentInputComponent {
   readonly open = signal(false);
 
   private readonly rows = computed(() =>
-    this.equipment().map((e) => ({
-      equipment: e,
-      label: formatEquipmentOperationalId(e) || e.name?.trim() || e.serialNumber?.trim() || e.id,
-    })),
+    this.equipment().map((e) => {
+      const id =
+        formatEquipmentOperationalId(e) || e.name?.trim() || e.serialNumber?.trim() || e.id;
+      const typeLabel = fleetEquipmentTypeShortLabel(e.type);
+      return {
+        equipment: e,
+        label: typeLabel ? `${typeLabel} - ${id}` : id,
+      };
+    }),
   );
 
   readonly suggestions = computed(() => {
-    const q = this.inputText().trim().toLowerCase();
+    const q = normalizeSearchText(this.inputText());
     const list = this.rows();
     if (!q) {
       return list;
     }
-    return list.filter((r) => r.label.toLowerCase().includes(q));
+    return list.filter((r) => normalizeSearchText(r.label).includes(q));
   });
 
   constructor() {

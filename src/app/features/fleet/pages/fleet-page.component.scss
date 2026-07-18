@@ -66,6 +66,45 @@
   }
 }
 
+/* Mobile: cada control del toolbar en su propia fila a ancho completo. */
+@media (max-width: 767px) {
+  .fleet-toolbar > to-segment-control {
+    flex: 1 1 100%;
+
+    /* El pill llena la fila y sus botones se reparten el ancho. */
+    ::ng-deep .to-segment-control--toolbar {
+      width: 100%;
+    }
+
+    ::ng-deep .to-segment-control--toolbar .to-segment-control__btn {
+      flex: 1 1 0;
+    }
+  }
+
+  .fleet-toolbar__search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .fleet-toolbar__filters {
+    margin-left: 0;
+    flex: 1 1 100%;
+    display: flex;
+
+    /* Los filtros de estado no caben completos: scroll horizontal. */
+    to-filter-tabs {
+      display: block;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+
+      ::ng-deep .maniobra-filters--status {
+        min-width: max-content;
+      }
+    }
+  }
+}
+
 .fleet-empty-hint {
   margin: 0;
   padding: 0.65rem 0.85rem;

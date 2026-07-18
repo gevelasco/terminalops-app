@@ -55,6 +55,7 @@ import {
 } from '@features/trips/utils/maniobra-route-display';
 import { operatorLicenseExpiresLabelFromIso } from '@features/trips/utils/operator-license-display';
 import { TripsFormCatalogService } from '@features/trips/services/trips-form-catalog.service';
+import { TripLoadPlacesFeatureService } from '@features/trips/services/trip-load-places.service';
 import {
   parseNonNegativeNumber,
   stripGroupedNumberInput,
@@ -136,6 +137,7 @@ import {
   type UnitPickedEvent,
 } from '@shared/ui/to-unit-input/to-unit-input.component';
 import { ToFleetComplianceIconsComponent } from '@shared/ui/to-fleet-compliance-icons/to-fleet-compliance-icons.component';
+import { ToFleetBrandComboboxComponent } from '@shared/ui/to-fleet-brand-combobox/to-fleet-brand-combobox.component';
 import { CargoDescriptionComboboxComponent } from '@features/trips/components/cargo-description-combobox/cargo-description-combobox.component';
 import type { ClientCargoHistoryItem } from '@shared/models/api/api-trips-cargo-history.model';
 import { combineLatest, EMPTY, of, type Observable } from 'rxjs';
@@ -167,6 +169,7 @@ import {
     ToOperatorInputComponent,
     ToUnitInputComponent,
     ToFleetComplianceIconsComponent,
+    ToFleetBrandComboboxComponent,
     CargoDescriptionComboboxComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -192,6 +195,7 @@ export class TripsNewDrawerComponent {
   private readonly tripsApi = inject(TripsApiService);
   private readonly destroyRef = inject(DestroyRef);
   readonly catalog = inject(TripsFormCatalogService);
+  readonly loadPlacesCatalog = inject(TripLoadPlacesFeatureService);
 
   readonly dieselEstimateLoading = signal(false);
   /** Control automático de diesel (config empresa en sesión). */
@@ -433,6 +437,9 @@ export class TripsNewDrawerComponent {
   readonly operationType = model('sencillo');
   readonly loadType = model<TripLoadType>('vacio');
   readonly containerType = model<TripContainerType>('na');
+  /** `yyyy-mm-ddTHH:mm` — fecha y hora de carga (opcional). */
+  readonly loadDate = model('');
+  readonly loadPlace = model('');
   readonly cargoDescription = model('');
   readonly cargoHistoryItems = signal<readonly ClientCargoHistoryItem[]>([]);
   readonly approximateWeightTons = model('');
@@ -665,6 +672,8 @@ export class TripsNewDrawerComponent {
     // Al abrir solo lo esencial: centros operativos (prefill de origen).
     // El resto de catálogos se carga según interacción del usuario.
     this.operationalCentersFeature.loadOperationalCenters();
+    // Lugares de carga: sugerencias del combobox de la sección de carga.
+    this.loadPlacesCatalog.ensureLoaded();
 
     // /clients hasta que el usuario escribe ≥3 caracteres en el autocomplete.
     effect(() => {
@@ -2074,6 +2083,11 @@ export class TripsNewDrawerComponent {
       containerType: this.containerType(),
       cargoDescription: this.cargoDescription().trim(),
       approximateWeightTons: this.approximateWeightTons().trim(),
+      ...(() => {
+        const loadDateIso = dateTimeLocalValueToIso(this.loadDate());
+        return loadDateIso ? { loadDate: loadDateIso } : {};
+      })(),
+      ...(this.loadPlace().trim() ? { loadPlace: this.loadPlace().trim() } : {}),
       dieselLiters: String(liters),
       dieselAmount: String(dieselAmt),
       ...(this.dieselControlEnabled() && this.dieselPricePerLiter() != null
@@ -2165,7 +2179,12 @@ export class TripsNewDrawerComponent {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: (trip) => this.saved.emit(trip),
+        next: (trip) => {
+          if (payload.loadPlace) {
+            this.loadPlacesCatalog.registerLocalPlace(payload.loadPlace);
+          }
+          this.saved.emit(trip);
+        },
         error: () => this.toast.show('No se pudo guardar la maniobra.', 'error'),
       });
   }

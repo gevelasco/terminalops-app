@@ -1,4 +1,7 @@
-<to-page-header title="Operadores" subtitle="Personal certificado">
+<to-page-header
+  title="Operadores"
+  [subtitle]="isMobileViewport() ? '' : 'Personal certificado'"
+>
   @if (!loading() && canWriteOperators()) {
   <to-button
     type="button"
