@@ -25,7 +25,7 @@ const mockResolver: OperationConfigurationResolver = {
   resolveGroupingKey: () => 'Sencillo',
   resolveMaxEquipment: () => 1,
   usesMultipleEquipment: () => false,
-  resolveConvoyMode: (equipment) => mockResolver.resolveConvoyDisplay(equipment).kind,
+  resolveConvoyMode: (equipment) => mockResolver.resolveConvoyDisplay([...equipment]).kind,
   resolveConvoyDisplay: (equipment) => {
     const n = equipment.length;
     if (n === 0) {
@@ -58,7 +58,6 @@ const mockResolver: OperationConfigurationResolver = {
   contextFromTrip: (trip) => ({
     operationConfigurationId: trip.operationConfigurationId,
     code: trip.operationType,
-    nameSnapshot: trip.operationConfigurationNameSnapshot,
   }),
   contextFromRatePrice: (price) => ({
     operationConfigurationId: price.operationConfigurationId,
@@ -71,10 +70,6 @@ const mockResolver: OperationConfigurationResolver = {
         ? row['operationConfigurationId']
         : undefined,
     code: String(row[codeField] ?? ''),
-    nameSnapshot:
-      typeof row['operationConfigurationNameSnapshot'] === 'string'
-        ? row['operationConfigurationNameSnapshot']
-        : undefined,
   }),
   resolveTripDisplay: (trip) => ({
     code: trip.operationType,

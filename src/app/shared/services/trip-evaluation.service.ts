@@ -43,7 +43,11 @@ export class TripEvaluationService implements TripEvaluator {
     if (context.draftOperationCode) {
       return evaluateDraftTrip(context, this.operationConfigs?.configurations() ?? []);
     }
-    return evaluatePersistedTrip(trip, context);
+    return evaluatePersistedTrip(
+      trip,
+      context,
+      this.operationConfigs?.configurations() ?? [],
+    );
   }
 
   evaluateDraft(

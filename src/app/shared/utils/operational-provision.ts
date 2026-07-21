@@ -8,9 +8,9 @@ export function isWearRelatedExpenseKind(kind: ExpenseKind): boolean {
   return kind === 'tires' || kind === 'maintenance' || kind === 'repair';
 }
 
-/** Gasto generado automáticamente como reserva por km / desgaste (no ejercido en taller). */
+/** Gasto generado automáticamente como reserva / control (no pago de caja real). */
 export function isOperationalProvisionExpense(e: Expense): boolean {
-  if (e.isOperationalProvision === true) {
+  if (e.kind === 'operational_control' || e.isOperationalProvision === true) {
     return true;
   }
   const vendor = e.vendor?.trim() ?? '';

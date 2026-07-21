@@ -1,6 +1,5 @@
 import type {
   Client,
-  ClientCommercialHealth,
   ClientContactPerson,
   ClientDelivery,
   ClientPaymentTerms,
@@ -36,21 +35,6 @@ export function normalizeContacts(list: ClientContactPerson[]): ClientContactPer
     .filter((c) => c.name.length > 0);
 }
 
-export function commercialHealthFromUnknown(
-  v: string | undefined,
-): ClientCommercialHealth {
-  if (
-    v === 'good_standing' ||
-    v === 'due_soon' ||
-    v === 'watch_list' ||
-    v === 'restricted' ||
-    v === 'not_evaluated'
-  ) {
-    return v;
-  }
-  return 'not_evaluated';
-}
-
 export function buildClientDeliveryPayload(params: {
   postalCode: string;
   cityMunicipality: string;
@@ -58,14 +42,11 @@ export function buildClientDeliveryPayload(params: {
   settlementConsId: string;
   latitude: number | null;
   longitude: number | null;
-  destinationRateId?: string | null;
-  isUnpricedRoute?: boolean;
 }): ClientDelivery | undefined {
   const cp = params.postalCode.trim();
   if (!cp) {
     return undefined;
   }
-  const rateId = params.destinationRateId?.trim();
   return {
     postalCode: cp,
     cityMunicipality: params.cityMunicipality.trim() || undefined,
@@ -73,8 +54,6 @@ export function buildClientDeliveryPayload(params: {
     settlementConsId: params.settlementConsId.trim() || undefined,
     latitude: params.latitude ?? undefined,
     longitude: params.longitude ?? undefined,
-    ...(rateId ? { destinationRateId: rateId, isUnpricedRoute: false } : {}),
-    ...(!rateId && params.isUnpricedRoute ? { isUnpricedRoute: true } : {}),
   };
 }
 
@@ -112,10 +91,39 @@ export function formatClientDeliveryCoord(n: number | undefined): string {
 export function buildClientApiWriteBody(
   input: Client | CreateClientPayload,
 ): Record<string, unknown> {
-  const { payment, maneuverCount: _maneuverCount, ...rest } = input as Client;
+  const {
+    payment,
+    maneuverCount: _maneuverCount,
+    commercialHealth: _commercialHealth,
+    delivery,
+    ...rest
+  } = input as Client;
+  const paymentBody = payment
+    ? {
+        hasCredit: payment.hasCredit,
+        ...(payment.creditDays != null ? { creditDays: payment.creditDays } : {}),
+        ...(payment.approximateCreditAmount
+          ? { approximateCreditAmount: payment.approximateCreditAmount }
+          : {}),
+        ...(payment.defaultPaymentMethod
+          ? { defaultPaymentMethod: payment.defaultPaymentMethod }
+          : {}),
+      }
+    : undefined;
+  const deliveryBody = delivery
+    ? {
+        postalCode: delivery.postalCode,
+        cityMunicipality: delivery.cityMunicipality,
+        locality: delivery.locality,
+        settlementConsId: delivery.settlementConsId,
+        latitude: delivery.latitude,
+        longitude: delivery.longitude,
+      }
+    : undefined;
   return {
     ...rest,
-    ...(payment ? { payment: payment as ClientPaymentTerms } : {}),
+    ...(paymentBody ? { payment: paymentBody } : {}),
+    ...(deliveryBody ? { delivery: deliveryBody } : {}),
   };
 }
 

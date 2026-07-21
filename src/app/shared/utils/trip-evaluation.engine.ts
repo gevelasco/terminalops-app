@@ -1,5 +1,5 @@
 import { isPlanaEquipment } from '@features/fleet/utils/unit-hitched-equipment';
-import { resolveTripDistanceKm } from '@features/trips/utils/trip-operational-provision';
+import { tripOperationalKm } from '@features/trips/utils/trip-operational-km';
 import type { OperationConfiguration } from '@shared/models/operation-configuration.models';
 import type {
   TripEvaluationContext,
@@ -30,11 +30,11 @@ export function structuralGroupingKey(
   return 'unknown';
 }
 
-/** Leyenda de reportes solo desde datos estructurales / snapshot persistido. */
+/** Leyenda de reportes desde catálogo vivo / código. */
 export function reportSliceLabel(result: TripEvaluationResult): string {
-  const snap = result.configurationNameSnapshot?.trim();
-  if (snap) {
-    return snap;
+  const name = result.configurationName?.trim();
+  if (name) {
+    return name;
   }
   const code = result.configurationCode?.trim();
   if (code) {
@@ -115,7 +115,7 @@ function buildResult(input: {
   configurationCode: string;
   configurationId?: string;
   configurationVersion: number;
-  configurationNameSnapshot?: string;
+  configurationName?: string;
   maxEquipmentCount: number;
   operationalDistanceKm: number;
   suggestsPlataformaConvoy: boolean;
@@ -139,7 +139,7 @@ function buildResult(input: {
     configurationCode: input.configurationCode,
     configurationId: input.configurationId,
     configurationVersion: input.configurationVersion,
-    configurationNameSnapshot: input.configurationNameSnapshot,
+    configurationName: input.configurationName,
     dieselCostBasis: input.maxEquipmentCount >= 2 ? 'full' : 'sencillo',
     operationalDistanceKm: input.operationalDistanceKm,
     maxEquipmentMode: input.maxEquipmentCount >= 2 ? 'multi' : 'single',
@@ -152,34 +152,35 @@ function buildResult(input: {
 }
 
 /**
- * Maniobra persistida — solo campos congelados en trip + heurística de equipo.
- * No catálogo vivo, no resolver, no humanize.
+ * Maniobra persistida — catálogo vivo por operationConfigurationId (como draft).
+ * Sin snapshots de configuración en el trip.
  */
 export function evaluatePersistedTrip(
   trip: TripEvaluationPick,
   context: TripEvaluationContext = {},
+  catalog: readonly OperationConfiguration[] = [],
 ): TripEvaluationResult {
   const configurationCode = trip.operationType?.trim().toLowerCase() ?? '';
   const configurationId = trip.operationConfigurationId?.trim() || undefined;
-  const maxEquipmentCount = Math.max(
-    1,
-    trip.operationConfigurationMaxEquipmentCountSnapshot ?? 1,
+  const entry = findCatalogEntry(catalog, configurationId, configurationCode);
+  const maxEquipmentCount = Math.max(1, entry?.maxEquipmentCount ?? 1);
+  const configurationVersion = entry?.version ?? 1;
+  const configurationName = entry?.name?.trim() || undefined;
+  const groupingKey = structuralGroupingKey(
+    entry?.id ?? configurationId,
+    entry?.code ?? configurationCode,
   );
-  const configurationVersion = trip.operationConfigurationVersionSnapshot ?? 1;
-  const configurationNameSnapshot =
-    trip.operationConfigurationNameSnapshot?.trim() || undefined;
-  const groupingKey = structuralGroupingKey(configurationId, configurationCode);
-  const operationalDistanceKm = resolveTripDistanceKm(trip);
+  const operationalDistanceKm = tripOperationalKm(trip);
   const suggestsPlataformaConvoy =
-    codeSuggestsPlataforma(configurationCode) ||
+    (entry ? configEntrySuggestsPlataforma(entry) : codeSuggestsPlataforma(configurationCode)) ||
     equipmentSuggestsPlataforma(trip, context.equipmentById);
 
   return buildResult({
     groupingKey,
-    configurationCode,
-    configurationId,
+    configurationCode: entry?.code ?? configurationCode,
+    configurationId: entry?.id ?? configurationId,
     configurationVersion,
-    configurationNameSnapshot,
+    configurationName,
     maxEquipmentCount,
     operationalDistanceKm,
     suggestsPlataformaConvoy,
@@ -210,6 +211,7 @@ export function evaluateDraftTrip(
     configurationCode: entry?.code ?? configurationCode,
     configurationId: entry?.id ?? configurationId,
     configurationVersion,
+    configurationName: entry?.name?.trim() || undefined,
     maxEquipmentCount,
     operationalDistanceKm: 0,
     suggestsPlataformaConvoy,

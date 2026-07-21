@@ -1,3 +1,17 @@
+.operators-detail__status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.operators-detail__hr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .operators-detail-photo {
   display: flex;
   flex-direction: column;

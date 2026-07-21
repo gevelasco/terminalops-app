@@ -55,8 +55,6 @@ import {
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_RESOURCE_VISIBILITY_OPTIONS,
-  buildFleetModelYearSelectOptions,
-  FLEET_MAINT_SCHEDULE_NEXT_MODE_OPTIONS,
   FLEET_MAINTENANCE_TYPE_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
@@ -94,7 +92,6 @@ import {
   nextCycleFormatted,
   nextEquipmentPhysMechTableDate,
   nextInsuranceTableDate,
-  nextMaintenanceDueIso,
   nextMaintenanceTableDate,
   operationalKeyEquipment,
 } from '@app/features/fleet/utils/fleet-unit-table-row';
@@ -103,7 +100,7 @@ import {
   fleetValueFromLabel,
   parseFleetOptionalAmount,
   parseFleetOptionalPositiveInt,
-  parseFleetPositiveKm,
+  parseFleetRequiredDigits,
   registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import {
@@ -300,15 +297,35 @@ export class FleetEquipmentDetailDrawerFacade {
     const equipmentIdChanged = prevId !== nextId;
 
     if (equipmentIdChanged) {
-      const resolved =
-        this.equipmentFeature.equipment().find((e) => e.id === nextId) ?? equipment;
-      this.equipmentSource.set(resolved);
+      const listRow =
+        this.equipmentFeature.equipment().find((e) => e.id === nextId) ??
+        equipment;
+      this.equipmentSource.set(listRow);
       this.equipmentOverride.set({});
       this.metaOverride.set({});
       this.insurancePaymentExpenses.set([]);
       this.tenurePaymentExpenses.set([]);
       this.editingSection.set(null);
-      this.drawerLoading.set(false);
+      this.drawerLoading.set(true);
+      this.equipmentFeature
+        .fetchEquipmentDetail(nextId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (detail) => {
+            if (this.equipmentSource()?.id !== nextId) {
+              return;
+            }
+            if (detail) {
+              this.equipmentSource.set(detail);
+            }
+            this.drawerLoading.set(false);
+          },
+          error: () => {
+            if (this.equipmentSource()?.id === nextId) {
+              this.drawerLoading.set(false);
+            }
+          },
+        });
       return;
     }
 
@@ -323,8 +340,11 @@ export class FleetEquipmentDetailDrawerFacade {
       }
       return;
     }
-    const resolved = this.equipmentFeature.equipment().find((e) => e.id === equipmentId);
     const current = this.equipmentSource();
+    if (current?.id === equipmentId && this.equipmentHasDetailHistory(current)) {
+      return;
+    }
+    const resolved = this.equipmentFeature.equipment().find((e) => e.id === equipmentId);
     if (!resolved || !current) {
       return;
     }
@@ -334,6 +354,19 @@ export class FleetEquipmentDetailDrawerFacade {
       this.equipmentSource.set(resolved);
       this.metaOverride.set({});
     }
+  }
+
+  private equipmentHasDetailHistory(equipment: Equipment): boolean {
+    const meta = equipment.fleetMeta;
+    return !!(
+      meta?.maintenanceEntries?.length ||
+      meta?.verificationEntries?.length ||
+      meta?.documentMaintenanceNames?.length ||
+      meta?.documentVerificationNames?.length ||
+      meta?.documentPolicyNames?.length ||
+      meta?.documentOwnershipNames?.length ||
+      meta?.trailerTenureMode !== undefined
+    );
   }
 
   private applyHostEquipmentSnapshotWhenRicher(incoming: Equipment): void {
@@ -371,7 +404,6 @@ export class FleetEquipmentDetailDrawerFacade {
     }
     this.cancelEdit();
     this.cancelPhysVerifEntry();
-    this.cancelMaintScheduleEdits();
     this.addingMaint.set(false);
     this.resetNewMaintForm();
     this.detailTab.set(tab);
@@ -387,13 +419,6 @@ export class FleetEquipmentDetailDrawerFacade {
   private clearStagedDocUploads(): void {
     this.editOwnershipNewFiles.set([]);
     this.editPolicyNewFiles.set([]);
-  }
-
-  private cancelMaintScheduleEdits(): void {
-    this.editingMaintNextDate.set(false);
-    this.editingMaintKmInterval.set(false);
-    this.editMaintNextDate.set('');
-    this.editMaintKmIntervalStr.set('');
   }
 
   resetOnEquipmentIdentityChange(): void {
@@ -906,9 +931,6 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly verifEntryKind = signal<'phys' | null>(null);
   readonly newPhysVerifDate = signal('');
   readonly newPhysVerifCost = signal('');
-  readonly agencyExemptionEditing = signal(false);
-  readonly editOperatedByAgency = signal(false);
-  readonly editExemptStartDate = signal('');
 
   // -- Seguro: form signals --
   readonly editInsCarrierName = signal('');
@@ -1050,16 +1072,6 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly newMaintNotes = signal('');
   readonly newMaintFiles = signal<File[]>([]);
 
-  readonly newMaintNextMode = signal<'tiempo' | 'km'>('tiempo');
-  readonly newMaintNextDate = signal('');
-  readonly newMaintNextKmInterval = signal('');
-  readonly newMaintNextModeOptions = FLEET_MAINT_SCHEDULE_NEXT_MODE_OPTIONS;
-
-  readonly editingMaintNextDate = signal(false);
-  readonly editMaintNextDate = signal('');
-  readonly editingMaintKmInterval = signal(false);
-  readonly editMaintKmIntervalStr = signal('');
-
   readonly newMaintTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
   readonly newMaintPaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
@@ -1075,7 +1087,6 @@ export class FleetEquipmentDetailDrawerFacade {
     if (!this.canWriteFleet()) {
       return;
     }
-    this.cancelMaintScheduleEdits();
     this.requestFocusDetailTab('mant');
     this.resetNewMaintForm();
     this.addingMaint.set(true);
@@ -1093,9 +1104,6 @@ export class FleetEquipmentDetailDrawerFacade {
     this.newMaintDate.set('');
     this.newMaintNotes.set('');
     this.newMaintFiles.set([]);
-    this.newMaintNextMode.set('tiempo');
-    this.newMaintNextDate.set('');
-    this.newMaintNextKmInterval.set('');
   }
 
   onNewMaintFiles(ev: Event): void {
@@ -1134,51 +1142,8 @@ export class FleetEquipmentDetailDrawerFacade {
       return;
     }
 
-    const hasScheduleTiempo =
-      this.newMaintNextMode() === 'tiempo' &&
-      this.newMaintNextDate().trim() !== '';
-    const hasScheduleKm =
-      this.newMaintNextMode() === 'km' &&
-      this.newMaintNextKmInterval().trim() !== '';
-
-    if (hasScheduleTiempo) {
-      const nd = this.newMaintNextDate().trim();
-      if (!nd || nd < this.today) {
-        this.toast.show(
-          'Indica la fecha del próximo mantenimiento (hoy o futura).',
-          'warning',
-        );
-        return;
-      }
-    }
-    if (hasScheduleKm) {
-      const km = parseFleetPositiveKm(this.newMaintNextKmInterval());
-      if (km === 'invalid') {
-        this.toast.show(
-          'Indica los kilómetros hasta el próximo servicio (mayor a cero).',
-          'warning',
-        );
-        return;
-      }
-    }
-
     const resetTractorKmCounter = this.companyKmMaintControlActive();
     const tractor = this.assignedTractor();
-
-    const metaPatch: Partial<EquipmentFleetMeta> = {
-      lastMaintenanceDate: date,
-      lastMaintenanceType: this.maintTypeLabel(this.newMaintType()),
-      lastMaintenanceCost: cost,
-      lastMaintenanceNotes: this.newMaintNotes().trim() || undefined,
-    };
-
-    if (hasScheduleTiempo) {
-      metaPatch.maintenanceNextDateOverride = this.newMaintNextDate().trim();
-    } else {
-      metaPatch.maintenanceNextDateOverride = undefined;
-    }
-
-    this.metaOverride.update((p) => ({ ...p, ...metaPatch }));
 
     const docs = this.newMaintFiles().map((f) => f.name);
     const paymentMethod = this.newMaintPaymentMethod().trim() || undefined;
@@ -1194,17 +1159,13 @@ export class FleetEquipmentDetailDrawerFacade {
     this.localMaintEntries.update((prev) => [...prev, entry]);
     this.addingMaint.set(false);
     this.resetNewMaintForm();
-    this.persistCurrentEquipment(
-      'Mantenimiento agregado.',
-      { fleetMeta: metaPatch },
-      {
-        onSuccess: () => {
-          if (resetTractorKmCounter && tractor) {
-            this.resetTractorMaintenanceKmCounter(tractor);
-          }
-        },
+    this.persistCurrentEquipment('Mantenimiento agregado.', undefined, {
+      onSuccess: () => {
+        if (resetTractorKmCounter && tractor) {
+          this.resetTractorMaintenanceKmCounter(tractor);
+        }
       },
-    );
+    });
   }
 
   private resetTractorMaintenanceKmCounter(tractor: Unit): void {
@@ -1266,7 +1227,6 @@ export class FleetEquipmentDetailDrawerFacade {
     containerSlotFieldLabel(this.equipmentOperationTypeCode()),
   );
 
-  readonly modelYearOptions = buildFleetModelYearSelectOptions();
   readonly visibilityOptions = FLEET_RESOURCE_VISIBILITY_OPTIONS;
 
   resourceVisibilityLabel(): string {
@@ -1309,6 +1269,15 @@ export class FleetEquipmentDetailDrawerFacade {
       this.toast.show('Marca es obligatoria.', 'warning');
       return;
     }
+    const yearParsed = parseFleetRequiredDigits(this.editYear(), { maxLength: 4 });
+    if (yearParsed === 'empty') {
+      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+      return;
+    }
+    if (yearParsed === 'invalid') {
+      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
+      return;
+    }
     const brandAbbr = deriveFleetBrandAbbr(brandName);
     const plate = this.editPlate().trim().toUpperCase() || undefined;
     const equipmentDraft: Partial<Equipment> = {
@@ -1318,7 +1287,7 @@ export class FleetEquipmentDetailDrawerFacade {
       type: this.operationTypeLabel(typeVal),
       isActive: this.editVisibility() === 'active',
       trailerBrandAbbr: brandAbbr || undefined,
-      trailerYear: this.editYear().trim() || undefined,
+      trailerYear: yearParsed,
     };
     const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
       trailerBrandName: brandName,
@@ -1646,10 +1615,6 @@ export class FleetEquipmentDetailDrawerFacade {
     return nextMaintenanceTableDate(this.meta(), this.companyMaintPolicy()) ?? '—';
   }
 
-  canEditMaintNextDate(): boolean {
-    return this.canWriteFleet() && !this.companyDateMaintControlActive();
-  }
-
   maintenanceKmRemainingDisplay(): string {
     const raw = fleetMaintenanceKmRemaining(
       this.maintenanceKmMeta(),
@@ -1678,85 +1643,6 @@ export class FleetEquipmentDetailDrawerFacade {
       return 'soon';
     }
     return 'ok';
-  }
-
-  startEditMaintNextDate(): void {
-    if (!this.canEditMaintNextDate()) {
-      this.toast.show(
-        'El periodo de mantenimiento por fechas está definido en Configuración operativa.',
-        'info',
-      );
-      return;
-    }
-    this.editMaintNextDate.set(
-      nextMaintenanceDueIso(this.meta(), this.companyMaintPolicy()) ?? '',
-    );
-    this.editingMaintNextDate.set(true);
-  }
-
-  cancelEditMaintNextDate(): void {
-    this.editingMaintNextDate.set(false);
-    this.editMaintNextDate.set('');
-  }
-
-  saveEditMaintNextDate(): void {
-    const raw = this.editMaintNextDate().trim();
-    if (!raw) {
-      const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
-        maintenanceNextDateOverride: undefined,
-      };
-      this.metaOverride.update((p) => ({ ...p, ...fleetMetaDraft }));
-      this.cancelEditMaintNextDate();
-      this.persistCurrentEquipment(
-        'Se quitó la fecha manual; se usará el ciclo sugerido desde el último servicio.',
-        { fleetMeta: fleetMetaDraft },
-      );
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || raw < this.today) {
-      this.toast.show(
-        'Indica una fecha válida (hoy o futura) en formato año-mes-día.',
-        'warning',
-      );
-      return;
-    }
-    const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
-      maintenanceNextDateOverride: raw,
-    };
-    this.metaOverride.update((p) => ({ ...p, ...fleetMetaDraft }));
-    this.cancelEditMaintNextDate();
-    this.persistCurrentEquipment('Fecha de próximo mantenimiento guardada.', {
-      fleetMeta: fleetMetaDraft,
-    });
-  }
-
-  startEditMaintKmInterval(): void {
-    if (this.companyKmMaintControlActive()) {
-      this.toast.show(
-        'El intervalo por kilómetros está definido en Configuración operativa.',
-        'info',
-      );
-      return;
-    }
-    const m = this.meta();
-    const v = m?.maintenanceKmInterval;
-    this.editMaintKmIntervalStr.set(
-      typeof v === 'number' && Number.isFinite(v) && v > 0 ? String(v) : '',
-    );
-    this.editingMaintKmInterval.set(true);
-  }
-
-  cancelEditMaintKmInterval(): void {
-    this.editingMaintKmInterval.set(false);
-    this.editMaintKmIntervalStr.set('');
-  }
-
-  saveEditMaintKmInterval(): void {
-    this.toast.show(
-      'El intervalo por kilómetros está definido en Configuración operativa.',
-      'info',
-    );
-    this.cancelEditMaintKmInterval();
   }
 
   insNext(): string {
@@ -1914,65 +1800,6 @@ export class FleetEquipmentDetailDrawerFacade {
 
   downloadStoredDocument(_fileName: string): void {
     this.toast.show('La descarga de documentos estará disponible con la API de archivos.', 'info');
-  }
-
-  operatedByAgencyLabel(): string {
-    return this.meta()?.equipmentOperatedByAgency === true ? 'Sí' : 'No';
-  }
-
-  physMechExemptStartLabel(): string {
-    const raw =
-      this.meta()?.physMechTwoYearExemptStartDate?.trim() ||
-      this.equipment().lastServiceDate?.trim();
-    return raw ? this.formatYmd(raw) : '—';
-  }
-
-  startAgencyExemptionEdit(): void {
-    if (!this.canWriteFleet()) {
-      return;
-    }
-    const m = this.meta();
-    this.editOperatedByAgency.set(m?.equipmentOperatedByAgency === true);
-    this.editExemptStartDate.set(
-      m?.physMechTwoYearExemptStartDate?.trim() ||
-        this.equipment().lastServiceDate?.trim() ||
-        '',
-    );
-    this.agencyExemptionEditing.set(true);
-  }
-
-  cancelAgencyExemptionEdit(): void {
-    this.agencyExemptionEditing.set(false);
-    this.editOperatedByAgency.set(false);
-    this.editExemptStartDate.set('');
-  }
-
-  saveAgencyExemption(): void {
-    if (!this.canWriteFleet()) {
-      return;
-    }
-    const byAgency = this.editOperatedByAgency();
-    const start = this.editExemptStartDate().trim();
-    if (byAgency && !start) {
-      this.toast.show(
-        'Indica la fecha de inicio de la exención de 2 años.',
-        'warning',
-      );
-      return;
-    }
-    if (byAgency && start > this.today) {
-      this.toast.show('La fecha de inicio no puede ser futura.', 'warning');
-      return;
-    }
-    const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
-      equipmentOperatedByAgency: byAgency,
-      physMechTwoYearExemptStartDate: byAgency ? start : undefined,
-    };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.cancelAgencyExemptionEdit();
-    this.persistCurrentEquipment('Exención de verificación actualizada.', {
-      fleetMeta: fleetMetaDraft,
-    });
   }
 
   physMechExemptionActive(): boolean {
@@ -2156,7 +1983,6 @@ export class FleetEquipmentDetailDrawerFacade {
         this.cancelPhysVerifEntry();
         this.addingMaint.set(false);
         this.resetNewMaintForm();
-        this.cancelMaintScheduleEdits();
         this.detailTab.set('mant');
       }
       priorEquipmentId = id;

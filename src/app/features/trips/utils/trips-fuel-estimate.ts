@@ -58,7 +58,6 @@ export function buildFuelEstimateRequest(params: {
 
   return {
     distanceKm: km,
-    isRoundTrip: true,
     configuration: fuelConfigurationFromMaxEquipment(params.maxEquipmentCount ?? 1),
     approximateWeightTons: weight,
     cargoType: params.loadType,

@@ -25,7 +25,7 @@
           [class.fleet-overview__route--reserved]="!(entry().panelMode === 'maneuver' && entry().trip)"
         >
           @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
-            {{ trip.origin }}
+            {{ tripRouteLabel(trip) }}
           } @else {
             &nbsp;
           }

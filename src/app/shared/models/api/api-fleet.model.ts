@@ -24,7 +24,6 @@ export interface CreateEquipmentPayload {
   hitchPosition?: EquipmentHitchPosition | null;
   name: string;
   serialNumber: string;
-  lastServiceDate: string;
   plate?: string;
   type?: string;
   isActive?: boolean;

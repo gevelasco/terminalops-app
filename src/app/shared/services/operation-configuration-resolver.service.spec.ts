@@ -41,19 +41,16 @@ describe('OperationConfigurationResolverService', () => {
     return TestBed.inject(OperationConfigurationResolverService);
   }
 
-  it('prefers trip snapshot fields including max equipment count override', () => {
+  it('resolves trip from live catalog by operationConfigurationId', () => {
     const resolver = setupResolver();
     const trip = {
       operationType: 'full',
       operationConfigurationId: 'cfg-full',
-      operationConfigurationNameSnapshot: 'Full histórico',
-      operationConfigurationVersionSnapshot: 2,
-      operationConfigurationMaxEquipmentCountSnapshot: 2,
     };
     const ctx = resolver.contextFromTrip(trip);
     expect(resolver.resolveLabel(ctx)).toBe('Doble articulado');
     expect(resolver.resolveMaxEquipment(ctx)).toBe(2);
-    expect(ctx.versionSnapshot).toBe(2);
+    expect(ctx.nameSnapshot).toBeUndefined();
   });
 
   it('returns consistent label, color and groupingKey for the same context', () => {
@@ -61,7 +58,6 @@ describe('OperationConfigurationResolverService', () => {
     const trip = {
       operationType: 'sencillo',
       operationConfigurationId: 'cfg-sencillo',
-      operationConfigurationNameSnapshot: undefined as string | undefined,
     };
     const ctx = resolver.contextFromTrip(trip);
     const display = resolver.resolveTripDisplay(trip);

@@ -7,7 +7,7 @@ import {
 } from '@features/operators/utils/operator-photo';
 import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
 import { operatorOperationalPillClass } from '@shared/utils/operator-operational-pill';
-import { formatCompactTripRouteLabel } from '@shared/utils/trip-route-label';
+import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import type { ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 
 export interface OperatorsOverviewCardView {
@@ -68,10 +68,7 @@ function formatIsoDateSlash(ymd: string): string {
 export function buildOperatorsOverviewCard(operator: Operator): OperatorsOverviewCardView {
   const status = operator.status;
   const last = operator.lastManeuver;
-  const route =
-    last?.origin && last?.destination
-      ? formatCompactTripRouteLabel(last.origin, last.destination)
-      : '—';
+  const route = last ? formatTripRouteSummary(last) : '—';
   const nextPayDueYmd = operator.nextPayDueOn?.trim() || null;
 
   return {

@@ -249,7 +249,20 @@ export class ExpensesDetailDrawerFacade {
       this.toast.show(resolved.message, 'warning');
       return;
     }
-    this.persistPatch(resolved.fields);
+    const {
+      categoryOverride,
+      descriptionHint,
+      verificationScope,
+      ...relationFields
+    } = resolved.fields;
+    this.persistPatch({
+      ...relationFields,
+      verificationScope,
+      ...(categoryOverride ? { category: categoryOverride } : {}),
+      ...(descriptionHint && !this.description().trim()
+        ? { description: descriptionHint }
+        : {}),
+    });
   }
 
   savePayment(): void {

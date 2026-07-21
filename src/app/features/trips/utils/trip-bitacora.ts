@@ -9,7 +9,7 @@ export function tripBitacoraSorted(
 ): TripIncident[] {
   const list = incidents ?? [];
   return [...list].sort(
-    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 }
 

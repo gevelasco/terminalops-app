@@ -4,6 +4,7 @@ import type {
   Trip,
 } from '@shared/models/logistics.models';
 import { isPlanaEquipment } from '@features/fleet/utils/unit-hitched-equipment';
+import { tripOperationalKm } from '@features/trips/utils/trip-operational-km';
 import type { TripEvaluator } from '@shared/models/trip-evaluation.model';
 import { OPERATIONAL_PROVISION_VENDOR } from '@shared/utils/operational-provision';
 
@@ -32,15 +33,7 @@ export function parseApproxWeightTons(raw: string | undefined): number {
 }
 
 export function tirePositionsForTrip(
-  trip: Pick<
-    Trip,
-    | 'operationType'
-    | 'operationConfigurationId'
-    | 'operationConfigurationNameSnapshot'
-    | 'operationConfigurationVersionSnapshot'
-    | 'operationConfigurationMaxEquipmentCountSnapshot'
-    | 'equipment'
-  >,
+  trip: Pick<Trip, 'operationType' | 'operationConfigurationId' | 'equipment'>,
   evaluator?: TripEvaluator,
   equipmentById?: ReadonlyMap<string, Pick<Equipment, 'type'>>,
 ): number {
@@ -67,18 +60,11 @@ export function tirePositionsForOperation(
 export function resolveTripDistanceKm(
   trip: Pick<Trip, 'routeDistanceKm' | 'maneuverKind'>,
 ): number {
-  const raw = trip.routeDistanceKm;
-  if (raw != null && Number.isFinite(raw) && raw > 0) {
-    return raw;
+  const op = tripOperationalKm(trip);
+  if (op > 0) {
+    return op;
   }
-  const kind = trip.maneuverKind?.trim().toLowerCase() ?? '';
-  if (kind === 'local') {
-    return 25;
-  }
-  if (kind === 'foránea' || kind === 'foranea') {
-    return 450;
-  }
-  return 150;
+  return 150 * 2;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -110,13 +96,7 @@ export function resolveTripEquipmentIds(
 
 function defaultEquipmentTirePositions(
   equipmentCount: number,
-  trip: Pick<
-    Trip,
-    | 'operationType'
-    | 'operationConfigurationId'
-    | 'operationConfigurationNameSnapshot'
-    | 'equipment'
-  >,
+  trip: Pick<Trip, 'operationType' | 'operationConfigurationId' | 'equipment'>,
   evaluator?: TripEvaluator,
 ): number[] {
   if (equipmentCount <= 0) {
@@ -143,13 +123,7 @@ export function estimateTripTireWearMxn(input: {
   operationType: string;
   weightTons: number;
   evaluator?: TripEvaluator;
-  trip?: Pick<
-    Trip,
-    | 'operationType'
-    | 'operationConfigurationId'
-    | 'operationConfigurationNameSnapshot'
-    | 'equipment'
-  >;
+  trip?: Pick<Trip, 'operationType' | 'operationConfigurationId' | 'equipment'>;
 }): { amount: number; cpk: number; description: string } {
   const positions = tirePositionsForTrip(
     input.trip ?? { operationType: input.operationType, equipment: [] },

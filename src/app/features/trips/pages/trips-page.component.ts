@@ -316,6 +316,7 @@ export class TripsPageComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.operationConfigs.loadOperationConfigurations();
     this.tripsFeature.loadTrips();
     this.openTripFromQuery(this.route.snapshot.queryParamMap.get('tripId'));
     this.route.queryParamMap

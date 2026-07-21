@@ -38,9 +38,9 @@ export const EXPENSE_INSURANCE_TARGET_OPTIONS: ToSelectOption[] =
   EXPENSE_MAINTENANCE_TARGET_OPTIONS;
 
 export const EXPENSE_VERIFICATION_SCOPE_OPTIONS: ToSelectOption[] = [
-  { value: 'phys_mech', label: 'Verificación físico-mecánica' },
-  { value: 'emissions', label: 'Verificación de emisiones' },
-  { value: 'double_articulated', label: 'Doble articulado (SPP)' },
+  { value: 'phys_mech', label: 'Verificación - físico-mecánica' },
+  { value: 'emissions', label: 'Verificación - emisiones' },
+  { value: 'double_articulated', label: 'Verificación - doble articulado' },
 ];
 
 export const EXPENSE_PAYMENT_METHOD_OPTIONS: ToSelectOption[] = [

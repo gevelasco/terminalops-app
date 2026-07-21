@@ -28,7 +28,7 @@ export function cityMunicipalityLineFromSettlement(s: MxPostalSettlement): strin
   return `${s.municipality}, ${s.state}`;
 }
 
-/** Texto de ruta guardado en `Trip.origin` / `destination`. */
+/** Texto de ruta legible a partir de asentamiento SEPOMex (formulario). */
 export function formatLocationLabelFromSettlement(
   s: MxPostalSettlement,
   cpDigits: string,

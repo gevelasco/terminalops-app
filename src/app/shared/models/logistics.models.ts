@@ -20,44 +20,36 @@ export type TripLoadType = 'vacio' | 'lleno';
  */
 export type TripContainerType = '20dc' | '20hc' | '40dc' | '40hc' | '45hc' | 'na';
 
-/** Prioridad operativa del incidente (alertas y notificaciones). */
+/** Prioridad operativa del incidente (alertas; se infiere en FE, no se persiste). */
 export type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 /** Entrada de bitácora de maniobra; `isIncident` marca el subconjunto operativo excepcional. */
 export interface TripIncident {
   id: string;
   description: string;
-  /** Fecha y hora en que ocurrió (ISO). */
-  occurredAt: string;
-  /** Usuario que registró la entrada (`portalUsername` o `username` de torre). */
+  /** Alta de la entrada en bitácora (`created_at`). */
+  createdAt: string;
+  /** Usuario de torre que registró la entrada (`username`). */
   postedBy: string;
   /** Nombre y rol para UI; lo resuelve la API desde `app_user` u operadores. */
   postedByLabel?: string;
   /** Si es true, cuenta en alertas, métricas y columna de incidente. */
   isIncident?: boolean;
-  /** Si no se indica, se infiere del estatus de la maniobra al generar alertas. */
-  severity?: IncidentSeverity;
 }
 
 export interface Trip {
   id: string;
   /** Código operativo: prefijo del cliente + correlativo (ej. ADM-0001). */
   maneuverCode: string;
-  origin: string;
-  destination: string;
   /** Cliente o marca a la que pertenece el servicio. */
   clientName: string;
   /** Id de cliente en catálogo (FK); alineado con `TripTableRow.clientId` en sim-db. */
   clientId: string;
   unitId: string;
   operatorId: string;
-  /** Nombre congelado al programar (histórico). */
-  operatorNameSnapshot?: string;
-  /** Código operativo congelado al programar (histórico). */
-  unitOperationalCodeSnapshot?: string;
-  /** Nombre resuelto en listado (snapshot o join). */
+  /** Nombre live (join) del operador. */
   operatorName?: string;
-  /** Código operativo resuelto en listado (snapshot o join). */
+  /** Código operativo live (join) de la unidad. */
   unitOperationalCode?: string;
   status: TripStatus;
   /** Alta de la maniobra en el sistema (`created_at`). */
@@ -69,13 +61,8 @@ export interface Trip {
   /** Plan operativo — fin de maniobra. */
   plannedCompletionAt: string;
   operationType: TripOperationType;
-  /** Nombre congelado al crear la maniobra (histórico). */
-  operationConfigurationNameSnapshot?: string;
+  /** FK a configuración operativa viva (catálogo). */
   operationConfigurationId?: string;
-  /** Versión del catálogo al congelar — solo informativa en UI. */
-  operationConfigurationVersionSnapshot?: number;
-  /** Máximo de equipos congelado al crear/actualizar tipo operativo. */
-  operationConfigurationMaxEquipmentCountSnapshot?: number;
   loadType: TripLoadType;
   containerType: TripContainerType;
   /** Qué transporta el contenedor (mercancía, producto, referencia del cliente). */
@@ -109,50 +96,35 @@ export interface Trip {
   /** Lista de incidentes (orden recomendado: más reciente primero). */
   incidents?: TripIncident[];
 
-  /** Distancia OSRM en km (solo ida). */
+  /** Distancia OSRM en km (solo ida). Km operativos = routeDistanceKm × 2. */
   routeDistanceKm?: number | null;
-  /** Distancia operativa (ida + vuelta por defecto; backend). */
-  operationalDistanceKm?: number | null;
-  /** Si la maniobra cuenta ida y vuelta para km operativos (default true). */
-  isRoundTrip?: boolean;
   /** «Local» / «Foránea» si se derivó del formulario de programación. */
   maneuverKind?: string;
   /** Tarifa de destino vinculada al crear (si hubo match). */
   destinationRateId?: string | null;
   /** Centro operativo de origen al programar (FK). */
   originOperationalCenterId?: string | null;
-  /** Nombre congelado del centro operativo al crear (histórico). */
-  originOperationalCenterNameSnapshot?: string;
-  /** Código congelado del centro operativo al crear (histórico). */
-  originOperationalCenterCodeSnapshot?: string;
   /** CP de origen (5 dígitos) y desglose SEPOMex al programar. */
   originPostalCode?: string;
-  /** Ciudad y/o municipio + estado (línea legible, snapshot). */
+  /** Ciudad y/o municipio + estado (línea legible). */
   originCityMunicipality?: string;
-  /** Asentamiento / colonia elegida (snapshot). */
+  /** Asentamiento / colonia elegida. */
   originLocality?: string;
   /** CP de destino (5 dígitos). */
   destinationPostalCode?: string;
   destinationCityMunicipality?: string;
   destinationLocality?: string;
-  /** Licencia del operador al momento de programar (snapshot). */
-  operatorLicenseNumber?: string;
-  operatorLicenseExpiresLabel?: string;
   /** Costos operativos y cobro (opcionales; mock / API pueden ir llenándolos). */
   dieselLiters?: string;
   dieselAmount?: string;
-  /** Precio diesel MXN/L al crear la maniobra (reportes históricos). */
-  dieselPricePerLiterAtCreation?: number | null;
   casetasAmount?: string;
-  /** Origen del monto de casetas al crear (tarifa operativa vs manual). */
-  tollCalculationMode?: 'auto' | 'manual' | null;
   operatorQuota?: string;
   /** Viáticos del operador; 0 u omitido = sin gasto automático. */
   perDiemAmount?: string;
   clientCharge?: string;
   paymentMethod?: TripClientPaymentMethod;
   requiresInvoice?: boolean;
-  /** Nombres de archivos adjuntos al programar. */
+  /** Nombres de archivos adjuntos (UI local; aún no hay storage persistente). */
   attachedDocumentFileNames?: string[];
   /**
    * `false` si se programó sin cliente/cobro (unidades propias).
@@ -174,12 +146,15 @@ export interface Trip {
   clientCollectedAt?: string | null;
 }
 
-/** Estado operativo (misma lógica de catálogo que unidades en Flota + RRHH). */
+/**
+ * Estado operativo del operador.
+ * Persistido en API: available | scheduled | in_use | leave | incapacitated.
+ * `inactive` es solo display cuando `isActive === false` (no se persiste como status).
+ */
 export type OperatorOperationalStatus =
   | 'available'
   | 'in_use'
   | 'scheduled'
-  | 'maintenance'
   | 'incapacitated'
   | 'leave'
   | 'inactive';
@@ -257,8 +232,8 @@ export interface OperatorEmergencyContact {
 export interface OperatorLastManeuver {
   tripId?: string;
   maneuverCode: string;
-  origin?: string;
-  destination?: string;
+  originCityMunicipality?: string;
+  destinationCityMunicipality?: string;
   status?: TripStatus;
   occurredOn?: string;
 }
@@ -266,11 +241,6 @@ export interface OperatorLastManeuver {
 export interface Operator {
   id: string;
   name: string;
-  /**
-   * Usuario de acceso a TerminalOps (app operador). Coincide con `postedBy`
-   * cuando el operador reporta incidentes en carretera.
-   */
-  portalUsername?: string;
   /** Foto del operador (`data:image/...` en mock; URL de storage en API). */
   photoDataUrl?: string;
   /** Nacimiento (ISO `YYYY-MM-DD`). */
@@ -325,6 +295,18 @@ export type TrailerTenureMode = 'owned' | 'financed' | 'leased' | 'managed';
 
 /** Estado de una entrada de mantenimiento. */
 export type MaintenanceEntryStatus = 'concluido';
+
+/** Entrada individual del historial de verificaciones (físico-mecánica, emisiones, etc.). */
+export interface VerificationEntry {
+  /** Alcance de la verificación (p. ej. `phys_mech`, `emissions`, `double_articulated`). */
+  scope: string;
+  /** ISO `YYYY-MM-DD`. */
+  date: string;
+  cost?: number;
+  notes?: string;
+  paymentMethod?: string;
+  status?: string;
+}
 
 /** Entrada individual del historial de mantenimientos del remolque. */
 export interface MaintenanceEntry {
@@ -401,10 +383,12 @@ export interface UnitFleetMeta {
    */
   maintenanceAlertByKm?: boolean;
   /**
-   * Próximo mantenimiento por calendario (ISO `YYYY-MM-DD`).
-   * Si está definida, sustituye a «último servicio + periodo» en etiquetas por tiempo.
+   * @deprecated No se persiste desde el FE; el próximo mantenimiento se calcula en vivo
+   * con la política de empresa (fecha o km).
    */
   maintenanceNextDateOverride?: string;
+  /** Historial de verificaciones (físico-mecánica, emisiones, etc.). */
+  verificationEntries?: VerificationEntry[];
   /**
    * @deprecated Intervalo definido en configuración operativa de la empresa.
    */
@@ -526,21 +510,18 @@ export interface EquipmentFleetMeta {
    * En producción suelen leerse y persistirse vía API en el `fleetMeta` del equipo.
    */
   maintenanceAlertByKm?: boolean;
-  /** Próximo mantenimiento por calendario (ISO `YYYY-MM-DD`); sustituye al ciclo sugerido si está definida. */
+  /**
+   * @deprecated No se persiste desde el FE; el próximo mantenimiento se calcula en vivo
+   * con la política de empresa (fecha o km).
+   */
   maintenanceNextDateOverride?: string;
+  verificationEntries?: VerificationEntry[];
   maintenanceKmInterval?: number | null;
   maintenanceTripKmAtLastService?: number | null;
   maintenanceKmRemaining?: number | null;
   /** Última verificación físico-mecánica del remolque (ISO `YYYY-MM-DD`). */
   verificationPhysMechDate?: string;
   verificationPhysMechCost?: number;
-  /**
-   * Equipo operado por agencia: la verificación físico-mecánica no aplica por 2 años
-   * desde `physMechTwoYearExemptStartDate` o, si falta, desde `Equipment.lastServiceDate`.
-   */
-  equipmentOperatedByAgency?: boolean;
-  /** Inicio del período de exención de 2 años (físico-mecánica), ISO `YYYY-MM-DD`. */
-  physMechTwoYearExemptStartDate?: string;
   insurancePolicyNumber?: string;
   /** Aseguradora o nombre comercial del seguro (texto libre). */
   insuranceCarrierName?: string;
@@ -595,7 +576,7 @@ export interface Equipment {
   name: string;
   /** Número de serie o inventario del activo. */
   serialNumber: string;
-  /** Fecha de último mantenimiento o servicio (ISO `YYYY-MM-DD`). */
+  /** Fecha de último mantenimiento (derivada del historial; no se escribe en core). */
   lastServiceDate: string;
   /** Placa del remolque, si aplica. */
   plate?: string;
@@ -676,7 +657,8 @@ export interface Expense {
   incurredDate?: string;
   /**
    * Rubro operativo: determina qué campos de relación (`related*`) tienen sentido.
-   * Mantenimiento exige `maintenanceTarget` + unidad o equipo.
+   * Mantenimiento/seguro: unidad o equipo vía related IDs.
+   * Verificación: categoría canónica (estilo GPS).
    */
   kind: ExpenseKind;
   /** Detalle libre (taller, factura, cobertura, etc.). */
@@ -685,11 +667,9 @@ export interface Expense {
   vendor?: string;
   /** Método de pago (valor del catálogo UI). */
   paymentMethod?: string;
-  /** Solo si `kind === 'maintenance'`. */
+  /** Derivado en API (compat): unit|equipment según related IDs. */
   maintenanceTarget?: ExpenseMaintenanceTarget;
-  /**
-   * Solo `kind === 'insurance'`: póliza de unidad o de equipo (exclusivo).
-   */
+  /** Derivado en API (compat): unit|equipment según related IDs. */
   insuranceTarget?: ExpenseMaintenanceTarget;
   /** Unidad tractora relacionada. */
   relatedUnitId?: string;
@@ -697,9 +677,9 @@ export interface Expense {
   relatedEquipmentId?: string;
   /** Operador relacionado (pagos y comisiones). */
   relatedOperatorId?: string;
-  /** Solo si `kind === 'verification'`. */
+  /** Derivado en API desde category (compat UI). */
   verificationScope?: ExpenseVerificationScope;
-  /** Si es reserva estimada por maniobra (provisión operativa), no un pago real. */
+  /** Derivado: kind === operational_control (compat). */
   isOperationalProvision?: boolean;
   /** Si el gasto debe contar con factura fiscal. */
   invoiceRequired?: boolean;

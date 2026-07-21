@@ -2067,18 +2067,15 @@ export class TripsNewDrawerComponent {
     const dCpDigits = normalizeMxPostalCodeDigits(this.destinationCp());
     const kmSnap = this.routeKm();
     const maneuverKindSnap = maneuverKindFromRouteKm(kmSnap);
-    const opSnap = this.assignedOperator();
-    const licNum = opSnap?.licenseNumber?.trim() ?? '';
-    const licExp = this.operatorLicenseExpiresReadonly().trim();
+    const selectedConfig = this.selectedOperationConfig();
 
     const equipmentIds = this.usesMultipleEquipmentOperation()
         ? [eq1, eq2].map((id) => id.trim()).filter(Boolean)
         : [eq1.trim()].filter(Boolean);
 
     const payload: CreateTripPayload = {
-      origin,
-      destination,
       operationType: op.trim(),
+      ...(selectedConfig?.id ? { operationConfigurationId: selectedConfig.id } : {}),
       loadType: this.loadType(),
       containerType: this.containerType(),
       cargoDescription: this.cargoDescription().trim(),
@@ -2090,9 +2087,6 @@ export class TripsNewDrawerComponent {
       ...(this.loadPlace().trim() ? { loadPlace: this.loadPlace().trim() } : {}),
       dieselLiters: String(liters),
       dieselAmount: String(dieselAmt),
-      ...(this.dieselControlEnabled() && this.dieselPricePerLiter() != null
-        ? { dieselPricePerLiterAtCreation: this.dieselPricePerLiter()! }
-        : {}),
       casetasAmount: String(casetas),
       operatorQuota: String(opQuota),
       ...(viaticos > 0 ? { perDiemAmount: String(viaticos) } : {}),
@@ -2113,9 +2107,7 @@ export class TripsNewDrawerComponent {
       plannedDepartureAt: plannedSchedule.plannedDepartureAt,
       plannedArrivalAt: plannedSchedule.plannedArrivalAt,
       plannedCompletionAt: plannedSchedule.plannedCompletionAt,
-      attachedDocumentFileNames: this.attachedFiles().map((f) => f.name),
       routeDistanceKm: kmSnap,
-      isRoundTrip: true,
       maneuverKind: maneuverKindSnap,
       originPostalCode: oCpDigits.length === 5 ? oCpDigits : undefined,
       originCityMunicipality: cityMunicipalityLineFromSettlement(oS),
@@ -2123,11 +2115,6 @@ export class TripsNewDrawerComponent {
       destinationPostalCode: dCpDigits.length === 5 ? dCpDigits : undefined,
       destinationCityMunicipality: cityMunicipalityLineFromSettlement(dS),
       destinationLocality: formatSettlementOptionLabel(dS),
-      operatorLicenseNumber: licNum !== '' ? licNum : undefined,
-      operatorLicenseExpiresLabel: licExp !== '' ? licExp : undefined,
-      ...(this.casetasAssistAuto()
-        ? { tollCalculationMode: 'auto' as const }
-        : { tollCalculationMode: 'manual' as const }),
       ...(this.matchedDestinationRateId()
         ? { destinationRateId: this.matchedDestinationRateId()! }
         : {}),

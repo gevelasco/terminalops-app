@@ -35,65 +35,13 @@
                     Kms restantes: {{ vm().maintenanceKmRemainingDisplay() }}
                   </span>
                 } @else {
-                  @if (!vm().editingMaintNextDate()) {
-                    <span [class]="vm().badgeRenewalClass(vm().maintRenewalBucket())">
-                      <span
-                        class="fleet-unit-detail__dot"
-                        aria-hidden="true"
-                      ></span>
-                      Próx.: {{ vm().maintNext() }}
-                    </span>
-                    @if (vm().canEditMaintNextDate()) {
-                      <button
-                        type="button"
-                        class="fleet-unit-sec__edit-btn"
-                        aria-label="Editar fecha de próximo mantenimiento"
-                        (click)="vm().startEditMaintNextDate()"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fill="currentColor"
-                            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                          />
-                        </svg>
-                      </button>
-                    }
-                  } @else {
-                    <div
-                      class="fleet-unit-detail__maint-inline-edit fleet-unit-detail__maint-inline-edit--date"
-                    >
-                      <to-input
-                        label="Próximo mantenimiento"
-                        type="date"
-                        [min]="vm().today"
-                        [(value)]="vm().editMaintNextDate"
-                      />
-                      <div class="fleet-unit-detail__maint-inline-edit-actions">
-                        <to-button
-                          type="button"
-                          variant="primary"
-                          size="sm"
-                          (click)="vm().saveEditMaintNextDate()"
-                        >
-                          <to-icon name="save" [size]="14" />
-                          Guardar
-                        </to-button>
-                        <to-button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          (click)="vm().cancelEditMaintNextDate()"
-                        >
-                          Cancelar
-                        </to-button>
-                      </div>
-                    </div>
-                  }
+                  <span [class]="vm().badgeRenewalClass(vm().maintRenewalBucket())">
+                    <span
+                      class="fleet-unit-detail__dot"
+                      aria-hidden="true"
+                    ></span>
+                    Próx.: {{ vm().maintNext() }}
+                  </span>
                 }
               </div>
             </div>
@@ -179,35 +127,6 @@
                     [rows]="3"
                     [(value)]="vm().newMaintNotes"
                   />
-                  @if (!vm().usesGlobalMaintenancePolicy()) {
-                    <div class="fleet-unit-detail__maint-schedule-next">
-                      <p class="fleet-unit-detail__maint-schedule-next-heading">
-                        Programar siguiente mantenimiento
-                      </p>
-                      <div class="fleet-unit-detail__maint-schedule-next-fields">
-                        <to-select
-                          label="Criterio"
-                          [options]="vm().newMaintNextModeOptions"
-                          [(value)]="vm().newMaintNextMode"
-                        />
-                        @if (vm().newMaintNextMode() === "tiempo") {
-                          <to-input
-                            label="Próximo mantenimiento"
-                            type="date"
-                            [min]="vm().today"
-                            [(value)]="vm().newMaintNextDate"
-                          />
-                        } @else {
-                          <to-input
-                            label="Km hasta el próximo servicio"
-                            type="text"
-                            placeholder="Ej. 1000"
-                            [(value)]="vm().newMaintNextKmInterval"
-                          />
-                        }
-                      </div>
-                    </div>
-                  }
                   <div class="fleet-unit-detail__maint-upload">
                     <input
                       #fileMaintNew

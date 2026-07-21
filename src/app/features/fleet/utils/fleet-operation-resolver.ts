@@ -67,9 +67,6 @@ export const FLEET_OPERATION_RESOLVER: OperationConfigurationResolver = {
   contextFromTrip: (trip) => ({
     operationConfigurationId: trip.operationConfigurationId,
     code: trip.operationType,
-    nameSnapshot: trip.operationConfigurationNameSnapshot,
-    versionSnapshot: trip.operationConfigurationVersionSnapshot,
-    maxEquipmentCountOverride: trip.operationConfigurationMaxEquipmentCountSnapshot,
   }),
 
   contextFromRatePrice: (price) => ({
@@ -84,10 +81,6 @@ export const FLEET_OPERATION_RESOLVER: OperationConfigurationResolver = {
         ? row['operationConfigurationId']
         : undefined,
     code: String(row[codeField] ?? ''),
-    nameSnapshot:
-      typeof row['operationConfigurationNameSnapshot'] === 'string'
-        ? row['operationConfigurationNameSnapshot']
-        : undefined,
   }),
 
   resolveLabel(ctx) {

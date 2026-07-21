@@ -15,10 +15,46 @@
       <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
       {{ vm.operator().name }}
     </h2>
-    <to-status-pill
-      [label]="vm.operationalStatusLabel()"
-      [modClass]="vm.operatorStatusMod()"
-    />
+    <div class="operators-detail__status-row">
+      <to-status-pill
+        [label]="vm.operationalStatusLabel()"
+        [modClass]="vm.operatorStatusMod()"
+      />
+      @if (vm.showsHrHoldActions()) {
+        <div class="operators-detail__hr-actions">
+          @if (vm.showsStartLeaveAction()) {
+            <button
+              type="button"
+              class="maniobra-detail__maintenance-btn"
+              [disabled]="vm.hrHoldSubmitting()"
+              (click)="vm.startOperatorLeave()"
+            >
+              Vacaciones
+            </button>
+          }
+          @if (vm.showsStartIncapacitatedAction()) {
+            <button
+              type="button"
+              class="maniobra-detail__maintenance-btn"
+              [disabled]="vm.hrHoldSubmitting()"
+              (click)="vm.startOperatorIncapacitated()"
+            >
+              Incapacidad
+            </button>
+          }
+          @if (vm.showsEndHrHoldAction()) {
+            <button
+              type="button"
+              class="maniobra-detail__maintenance-btn"
+              [disabled]="vm.hrHoldSubmitting()"
+              (click)="vm.endOperatorHrHold()"
+            >
+              Reincorporar
+            </button>
+          }
+        </div>
+      }
+    </div>
   </div>
 
   <to-segment-control

@@ -196,8 +196,6 @@ export class ClientsNewDrawerComponent {
               settlementConsId: this.deliverySettlementConsId(),
               latitude: this.deliveryLatitude(),
               longitude: this.deliveryLongitude(),
-              destinationRateId: this.deliveryDestinationRateId(),
-              isUnpricedRoute: this.deliveryIsUnpricedRoute(),
             }),
           }
         : {}),
@@ -218,7 +216,6 @@ export class ClientsNewDrawerComponent {
         ...(hasCr && this.payCreditAmount().trim()
           ? { approximateCreditAmount: this.payCreditAmount().trim() }
           : {}),
-        commercialHealth: 'watch_list',
         defaultPaymentMethod: this.payDefaultPaymentMethod().trim() || undefined,
       },
     };

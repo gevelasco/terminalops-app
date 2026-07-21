@@ -29,9 +29,9 @@
             <dd>{{ vm.originOperationalCenterDisplay() }}</dd>
           }
           <dt>Origen</dt>
-          <dd>{{ vm.trip().origin || '—' }}</dd>
+          <dd>{{ vm.originEndpointDisplay() }}</dd>
           <dt>Destino</dt>
-          <dd>{{ vm.trip().destination || '—' }}</dd>
+          <dd>{{ vm.destinationEndpointDisplay() }}</dd>
           <dt>Distancia de ruta (ida)</dt>
           <dd>{{ vm.routeDistanceDisplay() }}</dd>
           <dt>Distancia operativa</dt>
@@ -125,9 +125,9 @@
           <dt>Nombre del operador</dt>
           <dd>{{ vm.operatorName() }}</dd>
           <dt>No. de licencia</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().operatorLicenseNumber) }}</dd>
+          <dd>{{ vm.operatorLicenseNumberDisplay() }}</dd>
           <dt>Vencimiento de licencia</dt>
-          <dd>{{ vm.routeSnapshotOrDash(vm.trip().operatorLicenseExpiresLabel) }}</dd>
+          <dd>{{ vm.operatorLicenseExpiresDisplay() }}</dd>
           <dt>Unidad</dt>
           <dd>{{ vm.unitDisplay() }}</dd>
           @if (vm.isFullTrip()) {
@@ -169,17 +169,12 @@
           <dt>Diesel (monto)</dt>
           <dd>{{ vm.displayMoney(vm.trip().dieselAmount) }}</dd>
           @if (vm.dieselPriceAtCreationDisplay()) {
-            <dt>Precio diesel al crear</dt>
+            <dt>Precio diesel</dt>
             <dd>{{ vm.dieselPriceAtCreationDisplay() }}</dd>
           }
           <dt>Casetas</dt>
           <dd>
             {{ vm.displayMoney(vm.trip().casetasAmount) }}
-            @if (vm.tollCalculationModeLabel()) {
-              <span class="maniobra-detail__field-meta">
-                · {{ vm.tollCalculationModeLabel() }}
-              </span>
-            }
           </dd>
           <dt>Operador</dt>
           <dd>{{ vm.displayMoney(vm.trip().operatorQuota) }}</dd>

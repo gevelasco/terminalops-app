@@ -12,9 +12,7 @@ export const TRIP_FLEET_ACTIVE_STATUSES: readonly TripStatus[] = [
 ];
 
 const OPERATOR_PROTECTED_STATUSES = new Set<OperatorOperationalStatus>([
-  'maintenance',
   'leave',
-  'inactive',
   'incapacitated',
 ]);
 
@@ -141,12 +139,6 @@ export function resolveOperatorOperationalStatus(input: {
   }
   if (resolved === 'scheduled') {
     return 'scheduled';
-  }
-  if (resolved === 'maintenance') {
-    return 'maintenance';
-  }
-  if (resolved === 'inactive') {
-    return 'inactive';
   }
   return 'available';
 }

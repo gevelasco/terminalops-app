@@ -66,21 +66,21 @@ export function expenseFleetRelationCode(e: Expense): string {
     case 'trip':
       return '—';
     case 'maintenance':
-      if (e.maintenanceTarget === 'unit') {
-        return e.relatedUnitId?.trim() || '—';
+      if (e.relatedEquipmentId?.trim()) {
+        return e.relatedEquipmentId.trim();
       }
-      if (e.maintenanceTarget === 'equipment') {
-        return e.relatedEquipmentId?.trim() || '—';
+      if (e.relatedUnitId?.trim()) {
+        return e.relatedUnitId.trim();
       }
       return '—';
     case 'tires':
       return e.relatedUnitId?.trim() || '—';
     case 'insurance':
-      if (e.insuranceTarget === 'unit') {
-        return e.relatedUnitId?.trim() || '—';
+      if (e.relatedEquipmentId?.trim()) {
+        return e.relatedEquipmentId.trim();
       }
-      if (e.insuranceTarget === 'equipment') {
-        return e.relatedEquipmentId?.trim() || '—';
+      if (e.relatedUnitId?.trim()) {
+        return e.relatedUnitId.trim();
       }
       return '—';
     case 'gps':

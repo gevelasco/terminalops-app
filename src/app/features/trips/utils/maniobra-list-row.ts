@@ -40,7 +40,6 @@ export function maniobraListRowFromTrip(
     completionAt: formatStackedMx(tripCompletionIso(t)),
     operationType: t.operationType,
     operationConfigurationId: t.operationConfigurationId ?? '',
-    operationConfigurationNameSnapshot: t.operationConfigurationNameSnapshot ?? '',
     hasIncident: tripHasIncidents(t),
     equipmentJoined: (t.equipment ?? []).join(' '),
   };
@@ -67,7 +66,6 @@ export function maniobraListRowMatchesSearch(
     row['departureAt'],
     row['arrivedAt'],
     row['operationType'],
-    row['operationConfigurationNameSnapshot'],
     hasInc ? 'incidente' : '',
   ]
     .map((x) => String(x ?? '').toLowerCase())

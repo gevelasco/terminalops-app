@@ -10,11 +10,15 @@ import type {
  * Contrato obligatorio (lifecycle): el cliente MUST enviar plannedDepartureAt,
  * plannedArrivalAt y plannedCompletionAt. Sin ellos el backend rechaza la creación.
  * Los campos programmedAt y scheduledAt fueron eliminados del dominio.
+ *
+ * No enviar: origin/destination, license snapshots, isRoundTrip, toll mode,
+ * dieselPricePerLiterAtCreation, config/operator/unit snapshots, operationalDistanceKm.
+ * Km operativos = routeDistanceKm × 2 (siempre roundtrip).
  */
 export interface CreateTripPayload {
-  origin: string;
-  destination: string;
   operationType: string;
+  /** FK a configuración operativa viva. */
+  operationConfigurationId?: string;
   loadType: TripLoadType;
   containerType: TripContainerType;
   cargoDescription: string;
@@ -25,8 +29,6 @@ export interface CreateTripPayload {
   loadPlace?: string;
   dieselLiters: string;
   dieselAmount: string;
-  /** Snapshot MXN/L del fuel-estimate al guardar (inmutable en backend). */
-  dieselPricePerLiterAtCreation?: number;
   casetasAmount: string;
   operatorQuota: string;
   /** Viáticos del operador; omitir o 0 si no aplica. */
@@ -47,10 +49,7 @@ export interface CreateTripPayload {
   plannedArrivalAt: string;
   /** Fin de maniobra (planned_completion_at). */
   plannedCompletionAt: string;
-  attachedDocumentFileNames: string[];
   routeDistanceKm?: number | null;
-  /** Ida + vuelta (calculado en backend). */
-  isRoundTrip?: boolean;
   maneuverKind?: string;
   originPostalCode?: string;
   originCityMunicipality?: string;
@@ -58,9 +57,6 @@ export interface CreateTripPayload {
   destinationPostalCode?: string;
   destinationCityMunicipality?: string;
   destinationLocality?: string;
-  operatorLicenseNumber?: string;
-  operatorLicenseExpiresLabel?: string;
-  tollCalculationMode?: 'auto' | 'manual';
   destinationRateId?: string;
   originOperationalCenterId?: string;
 }

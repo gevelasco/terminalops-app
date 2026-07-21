@@ -20,7 +20,7 @@ export function storedRouteDistanceKmLabel(km: number | null | undefined): strin
   return `${formatRouteKmEsMx(km)} km`;
 }
 
-/** Etiqueta para distancia operativa (`Trip.operationalDistanceKm`). */
+/** Etiqueta para distancia operativa (route × 2). */
 export function storedOperationalDistanceKmLabel(
   km: number | null | undefined,
 ): string {

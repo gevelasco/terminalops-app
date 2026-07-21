@@ -29,6 +29,7 @@ import {
 } from '@features/clients/utils/destination-rate-estimated-time';
 import { formatDestinationRateUpdatedAt } from '@features/clients/utils/format-destination-rate-updated-at';
 import type { DestinationRatePriceDraft } from '@shared/models/destination-rate.models';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
 @Injectable()
@@ -197,9 +198,13 @@ export class DestinationRatesDetailDrawerFacade {
           this.toast.show('Tarifa eliminada.', 'success');
           this.requestDismiss();
         },
-        error: () => {
+        error: (err: unknown) => {
           this.saving.set(false);
-          this.toast.show('No se pudo eliminar la tarifa.', 'error');
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo eliminar la tarifa.',
+            'error',
+          );
         },
       });
   }

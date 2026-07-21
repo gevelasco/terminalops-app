@@ -404,13 +404,13 @@ export class FleetNewEquipmentDrawerComponent {
       return;
     }
 
-    const yearParsed = parseFleetRequiredDigits(yearRaw);
+    const yearParsed = parseFleetRequiredDigits(yearRaw, { maxLength: 4 });
     if (yearParsed === 'empty') {
       this.toast.show('Modelo (año) es obligatorio.', 'warning');
       return;
     }
     if (yearParsed === 'invalid') {
-      this.toast.show('Modelo (año) debe contener solo números.', 'warning');
+      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
       return;
     }
     const year = yearParsed;
@@ -537,8 +537,6 @@ export class FleetNewEquipmentDrawerComponent {
           : undefined,
     };
 
-    const lastSvc = this.lastMaintenanceDate().trim() || new Date().toISOString().slice(0, 10);
-
     const brandAbbr = deriveFleetBrandAbbr(brandName);
 
     this.saving.set(true);
@@ -550,7 +548,6 @@ export class FleetNewEquipmentDrawerComponent {
           : undefined,
         name: this.name().trim() || serial,
         serialNumber: serial,
-        lastServiceDate: lastSvc,
         plate,
         type: this.operationTypeLabel(opType),
         trailerBrandAbbr: brandAbbr || undefined,

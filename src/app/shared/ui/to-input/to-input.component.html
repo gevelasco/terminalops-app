@@ -68,6 +68,8 @@
       [attr.min]="min() ?? null"
       [attr.max]="max() ?? null"
       [attr.maxlength]="maxLength() != null ? maxLength() : null"
+      [attr.inputmode]="digitsOnly() ? 'numeric' : null"
+      [attr.pattern]="digitsOnly() ? '[0-9]*' : null"
       [disabled]="disabled()"
       [value]="shownInputValue()"
       (input)="onInput($event)"

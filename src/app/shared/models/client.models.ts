@@ -39,7 +39,6 @@ export interface ClientPaymentTerms {
   creditDays?: number;
   /** Límite o volumen de crédito para alertas (texto libre, ej. "2.5 MMXN"). */
   approximateCreditAmount?: string;
-  commercialHealth: ClientCommercialHealth;
   /** Método de pago preferido para maniobras (`cash`, `transfer`, `check`). */
   defaultPaymentMethod?: string;
 }
@@ -52,9 +51,12 @@ export interface ClientDelivery {
   settlementConsId?: string;
   latitude?: number;
   longitude?: number;
-  /** Tarifa operativa vinculada (ruta origen→destino). */
+  /** Tarifa operativa vinculada (ruta origen→destino) de la misma company. */
   destinationRateId?: string;
-  /** Destino capturado sin tarifa configurada aún. */
+  /**
+   * Derivado (API): destino capturado sin tarifa configurada.
+   * No se persiste; no enviar en writes.
+   */
   isUnpricedRoute?: boolean;
 }
 
@@ -77,7 +79,7 @@ export interface Client {
   payment?: ClientPaymentTerms;
   /** Total de maniobras vinculadas por `clientId` (solo en listado). */
   maneuverCount?: number;
-  /** Estatus comercial derivado por el backend desde trips (solo en listado). */
+  /** Estatus comercial derivado por el backend desde trips (tenant-scoped). */
   commercialHealth?: ClientCommercialHealth;
 }
 

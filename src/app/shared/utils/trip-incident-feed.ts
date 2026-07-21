@@ -6,6 +6,7 @@ import type {
   TripIncident,
 } from '@shared/models/logistics.models';
 import { isTripBitacoraIncident } from '@features/trips/utils/trip-bitacora';
+import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 
 export interface TripIncidentFeedItem {
   incidentId: string;
@@ -14,7 +15,7 @@ export interface TripIncidentFeedItem {
   clientName: string;
   routeLabel: string;
   description: string;
-  occurredAt: string;
+  createdAt: string;
   postedBy: string;
   authorLabel: string;
   severity: IncidentSeverity;
@@ -44,6 +45,7 @@ export function inferIncidentKind(description: string): CriticalAlertKind {
   return 'default';
 }
 
+/** Severidad inferida en FE (ya no se persiste en bitácora). */
 export function defaultIncidentSeverity(
   trip: Pick<Trip, 'status'>,
   description: string,
@@ -67,30 +69,16 @@ export function defaultIncidentSeverity(
   return 'low';
 }
 
-export function incidentSeverity(
-  trip: Pick<Trip, 'status'>,
-  inc: TripIncident,
-): IncidentSeverity {
-  return inc.severity ?? defaultIncidentSeverity(trip, inc.description);
-}
-
 export function tripIncidentAuthorLabel(
   inc: Pick<TripIncident, 'postedBy' | 'postedByLabel'>,
-  operators: readonly Operator[] = [],
+  _operators: readonly Operator[] = [],
 ): string {
   const fromApi = inc.postedByLabel?.trim();
   if (fromApi) {
     return fromApi;
   }
-  const u = inc.postedBy.trim().toLowerCase();
-  if (!u) {
-    return '—';
-  }
-  const op = operators.find((o) => o.portalUsername?.trim().toLowerCase() === u);
-  if (op) {
-    return `${op.name} · Operador`;
-  }
-  return inc.postedBy.trim();
+  const u = inc.postedBy.trim();
+  return u || '—';
 }
 
 export function buildTripIncidentFeed(
@@ -109,18 +97,18 @@ export function buildTripIncidentFeed(
         tripId: trip.id,
         maneuverCode: trip.maneuverCode,
         clientName: trip.clientName,
-        routeLabel: `${trip.origin} → ${trip.destination}`,
+        routeLabel: formatTripRouteSummary(trip),
         description: inc.description.trim(),
-        occurredAt: inc.occurredAt,
+        createdAt: inc.createdAt,
         postedBy: inc.postedBy,
         authorLabel: tripIncidentAuthorLabel(inc, operators),
-        severity: incidentSeverity(trip, inc),
+        severity: defaultIncidentSeverity(trip, inc.description),
         kind: inferIncidentKind(inc.description),
       });
     }
   }
 
   return items.sort(
-    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 }

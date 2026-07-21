@@ -6,7 +6,6 @@ export const OPERATOR_OPERATIONAL_STATUS_DISPLAY_ORDER: readonly OperatorOperati
     'in_use',
     'scheduled',
     'available',
-    'maintenance',
     'incapacitated',
     'leave',
     'inactive',

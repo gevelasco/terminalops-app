@@ -191,6 +191,7 @@ export class OperatorsPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.operationalSync.ensureTripsLoaded();
     this.operatorsFeature.loadOperators();
     this.openOperatorFromQuery(this.route.snapshot.queryParamMap.get('operatorId'));
     this.route.queryParamMap

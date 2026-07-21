@@ -92,9 +92,9 @@ export class UnitsFeatureService {
         if (options?.skipListRefresh) {
           const normalized = normalizeUnitFromApi(saved);
           if (this.canApplyResponse(requestId)) {
-            this.upsertUnitInList(normalized, keepId);
+            this.upsertUnitSummary(normalized);
           }
-          return of(this._units().find((u) => u.id === keepId) ?? normalized);
+          return of(normalized);
         }
         return this.fetchList().pipe(
           map((list) => {
@@ -203,11 +203,52 @@ export class UnitsFeatureService {
 
   private fetchList(): Observable<Unit[]> {
     return this.unitsApi
-      .getUnitsList({ includeFleetTenure: true })
+      .getUnitsList()
       .pipe(
         map((rows) => rows.map(normalizeUnitFromApi)),
         catchError(() => of([] as Unit[])),
       );
+  }
+
+  /** Detalle completo (historial + tenure) para el drawer. */
+  fetchUnitDetail(unitId: string): Observable<Unit | null> {
+    const id = unitId.trim();
+    if (!id) {
+      return of(null);
+    }
+    return this.unitsApi.getUnitById(id).pipe(
+      map((row) => normalizeUnitFromApi(row)),
+      catchError(() => of(null)),
+    );
+  }
+
+  /** Actualiza fila del listado con un resumen (tras save del drawer). */
+  upsertUnitSummary(saved: Unit): void {
+    const summary = this.toListSummary(saved);
+    this.upsertUnitInList(summary, this._selectedUnitId());
+  }
+
+  private toListSummary(unit: Unit): Unit {
+    const meta = unit.fleetMeta;
+    if (!meta) {
+      return unit;
+    }
+    const {
+      maintenanceEntries: _m,
+      verificationEntries: _v,
+      documentMaintenanceNames: _d1,
+      documentVerificationNames: _d2,
+      documentPolicyNames: _d3,
+      documentOwnershipNames: _d4,
+      trailerTenureMode: _t1,
+      trailerCommercialValue: _t2,
+      trailerRecurringPaymentAmount: _t3,
+      trailerRecurringPaymentDate: _t4,
+      trailerRecurringInstallmentCount: _t5,
+      trailerManagementOwnerPayout: _t6,
+      ...summaryMeta
+    } = meta;
+    return { ...unit, fleetMeta: summaryMeta };
   }
 
   private applyList(list: Unit[], selectedId: string | null): void {

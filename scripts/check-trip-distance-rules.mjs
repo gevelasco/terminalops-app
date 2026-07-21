@@ -20,55 +20,47 @@ const SCAN_DIRS = [
   'core/services/api',
 ];
 
-/** Patrones prohibidos en frontend (no duplicar ida/vuelta en cliente). */
-const FORBIDDEN_PATTERNS = [
+/** Campos droppeados del create / fuel-estimate de trips. */
+const FORBIDDEN_CREATE_FIELDS = [
   {
-    id: 'no-route-times-two',
-    re: /\brouteDistanceKm\b[^;\n]*\*\s*2\b/,
-    message: 'No multiplicar routeDistanceKm × 2 en frontend; usar operationalDistanceKm del API.',
+    id: 'no-create-isRoundTrip',
+    re: /\bisRoundTrip\s*:/,
+    files: [
+      'features/trips/components/trips-new-drawer/trips-new-drawer.component.ts',
+      'features/trips/utils/trips-fuel-estimate.ts',
+    ],
+    message: 'No enviar isRoundTrip en create ni fuel-estimate (siempre roundtrip).',
   },
   {
-    id: 'no-routeKm-times-two',
-    re: /\brouteKm\s*\(\s*\)[^;\n]*\*\s*2\b/,
-    message: 'No multiplicar routeKm() × 2; usar operationalDistanceKmFromApi / fuel-estimate.',
+    id: 'no-create-dieselPrice',
+    re: /\bdieselPricePerLiterAtCreation\b/,
+    files: [
+      'features/trips/components/trips-new-drawer/trips-new-drawer.component.ts',
+      'shared/models/api/api-trips.model.ts',
+    ],
+    message: 'No enviar dieselPricePerLiterAtCreation; derivar amount/liters en UI.',
   },
   {
-    id: 'no-distanceKm-times-two',
-    re: /\bdistanceKm\b[^;\n]*\*\s*2\b/,
-    message: 'No multiplicar distanceKm × 2 en frontend; el backend calcula operationalDistanceKm.',
-  },
-];
-
-/** routeDistanceKm solo para UI OSRM / payload ida — no para métricas operativas. */
-const FORBIDDEN_ROUTE_IN_AGGREGATION = [
-  {
-    id: 'reports-no-route-for-km',
-    re: /\btrip\.routeDistanceKm\b/,
-    dirs: ['features/reports'],
-    message: 'Reportes deben usar tripOperationalKm / tripKm(), no trip.routeDistanceKm.',
+    id: 'no-create-tollMode',
+    re: /\btollCalculationMode\b/,
+    files: [
+      'features/trips/components/trips-new-drawer/trips-new-drawer.component.ts',
+      'shared/models/api/api-trips.model.ts',
+    ],
+    message: 'No enviar tollCalculationMode en create.',
   },
 ];
 
 const REQUIRED_SNIPPETS = [
   {
     file: 'features/trips/utils/trip-operational-km.ts',
-    includes: ['trip.operationalDistanceKm'],
-    message: 'tripOperationalKm debe leer solo operationalDistanceKm.',
+    includes: ['* 2', 'routeDistanceKm'],
+    message: 'tripOperationalKm debe calcular routeDistanceKm × 2.',
   },
   {
     file: 'features/reports/utils/reports-trip-helpers.ts',
     includes: ['tripOperationalKm'],
     message: 'tripKm() en reportes debe delegar a tripOperationalKm.',
-  },
-  {
-    file: 'features/trips/utils/trips-fuel-estimate.ts',
-    includes: ['isRoundTrip: true'],
-    message: 'Fuel estimate debe enviar isRoundTrip: true explícitamente.',
-  },
-  {
-    file: 'features/trips/components/trips-new-drawer/trips-new-drawer.component.ts',
-    includes: ['isRoundTrip: true'],
-    message: 'Crear maniobra debe enviar isRoundTrip: true explícitamente.',
   },
 ];
 
@@ -91,14 +83,19 @@ function rel(p) {
   return path.relative(path.join(__dirname, '..'), p);
 }
 
-function checkForbiddenPatterns(files) {
+function checkForbiddenCreateFields() {
   const violations = [];
-  for (const file of files) {
-    const content = fs.readFileSync(file, 'utf8');
-    const lines = content.split('\n');
-    for (const rule of FORBIDDEN_PATTERNS) {
+  const root = path.join(__dirname, '..');
+  for (const rule of FORBIDDEN_CREATE_FIELDS) {
+    for (const relFile of rule.files) {
+      const file = path.join(root, 'src/app', relFile);
+      if (!fs.existsSync(file)) {
+        continue;
+      }
+      const content = fs.readFileSync(file, 'utf8');
+      const lines = content.split('\n');
       lines.forEach((line, i) => {
-        if (line.trim().startsWith('//') || line.includes('check-trip-distance-rules')) {
+        if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.includes('check-trip-distance-rules')) {
           return;
         }
         if (rule.re.test(line)) {
@@ -111,32 +108,6 @@ function checkForbiddenPatterns(files) {
           });
         }
       });
-    }
-  }
-  return violations;
-}
-
-function checkRouteInAggregation() {
-  const violations = [];
-  for (const rule of FORBIDDEN_ROUTE_IN_AGGREGATION) {
-    for (const dir of rule.dirs) {
-      const target = dir.endsWith('.ts')
-        ? path.join(appRoot, dir)
-        : path.join(appRoot, dir);
-      const files = dir.endsWith('.ts') ? [target] : walkTsFiles(target);
-      for (const file of files) {
-        if (!fs.existsSync(file)) {
-          continue;
-        }
-        const content = fs.readFileSync(file, 'utf8');
-        if (rule.re.test(content)) {
-          violations.push({
-            file: rel(file),
-            rule: rule.id,
-            message: rule.message,
-          });
-        }
-      }
     }
   }
   return violations;
@@ -165,10 +136,10 @@ function checkRequiredSnippets() {
 }
 
 function main() {
-  const files = SCAN_DIRS.flatMap((d) => walkTsFiles(path.join(appRoot, d)));
+  // Touch scan dirs so unused-import tooling keeps them discoverable.
+  void SCAN_DIRS;
   const violations = [
-    ...checkForbiddenPatterns(files),
-    ...checkRouteInAggregation(),
+    ...checkForbiddenCreateFields(),
     ...checkRequiredSnippets(),
   ];
 

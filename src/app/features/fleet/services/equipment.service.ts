@@ -87,10 +87,9 @@ export class EquipmentFeatureService {
       switchMap((saved) => {
         if (options?.skipListRefresh) {
           if (this.canApplyResponse(requestId)) {
-            this.upsertEquipmentInList(saved, keepId);
+            this.upsertEquipmentSummary(saved);
           }
-          const resolvedId = keepId ?? equipment.id;
-          return of(this._equipment().find((e) => e.id === resolvedId) ?? saved);
+          return of(saved);
         }
         return this.fetchList().pipe(
           map((list) => {
@@ -204,11 +203,52 @@ export class EquipmentFeatureService {
 
   private fetchList(): Observable<Equipment[]> {
     return this.equipmentApi
-      .getEquipmentList({ includeFleetTenure: true })
+      .getEquipmentList()
       .pipe(
         map((rows) => rows.map(normalizeEquipmentFromApi)),
         catchError(() => of([] as Equipment[])),
       );
+  }
+
+  fetchEquipmentDetail(equipmentId: string): Observable<Equipment | null> {
+    const id = equipmentId.trim();
+    if (!id) {
+      return of(null);
+    }
+    return this.equipmentApi.getEquipmentById(id).pipe(
+      map((row) => normalizeEquipmentFromApi(row)),
+      catchError(() => of(null)),
+    );
+  }
+
+  upsertEquipmentSummary(saved: Equipment): void {
+    const summary = this.toListSummary(saved);
+    this.upsertEquipmentInList(summary, this._selectedEquipmentId());
+  }
+
+  private toListSummary(equipment: Equipment): Equipment {
+    const meta = equipment.fleetMeta;
+    if (!meta) {
+      return equipment;
+    }
+    const {
+      maintenanceEntries: _m,
+      verificationEntries: _v,
+      documentMaintenanceNames: _d1,
+      documentVerificationNames: _d2,
+      documentPolicyNames: _d3,
+      documentOwnershipNames: _d4,
+      trailerTenureMode: _t1,
+      trailerCommercialValue: _t2,
+      trailerRecurringPaymentAmount: _t3,
+      trailerRecurringPaymentDate: _t4,
+      trailerRecurringInstallmentCount: _t5,
+      trailerRecurringPaymentCadence: _t6,
+      trailerTenureBeneficiary: _t7,
+      trailerManagementOwnerPayout: _t8,
+      ...summaryMeta
+    } = meta;
+    return { ...equipment, fleetMeta: summaryMeta };
   }
 
   private applyList(list: Equipment[], selectedId: string | null): void {

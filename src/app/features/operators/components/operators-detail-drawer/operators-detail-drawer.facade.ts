@@ -56,6 +56,7 @@ import type {
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
+import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
 import { catchError, finalize, of } from 'rxjs';
 
 export type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
@@ -97,6 +98,7 @@ export class OperatorsDetailDrawerFacade {
   readonly editingSection = signal<OperatorEditSection | null>(null);
   readonly saving = signal(false);
   readonly paymentConfirming = signal(false);
+  readonly hrHoldSubmitting = signal(false);
   readonly canWriteOperators = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.OPERATORS),
   );
@@ -176,8 +178,38 @@ export class OperatorsDetailDrawerFacade {
     () => this.operationSummarySignal() ?? EMPTY_OPERATOR_OPERATION_SUMMARY,
   );
 
-  readonly derivedOperationalStatus = computed(
-    () => this.operator().status as OperatorOperationalStatus,
+  readonly derivedOperationalStatus = computed((): OperatorOperationalStatus => {
+    const operator = this.operator();
+    return deriveOperatorOperationalStatus(operator, this.operationalSync.trips());
+  });
+
+  readonly showsStartLeaveAction = computed(
+    () =>
+      this.canWriteOperators() &&
+      this.operator().isActive !== false &&
+      this.derivedOperationalStatus() === 'available',
+  );
+
+  readonly showsStartIncapacitatedAction = computed(
+    () =>
+      this.canWriteOperators() &&
+      this.operator().isActive !== false &&
+      this.derivedOperationalStatus() === 'available',
+  );
+
+  readonly showsEndHrHoldAction = computed(() => {
+    if (!this.canWriteOperators()) {
+      return false;
+    }
+    const status = this.derivedOperationalStatus();
+    return status === 'leave' || status === 'incapacitated';
+  });
+
+  readonly showsHrHoldActions = computed(
+    () =>
+      this.showsStartLeaveAction() ||
+      this.showsStartIncapacitatedAction() ||
+      this.showsEndHrHoldAction(),
   );
 
   private readonly now = new Date();
@@ -737,5 +769,59 @@ export class OperatorsDetailDrawerFacade {
       return '—';
     }
     return this.displayIsoDate(paidAtYmd);
+  }
+
+  startOperatorLeave(): void {
+    this.submitHrHold('leave');
+  }
+
+  startOperatorIncapacitated(): void {
+    this.submitHrHold('incapacitated');
+  }
+
+  endOperatorHrHold(): void {
+    this.submitHrHold('end');
+  }
+
+  private submitHrHold(action: 'leave' | 'incapacitated' | 'end'): void {
+    if (this.hrHoldSubmitting() || this.saving()) {
+      return;
+    }
+    const operatorId = this.operator().id;
+    this.hrHoldSubmitting.set(true);
+    const request$ =
+      action === 'leave'
+        ? this.operatorsApi.startOperatorLeave(operatorId)
+        : action === 'incapacitated'
+          ? this.operatorsApi.startOperatorIncapacitated(operatorId)
+          : this.operatorsApi.endOperatorHrHold(operatorId);
+
+    request$
+      .pipe(
+        catchError(() => {
+          const message =
+            action === 'end'
+              ? 'No se pudo reincorporar al operador.'
+              : action === 'leave'
+                ? 'No se pudo registrar vacaciones.'
+                : 'No se pudo registrar incapacidad.';
+          this.toast.show(message, 'error');
+          return of(null);
+        }),
+        finalize(() => this.hrHoldSubmitting.set(false)),
+      )
+      .subscribe((updated) => {
+        if (!updated) {
+          return;
+        }
+        this.operatorsFeature.replaceOperator(updated);
+        const successMessage =
+          action === 'end'
+            ? 'Operador reincorporado.'
+            : action === 'leave'
+              ? 'Vacaciones registradas.'
+              : 'Incapacidad registrada.';
+        this.toast.show(successMessage, 'success');
+      });
   }
 }

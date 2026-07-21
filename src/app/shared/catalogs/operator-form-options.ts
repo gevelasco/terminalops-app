@@ -6,14 +6,13 @@ import type {
   OperatorPaymentSchedule,
 } from '@shared/models/logistics.models';
 
-/** Mismos valores que estado operativo de unidad en Flota + RRHH. */
+/** Catálogo de labels/filtros de estado operativo del operador. */
 export const OPERATOR_OPERATIONAL_STATUS_OPTIONS: ToSelectOption[] = [
   { value: 'available', label: 'Disponible' },
   { value: 'in_use', label: 'En curso' },
   { value: 'scheduled', label: 'Programado' },
-  { value: 'maintenance', label: 'Mantenimiento' },
-  { value: 'incapacitated', label: 'Incapacitado' },
   { value: 'leave', label: 'Vacaciones / descanso' },
+  { value: 'incapacitated', label: 'Incapacitado' },
   { value: 'inactive', label: 'Inactivo / baja' },
 ];
 
@@ -75,8 +74,6 @@ export function operatorOperationalStatusLabel(
       return 'En curso';
     case 'scheduled':
       return 'Programado';
-    case 'maintenance':
-      return 'Mantenimiento';
     case 'incapacitated':
       return 'Incapacitado';
     case 'leave':

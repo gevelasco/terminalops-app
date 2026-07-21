@@ -1,9 +1,26 @@
 import type {
   Expense,
   ExpenseKind,
-  ExpenseMaintenanceTarget,
   ExpenseVerificationScope,
 } from '@shared/models/logistics.models';
+
+const VERIFICATION_CATEGORY: Record<ExpenseVerificationScope, string> = {
+  phys_mech: 'Verificación - físico-mecánica',
+  emissions: 'Verificación - emisiones',
+  double_articulated: 'Verificación - doble articulado',
+};
+
+const VERIFICATION_DESCRIPTION: Record<ExpenseVerificationScope, string> = {
+  phys_mech: 'Pago de verificación - físico-mecánica',
+  emissions: 'Pago de verificación - emisiones',
+  double_articulated: 'Pago de verificación - doble articulado',
+};
+
+export function verificationCategoryForScope(
+  scope: ExpenseVerificationScope,
+): string {
+  return VERIFICATION_CATEGORY[scope];
+}
 
 export function parseExpenseAmount(raw: string): number | 'invalid' {
   const t = raw.trim().replace(/\s/g, '').replace(/,/g, '');
@@ -93,13 +110,14 @@ export type ExpenseRelationResolveResult =
       fields: Pick<
         Expense,
         | 'tripId'
-        | 'maintenanceTarget'
-        | 'insuranceTarget'
         | 'relatedUnitId'
         | 'relatedEquipmentId'
         | 'relatedOperatorId'
         | 'verificationScope'
-      >;
+      > & {
+        categoryOverride?: string;
+        descriptionHint?: string;
+      };
     }
   | { ok: false; message: string };
 
@@ -108,12 +126,12 @@ export function resolveExpenseRelationFields(
   state: ExpenseRelationFormState,
 ): ExpenseRelationResolveResult {
   const tripId = state.tripId.trim();
-  let maintenanceTarget: ExpenseMaintenanceTarget | undefined;
-  let insuranceTarget: ExpenseMaintenanceTarget | undefined;
   let relatedUnitId: string | undefined;
   let relatedEquipmentId: string | undefined;
   let relatedOperatorId: string | undefined;
   let verificationScope: ExpenseVerificationScope | undefined;
+  let categoryOverride: string | undefined;
+  let descriptionHint: string | undefined;
 
   if (kind === 'maintenance') {
     const uid = state.relatedUnitId.trim();
@@ -126,10 +144,8 @@ export function resolveExpenseRelationFields(
       };
     }
     if (uid) {
-      maintenanceTarget = 'unit';
       relatedUnitId = uid;
     } else if (eid) {
-      maintenanceTarget = 'equipment';
       relatedEquipmentId = eid;
     } else {
       return {
@@ -148,10 +164,8 @@ export function resolveExpenseRelationFields(
       };
     }
     if (uid) {
-      insuranceTarget = 'unit';
       relatedUnitId = uid;
     } else if (eid) {
-      insuranceTarget = 'equipment';
       relatedEquipmentId = eid;
     } else {
       return {
@@ -175,6 +189,8 @@ export function resolveExpenseRelationFields(
     }
     relatedUnitId = uid;
     verificationScope = state.verificationScope;
+    categoryOverride = VERIFICATION_CATEGORY[state.verificationScope];
+    descriptionHint = VERIFICATION_DESCRIPTION[state.verificationScope];
   } else if (kind === 'tires') {
     const uid = state.relatedUnitId.trim();
     if (!uid) {
@@ -208,12 +224,12 @@ export function resolveExpenseRelationFields(
     ok: true,
     fields: {
       tripId,
-      maintenanceTarget,
-      insuranceTarget,
       relatedUnitId: relatedUnitId ?? '',
       relatedEquipmentId: relatedEquipmentId ?? '',
       relatedOperatorId: relatedOperatorId ?? '',
       verificationScope,
+      categoryOverride,
+      descriptionHint,
     },
   };
 }

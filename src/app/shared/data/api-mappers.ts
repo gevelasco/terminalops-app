@@ -87,10 +87,6 @@ export function mapApiClient(row: Record<string, unknown>): Client {
           approximateCreditAmount: paymentTerms['approximateCreditAmount'] as
             | string
             | undefined,
-          commercialHealth:
-            (paymentTerms['commercialHealth'] as Client['payment'] extends { commercialHealth?: infer H }
-              ? H
-              : 'not_evaluated') ?? 'not_evaluated',
           defaultPaymentMethod: paymentTerms['defaultPaymentMethod'] as string | undefined,
         }
       : defaultClientPayment(),
@@ -115,7 +111,6 @@ const OPERATOR_OPERATIONAL_STATUSES: readonly OperatorOperationalStatus[] = [
   'available',
   'in_use',
   'scheduled',
-  'maintenance',
   'incapacitated',
   'leave',
   'inactive',
@@ -125,6 +120,9 @@ function normalizeOperatorOperationalStatus(raw: unknown): OperatorOperationalSt
   const s = String(raw ?? '').trim().toLowerCase();
   if (s === 'on_route') {
     return 'in_use';
+  }
+  if (s === 'maintenance') {
+    return 'available';
   }
   if (OPERATOR_OPERATIONAL_STATUSES.includes(s as OperatorOperationalStatus)) {
     return s as OperatorOperationalStatus;
@@ -141,7 +139,6 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
   return {
     id: resourceIdKey(row['id']),
     name: String(row['name']),
-    portalUsername: row['portalUsername'] as string | undefined,
     photoDataUrl: row['photoDataUrl'] as string | undefined,
     birthDate: (row['birthDate'] as string) ?? '',
     curp: (row['curp'] as string) ?? '',
@@ -233,9 +230,14 @@ function mapApiOperatorLastManeuver(
   return {
     tripId: row['tripId'] != null ? resourceIdKey(row['tripId']) : undefined,
     maneuverCode: code,
-    origin: row['origin'] != null ? String(row['origin']) : undefined,
-    destination:
-      row['destination'] != null ? String(row['destination']) : undefined,
+    originCityMunicipality:
+      row['originCityMunicipality'] != null
+        ? String(row['originCityMunicipality']).trim() || undefined
+        : undefined,
+    destinationCityMunicipality:
+      row['destinationCityMunicipality'] != null
+        ? String(row['destinationCityMunicipality']).trim() || undefined
+        : undefined,
     status: row['status'] as Operator['lastManeuver'] extends { status?: infer S }
       ? S
       : never,
@@ -317,11 +319,10 @@ function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
   return {
     id: resourceIdKey(row['id']),
     description: String(row['description'] ?? ''),
-    occurredAt: String(row['occurredAt'] ?? ''),
+    createdAt: String(row['createdAt'] ?? ''),
     postedBy: String(row['postedBy'] ?? ''),
     postedByLabel: row['postedByLabel'] as string | undefined,
     isIncident: row['isIncident'] === true,
-    severity: row['severity'] as TripIncident['severity'],
   };
 }
 
@@ -332,7 +333,7 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
   const incidents = Array.isArray(rawIncidents)
     ? rawIncidents.map((inc) => mapApiTripIncident(inc as Record<string, unknown>))
     : trip.incidents;
-  return {
+  const mapped: Trip = {
     ...trip,
     id: resourceIdKey(trip.id),
     clientId: resourceIdKey(trip.clientId),
@@ -341,23 +342,6 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
     operationConfigurationId: row['operationConfigurationId']
       ? resourceIdKey(row['operationConfigurationId'])
       : trip.operationConfigurationId,
-    operationConfigurationNameSnapshot:
-      String(row['operationConfigurationNameSnapshot'] ?? '').trim() ||
-      trip.operationConfigurationNameSnapshot,
-    operationConfigurationVersionSnapshot:
-      Number(row['operationConfigurationVersionSnapshot'] ?? trip.operationConfigurationVersionSnapshot ?? 1) ||
-      1,
-    operationConfigurationMaxEquipmentCountSnapshot: Math.max(
-      1,
-      Number(
-        row['operationConfigurationMaxEquipmentCountSnapshot'] ??
-          trip.operationConfigurationMaxEquipmentCountSnapshot ??
-          1,
-      ) || 1,
-    ),
-    operatorNameSnapshot: String(row['operatorNameSnapshot'] ?? '').trim() || undefined,
-    unitOperationalCodeSnapshot:
-      String(row['unitOperationalCodeSnapshot'] ?? '').trim() || undefined,
     operatorName: String(row['operatorName'] ?? '').trim() || undefined,
     unitOperationalCode: String(row['unitOperationalCode'] ?? '').trim() || undefined,
     createdAt: String(row['createdAt'] ?? trip.createdAt ?? ''),
@@ -378,22 +362,34 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
       row['originOperationalCenterId'] != null
         ? resourceIdKey(row['originOperationalCenterId'] as string | number)
         : (trip.originOperationalCenterId ?? null),
-    originOperationalCenterNameSnapshot:
-      String(
-        row['originOperationalCenterNameSnapshot'] ??
-          row['originOperationalCenterName'] ??
-          '',
-      ).trim() || undefined,
-    originOperationalCenterCodeSnapshot:
-      String(
-        row['originOperationalCenterCodeSnapshot'] ??
-          row['originOperationalCenterCode'] ??
-          '',
-      ).trim() || undefined,
     equipmentIds: Array.isArray(rawEquipmentIds)
       ? rawEquipmentIds.map((id) => resourceIdKey(id as string | number))
       : trip.equipmentIds,
     incidents,
     hasIncident: (incidents ?? []).some((inc) => inc.isIncident === true),
   };
+  // Drop legacy API keys if still present on the wire.
+  const ghost = mapped as Trip & Record<string, unknown>;
+  for (const key of [
+    'origin',
+    'destination',
+    'operationalDistanceKm',
+    'isRoundTrip',
+    'dieselPricePerLiterAtCreation',
+    'operatorLicenseNumber',
+    'operatorLicenseExpiresLabel',
+    'operatorNameSnapshot',
+    'unitOperationalCodeSnapshot',
+    'operationConfigurationNameSnapshot',
+    'operationConfigurationVersionSnapshot',
+    'operationConfigurationMaxEquipmentCountSnapshot',
+    'originOperationalCenterNameSnapshot',
+    'originOperationalCenterCodeSnapshot',
+    'openIncidentCount',
+    'delayPhase',
+    'isDelayed',
+  ] as const) {
+    delete ghost[key];
+  }
+  return mapped;
 }

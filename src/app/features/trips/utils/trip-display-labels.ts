@@ -38,13 +38,46 @@ export function formatTripRouteSummary(
   return `${origin} → ${destination}`;
 }
 
+/** Etiqueta de extremo de ruta desde partes postales (detalle). */
+export function formatTripEndpointFromParts(
+  trip: Pick<
+    Trip,
+    | 'originLocality'
+    | 'originCityMunicipality'
+    | 'originPostalCode'
+    | 'destinationLocality'
+    | 'destinationCityMunicipality'
+    | 'destinationPostalCode'
+  >,
+  end: 'origin' | 'destination',
+): string {
+  const locality =
+    end === 'origin'
+      ? trip.originLocality?.trim()
+      : trip.destinationLocality?.trim();
+  const city =
+    end === 'origin'
+      ? trip.originCityMunicipality?.trim()
+      : trip.destinationCityMunicipality?.trim();
+  const cp =
+    end === 'origin'
+      ? trip.originPostalCode?.trim()
+      : trip.destinationPostalCode?.trim();
+  const parts = [locality, city].filter((p): p is string => Boolean(p && p.length > 0));
+  if (parts.length > 0) {
+    const base = parts.join(', ');
+    return cp ? `${base} (CP ${cp})` : base;
+  }
+  return '—';
+}
+
 export function tripOperatorDisplayName(
-  trip: Pick<Trip, 'operatorNameSnapshot' | 'operatorName' | 'operatorId'>,
+  trip: Pick<Trip, 'operatorName' | 'operatorId'>,
   operatorsById?: ReadonlyMap<string, string>,
 ): string {
-  const snapshot = trip.operatorNameSnapshot?.trim() || trip.operatorName?.trim();
-  if (snapshot) {
-    return snapshot;
+  const live = trip.operatorName?.trim();
+  if (live) {
+    return live;
   }
   const id = resourceIdKey(trip.operatorId);
   if (id && operatorsById?.get(id)) {
@@ -54,13 +87,12 @@ export function tripOperatorDisplayName(
 }
 
 export function tripUnitDisplayCode(
-  trip: Pick<Trip, 'unitOperationalCodeSnapshot' | 'unitOperationalCode' | 'unitId'>,
+  trip: Pick<Trip, 'unitOperationalCode' | 'unitId'>,
   units?: readonly Unit[],
 ): string {
-  const snapshot =
-    trip.unitOperationalCodeSnapshot?.trim() || trip.unitOperationalCode?.trim();
-  if (snapshot) {
-    return snapshot;
+  const live = trip.unitOperationalCode?.trim();
+  if (live) {
+    return live;
   }
   const id = resourceIdKey(trip.unitId);
   if (id && units?.length) {

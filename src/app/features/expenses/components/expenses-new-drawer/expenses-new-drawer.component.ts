@@ -215,27 +215,26 @@ export class ExpensesNewDrawerComponent {
     }
     const {
       tripId,
-      maintenanceTarget,
-      insuranceTarget,
       relatedUnitId,
       relatedEquipmentId,
       relatedOperatorId,
       verificationScope,
+      categoryOverride,
+      descriptionHint,
     } = resolved.fields;
 
     const payload: Omit<Expense, 'id'> = {
       tripId,
-      category: categoryText,
+      category: categoryOverride ?? categoryText,
       amount: amountResult,
       currency: this.currency(),
       incurredAt: date,
       kind,
-      description: this.description().trim() || undefined,
+      description:
+        this.description().trim() || descriptionHint || undefined,
       vendor: this.vendor().trim() || undefined,
       paymentMethod: this.paymentMethod().trim() || undefined,
       invoiceRequired: this.invoiceRequired(),
-      maintenanceTarget,
-      insuranceTarget,
       relatedUnitId: relatedUnitId || undefined,
       relatedEquipmentId: relatedEquipmentId || undefined,
       relatedOperatorId: relatedOperatorId || undefined,

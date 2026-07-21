@@ -1,4 +1,5 @@
 import { formatRouteKmEsMx } from '@features/trips/utils/maniobra-route-display';
+import { tripOperationalKm } from '@features/trips/utils/trip-operational-km';
 import {
   tripActualDepartureIso,
   tripCompletionIso,
@@ -94,8 +95,8 @@ export function overviewTripEtaDaysLabel(trip: FleetOverviewTripDto): string {
 
 /** Km operativos ida + vuelta. */
 export function overviewTripEtaKmLabel(trip: FleetOverviewTripDto): string {
-  const total = trip.operationalDistanceKm;
-  if (total == null || !Number.isFinite(total) || total <= 0) {
+  const total = tripOperationalKm(trip);
+  if (!Number.isFinite(total) || total <= 0) {
     return '—';
   }
   return `~${formatRouteKmEsMx(total)} km`;

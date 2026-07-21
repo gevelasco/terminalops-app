@@ -1,8 +1,6 @@
 /** POST /companies/{companyId}/trips/fuel-estimate */
 export interface FuelEstimateRequest {
   distanceKm: number;
-  /** Default backend: true (ida y vuelta). */
-  isRoundTrip?: boolean;
   configuration: 'sencillo' | 'full';
   approximateWeightTons: number;
   cargoType: string | null;

@@ -2,7 +2,7 @@ import { localYmd } from '@features/reports/utils/reports-filter';
 import { tripKm, tripOperatorQuota } from '@features/reports/utils/reports-trip-helpers';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import type { Expense, Operator, Trip, TripStatus, Unit } from '@shared/models/logistics.models';
-import { formatTripRouteLabel } from '@shared/utils/trip-route-label';
+import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import { labelForUnitId } from '@shared/utils/fleet/unit-label';
 import {
   normalizeOperatorPaymentSchedule,
@@ -420,9 +420,10 @@ function buildActiveAssignment(
     return null;
   }
   const equipment = (active.equipment ?? []).filter((x) => x.trim().length > 0);
+  const routeLabel = formatTripRouteSummary(active);
   return {
     maneuverCode: active.maneuverCode,
-    routeLabel: formatTripRouteLabel(active.origin, active.destination),
+    routeLabel,
     clientName: active.clientName?.trim() || '—',
     unitLabel: labelForUnitId(active.unitId, units),
     equipmentLabel: equipment.length > 0 ? equipment.join(' · ') : '—',

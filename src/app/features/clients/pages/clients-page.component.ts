@@ -504,7 +504,7 @@ export class ClientsPageComponent implements OnInit {
       relationshipLabel: formatRelationshipDateEs(c.relationshipStartedOn),
       creditDaysLabel: clientCreditDaysTableCell(c.payment),
       creditVolumeLabel: clientCreditVolumeTableCell(c.payment),
-      commercialHealth: c.commercialHealth ?? c.payment?.commercialHealth ?? 'not_evaluated',
+      commercialHealth: c.commercialHealth ?? 'not_evaluated',
       maneuverCount: String(c.maneuverCount ?? 0),
     };
   }

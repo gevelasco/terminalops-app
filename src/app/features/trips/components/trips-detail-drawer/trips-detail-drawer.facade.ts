@@ -13,6 +13,7 @@ import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@services/api/expenses';
 import { EquipmentService } from '@services/api/equipment';
+import { OperatorsService } from '@services/api/operators';
 import {
   tripBitacoraEntriesSorted,
   tripIncidentPostedBy,
@@ -37,8 +38,21 @@ import {
 } from '@features/trips/utils/maniobra-settlement';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
-import { snapshotTextOrDash, storedOperationalDistanceKmLabel, storedRouteDistanceKmLabel } from '@features/trips/utils/maniobra-route-display';
-import { tripOperatorDisplayName, tripEquipmentDisplayAt } from '@features/trips/utils/trip-display-labels';
+import {
+  snapshotTextOrDash,
+  storedOperationalDistanceKmLabel,
+  storedRouteDistanceKmLabel,
+} from '@features/trips/utils/maniobra-route-display';
+import { operatorLicenseExpiresLabelFromIso } from '@features/trips/utils/operator-license-display';
+import {
+  formatTripEndpointFromParts,
+  tripOperatorDisplayName,
+  tripEquipmentDisplayAt,
+} from '@features/trips/utils/trip-display-labels';
+import {
+  derivedDieselPricePerLiter,
+  tripOperationalKm,
+} from '@features/trips/utils/trip-operational-km';
 import { tripManeuverPaymentMethodLabel } from '@shared/catalogs/trip-client-payment-options';
 import { tripContainerTypeLabelMx } from '@shared/catalogs/trip-container-type-options';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
@@ -47,6 +61,7 @@ import { formatDestinationRateRouteSummary } from '@features/clients/utils/desti
 import {
   Expense,
   Equipment,
+  Operator,
   Trip,
   TripContainerType,
   TripIncident,
@@ -57,6 +72,7 @@ import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-cont
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { isAdminRole } from '@shared/utils/access-control';
+import { resourceIdsEqual } from '@shared/utils/resource-id';
 
 export type TripsDetailTab = 'maneuver' | 'tracking' | 'settlement';
 
@@ -80,6 +96,7 @@ export class TripsDetailDrawerFacade {
   private readonly toast = inject(ToastService);
   private readonly expensesApi = inject(ExpensesService);
   private readonly equipmentApi = inject(EquipmentService);
+  private readonly operatorsApi = inject(OperatorsService);
   private readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly destinationRatesFeature = inject(DestinationRatesFeatureService);
   readonly loadPlacesCatalog = inject(TripLoadPlacesFeatureService);
@@ -87,12 +104,26 @@ export class TripsDetailDrawerFacade {
 
   private readonly equipmentCatalog = signal<readonly Equipment[]>([]);
   private equipmentCatalogLoadStarted = false;
+  private readonly liveOperator = signal<Operator | null>(null);
 
   private dismissCallback: (() => void) | null = null;
   private closeCancelDialogCallback: (() => void) | null = null;
 
   readonly trip = computed(() => this.tripsFeature.selectedTrip()!);
   readonly operatorName = computed(() => tripOperatorDisplayName(this.trip()));
+  readonly operatorLicenseNumberDisplay = computed(() =>
+    snapshotTextOrDash(this.liveOperator()?.licenseNumber),
+  );
+  readonly operatorLicenseExpiresDisplay = computed(() => {
+    const iso = this.liveOperator()?.licenseExpiresOn?.trim() ?? '';
+    return snapshotTextOrDash(iso ? operatorLicenseExpiresLabelFromIso(iso) : '');
+  });
+  readonly originEndpointDisplay = computed(() =>
+    formatTripEndpointFromParts(this.trip(), 'origin'),
+  );
+  readonly destinationEndpointDisplay = computed(() =>
+    formatTripEndpointFromParts(this.trip(), 'destination'),
+  );
   readonly canWriteTrips = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.TRIPS),
   );
@@ -228,6 +259,25 @@ export class TripsDetailDrawerFacade {
       this.ensureEquipmentCatalogLoaded();
       this.centersFeature.loadOperationalCenters();
       this.destinationRatesFeature.loadDestinationRates();
+    });
+
+    effect((onCleanup) => {
+      const t = this.tripsFeature.selectedTrip();
+      const operatorId = t?.operatorId?.trim();
+      if (!operatorId) {
+        this.liveOperator.set(null);
+        return;
+      }
+      const current = this.liveOperator();
+      if (current && resourceIdsEqual(current.id, operatorId)) {
+        return;
+      }
+      this.liveOperator.set(null);
+      const sub = this.operatorsApi
+        .getOperatorById(operatorId)
+        .pipe(catchError(() => of(null)))
+        .subscribe((op) => this.liveOperator.set(op));
+      onCleanup(() => sub.unsubscribe());
     });
 
     effect((onCleanup) => {
@@ -731,10 +781,7 @@ export class TripsDetailDrawerFacade {
 
   unitDisplay(): string {
     const t = this.trip();
-    const code =
-      t.unitOperationalCodeSnapshot?.trim() ||
-      t.unitOperationalCode?.trim() ||
-      t.unitId?.trim();
+    const code = t.unitOperationalCode?.trim() || t.unitId?.trim();
     return code || '—';
   }
 
@@ -759,11 +806,6 @@ export class TripsDetailDrawerFacade {
     if (!id) {
       return '';
     }
-    const snapName = t.originOperationalCenterNameSnapshot?.trim();
-    const snapCode = t.originOperationalCenterCodeSnapshot?.trim();
-    if (snapName) {
-      return snapCode ? `${snapName} (${snapCode})` : snapName;
-    }
     const center = this.centersFeature.centerById(id);
     if (center) {
       const name = center.name?.trim();
@@ -774,17 +816,6 @@ export class TripsDetailDrawerFacade {
       return name || code || id;
     }
     return id;
-  }
-
-  tollCalculationModeLabel(): string {
-    switch (this.trip().tollCalculationMode) {
-      case 'auto':
-        return 'Sugerido por tarifa';
-      case 'manual':
-        return 'Captura manual';
-      default:
-        return '';
-    }
   }
 
   plannedScheduleDisplay(iso: string | null | undefined): string {
@@ -907,7 +938,7 @@ export class TripsDetailDrawerFacade {
   }
 
   operationalDistanceDisplay(): string {
-    return storedOperationalDistanceKmLabel(this.trip().operationalDistanceKm);
+    return storedOperationalDistanceKmLabel(tripOperationalKm(this.trip()));
   }
 
   /** @deprecated Usar `routeDistanceDisplay` (solo ida). */
@@ -929,14 +960,10 @@ export class TripsDetailDrawerFacade {
     return t.length > 0 ? `${t} Ton` : '—';
   }
 
-  /** Snapshot MXN/L al crear; no se recalcula si cambia el precio vigente. */
+  /** Precio diesel derivado de monto / litros. */
   dieselPriceAtCreationDisplay(): string {
-    const raw = this.trip().dieselPricePerLiterAtCreation;
-    if (raw == null) {
-      return '';
-    }
-    const n = typeof raw === 'number' ? raw : Number(raw);
-    if (!Number.isFinite(n) || n <= 0) {
+    const n = derivedDieselPricePerLiter(this.trip());
+    if (n == null || !Number.isFinite(n) || n <= 0) {
       return '';
     }
     return `${new Intl.NumberFormat('es-MX', {

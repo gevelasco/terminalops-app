@@ -651,8 +651,6 @@ export class ClientsDetailDrawerFacade {
       settlementConsId: this.deliverySettlementConsId(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
-      destinationRateId: this.deliveryDestinationRateId(),
-      isUnpricedRoute: this.deliveryIsUnpricedRoute(),
     });
     if (!delivery) {
       this.toast.show('Indica el código postal de entrega.', 'warning');
@@ -716,7 +714,6 @@ export class ClientsDetailDrawerFacade {
       ...base,
       payment: {
         hasCredit: hasCr,
-        commercialHealth: base.payment?.commercialHealth ?? 'watch_list',
         ...(hasCr && days != null ? { creditDays: days } : {}),
         ...(hasCr && this.payCreditAmount().trim()
           ? { approximateCreditAmount: this.payCreditAmount().trim() }

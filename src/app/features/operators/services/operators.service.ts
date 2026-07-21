@@ -96,6 +96,17 @@ export class OperatorsFeatureService {
     );
   }
 
+  replaceOperator(updated: Operator): void {
+    this._operators.update((list) =>
+      sortOperatorsByOperationalStatus(
+        list.map((operator) => (operator.id === updated.id ? updated : operator)),
+      ),
+    );
+    if (this._selectedOperatorId() === updated.id) {
+      this._selectedOperatorId.set(updated.id);
+    }
+  }
+
   updateOperator(operator: Operator): Observable<Operator> {
     const keepId = this._selectedOperatorId() ?? operator.id;
     const requestId = this.requestGen.next();

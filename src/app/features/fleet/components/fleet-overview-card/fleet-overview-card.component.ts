@@ -14,7 +14,9 @@ import {
   overviewTripCompletionLine,
   overviewTripProgress,
 } from '@features/fleet/utils/fleet-overview-trip-metrics';
+import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-row';
+import type { FleetOverviewTripDto } from '@shared/models/api/fleet-overview.model';
 
 @Component({
   selector: 'app-fleet-overview-card',
@@ -51,6 +53,10 @@ export class FleetOverviewCardComponent {
 
   unitAsset(entry: FleetOverviewCardEntry): string {
     return overviewUnitAsset(entry);
+  }
+
+  tripRouteLabel(trip: FleetOverviewTripDto): string {
+    return formatTripRouteSummary(trip);
   }
 
   onCardActivate(): void {

@@ -348,13 +348,13 @@ export class FleetNewUnitDrawerComponent {
       this.toast.show('Marca y placa son obligatorios.', 'warning');
       return;
     }
-    const yearParsed = parseFleetRequiredDigits(yearRaw);
+    const yearParsed = parseFleetRequiredDigits(yearRaw, { maxLength: 4 });
     if (yearParsed === 'empty') {
       this.toast.show('Modelo (año) es obligatorio.', 'warning');
       return;
     }
     if (yearParsed === 'invalid') {
-      this.toast.show('Modelo (año) debe contener solo números.', 'warning');
+      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
       return;
     }
     const year = yearParsed;

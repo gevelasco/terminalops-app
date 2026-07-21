@@ -157,7 +157,6 @@ export function buildClientManeuverTableRows(
     destination: formatClientManeuverDestinationLabel(trip),
     operationType: trip.operationType,
     operationConfigurationId: trip.operationConfigurationId ?? '',
-    operationConfigurationNameSnapshot: trip.operationConfigurationNameSnapshot ?? '',
     clientCharge: formatMoney(parseMoney(trip.clientCharge) || tripRevenue(trip)),
     costs: formatMoney(tripResolvedDirectCost(trip, expenses)),
     collectedStatus: tripCollectedStatusForRow(trip),

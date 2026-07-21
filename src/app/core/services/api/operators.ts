@@ -103,4 +103,37 @@ export class OperatorsService {
       )
       .pipe(map((r) => mapApiOperator(r)));
   }
+
+  /** Marca al operador en vacaciones / descanso (RRHH). */
+  startOperatorLeave(operatorId: string): Observable<Operator> {
+    const id = operatorId.trim();
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('operators', id, 'hr-hold/leave'),
+        {},
+      )
+      .pipe(map((r) => mapApiOperator(r)));
+  }
+
+  /** Marca al operador incapacitado (RRHH). */
+  startOperatorIncapacitated(operatorId: string): Observable<Operator> {
+    const id = operatorId.trim();
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('operators', id, 'hr-hold/incapacitated'),
+        {},
+      )
+      .pipe(map((r) => mapApiOperator(r)));
+  }
+
+  /** Finaliza vacaciones o incapacidad; vuelve a `available`. */
+  endOperatorHrHold(operatorId: string): Observable<Operator> {
+    const id = operatorId.trim();
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('operators', id, 'hr-hold/end'),
+        {},
+      )
+      .pipe(map((r) => mapApiOperator(r)));
+  }
 }

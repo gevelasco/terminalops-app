@@ -8,7 +8,7 @@ describe('tripHasIncidents', () => {
           {
             id: '1',
             description: 'Nota',
-            occurredAt: '2026-06-01T10:00:00.000Z',
+            createdAt: '2026-06-01T10:00:00.000Z',
             postedBy: 'ops',
             isIncident: false,
           },
@@ -24,14 +24,14 @@ describe('tripHasIncidents', () => {
           {
             id: '1',
             description: 'Nota',
-            occurredAt: '2026-06-01T10:00:00.000Z',
+            createdAt: '2026-06-01T10:00:00.000Z',
             postedBy: 'ops',
             isIncident: false,
           },
           {
             id: '2',
             description: 'Falla',
-            occurredAt: '2026-06-02T10:00:00.000Z',
+            createdAt: '2026-06-02T10:00:00.000Z',
             postedBy: 'ops',
             isIncident: true,
           },

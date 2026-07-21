@@ -32,8 +32,8 @@ export interface TripEvaluationResult {
   configurationCode: string;
   configurationId?: string;
   configurationVersion: number;
-  /** Dato histórico persistido en trip — no resolver. */
-  configurationNameSnapshot?: string;
+  /** Nombre de catálogo vivo (o legacy) para leyendas de reporte. */
+  configurationName?: string;
   dieselCostBasis: TripDieselCostBasis;
   operationalDistanceKm: number;
   maxEquipmentMode: TripMaxEquipmentMode;
@@ -49,11 +49,7 @@ export type TripEvaluation = TripEvaluationResult;
 
 export type TripEvaluationPick = Pick<
   Trip,
-  | 'operationType'
-  | 'operationConfigurationId'
-  | 'operationConfigurationNameSnapshot'
-  | 'operationConfigurationVersionSnapshot'
-  | 'operationConfigurationMaxEquipmentCountSnapshot'
+  'operationType' | 'operationConfigurationId'
 > &
   Partial<
     Pick<

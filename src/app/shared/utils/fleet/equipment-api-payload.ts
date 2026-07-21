@@ -57,8 +57,6 @@ export function buildEquipmentWritePayload(
     ? fleetMetaWithTenureDefault(draft.fleetMeta as EquipmentFleetMeta | undefined)
     : fleetMetaWithTenureDefault(merged.fleetMeta);
   const name = (merged.name || merged.serialNumber).trim();
-  const lastService =
-    merged.lastServiceDate?.trim() || new Date().toISOString().slice(0, 10);
   const unitId = unitIdForEquipmentPayload(merged.unitId);
   const hitchPosition = unitId
     ? merged.hitchPosition === 'rear'
@@ -71,7 +69,6 @@ export function buildEquipmentWritePayload(
     hitchPosition,
     name,
     serialNumber: merged.serialNumber.trim(),
-    lastServiceDate: lastService,
     plate: merged.plate?.trim() || undefined,
     type: merged.type?.trim() || undefined,
     isActive: merged.isActive !== false,

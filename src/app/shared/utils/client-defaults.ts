@@ -7,6 +7,5 @@ export function defaultClientBilling(): ClientBilling {
 export function defaultClientPayment(): ClientPaymentTerms {
   return {
     hasCredit: false,
-    commercialHealth: 'watch_list',
   };
 }

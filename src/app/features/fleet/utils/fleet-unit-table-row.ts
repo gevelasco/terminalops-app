@@ -64,10 +64,7 @@ export type FleetInsuranceRenewalMeta = Pick<
 >;
 
 /** Metadatos mínimos para próximo mantenimiento sugerido (unidad o equipo). */
-export type FleetLastMaintenanceMeta = Pick<
-  UnitFleetMeta,
-  'lastMaintenanceDate' | 'maintenanceNextDateOverride'
->;
+export type FleetLastMaintenanceMeta = Pick<UnitFleetMeta, 'lastMaintenanceDate'>;
 
 export type FleetOperationalKey =
   | 'on_route'
@@ -343,10 +340,6 @@ function maintenanceBucket(
     }
     return 'ok';
   }
-  const override = meta?.maintenanceNextDateOverride?.trim();
-  if (override) {
-    return renewalBucketFromTargetYmd(override);
-  }
   const months = policy
     ? resolveMaintenanceContext(meta, policy).scheduleMonths
     : MAINT_CYCLE_MO;
@@ -539,15 +532,11 @@ function formatYmdFromDate(d: Date): string {
   return `${y}-${mo}-${da}`;
 }
 
-/** Fecha ISO del próximo mantenimiento por tiempo (override o último + ciclo). */
+/** Fecha ISO del próximo mantenimiento por tiempo (último servicio + ciclo de empresa). */
 export function nextMaintenanceDueIso(
   meta: FleetLastMaintenanceMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): string | null {
-  const override = meta?.maintenanceNextDateOverride?.trim();
-  if (override && parseYmd(override)) {
-    return /^\d{4}-\d{2}-\d{2}$/.test(override) ? override : null;
-  }
   const months = policy
     ? resolveMaintenanceContext(meta, policy).scheduleMonths
     : MAINT_CYCLE_MO;
@@ -560,11 +549,6 @@ export function nextMaintenanceTableDate(
   meta: FleetLastMaintenanceMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): string | null {
-  const override = meta?.maintenanceNextDateOverride?.trim();
-  if (override) {
-    const d = parseYmd(override);
-    return d ? fmtMx(d) : null;
-  }
   const months = policy
     ? resolveMaintenanceContext(meta, policy).scheduleMonths
     : MAINT_CYCLE_MO;
@@ -621,36 +605,24 @@ function startOfDay(d: Date): Date {
 }
 
 /**
- * Fin del período de exención de 2 años para verificación físico-mecánica de equipo
- * (regla de agencia y/o modelo del año calendario en curso). Si aplican ambas, se usa la fecha más tardía.
+ * Fin de la exención de 2 años para físico-mecánica del equipo.
+ * Solo depende del año modelo (`trailerYear`): desde el 1 ene de ese año + 2 años.
+ * Ej. modelo 2026 → exento hasta el 1 ene 2028.
  */
 export function equipmentPhysMechTwoYearExemptionEnd(
-  equipment: Equipment,
-  meta: EquipmentFleetMeta | undefined,
-  refNow = new Date(),
+  equipment: Pick<Equipment, 'trailerYear'>,
+  _meta?: EquipmentFleetMeta | undefined,
+  _refNow = new Date(),
 ): Date | null {
-  const ends: Date[] = [];
-  const cy = refNow.getFullYear();
-  if (meta?.equipmentOperatedByAgency === true) {
-    const startIso =
-      meta.physMechTwoYearExemptStartDate?.trim() || equipment.lastServiceDate?.trim();
-    const start = startIso ? parseYmd(startIso) : null;
-    if (start) {
-      ends.push(addYears(start, 2));
-    }
-  }
   const modelYear = Number.parseInt((equipment.trailerYear ?? '').trim(), 10);
-  if (Number.isFinite(modelYear) && modelYear === cy) {
-    ends.push(addYears(new Date(modelYear, 0, 1), 2));
-  }
-  if (!ends.length) {
+  if (!Number.isFinite(modelYear) || modelYear < 1990 || modelYear > 2100) {
     return null;
   }
-  return ends.reduce((a, b) => (a.getTime() >= b.getTime() ? a : b));
+  return addYears(new Date(modelYear, 0, 1), 2);
 }
 
 function equipmentWithinPhysMechTwoYearExemption(
-  equipment: Equipment,
+  equipment: Pick<Equipment, 'trailerYear'>,
   meta: EquipmentFleetMeta | undefined,
   refNow = new Date(),
 ): boolean {
@@ -661,7 +633,7 @@ function equipmentWithinPhysMechTwoYearExemption(
   return startOfDay(refNow).getTime() < startOfDay(end).getTime();
 }
 
-/** Solo físico-mecánica; respeta exención de 2 años (agencia / modelo año en curso). */
+/** Solo físico-mecánica; respeta exención de 2 años por año modelo. */
 export function equipmentPhysMechVerificationBucket(
   equipment: Equipment,
   meta: EquipmentFleetMeta | undefined,
@@ -681,15 +653,8 @@ export function equipmentPhysMechVerificationTooltip(
   if (equipmentWithinPhysMechTwoYearExemption(equipment, meta, refNow)) {
     const end = equipmentPhysMechTwoYearExemptionEnd(equipment, meta, refNow)!;
     const endFmt = fmtMx(end);
-    const bits: string[] = [];
-    if (meta?.equipmentOperatedByAgency === true) {
-      bits.push('equipo de agencia');
-    }
-    const y = Number.parseInt((equipment.trailerYear ?? '').trim(), 10);
-    if (Number.isFinite(y) && y === refNow.getFullYear()) {
-      bits.push(`modelo ${y} (año en curso)`);
-    }
-    const why = bits.length ? ` Motivo: ${bits.join(' · ')}.` : '';
+    const y = (equipment.trailerYear ?? '').trim();
+    const why = y ? ` Motivo: modelo ${y}.` : '';
     return `Verificación físico-mecánica: no aplica el ciclo de 6 meses durante 2 años.${why} El seguimiento de verificación rige a partir del ${endFmt}.`;
   }
   return lineRenewal('Físico-mecánica (equipo)', meta?.verificationPhysMechDate, VERIF_CYCLE_MO);
@@ -796,10 +761,7 @@ export function buildFleetEquipmentTableRow(
   const meta = e.fleetMeta;
   const rowMaintMeta = meta;
   const maintMeta: FleetLastMaintenanceMeta | undefined = rowMaintMeta
-    ? {
-        lastMaintenanceDate: rowMaintMeta.lastMaintenanceDate,
-        maintenanceNextDateOverride: rowMaintMeta.maintenanceNextDateOverride,
-      }
+    ? { lastMaintenanceDate: rowMaintMeta.lastMaintenanceDate }
     : undefined;
   const insMeta: FleetInsuranceRenewalMeta | undefined = meta
     ? {

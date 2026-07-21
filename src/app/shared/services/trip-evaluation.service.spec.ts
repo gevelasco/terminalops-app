@@ -22,9 +22,6 @@ const CATALOG: OperationConfiguration[] = [
 const PERSISTED_TRIP = {
   operationType: 'full',
   operationConfigurationId: 'cfg-full',
-  operationConfigurationNameSnapshot: 'Full histórico',
-  operationConfigurationVersionSnapshot: 1,
-  operationConfigurationMaxEquipmentCountSnapshot: 2,
   routeDistanceKm: 100,
   maneuverKind: 'foránea' as const,
   equipment: [],
@@ -47,14 +44,15 @@ describe('TripEvaluationService', () => {
     return TestBed.inject(TripEvaluationService);
   }
 
-  it('uses frozen snapshot fields only — immune to live catalog drift', () => {
+  it('uses live catalog by operationConfigurationId', () => {
     const svc = setup();
     const ev = svc.evaluateTrip(PERSISTED_TRIP);
     expect(ev.groupingKey).toBe('id:cfg-full');
-    expect(ev.maxEquipmentCount).toBe(2);
-    expect(ev.dieselCostBasis).toBe('full');
-    expect(ev.configurationVersion).toBe(1);
-    expect(svc.reportSliceLabel(ev)).toBe('Doble articulado');
+    expect(ev.maxEquipmentCount).toBe(1);
+    expect(ev.dieselCostBasis).toBe('sencillo');
+    expect(ev.configurationVersion).toBe(99);
+    expect(ev.operationalDistanceKm).toBe(200);
+    expect(svc.reportSliceLabel(ev)).toBe('Full Renombrado en vivo');
   });
 
   it('evaluateDraft uses live catalog for active calculation', () => {
@@ -82,9 +80,10 @@ describe('trip-evaluation.engine', () => {
     expect(structuralGroupingKey(undefined, 'full')).toBe('code:full');
   });
 
-  it('persisted evaluation ignores catalog when computing diesel basis', () => {
-    const ev = evaluatePersistedTrip(PERSISTED_TRIP);
-    expect(ev.dieselCostBasis).toBe('full');
+  it('persisted evaluation reads live catalog for diesel basis', () => {
+    const ev = evaluatePersistedTrip(PERSISTED_TRIP, {}, CATALOG);
+    expect(ev.dieselCostBasis).toBe('sencillo');
     expect(ev.groupingKey).toBe('id:cfg-full');
+    expect(ev.maxEquipmentCount).toBe(1);
   });
 });

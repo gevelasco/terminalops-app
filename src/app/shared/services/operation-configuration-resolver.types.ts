@@ -9,6 +9,7 @@ import type {
 export interface OperationConfigurationContext {
   operationConfigurationId?: string | null;
   code?: string | null;
+  /** Nombre de catálogo / tarifa (no snapshot de trip). */
   nameSnapshot?: string | null;
   /** Solo informativa — no usar en lógica de resolución. */
   versionSnapshot?: number | null;
@@ -40,14 +41,7 @@ export interface OperationConfigurationResolver {
     configCtx?: OperationConfigurationContext,
   ): UnitConvoyDisplay;
   contextFromTrip(
-    trip: Pick<
-      Trip,
-      | 'operationType'
-      | 'operationConfigurationNameSnapshot'
-      | 'operationConfigurationId'
-      | 'operationConfigurationVersionSnapshot'
-      | 'operationConfigurationMaxEquipmentCountSnapshot'
-    >,
+    trip: Pick<Trip, 'operationType' | 'operationConfigurationId'>,
   ): OperationConfigurationContext;
   contextFromRatePrice(price: {
     operationConfigurationId?: string;
@@ -59,10 +53,7 @@ export interface OperationConfigurationResolver {
     codeField?: string,
   ): OperationConfigurationContext;
   resolveTripDisplay(
-    trip: Pick<
-      Trip,
-      'operationType' | 'operationConfigurationNameSnapshot' | 'operationConfigurationId'
-    >,
+    trip: Pick<Trip, 'operationType' | 'operationConfigurationId'>,
   ): OperationConfigurationDisplay;
   resolveCellDisplay(
     code: unknown,

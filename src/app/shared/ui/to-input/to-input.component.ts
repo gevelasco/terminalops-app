@@ -46,6 +46,8 @@ export class ToInputComponent {
   readonly groupThousands = input(false);
   /** Fuerza mayúsculas al escribir (CURP, RFC, placas, series, etc.). */
   readonly uppercase = input(false);
+  /** Solo dígitos; combina bien con `maxLength` (p. ej. año modelo, 4 dígitos). */
+  readonly digitsOnly = input(false);
   readonly value = model('');
 
   /**
@@ -112,7 +114,17 @@ export class ToInputComponent {
 
   onInput(ev: Event): void {
     const el = ev.target as HTMLInputElement;
-    const next = this.uppercase() ? el.value.toUpperCase() : el.value;
+    let next = el.value;
+    if (this.digitsOnly()) {
+      next = next.replace(/\D/g, '');
+      const max = this.maxLength();
+      if (max != null && max > 0 && next.length > max) {
+        next = next.slice(0, max);
+      }
+    }
+    if (this.uppercase()) {
+      next = next.toUpperCase();
+    }
     if (next !== el.value) {
       el.value = next;
     }

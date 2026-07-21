@@ -71,10 +71,12 @@
           [suggestionsSource]="vm.equipmentBrandNames()"
           [(brandName)]="vm.editBrand"
         />
-        <to-select
+        <to-input
           label="Modelo (año) *"
-          placeholder="Selecciona año"
-          [options]="vm.modelYearOptions"
+          type="text"
+          placeholder="Ej. 2022"
+          [digitsOnly]="true"
+          [maxLength]="4"
           [(value)]="vm.editYear"
         />
       </div>

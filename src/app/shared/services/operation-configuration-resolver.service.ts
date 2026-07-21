@@ -55,21 +55,11 @@ export class OperationConfigurationResolverService implements OperationConfigura
   }
 
   contextFromTrip(
-    trip: Pick<
-      Trip,
-      | 'operationType'
-      | 'operationConfigurationNameSnapshot'
-      | 'operationConfigurationId'
-      | 'operationConfigurationVersionSnapshot'
-      | 'operationConfigurationMaxEquipmentCountSnapshot'
-    >,
+    trip: Pick<Trip, 'operationType' | 'operationConfigurationId'>,
   ): OperationConfigurationContext {
     return {
       operationConfigurationId: trip.operationConfigurationId,
       code: trip.operationType,
-      nameSnapshot: trip.operationConfigurationNameSnapshot,
-      versionSnapshot: trip.operationConfigurationVersionSnapshot,
-      maxEquipmentCountOverride: trip.operationConfigurationMaxEquipmentCountSnapshot,
     };
   }
 
@@ -95,10 +85,6 @@ export class OperationConfigurationResolverService implements OperationConfigura
           ? row['operationConfigurationId']
           : undefined,
       code: String(row[codeField] ?? ''),
-      nameSnapshot:
-        typeof row['operationConfigurationNameSnapshot'] === 'string'
-          ? row['operationConfigurationNameSnapshot']
-          : undefined,
     };
   }
 
@@ -134,11 +120,11 @@ export class OperationConfigurationResolverService implements OperationConfigura
   }
 
   resolveConvoyDisplay(
-    equipment: Equipment[],
+    equipment: readonly Equipment[],
     configCtx?: OperationConfigurationContext,
   ): UnitConvoyDisplay {
     const catalog = this.fullCatalog();
-    const convoy = resolveUnitConvoyFromEquipment(equipment, catalog, isPlanaEquipment);
+    const convoy = resolveUnitConvoyFromEquipment([...equipment], catalog, isPlanaEquipment);
     if (!configCtx) {
       return convoy;
     }
@@ -159,10 +145,7 @@ export class OperationConfigurationResolverService implements OperationConfigura
   }
 
   resolveTripDisplay(
-    trip: Pick<
-      Trip,
-      'operationType' | 'operationConfigurationNameSnapshot' | 'operationConfigurationId'
-    >,
+    trip: Pick<Trip, 'operationType' | 'operationConfigurationId'>,
   ): OperationConfigurationDisplay {
     return resolveOperationConfiguration(this.engineParams(this.contextFromTrip(trip)));
   }

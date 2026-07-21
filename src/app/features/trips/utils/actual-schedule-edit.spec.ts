@@ -14,9 +14,8 @@ function tripFixture(
   return {
     id: '1',
     maneuverCode: 'TST-001',
-    origin: 'A',
-    destination: 'B',
     clientName: 'Cliente',
+    clientId: 'c1',
     status: 'in_transit',
     operationType: 'sencillo',
     loadType: 'lleno',
