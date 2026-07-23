@@ -24,13 +24,3 @@ export function maniobrasIncidentRatePercent(
   }
   return Math.round((tripsWithIncidents / completedTrips) * 1000) / 10;
 }
-
-export function maniobrasDelayedRatePercent(
-  delayedTrips: number,
-  completedTrips: number,
-): number | null {
-  if (completedTrips <= 0) {
-    return null;
-  }
-  return Math.round((delayedTrips / completedTrips) * 1000) / 10;
-}

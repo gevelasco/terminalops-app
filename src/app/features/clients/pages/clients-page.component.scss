@@ -1,3 +1,11 @@
+:host.clients-page-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
 .clients-page-header__btn-icon {
   display: inline-flex;
   align-items: center;
@@ -10,6 +18,31 @@
   flex-direction: column;
   gap: 0;
   min-width: 0;
+  min-height: 0;
+
+  &:not(.clients-table-block--rates) {
+    flex: 1 1 auto;
+  }
+}
+
+.clients-table-block--rates {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+
+  .clients-toolbar {
+    position: relative;
+    z-index: 40;
+    flex: 0 0 auto;
+    margin-bottom: 1rem;
+    overflow: visible;
+  }
+
+  app-destination-rates-map {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 .clients-toolbar {
@@ -61,22 +94,60 @@
   white-space: nowrap;
 }
 
-.clients-toolbar__origin-filter {
-  flex: 0 0 auto;
-  min-width: min(100%, 11rem);
-  max-width: 14rem;
+.clients-toolbar__export-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-left: auto;
+  z-index: 41;
 
-  to-select {
-    display: block;
-    width: 100%;
+  &:hover .clients-toolbar__export-tooltip,
+  &:focus-within .clients-toolbar__export-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
   }
 }
 
-.clients-toolbar__table-actions {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
+.clients-toolbar__export-tooltip {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 42;
+  width: max-content;
+  max-width: min(16rem, 80vw);
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--to-radius-md);
+  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
+  border: 1px solid var(--to-color-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  color: var(--to-color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  pointer-events: none;
+}
+
+.clients-toolbar__export {
+  min-width: var(--clients-toolbar-control-height);
+  height: var(--clients-toolbar-control-height);
+
+  ::ng-deep .to-button {
+    width: var(--clients-toolbar-control-height);
+    min-width: var(--clients-toolbar-control-height);
+    height: var(--clients-toolbar-control-height);
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 /* Mobile: cada control del toolbar en su propia fila a ancho completo. */
@@ -88,7 +159,6 @@
   .clients-toolbar > to-segment-control {
     flex: 1 1 100%;
 
-    /* El pill llena la fila y sus botones se reparten el ancho. */
     ::ng-deep .to-segment-control--toolbar {
       width: 100%;
     }
@@ -103,7 +173,6 @@
     max-width: none;
   }
 
-  /* El input ocupa toda la fila; el estado "Buscando…" no debe restarle ancho. */
   .clients-toolbar__search {
     flex: 1 1 100%;
   }
@@ -113,84 +182,31 @@
   }
 }
 
-.clients-toolbar__export-wrap {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-}
-
-.clients-toolbar__export-wrap::after,
-.clients-toolbar__export-wrap::before {
-  opacity: 0;
-  transform: translateY(2px);
-  transition:
-    opacity 120ms ease,
-    transform 120ms ease;
-  pointer-events: none;
-}
-
-.clients-toolbar__export-wrap::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 0.45rem);
-  right: 0;
-  z-index: 10;
-  width: max-content;
-  max-width: min(16rem, 80vw);
-  padding: 0.35rem 0.55rem;
-  border-radius: var(--to-radius-md);
-  background: color-mix(in srgb, var(--to-color-surface) 96%, black);
-  border: 1px solid var(--to-color-border);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
-  color: var(--to-color-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.clients-toolbar__export-wrap::before {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 0.15rem);
-  right: 0.65rem;
-  border: 5px solid transparent;
-  border-top-color: var(--to-color-border);
-}
-
-.clients-toolbar__export-wrap:hover::after,
-.clients-toolbar__export-wrap:hover::before,
-.clients-toolbar__export-wrap:focus-within::after,
-.clients-toolbar__export-wrap:focus-within::before {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.clients-toolbar__export {
-  flex-shrink: 0;
-  display: inline-flex;
-
-  ::ng-deep .to-button {
-    width: var(--clients-toolbar-control-height);
-    min-width: var(--clients-toolbar-control-height);
-    height: var(--clients-toolbar-control-height);
-    padding: 0;
-    box-sizing: border-box;
-  }
-}
-
 .clients-page__hint {
   margin: 0 0 0.35rem;
   font-size: 0.8125rem;
   color: var(--to-color-text-muted);
 }
 
+.clients-page__hint--rates {
+  margin-bottom: 0.75rem;
+}
+
 .clients-empty-hint {
   margin: 0;
-  padding: 0.65rem 0.85rem;
+  padding: 0.85rem 1rem;
   border-radius: var(--to-radius-md);
-  font-size: 0.8125rem;
-  color: var(--to-color-text-muted);
   background: var(--to-color-surface-muted);
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.clients-empty-hint__text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
 }

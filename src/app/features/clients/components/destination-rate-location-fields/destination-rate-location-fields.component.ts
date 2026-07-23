@@ -86,7 +86,10 @@ export class DestinationRateLocationFieldsComponent {
     this.cpEditing.set(false);
   }
 
-  onCpBlur(): void {
+  onCpSearch(): void {
+    if (this.disabled() || this.cpLoading()) {
+      return;
+    }
     const digits = normalizeMxPostalCodeDigits(this.postalCode());
     if (digits !== this.postalCode()) {
       this.postalCode.set(digits);

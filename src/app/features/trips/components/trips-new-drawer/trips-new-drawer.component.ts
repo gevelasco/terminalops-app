@@ -30,7 +30,6 @@ import {
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
-import type { TripClientPaymentMethod } from '@shared/models/logistics.models';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
 import {
@@ -38,7 +37,6 @@ import {
   plannedScheduleArrivalOrderIssue,
   plannedScheduleCompletionDepartureOrderIssue,
   plannedScheduleCompletionOrderIssue,
-  plannedScheduleIsoTriplet,
   plannedScheduleOrderToastMessage,
 } from '@features/trips/utils/planned-schedule-validation';
 import {
@@ -49,10 +47,7 @@ import {
   localityKey,
   normalizeMxPostalCodeDigits,
 } from '@features/trips/utils/mx-postal-settlement';
-import {
-  formatRouteKmEsMx,
-  maneuverKindFromRouteKm,
-} from '@features/trips/utils/maniobra-route-display';
+import { formatRouteKmEsMx } from '@features/trips/utils/maniobra-route-display';
 import { operatorLicenseExpiresLabelFromIso } from '@features/trips/utils/operator-license-display';
 import { TripsFormCatalogService } from '@features/trips/services/trips-form-catalog.service';
 import { TripLoadPlacesFeatureService } from '@features/trips/services/trip-load-places.service';
@@ -67,6 +62,14 @@ import {
   routeEndpointFingerprint,
   type TripRouteEndpointPrefill,
 } from '@features/trips/utils/trips-new-drawer-route-prefill';
+import { buildTripsNewDrawerSubmitResult } from '@features/trips/utils/trips-new-drawer-submit.util';
+import {
+  computeDestinationRateSuggestionFields,
+  destinationRateMatchKey,
+  destinationRatePlannedScheduleContextFingerprint,
+  destinationRateSuggestionInputFingerprint,
+  detectDestinationRateManualEdits,
+} from '@features/trips/utils/trips-new-drawer-destination-rate-suggestion.util';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import {
@@ -90,9 +93,6 @@ import {
   destinationRateHasClientChargeForOperation,
   destinationRateHasEstimatedTime,
   destinationRateHasRouteCache,
-  suggestedClientChargeFromDestinationRate,
-  suggestedEstimatedTollFromDestinationRate,
-  suggestedOperatorPaymentFromDestinationRate,
 } from '@features/clients/utils/find-destination-rate-by-postal-code';
 import { computePlannedScheduleSuggestionFromRate } from '@features/trips/utils/planned-schedule-from-destination-rate';
 import type { FuelEstimateResponse } from '@shared/models/api/api-trips-fuel.model';
@@ -267,7 +267,7 @@ export class TripsNewDrawerComponent {
       cp,
       destLocality,
       clientRateId,
-      key: `${rateOriginId}|${cp}|${destLocality}|${clientRateId}`,
+      key: destinationRateMatchKey(rateOriginId, cp, destLocality, clientRateId),
     };
   });
 
@@ -1174,7 +1174,13 @@ export class TripsNewDrawerComponent {
       const destLocality = this.destinationLocalityName();
       const op = this.operationType();
       const billing = this.includeClientBilling();
-      const fp = `${originId}|${cp}|${destLocality}|${op}|${billing ? '1' : '0'}`;
+      const fp = destinationRateSuggestionInputFingerprint(
+        originId,
+        cp,
+        destLocality,
+        op,
+        billing,
+      );
 
       if (fp !== this.lastDestinationRateInputFp) {
         this.lastDestinationRateInputFp = fp;
@@ -1192,7 +1198,13 @@ export class TripsNewDrawerComponent {
           : undefined;
 
       const departure = this.plannedDepartureDateTime().trim();
-      const scheduleContextFp = `${originId}|${clientId}|${cp}|${destLocality}|${rate?.id ?? ''}`;
+      const scheduleContextFp = destinationRatePlannedScheduleContextFingerprint(
+        originId,
+        clientId,
+        cp,
+        destLocality,
+        rate?.id ?? '',
+      );
       if (scheduleContextFp !== this.lastPlannedScheduleContextFp) {
         this.lastPlannedScheduleContextFp = scheduleContextFp;
         this.resetPlannedScheduleSuggestionForContextChange();
@@ -1604,52 +1616,6 @@ export class TripsNewDrawerComponent {
     this.attachedFiles.update((prev) => prev.filter((_, i) => i !== index));
   }
 
-  private parseRequiredNonNegativeNumber(raw: string, fieldLabel: string): number | null {
-    const s = stripGroupedNumberInput(raw);
-    if (s === '') {
-      this.toast.show(`El campo «${fieldLabel}» es obligatorio.`, 'warning');
-      return null;
-    }
-    const n = parseNonNegativeNumber(raw);
-    if (n === null) {
-      this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
-      return null;
-    }
-    return n;
-  }
-
-  private parseOptionalNonNegativeNumber(raw: string, fieldLabel: string): number | null {
-    const s = stripGroupedNumberInput(raw);
-    if (s === '') {
-      return 0;
-    }
-    const n = parseNonNegativeNumber(raw);
-    if (n === null) {
-      this.toast.show(`«${fieldLabel}» no tiene un valor numérico válido.`, 'warning');
-      return null;
-    }
-    return n;
-  }
-
-  private parseCreditDays(raw: string): number {
-    const t = raw.trim();
-    if (t === '') {
-      return 0;
-    }
-    const n = Number.parseInt(t, 10);
-    if (!Number.isFinite(n) || n < 0) {
-      return 0;
-    }
-    return n;
-  }
-
-  private normalizePaymentMethod(v: string): TripClientPaymentMethod {
-    if (isTripClientPaymentMethod(v)) {
-      return v;
-    }
-    return 'cash';
-  }
-
   onUnitPicked(ev: UnitPickedEvent): void {
     this.equipmentPrimary.set(ev.equipmentIds[0] ?? '');
     this.equipmentSecondary.set(ev.equipmentIds[1] ?? '');
@@ -1921,224 +1887,65 @@ export class TripsNewDrawerComponent {
     if (this.creating()) {
       return;
     }
-    const oCp = normalizeMxPostalCodeDigits(this.originCp());
-    const dCp = normalizeMxPostalCodeDigits(this.destinationCp());
-    if (oCp.length !== 5 || dCp.length !== 5) {
-      this.toast.show(
-        'Indica códigos postales de origen y destino (5 dígitos, solo México).',
-        'warning',
-      );
-      return;
-    }
-    if (this.originSettlements().length === 0 || this.destinationSettlements().length === 0) {
-      this.toast.show(
-        'No hay datos SEPOMex para uno de los códigos postales; revisa e intenta de nuevo.',
-        'warning',
-      );
-      return;
-    }
-    const okO = this.originSettlements().some(
-      (r) => localityKey(r) === this.originLocalityKey(),
-    );
-    const okD = this.destinationSettlements().some(
-      (r) => localityKey(r) === this.destinationLocalityKey(),
-    );
-    if (!okO || !okD) {
-      this.toast.show('Selecciona la localidad de origen y la de destino.', 'warning');
-      return;
-    }
-
-    const oKey = this.originLocalityKey().trim();
-    const dKey = this.destinationLocalityKey().trim();
-    const oS =
-      this.originSettlements().find((r) => localityKey(r) === oKey) ?? null;
-    const dS =
-      this.destinationSettlements().find((r) => localityKey(r) === dKey) ?? null;
-    if (!oS || !dS) {
-      this.toast.show('Selecciona la localidad de origen y la de destino.', 'warning');
-      return;
-    }
-
-    const origin = this.origin().trim();
-    const destination = this.destination().trim();
-    if (!origin || !destination) {
-      this.toast.show(
-        'No se pudo armar la ruta; espera un momento tras elegir CP y localidad.',
-        'warning',
-      );
-      return;
-    }
-
-    const includeBilling = this.includeClientBilling();
-    let client: string | undefined;
-    if (includeBilling) {
-      const c = this.clientName().trim();
-      if (!c) {
-        this.toast.show('Selecciona o escribe un cliente.', 'warning');
-        return;
-      }
-      client = c;
-    }
-
-    const uid = this.unitId().trim();
-    if (!uid) {
-      this.toast.show('Selecciona una unidad.', 'warning');
-      return;
-    }
-
-    if (!this.selectedUnitMatchesManeuverConfiguration()) {
-      this.toast.show(this.unitConfigurationMismatchMessage(), 'warning');
-      return;
-    }
-
-    const oprId = this.assignedOperatorId().trim();
-    if (!oprId) {
-      this.toast.show('Selecciona un operador disponible.', 'warning');
-      return;
-    }
-
-    const config = this.operationType();
+    const selectedConfig = this.selectedOperationConfig();
     const eq1 = this.equipmentPrimary().trim();
     const eq2 = this.equipmentSecondary().trim();
-
-    if (this.usesMultipleEquipmentOperation()) {
-      if (!eq1 || !eq2) {
-        const configName = this.selectedOperationConfig()?.name ?? 'esta configuración';
-        this.toast.show(
-          `La unidad elegida no tiene la configuración de equipos requerida para ${configName}.`,
-          'warning',
-        );
-        return;
-      }
-    } else if (!eq1) {
-      this.toast.show('La unidad elegida no tiene equipo configurado.', 'warning');
-      return;
-    }
-
-    const plannedSchedule = plannedScheduleIsoTriplet(
-      this.plannedDepartureDateTime(),
-      this.plannedArrivalDateTime(),
-      this.plannedCompletionDateTime(),
-    );
-    if (!plannedSchedule) {
-      this.toast.show(
-        'Completa salida, llegada cliente y llegada / fin en orden cronológico.',
-        'warning',
-      );
-      return;
-    }
-
-    const liters = this.parseRequiredNonNegativeNumber(this.dieselLiters(), 'Diesel (litros)');
-    if (liters === null) {
-      return;
-    }
-    const dieselAmt = this.parseRequiredNonNegativeNumber(this.dieselAmount(), 'Diesel (monto)');
-    if (dieselAmt === null) {
-      return;
-    }
-    const casetas = this.parseRequiredNonNegativeNumber(this.casetasAmount(), 'Casetas');
-    if (casetas === null) {
-      return;
-    }
-    const opQuota = this.parseRequiredNonNegativeNumber(this.operatorQuota(), 'Operador');
-    if (opQuota === null) {
-      return;
-    }
-    const viaticos = this.parseOptionalNonNegativeNumber(this.perDiemAmount(), 'Viáticos');
-    if (viaticos === null) {
-      return;
-    }
-
-    let cobro = 0;
-    if (includeBilling) {
-      const parsed = this.parseRequiredNonNegativeNumber(this.clientCharge(), 'Cobro');
-      if (parsed === null) {
-        return;
-      }
-      cobro = parsed;
-    }
-
-    const op = config;
-    const equipmentLabels = this.usesMultipleEquipmentOperation()
-        ? [this.labelForEquipmentId(eq1), this.labelForEquipmentId(eq2)]
-        : [this.labelForEquipmentId(eq1)];
-
-    const oCpDigits = normalizeMxPostalCodeDigits(this.originCp());
-    const dCpDigits = normalizeMxPostalCodeDigits(this.destinationCp());
-    const kmSnap = this.routeKm();
-    const maneuverKindSnap = maneuverKindFromRouteKm(kmSnap);
-    const selectedConfig = this.selectedOperationConfig();
-
-    const equipmentIds = this.usesMultipleEquipmentOperation()
-        ? [eq1, eq2].map((id) => id.trim()).filter(Boolean)
-        : [eq1.trim()].filter(Boolean);
-
-    const payload: CreateTripPayload = {
-      operationType: op.trim(),
-      ...(selectedConfig?.id ? { operationConfigurationId: selectedConfig.id } : {}),
+    const result = buildTripsNewDrawerSubmitResult({
+      originCp: this.originCp(),
+      destinationCp: this.destinationCp(),
+      originSettlements: this.originSettlements(),
+      destinationSettlements: this.destinationSettlements(),
+      originLocalityKey: this.originLocalityKey(),
+      destinationLocalityKey: this.destinationLocalityKey(),
+      origin: this.origin(),
+      destination: this.destination(),
+      includeClientBilling: this.includeClientBilling(),
+      clientName: this.clientName(),
+      clientId: this.clientId(),
+      unitId: this.unitId(),
+      unitMatchesConfig: this.selectedUnitMatchesManeuverConfiguration(),
+      unitConfigMismatchMessage: this.unitConfigurationMismatchMessage(),
+      assignedOperatorId: this.assignedOperatorId(),
+      operationType: this.operationType(),
+      selectedOperationConfigId: selectedConfig?.id,
+      selectedOperationConfigName: selectedConfig?.name,
+      usesMultipleEquipment: this.usesMultipleEquipmentOperation(),
+      equipmentPrimaryId: eq1,
+      equipmentSecondaryId: eq2,
+      equipmentPrimaryLabel: this.labelForEquipmentId(eq1),
+      equipmentSecondaryLabel: this.labelForEquipmentId(eq2),
+      plannedDepartureDateTime: this.plannedDepartureDateTime(),
+      plannedArrivalDateTime: this.plannedArrivalDateTime(),
+      plannedCompletionDateTime: this.plannedCompletionDateTime(),
+      dieselLiters: this.dieselLiters(),
+      dieselAmount: this.dieselAmount(),
+      casetasAmount: this.casetasAmount(),
+      operatorQuota: this.operatorQuota(),
+      perDiemAmount: this.perDiemAmount(),
+      clientCharge: this.clientCharge(),
+      creditDays: this.creditDays(),
+      requiresInvoice: this.requiresInvoice(),
+      paymentMethod: this.paymentMethod(),
       loadType: this.loadType(),
       containerType: this.containerType(),
-      cargoDescription: this.cargoDescription().trim(),
-      approximateWeightTons: this.approximateWeightTons().trim(),
-      ...(() => {
-        const loadDateIso = dateTimeLocalValueToIso(this.loadDate());
-        return loadDateIso ? { loadDate: loadDateIso } : {};
-      })(),
-      ...(this.loadPlace().trim() ? { loadPlace: this.loadPlace().trim() } : {}),
-      dieselLiters: String(liters),
-      dieselAmount: String(dieselAmt),
-      casetasAmount: String(casetas),
-      operatorQuota: String(opQuota),
-      ...(viaticos > 0 ? { perDiemAmount: String(viaticos) } : {}),
-      clientCharge: String(cobro),
-      creditDays: includeBilling ? this.parseCreditDays(this.creditDays()) : 0,
-      requiresInvoice: includeBilling ? this.requiresInvoice() : false,
-      paymentMethod: includeBilling
-        ? this.normalizePaymentMethod(this.paymentMethod())
-        : 'cash',
-      operatorId: oprId,
-      unitId: uid,
-      clientName: client,
-      clientId: includeBilling
-        ? this.clientId().trim() || undefined
-        : undefined,
-      equipment: equipmentLabels,
-      equipmentIds,
-      plannedDepartureAt: plannedSchedule.plannedDepartureAt,
-      plannedArrivalAt: plannedSchedule.plannedArrivalAt,
-      plannedCompletionAt: plannedSchedule.plannedCompletionAt,
-      routeDistanceKm: kmSnap,
-      maneuverKind: maneuverKindSnap,
-      originPostalCode: oCpDigits.length === 5 ? oCpDigits : undefined,
-      originCityMunicipality: cityMunicipalityLineFromSettlement(oS),
-      originLocality: formatSettlementOptionLabel(oS),
-      destinationPostalCode: dCpDigits.length === 5 ? dCpDigits : undefined,
-      destinationCityMunicipality: cityMunicipalityLineFromSettlement(dS),
-      destinationLocality: formatSettlementOptionLabel(dS),
-      ...(this.matchedDestinationRateId()
-        ? { destinationRateId: this.matchedDestinationRateId()! }
-        : {}),
-      ...(() => {
-        const centerId = this.originOperationalCenterId().trim();
-        if (!centerId || isOperationalCenterNewRoute(centerId)) {
-          return {};
-        }
-        return { originOperationalCenterId: centerId };
-      })(),
-    };
-    if (this.plannedCompletionIsInPast(plannedSchedule.plannedCompletionAt)) {
-      this.pendingCreatePayload = payload;
+      cargoDescription: this.cargoDescription(),
+      approximateWeightTons: this.approximateWeightTons(),
+      loadDate: this.loadDate(),
+      loadPlace: this.loadPlace(),
+      routeKm: this.routeKm(),
+      matchedDestinationRateId: this.matchedDestinationRateId(),
+      originOperationalCenterId: this.originOperationalCenterId(),
+    });
+    if (!result.ok) {
+      this.toast.show(result.message, 'warning');
+      return;
+    }
+    if (result.completionInPast) {
+      this.pendingCreatePayload = result.payload;
       this.pastCompletionConfirmOpen.set(true);
       return;
     }
-
-    this.runCreateTrip(payload);
-  }
-
-  /** El fin de maniobra planeado ya ocurrió → se registrará como completada. */
-  private plannedCompletionIsInPast(plannedCompletionAt: string): boolean {
-    const t = Date.parse(plannedCompletionAt);
-    return Number.isFinite(t) && t < Date.now();
+    this.runCreateTrip(result.payload);
   }
 
   confirmPastCompletionCreate(): void {
@@ -2184,32 +1991,29 @@ export class TripsNewDrawerComponent {
     if (!this.autoRecognitionEnabled()) {
       return;
     }
-    const opPay = suggestedOperatorPaymentFromDestinationRate(rate, operationType);
-    const toll = suggestedEstimatedTollFromDestinationRate(rate, operationType);
+    const fields = computeDestinationRateSuggestionFields(
+      rate,
+      operationType,
+      includeBilling,
+    );
 
     this.applyingDestinationRateSuggestion = true;
 
-    if (opPay != null) {
-      const formatted = formatFuelEstimateMoney(opPay);
-      this.operatorQuota.set(formatted);
-      this.lastAutoOperatorQuota = formatted;
+    if (fields.operatorQuota != null) {
+      this.operatorQuota.set(fields.operatorQuota);
+      this.lastAutoOperatorQuota = fields.operatorQuota;
       this.operatorQuotaSuggestionUi.set('auto');
     }
 
-    if (includeBilling) {
-      const charge = suggestedClientChargeFromDestinationRate(rate, operationType);
-      const formatted = formatFuelEstimateMoney(charge);
-      this.clientCharge.set(formatted);
-      this.lastAutoClientCharge = formatted;
-      this.clientChargeSuggestionUi.set('auto');
-    } else {
-      this.clientChargeSuggestionUi.set('none');
+    this.clientChargeSuggestionUi.set(fields.clientChargeUi);
+    if (fields.clientCharge != null) {
+      this.clientCharge.set(fields.clientCharge);
+      this.lastAutoClientCharge = fields.clientCharge;
     }
 
-    if (toll != null) {
-      const formatted = formatFuelEstimateMoney(toll);
-      this.casetasAmount.set(formatted);
-      this.lastAutoCasetasAmount = formatted;
+    if (fields.casetasAmount != null) {
+      this.casetasAmount.set(fields.casetasAmount);
+      this.lastAutoCasetasAmount = fields.casetasAmount;
       this.casetasSuggestionUi.set('auto');
     }
 
@@ -2227,27 +2031,24 @@ export class TripsNewDrawerComponent {
     if (this.applyingDestinationRateSuggestion) {
       return;
     }
-    const op = stripGroupedNumberInput(this.operatorQuota());
-    const charge = stripGroupedNumberInput(this.clientCharge());
-    const casetas = stripGroupedNumberInput(this.casetasAmount());
-    const autoOp = stripGroupedNumberInput(this.lastAutoOperatorQuota);
-    const autoCharge = stripGroupedNumberInput(this.lastAutoClientCharge);
-    const autoCasetas = stripGroupedNumberInput(this.lastAutoCasetasAmount);
-    let locked = false;
-
-    if (autoOp !== '' && op !== '' && op !== autoOp) {
+    const detection = detectDestinationRateManualEdits({
+      operatorQuota: this.operatorQuota(),
+      clientCharge: this.clientCharge(),
+      casetasAmount: this.casetasAmount(),
+      lastAutoOperatorQuota: this.lastAutoOperatorQuota,
+      lastAutoClientCharge: this.lastAutoClientCharge,
+      lastAutoCasetasAmount: this.lastAutoCasetasAmount,
+    });
+    if (detection.operatorManual) {
       this.operatorQuotaSuggestionUi.set('manual');
-      locked = true;
     }
-    if (autoCharge !== '' && charge !== '' && charge !== autoCharge) {
+    if (detection.chargeManual) {
       this.clientChargeSuggestionUi.set('manual');
-      locked = true;
     }
-    if (autoCasetas !== '' && casetas !== '' && casetas !== autoCasetas) {
+    if (detection.casetasManual) {
       this.casetasSuggestionUi.set('manual');
-      locked = true;
     }
-    if (locked) {
+    if (detection.locked) {
       this.destinationRateSuggestionLocked.set(true);
     }
   }

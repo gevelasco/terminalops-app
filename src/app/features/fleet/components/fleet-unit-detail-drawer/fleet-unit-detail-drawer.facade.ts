@@ -7,10 +7,14 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of, switchMap, type Subscription } from 'rxjs';
+import { switchMap, type Subscription } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@core/services/api/expenses';
-import { buildFleetCoverageExpensesPageParams } from '@features/fleet/utils/fleet-coverage-expenses.util';
+import {
+  confirmFleetCoverageSchedulePayment,
+  resolveFleetCoverageConfirmDueDate,
+  subscribeFleetCoverageExpensesPage,
+} from '@features/fleet/utils/fleet-coverage-payment.util';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
@@ -79,12 +83,17 @@ import {
 } from '@app/features/fleet/utils/fleet-unit-table-row';
 import {
   fleetDrawerTodayIso,
+  fleetModelYearErrorMessage,
   fleetValueFromLabel,
+  parseFleetModelYear,
   parseFleetOptionalAmount,
   parseFleetOptionalPositiveInt,
-  parseFleetRequiredDigits,
   registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
+import {
+  formatGroupedNumber,
+  formatMoneyInputValue,
+} from '@shared/utils/format-grouped-number';
 import { formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import {
   trailerTenureModeLabel,
@@ -946,7 +955,7 @@ export class FleetUnitDetailDrawerFacade {
     );
     this.editInsPaymentMethod.set(m.insurancePaymentMethod?.trim() || '');
     this.editInsInvoiceRequired.set(m.insuranceInvoiceRequired === true);
-    this.editInsCost.set(m.insuranceCost != null ? String(m.insuranceCost) : '');
+    this.editInsCost.set(formatMoneyInputValue(m.insuranceCost));
     this.editPolicyNames.set([...(m.documentPolicyNames ?? [])]);
     this.editingSection.set('insurance');
   }
@@ -1066,7 +1075,7 @@ export class FleetUnitDetailDrawerFacade {
     );
     this.editGpsPaymentMethod.set(m.gpsPaymentMethod?.trim() || '');
     this.editGpsInvoiceRequired.set(m.gpsInvoiceRequired === true);
-    this.editGpsPrice.set(m.gpsPrice != null ? String(m.gpsPrice) : '');
+    this.editGpsPrice.set(formatMoneyInputValue(m.gpsPrice));
     this.editGpsPortal.set(m.gpsTrackingPortalUrl?.trim() || '');
     this.editGpsEndorse.set(m.gpsCoveredByInsuranceEndorsement === true);
     this.editingSection.set('gps');
@@ -1307,13 +1316,9 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('Marca es obligatoria.', 'warning');
       return;
     }
-    const yearParsed = parseFleetRequiredDigits(this.editYear(), { maxLength: 4 });
-    if (yearParsed === 'empty') {
-      this.toast.show('Modelo (año) es obligatorio.', 'warning');
-      return;
-    }
-    if (yearParsed === 'invalid') {
-      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
+    const yearParsed = parseFleetModelYear(this.editYear());
+    if (!yearParsed.ok) {
+      this.toast.show(fleetModelYearErrorMessage(yearParsed.reason), 'warning');
       return;
     }
     const brandAbbr = deriveFleetBrandAbbr(brandName);
@@ -1322,7 +1327,7 @@ export class FleetUnitDetailDrawerFacade {
       transportType: this.editTransportType().trim() || undefined,
       isActive: this.editVisibility() === 'active',
       trailerBrandAbbr: brandAbbr || undefined,
-      trailerYear: yearParsed,
+      trailerYear: yearParsed.year,
       serialNumber: this.editSerial().trim().toUpperCase() || undefined,
       motorNumber: this.editMotorNumber().trim().toUpperCase() || undefined,
       name: this.editAlias().trim() || undefined,
@@ -1388,14 +1393,8 @@ export class FleetUnitDetailDrawerFacade {
     this.clearStagedDocUploads();
     const m = this.meta() ?? {};
     this.editTenureMode.set(trailerTenureModeOrDefault(m.trailerTenureMode));
-    this.editCommercialValue.set(
-      m.trailerCommercialValue != null ? String(m.trailerCommercialValue) : '',
-    );
-    this.editRecurringAmount.set(
-      m.trailerRecurringPaymentAmount != null
-        ? String(m.trailerRecurringPaymentAmount)
-        : '',
-    );
+    this.editCommercialValue.set(formatMoneyInputValue(m.trailerCommercialValue));
+    this.editRecurringAmount.set(formatMoneyInputValue(m.trailerRecurringPaymentAmount));
     this.editRecurringDate.set(m.trailerRecurringPaymentDate ?? '');
     this.editRecurringInstallments.set(
       m.trailerRecurringInstallmentCount != null
@@ -1404,11 +1403,7 @@ export class FleetUnitDetailDrawerFacade {
     );
     this.editRecurringCadence.set(m.trailerRecurringPaymentCadence ?? '');
     this.editTenureBeneficiary.set(m.trailerTenureBeneficiary ?? '');
-    this.editOwnerPayout.set(
-      m.trailerManagementOwnerPayout != null
-        ? String(m.trailerManagementOwnerPayout)
-        : '',
-    );
+    this.editOwnerPayout.set(formatMoneyInputValue(m.trailerManagementOwnerPayout));
     this.editOwnershipNames.set([...(m.documentOwnershipNames ?? [])]);
     this.editingSection.set('tenure');
   }
@@ -1761,57 +1756,34 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   confirmInsurancePayment(): void {
-    if (!this.canConfirmInsurancePayment()) {
+    if (this.saving() || !this.canConfirmInsurancePayment()) {
       return;
     }
-    const scheduleRow = this.insurancePaymentSchedule().find((row) => row.canConfirm);
-    if (scheduleRow) {
-      this.confirmInsurancePaymentCycle(scheduleRow.dueDate);
+    const dueDate = resolveFleetCoverageConfirmDueDate(
+      this.insurancePaymentSchedule(),
+      nextInsurancePaymentDate(this.meta()),
+    );
+    if (!dueDate) {
       return;
     }
-    const next = nextInsurancePaymentDate(this.meta());
-    if (!next) {
-      return;
-    }
-    const y = next.getFullYear();
-    const m = String(next.getMonth() + 1).padStart(2, '0');
-    const day = String(next.getDate()).padStart(2, '0');
-    this.confirmInsurancePaymentCycle(`${y}-${m}-${day}`);
+    this.confirmInsurancePaymentCycle(dueDate);
   }
 
   confirmInsurancePaymentCycle(dueDate: string): void {
     if (!this.canWriteFleet() || this.saving()) {
       return;
     }
-    const normalizedDueDate = dueDate.trim();
-    if (!normalizedDueDate) {
-      return;
-    }
-    const scheduleRow = this.insurancePaymentSchedule().find(
-      (row) => row.dueDate === normalizedDueDate,
-    );
-    if (scheduleRow && !scheduleRow.canConfirm) {
-      return;
-    }
-    if (!scheduleRow?.expenseId) {
-      this.toast.show(
+    confirmFleetCoverageSchedulePayment({
+      expensesApi: this.expensesApi,
+      toast: this.toast,
+      destroyRef: this.destroyRef,
+      schedule: this.insurancePaymentSchedule(),
+      dueDate,
+      successMessage: 'Pago de póliza registrado.',
+      missingExpenseMessage:
         'No se encontró el gasto asociado. Edita la cobertura para regenerar.',
-        'warning',
-      );
-      return;
-    }
-    this.saving.set(true);
-    const todayYmd = new Date().toISOString().slice(0, 10);
-    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.toast.show('Pago de póliza registrado.', 'success');
-        this.reloadInsurancePaymentExpenses();
-      },
-      error: () => {
-        this.saving.set(false);
-        this.toast.show('No se pudo registrar el pago.', 'error');
-      },
+      setSaving: (saving) => this.saving.set(saving),
+      onSuccess: () => this.reloadInsurancePaymentExpenses(),
     });
   }
 
@@ -1831,31 +1803,16 @@ export class FleetUnitDetailDrawerFacade {
       this.insurancePaymentExpenses.set([]);
       return null;
     }
-    const bounds = insurancePolicyYearBounds(meta, new Date(this.today));
-    if (!bounds) {
-      this.insurancePaymentExpenses.set([]);
-      return null;
-    }
     const requestId = ++this.insurancePaymentExpensesLoadId;
-    return this.expensesApi
-      .getExpensesPage(
-        buildFleetCoverageExpensesPageParams(
-          { resource: 'unit', unitId },
-          'insurance',
-          bounds,
-        ),
-      )
-      .pipe(
-        catchError(() =>
-          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
-        ),
-      )
-      .subscribe((res) => {
-        if (requestId !== this.insurancePaymentExpensesLoadId) {
-          return;
-        }
-        this.insurancePaymentExpenses.set(res.items);
-      });
+    return subscribeFleetCoverageExpensesPage({
+      expensesApi: this.expensesApi,
+      scope: { resource: 'unit', unitId },
+      kind: 'insurance',
+      bounds: insurancePolicyYearBounds(meta, new Date(this.today)),
+      requestId,
+      isCurrentRequest: (id) => id === this.insurancePaymentExpensesLoadId,
+      setItems: (items) => this.insurancePaymentExpenses.set(items),
+    });
   }
 
   private reloadGpsPaymentExpenses(): void {
@@ -1870,27 +1827,16 @@ export class FleetUnitDetailDrawerFacade {
       this.gpsPaymentExpenses.set([]);
       return null;
     }
-    const bounds = gpsServiceYearBounds(meta, new Date(this.today));
-    if (!bounds) {
-      this.gpsPaymentExpenses.set([]);
-      return null;
-    }
     const requestId = ++this.gpsPaymentExpensesLoadId;
-    return this.expensesApi
-      .getExpensesPage(
-        buildFleetCoverageExpensesPageParams({ resource: 'unit', unitId }, 'gps', bounds),
-      )
-      .pipe(
-        catchError(() =>
-          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
-        ),
-      )
-      .subscribe((res) => {
-        if (requestId !== this.gpsPaymentExpensesLoadId) {
-          return;
-        }
-        this.gpsPaymentExpenses.set(res.items);
-      });
+    return subscribeFleetCoverageExpensesPage({
+      expensesApi: this.expensesApi,
+      scope: { resource: 'unit', unitId },
+      kind: 'gps',
+      bounds: gpsServiceYearBounds(meta, new Date(this.today)),
+      requestId,
+      isCurrentRequest: (id) => id === this.gpsPaymentExpensesLoadId,
+      setItems: (items) => this.gpsPaymentExpenses.set(items),
+    });
   }
 
   gpsNext(): string {
@@ -1906,57 +1852,34 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   confirmGpsPayment(): void {
-    if (!this.canConfirmGpsPayment()) {
+    if (this.saving() || !this.canConfirmGpsPayment()) {
       return;
     }
-    const scheduleRow = this.gpsPaymentSchedule().find((row) => row.canConfirm);
-    if (scheduleRow) {
-      this.confirmGpsPaymentCycle(scheduleRow.dueDate);
+    const dueDate = resolveFleetCoverageConfirmDueDate(
+      this.gpsPaymentSchedule(),
+      nextGpsPaymentDate(this.meta()),
+    );
+    if (!dueDate) {
       return;
     }
-    const next = nextGpsPaymentDate(this.meta());
-    if (!next) {
-      return;
-    }
-    const y = next.getFullYear();
-    const m = String(next.getMonth() + 1).padStart(2, '0');
-    const day = String(next.getDate()).padStart(2, '0');
-    this.confirmGpsPaymentCycle(`${y}-${m}-${day}`);
+    this.confirmGpsPaymentCycle(dueDate);
   }
 
   confirmGpsPaymentCycle(dueDate: string): void {
     if (!this.canWriteFleet() || this.saving()) {
       return;
     }
-    const normalizedDueDate = dueDate.trim();
-    if (!normalizedDueDate) {
-      return;
-    }
-    const scheduleRow = this.gpsPaymentSchedule().find(
-      (row) => row.dueDate === normalizedDueDate,
-    );
-    if (scheduleRow && !scheduleRow.canConfirm) {
-      return;
-    }
-    if (!scheduleRow?.expenseId) {
-      this.toast.show(
+    confirmFleetCoverageSchedulePayment({
+      expensesApi: this.expensesApi,
+      toast: this.toast,
+      destroyRef: this.destroyRef,
+      schedule: this.gpsPaymentSchedule(),
+      dueDate,
+      successMessage: 'Pago de GPS registrado.',
+      missingExpenseMessage:
         'No se encontró el gasto asociado. Edita la cobertura para regenerar.',
-        'warning',
-      );
-      return;
-    }
-    this.saving.set(true);
-    const todayYmd = new Date().toISOString().slice(0, 10);
-    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.toast.show('Pago de GPS registrado.', 'success');
-        this.reloadGpsPaymentExpenses();
-      },
-      error: () => {
-        this.saving.set(false);
-        this.toast.show('No se pudo registrar el pago.', 'error');
-      },
+      setSaving: (saving) => this.saving.set(saving),
+      onSuccess: () => this.reloadGpsPaymentExpenses(),
     });
   }
 
@@ -1964,35 +1887,17 @@ export class FleetUnitDetailDrawerFacade {
     if (!this.canWriteFleet() || this.saving()) {
       return;
     }
-    const normalizedDueDate = dueDate.trim();
-    if (!normalizedDueDate) {
-      return;
-    }
-    const scheduleRow = this.tenurePaymentSchedule().find(
-      (row) => row.dueDate === normalizedDueDate,
-    );
-    if (scheduleRow && !scheduleRow.canConfirm) {
-      return;
-    }
-    if (!scheduleRow?.expenseId) {
-      this.toast.show(
+    confirmFleetCoverageSchedulePayment({
+      expensesApi: this.expensesApi,
+      toast: this.toast,
+      destroyRef: this.destroyRef,
+      schedule: this.tenurePaymentSchedule(),
+      dueDate,
+      successMessage: 'Cuota de financiamiento registrada.',
+      missingExpenseMessage:
         'No se encontró el gasto asociado. Edita la tenencia para regenerar.',
-        'warning',
-      );
-      return;
-    }
-    this.saving.set(true);
-    const todayYmd = new Date().toISOString().slice(0, 10);
-    this.expensesApi.patchExpense(scheduleRow.expenseId, { paidAt: todayYmd } as any).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.toast.show('Cuota de financiamiento registrada.', 'success');
-        this.reloadTenurePaymentExpenses();
-      },
-      error: () => {
-        this.saving.set(false);
-        this.toast.show('No se pudo registrar el pago.', 'error');
-      },
+      setSaving: (saving) => this.saving.set(saving),
+      onSuccess: () => this.reloadTenurePaymentExpenses(),
     });
   }
 
@@ -2008,31 +1913,16 @@ export class FleetUnitDetailDrawerFacade {
       this.tenurePaymentExpenses.set([]);
       return null;
     }
-    const bounds = tenurePaymentBounds(meta);
-    if (!bounds) {
-      this.tenurePaymentExpenses.set([]);
-      return null;
-    }
     const requestId = ++this.tenurePaymentExpensesLoadId;
-    return this.expensesApi
-      .getExpensesPage(
-        buildFleetCoverageExpensesPageParams(
-          { resource: 'unit', unitId },
-          'tenure_payment',
-          bounds,
-        ),
-      )
-      .pipe(
-        catchError(() =>
-          of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
-        ),
-      )
-      .subscribe((res) => {
-        if (requestId !== this.tenurePaymentExpensesLoadId) {
-          return;
-        }
-        this.tenurePaymentExpenses.set(res.items);
-      });
+    return subscribeFleetCoverageExpensesPage({
+      expensesApi: this.expensesApi,
+      scope: { resource: 'unit', unitId },
+      kind: 'tenure_payment',
+      bounds: tenurePaymentBounds(meta),
+      requestId,
+      isCurrentRequest: (id) => id === this.tenurePaymentExpensesLoadId,
+      setItems: (items) => this.tenurePaymentExpenses.set(items),
+    });
   }
 
   trackingPortalHref(raw: string | undefined): string {
@@ -2121,10 +2011,7 @@ export class FleetUnitDetailDrawerFacade {
     if (n == null || !Number.isFinite(n)) {
       return '—';
     }
-    return new Intl.NumberFormat('es-MX', {
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 0,
-    }).format(n);
+    return formatGroupedNumber(n);
   }
 
   maintRenewalBucket(): FleetRenewalBucket {

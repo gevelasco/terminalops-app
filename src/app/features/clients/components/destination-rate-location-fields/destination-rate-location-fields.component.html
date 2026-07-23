@@ -3,11 +3,14 @@
     label="CP destino"
     placeholder="Ej. 77560"
     [maxLength]="5"
+    [digitsOnly]="true"
     inputName="destinationRatePostalCode"
     autocomplete="postal-code"
+    suffixIcon="search"
+    suffixIconAriaLabel="Buscar código postal"
     [(value)]="postalCode"
-    [disabled]="disabled()"
-    (blurNotify)="onCpBlur()"
+    [disabled]="disabled() || cpLoading()"
+    (suffixIconClick)="onCpSearch()"
   />
   @if (cpLoading()) {
     <p class="destination-rate-location-fields__hint" aria-live="polite">

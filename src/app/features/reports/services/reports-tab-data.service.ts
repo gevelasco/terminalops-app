@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, inject } from '@angular/core';
 import {
   ExpensesService,
   type ExpenseCalendarItem,
@@ -30,12 +30,17 @@ type CachedStream<T> = {
 
 @Injectable()
 export class ReportsTabDataService {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly reportsApi = inject(ReportsService);
   private readonly expensesApi = inject(ExpensesService);
 
   private balanceCache: CachedStream<ReportsBalanceData> | null = null;
   private maniobrasCache: CachedStream<ReportsManiobrasData> | null = null;
   private fleetCache: CachedStream<ReportsFleetData> | null = null;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.clearCache());
+  }
 
   getBalance(filter: ReportsFilter): Observable<ReportsBalanceData> {
     return this.cachedTab('balance', filter, this.balanceCache, (next) => {
@@ -82,7 +87,6 @@ export class ReportsTabDataService {
     );
   }
 
-  /** Limpia cache al cambiar de compañía (opcional, invocado desde tabs si hace falta). */
   clearCache(): void {
     this.balanceCache = null;
     this.maniobrasCache = null;
@@ -100,7 +104,8 @@ export class ReportsTabDataService {
     if (current?.filterKey === filterKey) {
       return current.stream;
     }
-    const stream = factory().pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    // refCount: true suelta el stream cuando no hay suscriptores (evita cache huérfana).
+    const stream = factory().pipe(shareReplay({ bufferSize: 1, refCount: true }));
     const entry = { filterKey, stream };
     setCache(entry);
     return stream;

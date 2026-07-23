@@ -13,11 +13,14 @@
         label="Código postal"
         placeholder="Ej. 64000"
         [maxLength]="5"
+        [digitsOnly]="true"
         inputName="operationalCenterCp"
         autocomplete="postal-code"
+        suffixIcon="search"
+        suffixIconAriaLabel="Buscar código postal"
         [(value)]="centerCp"
-        [disabled]="saving()"
-        (blurNotify)="onCenterCpBlur()"
+        [disabled]="saving() || centerCpLoading()"
+        (suffixIconClick)="onCenterCpSearch()"
       />
       <to-input
         label="Nombre del centro"

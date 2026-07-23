@@ -11,9 +11,20 @@ export const OPERATOR_OPERATIONAL_STATUS_OPTIONS: ToSelectOption[] = [
   { value: 'available', label: 'Disponible' },
   { value: 'in_use', label: 'En curso' },
   { value: 'scheduled', label: 'Programado' },
-  { value: 'leave', label: 'Vacaciones / descanso' },
-  { value: 'incapacitated', label: 'Incapacitado' },
-  { value: 'inactive', label: 'Inactivo / baja' },
+  { value: 'leave', label: 'Vacaciones' },
+  { value: 'incapacitated', label: 'Incapacidad' },
+  { value: 'inactive', label: 'Betado' },
+];
+
+/**
+ * Estados editables manualmente (RRHH / registro).
+ * `in_use` / `scheduled` los pone el sistema por maniobra.
+ */
+export const OPERATOR_MANUAL_STATUS_OPTIONS: ToSelectOption[] = [
+  { value: 'available', label: 'Disponible' },
+  { value: 'leave', label: 'Vacaciones' },
+  { value: 'incapacitated', label: 'Incapacidad' },
+  { value: 'inactive', label: 'Betado' },
 ];
 
 export const OPERATOR_LICENSE_TYPE_OPTIONS: ToSelectOption[] = [
@@ -75,11 +86,11 @@ export function operatorOperationalStatusLabel(
     case 'scheduled':
       return 'Programado';
     case 'incapacitated':
-      return 'Incapacitado';
+      return 'Incapacidad';
     case 'leave':
-      return 'Vacaciones / descanso';
+      return 'Vacaciones';
     case 'inactive':
-      return 'Inactivo / baja';
+      return 'Betado';
   }
 }
 

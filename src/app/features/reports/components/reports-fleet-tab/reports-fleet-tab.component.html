@@ -95,7 +95,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of tireWearRows(); track row.unitCode) {
+              @for (row of displayedTireWearRows().items; track row.unitCode) {
                 <tr>
                   <td>{{ row.unitCode }}</td>
                   <td>{{ row.tripCount }}</td>
@@ -107,6 +107,9 @@
               }
             </tbody>
           </table>
+          @if (cappedListHint(displayedTireWearRows()); as hint) {
+            <p class="reports-fleet-panel__list-cap">{{ hint }}</p>
+          }
         } @else {
           <p class="reports-fleet-panel__empty">
             Sin maniobras completadas con unidad asignada en el periodo.
@@ -131,7 +134,8 @@
             [columns]="complianceColumns"
             [rows]="complianceTableRows()"
             trackByKey="id"
-            [pageSize]="0"
+            [(pageSize)]="compliancePageSize"
+            [pageSizeOptions]="compliancePageSizeOptions"
           />
         } @else {
           <p class="reports-fleet-panel__empty">Sin unidades activas en flota.</p>
@@ -161,7 +165,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of maintenanceEvents(); track `${row.assetLabel}-${row.entryDate}-${row.entryType}`) {
+              @for (row of displayedMaintenanceEvents().items; track `${row.assetLabel}-${row.entryDate}-${row.entryType}`) {
                 <tr>
                   <td>{{ row.assetLabel }}</td>
                   <td>{{ formatEntryDate(row.entryDate) }}</td>
@@ -178,6 +182,9 @@
               }
             </tbody>
           </table>
+          @if (cappedListHint(displayedMaintenanceEvents()); as hint) {
+            <p class="reports-fleet-panel__list-cap">{{ hint }}</p>
+          }
         } @else {
           <p class="reports-fleet-panel__empty">Sin mantenimientos registrados en el periodo.</p>
         }

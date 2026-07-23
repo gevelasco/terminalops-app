@@ -365,7 +365,18 @@
                       vm.bitacoraAuthorLabel(entry)
                     }}</span>
                     @if (entry.isIncident) {
-                      <span class="maniobra-detail__bitacora-incident-badge">Incidente</span>
+                      <span
+                        class="maniobra-detail__bitacora-incident-badge"
+                        role="status"
+                        aria-label="Marcado como incidente"
+                      >
+                        <to-icon
+                          class="maniobra-detail__bitacora-incident-badge-icon"
+                          name="warning"
+                          [size]="12"
+                        />
+                        <span>Incidente</span>
+                      </span>
                     }
                   </div>
                   <time

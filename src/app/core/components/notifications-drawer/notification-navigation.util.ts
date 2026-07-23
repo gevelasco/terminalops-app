@@ -54,8 +54,8 @@ export function resolveNotificationNavigation(
   switch (entityType) {
     case 'client':
       return entityId
-        ? { commands: ['/clients'], queryParams: { clientId: entityId } }
-        : { commands: ['/clients'] };
+        ? { commands: ['/comercial/clients'], queryParams: { clientId: entityId } }
+        : { commands: ['/comercial/clients'] };
     case 'trip':
       return entityId
         ? { commands: ['/trips'], queryParams: { tripId: entityId } }

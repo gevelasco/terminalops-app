@@ -24,6 +24,10 @@
   @if (vm.editingSection() !== "operation") {
     <dl class="fleet-unit-detail__dl">
       <div class="fleet-unit-detail__row">
+        <dt>Estado</dt>
+        <dd>{{ vm.operationalStatusLabel() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
         <dt>Registro</dt>
         <dd>{{ vm.resourceVisibilityLabel() }}</dd>
       </div>
@@ -86,11 +90,14 @@
         [paymentScheduleOptions]="vm.paymentScheduleOptions"
         [paymentMethodOptions]="vm.paymentMethodOptions"
         [visibilityOptions]="vm.visibilityOptions"
+        [operationalStatusOptions]="vm.manualOperationalStatusOptions()"
+        [operationalStatusDisabled]="vm.operationalStatusEditLocked()"
         [(companyHireDate)]="vm.editCompanyHireDate"
         [(employmentContractType)]="vm.editEmploymentContractType"
         [(paymentSchedule)]="vm.editPaymentSchedule"
         [(paymentMethod)]="vm.editPaymentMethod"
         [(visibility)]="vm.editVisibility"
+        [(operationalStatus)]="vm.editOperationalStatus"
       />
       <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
       <p class="fleet-unit-sec__docs-hint">

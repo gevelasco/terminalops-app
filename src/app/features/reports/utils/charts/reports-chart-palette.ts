@@ -176,6 +176,7 @@ export const REPORTS_MANIOBRAS_CHART_COLOR_OFFSET = {
   topDestinations: 0,
   containerTypeMix: 0,
   cargoWeightByContainer: 0,
+  ralentiByClient: 0,
 } as const;
 
 /** Rotación categórica en tab Flota — todas las gráficas inician en color 1. */

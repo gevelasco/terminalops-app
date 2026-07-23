@@ -77,7 +77,7 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
   { path: '/trips', label: 'Maniobras', module: APP_MODULE_CODES.TRIPS, placement: 'main' },
   { path: '/fleet', label: 'Flota', module: APP_MODULE_CODES.FLEET, placement: 'main' },
   { path: '/operators', label: 'Operadores', module: APP_MODULE_CODES.OPERATORS, placement: 'main' },
-  { path: '/clients', label: 'Comercial', module: APP_MODULE_CODES.CLIENTS, placement: 'main' },
+  { path: '/comercial', label: 'Comercial', module: APP_MODULE_CODES.CLIENTS, placement: 'main' },
   { path: '/expenses', label: 'Gastos', module: APP_MODULE_CODES.EXPENSES, placement: 'main' },
   { path: '/reports', label: 'Reportes', module: APP_MODULE_CODES.REPORTS, placement: 'main' },
   { path: '/account', label: 'Cuenta', module: APP_MODULE_CODES.ACCOUNT, placement: 'bottom' },

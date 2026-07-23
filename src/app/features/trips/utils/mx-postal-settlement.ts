@@ -22,10 +22,12 @@ export function formatSettlementOptionLabel(s: MxPostalSettlement): string {
 
 /** Línea de ciudad/municipio + estado (solo lectura en formulario / snapshot). */
 export function cityMunicipalityLineFromSettlement(s: MxPostalSettlement): string {
-  if (s.city) {
-    return `${s.city}, ${s.state}`;
+  const left = s.city.trim() || s.municipality.trim();
+  const state = s.state.trim();
+  if (left && state) {
+    return `${left}, ${state}`;
   }
-  return `${s.municipality}, ${s.state}`;
+  return left || state;
 }
 
 /** Texto de ruta legible a partir de asentamiento SEPOMex (formulario). */

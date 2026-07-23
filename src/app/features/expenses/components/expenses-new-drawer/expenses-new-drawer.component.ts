@@ -57,6 +57,7 @@ import {
   resolveExpenseRelationFields,
   expenseIncurredDateInput,
 } from '@features/expenses/utils/expenses-form.util';
+import { formatMoneyInputValue } from '@shared/utils/format-grouped-number';
 
 @Component({
   selector: 'app-expenses-new-drawer',
@@ -164,7 +165,7 @@ export class ExpensesNewDrawerComponent {
     this.category.set(e.category);
     this.description.set(e.description ?? '');
     this.vendor.set(e.vendor ?? '');
-    this.amountStr.set(String(e.amount));
+    this.amountStr.set(formatMoneyInputValue(e.amount));
     this.currency.set(e.currency || 'MXN');
     this.paymentMethod.set(e.paymentMethod ?? '');
     this.incurredAt.set(expenseIncurredDateInput(e.incurredAt));

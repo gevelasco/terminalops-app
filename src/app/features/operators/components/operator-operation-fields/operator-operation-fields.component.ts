@@ -20,10 +20,13 @@ export class OperatorOperationFieldsComponent {
   readonly paymentScheduleOptions = input.required<ToSelectOption[]>();
   readonly paymentMethodOptions = input.required<ToSelectOption[]>();
   readonly visibilityOptions = input<ToSelectOption[]>([]);
+  readonly operationalStatusOptions = input<ToSelectOption[]>([]);
+  readonly operationalStatusDisabled = input(false);
 
   readonly companyHireDate = model('');
   readonly employmentContractType = model('');
   readonly paymentSchedule = model('maneuver');
   readonly paymentMethod = model('');
   readonly visibility = model('');
+  readonly operationalStatus = model('');
 }

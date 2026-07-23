@@ -15,7 +15,7 @@ import { createRequestGeneration } from '@shared/utils/request-generation';
 /**
  * Fuente única de verdad del feature Clientes (lista en memoria + selección).
  * GET /companies/{companyId}/clients — al entrar a la tab Clientes (una vez por visita al módulo).
- * Alcance: ruta `/clients`.
+ * Alcance: ruta `/comercial/clients`.
  */
 @Injectable()
 export class ClientsFeatureService {

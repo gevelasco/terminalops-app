@@ -1,5 +1,10 @@
 import { Component, computed, ElementRef, input, model, output, signal, viewChild } from '@angular/core';
 import { ToDerivedWandIconComponent } from '../to-derived-wand-icon/to-derived-wand-icon.component';
+import {
+  formatGroupedNumber,
+  formatGroupedNumberWhileTyping,
+  parseGroupedNumber,
+} from '@shared/utils/format-grouped-number';
 
 @Component({
   selector: 'to-input',
@@ -28,6 +33,13 @@ export class ToInputComponent {
   readonly prefix = input<string>();
   /** Icono antes del valor. */
   readonly prefixIcon = input<'none' | 'search' | 'user' | 'lock'>('none');
+  /**
+   * Icono clicable al final (p. ej. buscar CP). Emite `suffixIconClick`.
+   * Enter en el input también dispara la acción cuando es `search`.
+   */
+  readonly suffixIcon = input<'none' | 'search'>('none');
+  /** `aria-label` del botón de `suffixIcon` (default: Buscar). */
+  readonly suffixIconAriaLabel = input('Buscar');
   /** Indicador sparkle: pending = gris; ready = primario (autocalculado). */
   readonly derivedState = input<'none' | 'pending' | 'ready'>('none');
   readonly suffix = input<string>();
@@ -40,7 +52,7 @@ export class ToInputComponent {
   /** Valor nativo `autocomplete` del control (p. ej. `username`, `current-password`). */
   readonly autocomplete = input<string>();
   /**
-   * Formato miles/decimales es-MX al perder foco (solo texto).
+   * Formato miles/decimales es-MX al escribir y al perder foco (solo texto).
    * Usar con montos, litros, etc.
    */
   readonly groupThousands = input(false);
@@ -64,6 +76,8 @@ export class ToInputComponent {
 
   /** Se emite al perder foco el control (tras formateo miles si aplica). */
   readonly blurNotify = output<void>();
+  /** Se emite al hacer clic en `suffixIcon` o Enter (si `suffixIcon` es `search`). */
+  readonly suffixIconClick = output<void>();
 
   private readonly controlEl = viewChild<ElementRef<HTMLInputElement>>('controlEl');
 
@@ -80,9 +94,31 @@ export class ToInputComponent {
       this.prefix()?.trim() ||
       this.suffix()?.trim() ||
       this.prefixIcon() !== 'none' ||
+      this.suffixIcon() !== 'none' ||
       this.derivedState() !== 'none' ||
       this.showPasswordReveal()
     );
+
+  showSuffixIconAction(): boolean {
+    return this.suffixIcon() !== 'none';
+  }
+
+  onSuffixIconClick(ev: Event): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (this.disabled()) {
+      return;
+    }
+    this.suffixIconClick.emit();
+  }
+
+  onKeydown(ev: KeyboardEvent): void {
+    if (ev.key !== 'Enter' || this.suffixIcon() !== 'search' || this.disabled()) {
+      return;
+    }
+    ev.preventDefault();
+    this.suffixIconClick.emit();
+  }
 
   showPasswordReveal(): boolean {
     return this.type() === 'password' && this.passwordToggle();
@@ -125,6 +161,19 @@ export class ToInputComponent {
     if (this.uppercase()) {
       next = next.toUpperCase();
     }
+    if (this.groupThousands() && !this.digitsOnly()) {
+      const digitsBeforeCaret = el.value
+        .slice(0, el.selectionStart ?? el.value.length)
+        .replace(/[^\d]/g, '').length;
+      next = formatGroupedNumberWhileTyping(next);
+      el.value = next;
+      this.value.set(next);
+      queueMicrotask(() => {
+        const pos = caretIndexAfterDigits(next, digitsBeforeCaret);
+        el.setSelectionRange(pos, pos);
+      });
+      return;
+    }
     if (next !== el.value) {
       el.value = next;
     }
@@ -141,28 +190,28 @@ export class ToInputComponent {
     if (this.groupThousands()) {
       const raw = this.value().trim();
       if (raw !== '') {
-        const n = this.parseGroupedNumber(raw);
+        const n = parseGroupedNumber(raw);
         if (n !== null) {
-          this.value.set(this.formatEsMxNumber(n));
+          this.value.set(formatGroupedNumber(n));
         }
       }
     }
     this.blurNotify.emit();
   }
+}
 
-  private parseGroupedNumber(s: string): number | null {
-    let t = s.replace(/\s/g, '').replace(/,/g, '');
-    if (t === '') {
-      return null;
+function caretIndexAfterDigits(formatted: string, digitCount: number): number {
+  if (digitCount <= 0) {
+    return 0;
+  }
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i]!)) {
+      seen += 1;
+      if (seen >= digitCount) {
+        return i + 1;
+      }
     }
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
   }
-
-  private formatEsMxNumber(n: number): string {
-    return new Intl.NumberFormat('es-MX', {
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 0,
-    }).format(n);
-  }
+  return formatted.length;
 }

@@ -1,11 +1,5 @@
 @use '../../../../shared/styles/fleet-operational-pill.scss';
 
-.clients-balance-overview__hint {
-  margin: 0 0 0.35rem;
-  font-size: 0.8125rem;
-  color: var(--to-color-text-muted);
-}
-
 .clients-balance-overview {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
@@ -178,12 +172,3 @@
   white-space: nowrap;
 }
 
-.clients-balance-overview__empty {
-  margin: 0;
-  padding: 0.65rem 0.85rem;
-  border-radius: var(--to-radius-md);
-  font-size: 0.8125rem;
-  color: var(--to-color-text-muted);
-  background: var(--to-color-surface-muted);
-  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
-}

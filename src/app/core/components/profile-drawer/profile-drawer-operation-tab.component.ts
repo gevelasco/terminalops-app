@@ -109,7 +109,10 @@ export class ProfileDrawerOperationTabComponent {
     this.loadDraftFromSession();
   }
 
-  onCenterCpBlur(): void {
+  onCenterCpSearch(): void {
+    if (this.saving() || this.centerCpLoading()) {
+      return;
+    }
     const digits = normalizeMxPostalCodeDigits(this.centerCp());
     if (digits !== this.centerCp()) {
       this.centerCp.set(digits);

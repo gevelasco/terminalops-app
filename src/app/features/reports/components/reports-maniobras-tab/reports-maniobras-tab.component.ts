@@ -15,6 +15,7 @@ import { buildReportsManiobrasClientsHorizontalBarOption } from '@features/repor
 import { buildReportsManiobrasContainerTypeDonutOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-container-type-donut-option';
 import { buildReportsManiobrasCargoWeightBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-cargo-weight-bar-option';
 import { buildReportsManiobrasOperatorsHorizontalBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-operators-horizontal-bar-option';
+import { buildReportsManiobrasRalentiStackedBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-ralenti-stacked-bar-option';
 import {
   REPORTS_MANIOBRAS_CHART_COLOR_OFFSET,
   reportsChartPrimary,
@@ -23,13 +24,21 @@ import type { ReportsFilter } from '@features/reports/models/reports-view.models
 import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-subtitle.util';
 import {
   countManiobrasWithIncidents,
-  maniobrasDelayedRatePercent,
   maniobrasIncidentRatePercent,
 } from '@features/reports/utils/reports-maniobras-quality.util';
-import type { ReportsManiobrasData } from '@shared/models/api/api-reports-maniobras.model';
+import type {
+  ReportsManiobrasData,
+  ReportsManiobrasRalentiEvent,
+  ReportsManiobrasRalentiLeg,
+} from '@shared/models/api/api-reports-maniobras.model';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { maneuverStatusPillClass } from '@shared/utils/maneuver-status-pill';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
+import {
+  cappedListHint,
+  cappedListView,
+  REPORTS_DENSE_LIST_CAP,
+} from '@shared/utils/list-display-cap';
 import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
@@ -55,6 +64,10 @@ function priorPeriodDeltaTone(value: number | null | undefined): 'up' | 'down' |
 
 function formatKm(value: number): string {
   return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(value)} km`;
+}
+
+function formatHours(value: number): string {
+  return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(value)} h`;
 }
 
 function formatTripDurationDays(value: number | null | undefined): string {
@@ -86,6 +99,14 @@ function formatIncidentDate(iso: string | null | undefined): string {
     month: 'short',
     year: 'numeric',
   }).format(date);
+}
+
+function ralentiLegLabel(leg: ReportsManiobrasRalentiLeg): string {
+  return leg === 'cliente_regreso' ? 'Cliente → regreso' : 'Salida → cliente';
+}
+
+function ralentiBaselineLabel(source: ReportsManiobrasRalentiEvent['baselineSource']): string {
+  return source === 'rate' ? 'Tarifa' : 'Plan';
 }
 
 @Component({
@@ -185,13 +206,48 @@ export class ReportsManiobrasTabComponent {
     () => (this.insights()?.cargoWeightByContainer?.length ?? 0) > 0,
   );
 
+  readonly ralenti = computed(() => this.insights()?.ralenti);
+
+  readonly ralentiByClientOption = computed(() =>
+    buildReportsManiobrasRalentiStackedBarOption(
+      this.ralenti()?.byClient ?? [],
+      REPORTS_MANIOBRAS_CHART_COLOR_OFFSET.ralentiByClient,
+      { primaryColor: this.chartShellColor() },
+    ),
+  );
+
+  readonly hasRalentiByClient = computed(
+    () => (this.ralenti()?.byClient?.length ?? 0) > 0,
+  );
+
+  readonly ralentiEvents = computed(() => this.ralenti()?.events ?? []);
+
+  readonly hasRalentiEvents = computed(() => this.ralentiEvents().length > 0);
+
   readonly geoMapTrips = computed(() => this.insights()?.geoMapTrips ?? []);
 
   readonly geoMapTripsCount = computed(() => this.geoMapTrips().length);
 
+  readonly displayedGeoMapTrips = computed(() =>
+    cappedListView(this.geoMapTrips(), REPORTS_DENSE_LIST_CAP),
+  );
+
+  readonly displayedRalentiEvents = computed(() =>
+    cappedListView(this.ralentiEvents(), REPORTS_DENSE_LIST_CAP),
+  );
+
+  readonly displayedRecurringIncidentRoutes = computed(() =>
+    cappedListView(this.recurringIncidentRoutes(), REPORTS_DENSE_LIST_CAP),
+  );
+
+  cappedListHint = cappedListHint;
+
   formatTripDurationDays = formatTripDurationDays;
   formatManeuverCodesLabel = formatManeuverCodesLabel;
   formatIncidentDate = formatIncidentDate;
+  formatHours = formatHours;
+  ralentiLegLabel = ralentiLegLabel;
+  ralentiBaselineLabel = ralentiBaselineLabel;
 
   readonly maneuverStatusPillClass = maneuverStatusPillClass;
 
@@ -245,21 +301,25 @@ export class ReportsManiobrasTabComponent {
 
   readonly cancelledLegend = computed(() => 'Canceladas en el periodo');
 
-  readonly delayedValue = computed(() => String(this.summary()?.delayedTripsCount ?? 0));
+  readonly ralentiValue = computed(() =>
+    formatHours(this.summary()?.ralentiHoursTotal ?? 0),
+  );
 
-  readonly delayedValueUnit = computed(() => {
-    const n = this.summary()?.delayedTripsCount ?? 0;
+  readonly ralentiValueUnit = computed(() => {
+    const n = this.ralenti()?.tripsWithRalenti ?? 0;
     return pluralEs(n, 'maniobra', 'maniobras');
   });
 
-  readonly delayedLegend = computed(() => {
-    const completed = this.summary()?.completedTripsCount ?? 0;
-    const delayed = this.summary()?.delayedTripsCount ?? 0;
-    const pct = maniobrasDelayedRatePercent(delayed, completed);
-    if (pct == null) {
-      return 'Fuera de ventana programada';
+  readonly ralentiLegend = computed(() => {
+    const outbound = this.ralenti()?.salidaClienteHours ?? 0;
+    const inbound = this.ralenti()?.clienteRegresoHours ?? 0;
+    if (outbound <= 0 && inbound <= 0) {
+      const evaluated = this.ralenti()?.tripsEvaluated ?? 0;
+      return evaluated > 0
+        ? 'Sin exceso vs plan/tarifa'
+        : 'Requiere fechas reales de tramo';
     }
-    return `${pct}% de completadas`;
+    return `${formatHours(outbound)} salida · ${formatHours(inbound)} regreso`;
   });
 
   readonly operationalKmValue = computed(() =>

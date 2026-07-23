@@ -51,10 +51,15 @@ export const routes: Routes = [
           import('./features/operators/routes').then((m) => m.operatorsRoutes),
       },
       {
-        path: 'clients',
+        path: 'comercial',
         canActivate: [moduleAccessGuard(APP_MODULE_CODES.CLIENTS)],
         loadChildren: () =>
           import('./features/clients/routes').then((m) => m.clientsRoutes),
+      },
+      {
+        path: 'clients',
+        redirectTo: 'comercial/clients',
+        pathMatch: 'full',
       },
       {
         path: 'expenses',

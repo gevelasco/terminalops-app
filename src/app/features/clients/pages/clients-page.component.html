@@ -1,8 +1,8 @@
 <to-page-header
   title="Comercial"
-  subtitle="Tarifas por ruta y catálogo de clientes"
+  subtitle="Cartera de clientes y tarifas por ruta"
 >
-  @if (pageTab() === "clients" && !loading() && canWriteCommercial()) {
+  @if (pageTab() === "clients" && canWriteCommercial()) {
     <to-button
       type="button"
       variant="primary"
@@ -18,7 +18,8 @@
       </span>
       Nuevo cliente
     </to-button>
-  } @else if (pageTab() === "destination-rates" && !loading() && canWriteCommercial()) {
+  }
+  @if (pageTab() === "destination-rates" && canWriteCommercial()) {
     <to-button type="button" variant="primary" (click)="newRateOpen.set(true)">
       <span class="clients-page-header__btn-icon" aria-hidden="true">
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -64,148 +65,114 @@
   }
 }
 
-@if (loading()) {
-  <to-skeleton [lines]="4" />
-} @else {
-  <div class="clients-table-block">
-    <div class="clients-toolbar">
-      <to-segment-control
-        layout="toolbar"
-        ariaLabel="Secciones comerciales"
-        [tabs]="viewSegmentTabs"
-        [activeId]="pageTab()"
-        (tabSelect)="onPageTabSelect($event)"
-      />
+<div
+  class="clients-table-block"
+  [class.clients-table-block--rates]="pageTab() === 'destination-rates'"
+>
+  <div class="clients-toolbar">
+    <to-segment-control
+      layout="toolbar"
+      ariaLabel="Secciones comerciales"
+      [tabs]="viewSegmentTabs"
+      [activeId]="pageTab()"
+      (tabSelect)="onPageTabSelect($event)"
+    />
 
-      <div class="clients-toolbar__filters">
-        <div class="clients-toolbar__search-wrap">
-          <div class="clients-toolbar__search">
+    <div class="clients-toolbar__filters">
+      <div class="clients-toolbar__search-wrap">
+        <div class="clients-toolbar__search">
+          @if (pageTab() === "clients") {
             <to-input
               type="search"
               prefixIcon="search"
-              [ariaLabel]="
-                pageTab() === 'clients'
-                  ? 'Buscar en el listado de clientes'
-                  : pageTab() === 'destination-rates'
-                    ? 'Buscar tarifas por destino'
-                    : 'Buscar en balance por cliente'
-              "
-              [placeholder]="
-                pageTab() === 'clients'
-                  ? 'Nombre, RFC, estatus, maniobras, id…'
-                  : pageTab() === 'destination-rates'
-                    ? 'CP, localidad, ciudad, tarifas…'
-                    : 'Nombre, saldo, estatus de cobro…'
-              "
+              ariaLabel="Buscar clientes por nombre, saldo o estatus"
+              placeholder="Nombre, saldo, estatus de cobro…"
               [(value)]="searchInput"
             />
-          </div>
-          @if (searchPending()) {
-            <span class="clients-toolbar__search-status" aria-live="polite">
-              Buscando…
-            </span>
+          } @else {
+            <to-input
+              type="search"
+              prefixIcon="search"
+              ariaLabel="Buscar rutas por CP, estado, municipio, colonia, tipo de tarifa o costo"
+              placeholder="CP, estado, municipio, colonia, tipo, costo…"
+              [(value)]="searchInput"
+            />
           }
         </div>
-
-        @if (pageTab() === 'destination-rates') {
-          <div class="clients-toolbar__origin-filter">
-            <to-select
-              [options]="originCenterFilterOptions()"
-              [value]="rateOriginCenterFilter()"
-              (valueChange)="rateOriginCenterFilter.set($event)"
-            />
-          </div>
+        @if (pageTab() === "clients" && searchPending()) {
+          <span class="clients-toolbar__search-status" aria-live="polite">
+            Buscando…
+          </span>
         }
       </div>
 
-      @if (pageTab() === 'clients') {
-        <div class="clients-toolbar__table-actions">
-          <span
-            class="clients-toolbar__export-wrap"
-            data-tooltip="Exportar CSV"
+      @if (pageTab() === "destination-rates") {
+        <span class="clients-toolbar__export-wrap">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="clients-toolbar__export"
+            ariaLabel="Exportar a Excel"
+            [disabled]="ratesFeature.loading() || ratesExporting()"
+            (click)="exportRatesCatalog()"
           >
-            <to-button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="clients-toolbar__export"
-              ariaLabel="Exportar CSV"
-              [disabled]="loading() || searchPending()"
-              (click)="exportClients()"
-            >
-              <to-icon name="download" [size]="18" />
-            </to-button>
+            <to-icon name="download" [size]="18" />
+          </to-button>
+          <span class="clients-toolbar__export-tooltip" role="tooltip">
+            Exportar a Excel
           </span>
-        </div>
+        </span>
       }
     </div>
+  </div>
 
-    @if (pageTab() === 'balance') {
-      <p class="clients-page__hint">
-        Cartera por cliente con saldo pendiente y próximos cobros.
-      </p>
-    } @else if (pageTab() === 'clients') {
-      <p class="clients-page__hint">
-        Catálogo de clientes. Clic en una fila para ver ficha, balance o editar.
-      </p>
-    } @else if (pageTab() === 'destination-rates') {
-      <p class="clients-page__hint">
-        Tarifas por origen y destino. Clic en una fila para ver detalle o editar.
-      </p>
-    }
-
-    @if (pageTab() === 'clients') {
-      @if (hasClientRows()) {
-        <to-table
-          [columns]="clientColumns"
-          [rows]="displayedClientRows()"
-          [interactiveRows]="true"
-          (rowClick)="onClientRowClick($event)"
-        />
-      }
-      @if (showClientEmptyHint()) {
-        <p class="clients-empty-hint">
-          @if (searchQuery().trim()) {
-            Ningún cliente coincide con la búsqueda.
-          } @else {
-            No hay clientes registrados.
-          }
-        </p>
-      }
-    } @else if (pageTab() === 'destination-rates') {
-      @if (hasRateRows()) {
-        <to-table
-          [columns]="rateColumns"
-          [rows]="displayedRateRows()"
-          [interactiveRows]="true"
-          (rowClick)="onRateRowClick($event)"
-        />
-      }
-      @if (showRateEmptyHint()) {
-        <p class="clients-empty-hint">
-          @if (hasActiveRateFilters()) {
-            Ninguna tarifa coincide con los filtros actuales.
-          } @else {
-            No hay tarifas registradas.
-          }
-        </p>
-      }
+  @if (pageTab() === "clients") {
+    @if (loading()) {
+      <to-skeleton [lines]="4" />
     } @else {
+      <p class="clients-page__hint">
+        Cartera por cliente con saldo pendiente y próximos cobros. Clic en una
+        tarjeta para abrir el expediente.
+      </p>
       @if (hasBalanceCards()) {
         <app-clients-balance-overview
           [cards]="displayedBalanceCards()"
           (cardSelect)="onBalanceCardSelect($event)"
         />
       }
-      @if (showBalanceEmptyHint()) {
-        <p class="clients-empty-hint">
-          @if (searchQuery().trim()) {
-            Ningún cliente coincide con la búsqueda.
-          } @else {
-            No hay clientes registrados.
+      @if (showClientsEmptyHint()) {
+        <div class="clients-empty-hint">
+          <p class="clients-empty-hint__text">
+            @if (searchQuery().trim()) {
+              Ningún cliente coincide con la búsqueda.
+            } @else {
+              No hay clientes registrados.
+            }
+          </p>
+          @if (canWriteCommercial() && !searchQuery().trim()) {
+            <to-button
+              type="button"
+              variant="primary"
+              size="sm"
+              (click)="newClientOpen.set(true)"
+            >
+              Agregar cliente
+            </to-button>
           }
-        </p>
+        </div>
       }
     }
-  </div>
-}
+  } @else {
+    <p class="clients-page__hint clients-page__hint--rates">
+      Destinos con tarifa por estado. Busca por CP, estado, municipio, colonia,
+      tipo o costo; o haz clic en un estado para ver las rutas.
+    </p>
+    <app-destination-rates-map
+      [rates]="ratesFeature.rates()"
+      [loading]="ratesFeature.loading()"
+      [filterQuery]="searchInput()"
+      (rateSelect)="onMapRateSelect($event)"
+    />
+  }
+</div>

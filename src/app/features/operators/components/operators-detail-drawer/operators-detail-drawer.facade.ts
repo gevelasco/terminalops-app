@@ -28,6 +28,7 @@ import {
   OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS,
   OPERATOR_INSURANCE_KIND_OPTIONS,
   OPERATOR_LICENSE_TYPE_OPTIONS,
+  OPERATOR_MANUAL_STATUS_OPTIONS,
   OPERATOR_PAYMENT_SCHEDULE_OPTIONS,
   OPERATOR_PREMIUM_PERIOD_OPTIONS,
   OPERATOR_RELATIONSHIP_OPTIONS,
@@ -55,9 +56,10 @@ import type {
 } from '@shared/models/logistics.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
+import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
 import { deriveOperatorOperationalStatus } from '@features/trips/utils/trip-derived-operational-status';
-import { catchError, finalize, of } from 'rxjs';
+import { catchError, concat, finalize, of, type Observable } from 'rxjs';
 
 export type OperatorEditSection = 'ident' | 'operation' | 'contact' | 'coverage';
 export type OperatorDrawerTab = 'details' | 'operation';
@@ -98,7 +100,6 @@ export class OperatorsDetailDrawerFacade {
   readonly editingSection = signal<OperatorEditSection | null>(null);
   readonly saving = signal(false);
   readonly paymentConfirming = signal(false);
-  readonly hrHoldSubmitting = signal(false);
   readonly canWriteOperators = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.OPERATORS),
   );
@@ -120,6 +121,7 @@ export class OperatorsDetailDrawerFacade {
   readonly editPaymentSchedule = signal<OperatorPaymentSchedule>('maneuver');
   readonly editPaymentMethod = signal('');
   readonly editVisibility = signal<'active' | 'inactive'>('active');
+  readonly editOperationalStatus = signal('available');
 
   readonly editEcName = signal('');
   readonly editEcRelationship = signal('');
@@ -183,34 +185,20 @@ export class OperatorsDetailDrawerFacade {
     return deriveOperatorOperationalStatus(operator, this.operationalSync.trips());
   });
 
-  readonly showsStartLeaveAction = computed(
-    () =>
-      this.canWriteOperators() &&
-      this.operator().isActive !== false &&
-      this.derivedOperationalStatus() === 'available',
+  /** En curso lo pone el sistema; no se edita a mano. */
+  readonly operationalStatusEditLocked = computed(
+    () => this.derivedOperationalStatus() === 'in_use',
   );
 
-  readonly showsStartIncapacitatedAction = computed(
-    () =>
-      this.canWriteOperators() &&
-      this.operator().isActive !== false &&
-      this.derivedOperationalStatus() === 'available',
-  );
-
-  readonly showsEndHrHoldAction = computed(() => {
-    if (!this.canWriteOperators()) {
-      return false;
+  readonly manualOperationalStatusOptions = computed((): ToSelectOption[] => {
+    if (this.operationalStatusEditLocked()) {
+      return [
+        { value: 'in_use', label: 'En curso' },
+        ...OPERATOR_MANUAL_STATUS_OPTIONS,
+      ];
     }
-    const status = this.derivedOperationalStatus();
-    return status === 'leave' || status === 'incapacitated';
+    return [...OPERATOR_MANUAL_STATUS_OPTIONS];
   });
-
-  readonly showsHrHoldActions = computed(
-    () =>
-      this.showsStartLeaveAction() ||
-      this.showsStartIncapacitatedAction() ||
-      this.showsEndHrHoldAction(),
-  );
 
   private readonly now = new Date();
   readonly periodFromMonth = signal(this.now.getMonth() + 1);
@@ -589,16 +577,138 @@ export class OperatorsDetailDrawerFacade {
       return;
     }
 
+    const statusLocked = this.operationalStatusEditLocked();
+    const nextStatus = this.editOperationalStatus().trim();
+    let isActive = this.editVisibility() === 'active';
+    if (!statusLocked && nextStatus === 'inactive') {
+      isActive = false;
+      this.editVisibility.set('inactive');
+    } else if (
+      !statusLocked &&
+      nextStatus !== '' &&
+      nextStatus !== 'inactive' &&
+      nextStatus !== 'in_use'
+    ) {
+      isActive = true;
+      this.editVisibility.set('active');
+    }
+
+    const previous = this.operator();
     const updated = mergeOperatorNested({
-      ...this.operator(),
-      isActive: this.editVisibility() === 'active',
+      ...previous,
+      isActive,
       companyHireDate,
       employmentContractType: this.editEmploymentContractType().trim(),
       paymentSchedule: this.editPaymentSchedule(),
       paymentMethod: this.editPaymentMethod().trim() || undefined,
       documents: [...this.editDocuments()],
     }) as Operator;
-    this.persistOperator(updated);
+
+    this.saving.set(true);
+    this.operatorsFeature
+      .updateOperator(updated)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          if (statusLocked || !nextStatus || nextStatus === 'in_use') {
+            this.saving.set(false);
+            this.toast.show('Cambios guardados.', 'success');
+            this.editingSection.set(null);
+            return;
+          }
+          this.applyManualOperationalStatus(previous, nextStatus);
+        },
+        error: () => {
+          this.toast.show('No se pudo guardar.', 'error');
+          this.saving.set(false);
+        },
+      });
+  }
+
+  /**
+   * Vacaciones / incapacidad / disponible vía endpoints RRHH
+   * (el PATCH del operador no acepta `status`).
+   */
+  private applyManualOperationalStatus(
+    previous: Operator,
+    nextStatus: string,
+  ): void {
+    const operatorId = previous.id;
+    const persisted = (previous.status ?? '').trim().toLowerCase();
+    const steps: Observable<Operator | null>[] = [];
+
+    const pushEndHold = (errorMessage: string): void => {
+      steps.push(
+        this.operatorsApi.endOperatorHrHold(operatorId).pipe(
+          catchError(() => {
+            this.toast.show(errorMessage, 'error');
+            return of(null);
+          }),
+        ),
+      );
+    };
+
+    const pushStartHold = (hold: 'leave' | 'incapacitated'): void => {
+      steps.push(
+        (hold === 'leave'
+          ? this.operatorsApi.startOperatorLeave(operatorId)
+          : this.operatorsApi.startOperatorIncapacitated(operatorId)
+        ).pipe(
+          catchError(() => {
+            this.toast.show(
+              hold === 'leave'
+                ? 'No se pudo registrar vacaciones.'
+                : 'No se pudo registrar incapacidad.',
+              'error',
+            );
+            return of(null);
+          }),
+        ),
+      );
+    };
+
+    if (nextStatus === 'available' || nextStatus === 'inactive') {
+      if (persisted === 'leave' || persisted === 'incapacitated') {
+        pushEndHold(
+          nextStatus === 'available'
+            ? 'No se pudo reincorporar al operador.'
+            : 'No se pudo actualizar el estado.',
+        );
+      }
+    } else if (nextStatus === 'leave' || nextStatus === 'incapacitated') {
+      if (persisted === nextStatus) {
+        // sin cambio de hold
+      } else if (persisted === 'leave' || persisted === 'incapacitated') {
+        pushEndHold('No se pudo actualizar el estado.');
+        pushStartHold(nextStatus);
+      } else {
+        pushStartHold(nextStatus);
+      }
+    }
+
+    if (steps.length === 0) {
+      this.saving.set(false);
+      this.toast.show('Cambios guardados.', 'success');
+      this.editingSection.set(null);
+      return;
+    }
+
+    concat(...steps)
+      .pipe(
+        finalize(() => this.saving.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (updated) => {
+          if (updated) {
+            this.operatorsFeature.replaceOperator(updated);
+          }
+        },
+        complete: () => {
+          this.toast.show('Cambios guardados.', 'success');
+          this.editingSection.set(null);
+        },
+      });
   }
 
   saveContact(): void {
@@ -679,6 +789,7 @@ export class OperatorsDetailDrawerFacade {
     this.editPaymentSchedule.set(o.paymentSchedule ?? 'maneuver');
     this.editPaymentMethod.set(o.paymentMethod ?? '');
     this.editVisibility.set(o.isActive === false ? 'inactive' : 'active');
+    this.editOperationalStatus.set(this.editStatusFromOperator(o));
     this.editEcName.set(o.emergencyContact.name);
     this.editEcRelationship.set(o.emergencyContact.relationship);
     this.editEcPhone.set(o.emergencyContact.phone);
@@ -718,6 +829,7 @@ export class OperatorsDetailDrawerFacade {
           return of(null);
         }),
         finalize(() => this.paymentConfirming.set(false)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((summary) => {
         if (!summary) {
@@ -745,6 +857,7 @@ export class OperatorsDetailDrawerFacade {
           return of(null);
         }),
         finalize(() => this.paymentConfirming.set(false)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((summary) => {
         if (!summary) {
@@ -771,57 +884,20 @@ export class OperatorsDetailDrawerFacade {
     return this.displayIsoDate(paidAtYmd);
   }
 
-  startOperatorLeave(): void {
-    this.submitHrHold('leave');
-  }
-
-  startOperatorIncapacitated(): void {
-    this.submitHrHold('incapacitated');
-  }
-
-  endOperatorHrHold(): void {
-    this.submitHrHold('end');
-  }
-
-  private submitHrHold(action: 'leave' | 'incapacitated' | 'end'): void {
-    if (this.hrHoldSubmitting() || this.saving()) {
-      return;
+  private editStatusFromOperator(o: Operator): string {
+    const derived = deriveOperatorOperationalStatus(
+      o,
+      this.operationalSync.trips(),
+    );
+    if (derived === 'in_use') {
+      return 'in_use';
     }
-    const operatorId = this.operator().id;
-    this.hrHoldSubmitting.set(true);
-    const request$ =
-      action === 'leave'
-        ? this.operatorsApi.startOperatorLeave(operatorId)
-        : action === 'incapacitated'
-          ? this.operatorsApi.startOperatorIncapacitated(operatorId)
-          : this.operatorsApi.endOperatorHrHold(operatorId);
-
-    request$
-      .pipe(
-        catchError(() => {
-          const message =
-            action === 'end'
-              ? 'No se pudo reincorporar al operador.'
-              : action === 'leave'
-                ? 'No se pudo registrar vacaciones.'
-                : 'No se pudo registrar incapacidad.';
-          this.toast.show(message, 'error');
-          return of(null);
-        }),
-        finalize(() => this.hrHoldSubmitting.set(false)),
-      )
-      .subscribe((updated) => {
-        if (!updated) {
-          return;
-        }
-        this.operatorsFeature.replaceOperator(updated);
-        const successMessage =
-          action === 'end'
-            ? 'Operador reincorporado.'
-            : action === 'leave'
-              ? 'Vacaciones registradas.'
-              : 'Incapacidad registrada.';
-        this.toast.show(successMessage, 'success');
-      });
+    if (derived === 'inactive' || o.isActive === false) {
+      return 'inactive';
+    }
+    if (derived === 'leave' || derived === 'incapacitated') {
+      return derived;
+    }
+    return 'available';
   }
 }

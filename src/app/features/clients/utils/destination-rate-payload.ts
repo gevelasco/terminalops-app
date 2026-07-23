@@ -194,37 +194,6 @@ export function buildCreateDestinationRatePayload(params: {
   });
 }
 
-function municipalityFromCityMunicipalityLine(
-  line: string | null | undefined,
-): string {
-  const t = (line ?? '').trim();
-  if (!t) {
-    return '';
-  }
-  const comma = t.indexOf(',');
-  return (comma >= 0 ? t.slice(0, comma) : t).trim();
-}
-
-/** Celda apilada para columna Origen: localidad + municipio. */
-export function formatDestinationRateOriginCell(
-  rate: Pick<DestinationRate, 'originLocality' | 'originCityMunicipality'>,
-): { date: string; time: string } {
-  const locality = rate.originLocality.trim() || '—';
-  const municipality =
-    municipalityFromCityMunicipalityLine(rate.originCityMunicipality) || '—';
-  return { date: locality, time: municipality };
-}
-
-/** Celda apilada para columna Destino: localidad + municipio. */
-export function formatDestinationRateDestinationCell(
-  rate: Pick<DestinationRate, 'locality' | 'cityMunicipality'>,
-): { date: string; time: string } {
-  const locality = rate.locality.trim() || '—';
-  const municipality =
-    municipalityFromCityMunicipalityLine(rate.cityMunicipality) || '—';
-  return { date: locality, time: municipality };
-}
-
 export function formatDestinationRateRouteSummary(rate: Pick<
   DestinationRate,
   | 'originLocality'

@@ -84,6 +84,12 @@
   color: var(--to-color-text-muted);
 }
 
+.reports-maniobras-panel__list-cap {
+  margin: 0.45rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--to-color-text-muted);
+}
+
 .reports-maniobras-panel__map-split {
   display: flex;
   flex: 1 1 auto;
@@ -277,6 +283,49 @@
   color: var(--to-color-text);
 }
 
+.reports-maniobras-panel--ralenti-table {
+  grid-column: 1 / -1;
+  min-height: 220px;
+}
+
+.reports-maniobras-panel__muted {
+  color: var(--to-color-text-muted);
+  font-weight: 500;
+}
+
+.reports-maniobras-panel__data-table--ralenti th:nth-child(1),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(1) {
+  width: 12%;
+}
+
+.reports-maniobras-panel__data-table--ralenti th:nth-child(2),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(2) {
+  width: 20%;
+  text-align: left;
+  font-weight: 500;
+}
+
+.reports-maniobras-panel__data-table--ralenti th:nth-child(3),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(3) {
+  width: 18%;
+}
+
+.reports-maniobras-panel__data-table--ralenti th:nth-child(4),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(4),
+.reports-maniobras-panel__data-table--ralenti th:nth-child(5),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(5),
+.reports-maniobras-panel__data-table--ralenti th:nth-child(6),
+.reports-maniobras-panel__data-table--ralenti td:nth-child(6) {
+  width: 16.5%;
+  white-space: nowrap;
+}
+
+.reports-maniobras-panel__data-table--ralenti td:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 1200px) {
   .reports-maniobras-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -288,7 +337,8 @@
     grid-template-columns: 1fr;
   }
 
-  .reports-maniobras-panel--map {
+  .reports-maniobras-panel--map,
+  .reports-maniobras-panel--ralenti-table {
     grid-column: auto;
   }
 

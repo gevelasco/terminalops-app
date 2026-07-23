@@ -1,8 +1,4 @@
 @if (hasCards()) {
-  <p class="clients-balance-overview__hint">
-    Resumen de cartera por cliente. Haz clic en una tarjeta para abrir el
-    expediente en la pestaña Balance.
-  </p>
   <div class="clients-balance-overview" role="list" aria-label="Balance por cliente">
     @for (card of cards(); track card.id) {
       <article

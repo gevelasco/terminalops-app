@@ -1,7 +1,0 @@
-import { FLEET_DETAIL_DRAWER_TAB_STYLES_DEPTH_2 } from '../fleet-detail-drawer.shared';
-
-export {
-  FLEET_DETAIL_DRAWER_TAB_IMPORTS as FLEET_EQUIPMENT_DETAIL_TAB_IMPORTS,
-} from '../fleet-detail-drawer.shared';
-
-export const FLEET_EQUIPMENT_DETAIL_TAB_STYLE_URLS = FLEET_DETAIL_DRAWER_TAB_STYLES_DEPTH_2;

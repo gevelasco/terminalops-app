@@ -20,40 +20,6 @@
         [label]="vm.operationalStatusLabel()"
         [modClass]="vm.operatorStatusMod()"
       />
-      @if (vm.showsHrHoldActions()) {
-        <div class="operators-detail__hr-actions">
-          @if (vm.showsStartLeaveAction()) {
-            <button
-              type="button"
-              class="maniobra-detail__maintenance-btn"
-              [disabled]="vm.hrHoldSubmitting()"
-              (click)="vm.startOperatorLeave()"
-            >
-              Vacaciones
-            </button>
-          }
-          @if (vm.showsStartIncapacitatedAction()) {
-            <button
-              type="button"
-              class="maniobra-detail__maintenance-btn"
-              [disabled]="vm.hrHoldSubmitting()"
-              (click)="vm.startOperatorIncapacitated()"
-            >
-              Incapacidad
-            </button>
-          }
-          @if (vm.showsEndHrHoldAction()) {
-            <button
-              type="button"
-              class="maniobra-detail__maintenance-btn"
-              [disabled]="vm.hrHoldSubmitting()"
-              (click)="vm.endOperatorHrHold()"
-            >
-              Reincorporar
-            </button>
-          }
-        </div>
-      }
     </div>
   </div>
 

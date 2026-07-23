@@ -11,10 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { OperationConfigurationResolverService } from '@shared/services/operation-configuration-resolver.service';
 import type { OperatorOperationalStatus, TripStatus } from '@shared/models/logistics.models';
-import type { ClientCommercialHealth } from '@shared/models/client.models';
-import { clientCommercialHealthLabel } from '@shared/catalogs/client-form-options';
 import { operatorOperationalStatusLabel } from '@shared/catalogs/operator-form-options';
-import { clientCommercialPillClass } from '@shared/utils/client-commercial-pill';
 import { operatorOperationalPillClass as operatorOpPillClass } from '@shared/utils/operator-operational-pill';
 import {
   maneuverStatusPillClass,
@@ -48,8 +45,6 @@ export type ToTableCellKind =
   | 'fleet-verification-icon'
   | 'fleet-insurance-icon'
   | 'operator-op-pill'
-  | 'client-health-pill'
-  | 'client-name-status'
   | 'rate-availability-pill'
   | 'module-access-icons'
   | 'user-role-pill'
@@ -369,14 +364,6 @@ export class ToTableComponent {
 
   operatorOperationalPillLabel(v: unknown): string {
     return operatorOperationalStatusLabel(v as OperatorOperationalStatus);
-  }
-
-  clientHealthPillClass(v: unknown): string {
-    return clientCommercialPillClass(v as ClientCommercialHealth);
-  }
-
-  clientHealthPillLabel(v: unknown): string {
-    return clientCommercialHealthLabel(v as string | undefined);
   }
 
   rateAvailabilityPillClass(v: unknown): string {

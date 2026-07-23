@@ -19,7 +19,7 @@ import { createRequestGeneration } from '@shared/utils/request-generation';
 /**
  * Fuente única de verdad del feature Tarifas por destino (lista en memoria + selección).
  * GET /companies/{companyId}/destination-rates — lazy al abrir la tab Tarifas (una vez por visita al módulo).
- * Alcance: ruta `/clients`.
+ * Alcance: ruta `/comercial/destination-rates`.
  */
 @Injectable()
 export class DestinationRatesFeatureService {

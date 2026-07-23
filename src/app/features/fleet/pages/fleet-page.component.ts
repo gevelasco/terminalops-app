@@ -64,6 +64,10 @@ import {
   fleetEquipmentListExportRowFromTableRow,
   fleetUnitListExportRowFromTableRow,
 } from '@features/fleet/utils/fleet-list-export.util';
+import {
+  FLEET_OVERVIEW_PAGE_SIZE,
+  FLEET_TABLE_PAGE_SIZE_OPTIONS,
+} from '@shared/utils/list-display-cap';
 import type { Unit } from '@shared/models/logistics.models';
 import {
   ToSegmentControlComponent,
@@ -161,6 +165,12 @@ export class FleetPageComponent implements OnInit {
           this.pendingEquipmentId.set(null);
         }
       }
+    });
+
+    effect(() => {
+      this.searchQuery();
+      this.overviewStatusFilter();
+      this.overviewVisibleCount.set(FLEET_OVERVIEW_PAGE_SIZE);
     });
   }
 
@@ -268,6 +278,16 @@ export class FleetPageComponent implements OnInit {
   readonly detailEquipmentForDrawer = computed(() => this.fleet.selectedEquipment());
 
   readonly searchQuery = model('');
+
+  /** Tablas unidades/equipo: mismo patrón que maniobras/gastos. */
+  readonly tablePageSize = model(15);
+  readonly tablePageSizeOptions = FLEET_TABLE_PAGE_SIZE_OPTIONS;
+
+  /**
+   * Overview: no renderiza cientos de tarjetas de golpe.
+   * Se reinicia al cambiar búsqueda o filtro de estado.
+   */
+  readonly overviewVisibleCount = signal(FLEET_OVERVIEW_PAGE_SIZE);
 
   readonly tableExportDisabled = computed(() => {
     const tab = this.tab();
@@ -413,6 +433,22 @@ export class FleetPageComponent implements OnInit {
         return a.unitName.localeCompare(b.unitName, 'es');
       });
   });
+
+  readonly displayedOverviewUnits = computed(() =>
+    this.overviewUnits().slice(0, this.overviewVisibleCount()),
+  );
+
+  readonly overviewHasMore = computed(
+    () => this.overviewUnits().length > this.overviewVisibleCount(),
+  );
+
+  readonly overviewRemainingCount = computed(() =>
+    Math.max(0, this.overviewUnits().length - this.overviewVisibleCount()),
+  );
+
+  showMoreOverviewUnits(): void {
+    this.overviewVisibleCount.update((n) => n + FLEET_OVERVIEW_PAGE_SIZE);
+  }
 
   readonly unitColumns: ToTableColumn[] = [
     { key: 'fleetBrand', label: 'Marca' },

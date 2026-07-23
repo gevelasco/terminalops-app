@@ -2,6 +2,7 @@ import type { FuelEstimateRequest } from '@shared/models/api/api-trips-fuel.mode
 import type { TripContainerType, TripLoadType } from '@shared/models/logistics.models';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 import { parseNonNegativeNumber } from '@features/trips/utils/parse-non-negative';
+import { formatGroupedNumber } from '@shared/utils/format-grouped-number';
 
 /** Mapeo exclusivo para API de combustible (backend diesel). */
 export function fuelConfigurationFromMaxEquipment(maxEquipmentCount: number): 'sencillo' | 'full' {
@@ -16,9 +17,9 @@ export function formatFuelEstimateLiters(value: number): string {
 }
 
 export function formatFuelEstimateMoney(value: number): string {
-  return value.toLocaleString('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return formatGroupedNumber(value, {
+    minFractionDigits: 2,
+    maxFractionDigits: 2,
   });
 }
 

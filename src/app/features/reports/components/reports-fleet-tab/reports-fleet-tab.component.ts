@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  model,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
@@ -21,6 +22,11 @@ import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-su
 import { formatReportsMoneyMx } from '@features/reports/utils/charts/reports-chart-axis.util';
 import type { ReportsFleetData } from '@shared/models/api/api-reports-fleet.model';
 import { renewalBucketFromOverview } from '@features/fleet/utils/fleet-overview-view';
+import {
+  cappedListHint,
+  cappedListView,
+  REPORTS_DENSE_LIST_CAP,
+} from '@shared/utils/list-display-cap';
 import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
@@ -179,9 +185,21 @@ export class ReportsFleetTabComponent {
   readonly tireWearRows = computed(() => this.insights()?.tireWearByUnit ?? []);
   readonly maintenanceEvents = computed(() => this.insights()?.maintenanceEvents ?? []);
 
+  readonly displayedTireWearRows = computed(() =>
+    cappedListView(this.tireWearRows(), REPORTS_DENSE_LIST_CAP),
+  );
+  readonly displayedMaintenanceEvents = computed(() =>
+    cappedListView(this.maintenanceEvents(), REPORTS_DENSE_LIST_CAP),
+  );
+
   readonly hasComplianceUnits = computed(() => this.complianceTableRows().length > 0);
   readonly hasTireWearRows = computed(() => this.tireWearRows().length > 0);
   readonly hasMaintenanceEvents = computed(() => this.maintenanceEvents().length > 0);
+
+  readonly compliancePageSize = model(15);
+  readonly compliancePageSizeOptions = [10, 15, 25, 50] as const;
+
+  cappedListHint = cappedListHint;
 
   formatEntryDate = formatEntryDate;
   formatReportsMoneyMx = formatReportsMoneyMx;

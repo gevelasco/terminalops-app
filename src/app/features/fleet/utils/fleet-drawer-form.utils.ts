@@ -5,6 +5,7 @@ import {
   unitHitchSlotForNewEquipment,
 } from '@shared/utils/fleet/equipment-hitch-assignment';
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
+import { stripGroupedNumber } from '@shared/utils/format-grouped-number';
 
 /** Fecha local YYYY-MM-DD (medianoche local). */
 export function fleetDrawerTodayIso(): string {
@@ -16,8 +17,51 @@ export function fleetDrawerTodayIso(): string {
   return `${y}-${mo}-${da}`;
 }
 
+/** Año modelo mínimo aceptado en unidades/equipos. */
+export const FLEET_MODEL_YEAR_MIN = 1950;
+
+export type FleetModelYearParseResult =
+  | { ok: true; year: string }
+  | { ok: false; reason: 'empty' | 'invalid' | 'too_old' | 'too_new' };
+
+/** Valida Modelo (año): dígitos, ≥ 1950 y ≤ año actual + 1. */
+export function parseFleetModelYear(raw: string): FleetModelYearParseResult {
+  const digits = parseFleetRequiredDigits(raw, { maxLength: 4 });
+  if (digits === 'empty') {
+    return { ok: false, reason: 'empty' };
+  }
+  if (digits === 'invalid') {
+    return { ok: false, reason: 'invalid' };
+  }
+  const yearNum = Number(digits);
+  const maxYear = new Date().getFullYear() + 1;
+  if (yearNum < FLEET_MODEL_YEAR_MIN) {
+    return { ok: false, reason: 'too_old' };
+  }
+  if (yearNum > maxYear) {
+    return { ok: false, reason: 'too_new' };
+  }
+  return { ok: true, year: digits };
+}
+
+export function fleetModelYearErrorMessage(
+  reason: Exclude<FleetModelYearParseResult, { ok: true }>['reason'],
+): string {
+  const maxYear = new Date().getFullYear() + 1;
+  switch (reason) {
+    case 'empty':
+      return 'Modelo (año) es obligatorio.';
+    case 'invalid':
+      return 'Modelo (año) debe ser un número de máximo 4 dígitos.';
+    case 'too_old':
+      return `Modelo (año) no puede ser menor a ${FLEET_MODEL_YEAR_MIN}.`;
+    case 'too_new':
+      return `Modelo (año) no puede ser mayor a ${maxYear}.`;
+  }
+}
+
 export function parseFleetOptionalAmount(raw: string): number | undefined | 'invalid' {
-  const t = raw.trim().replace(/\s/g, '').replace(/,/g, '');
+  const t = stripGroupedNumber(raw);
   if (t === '') {
     return undefined;
   }
@@ -29,7 +73,7 @@ export function parseFleetOptionalAmount(raw: string): number | undefined | 'inv
 }
 
 export function parseFleetPositiveKm(raw: string): number | 'invalid' {
-  const t = raw.trim().replace(/\s/g, '').replace(/,/g, '');
+  const t = stripGroupedNumber(raw);
   if (t === '') {
     return 'invalid';
   }

@@ -62,6 +62,12 @@
     class="operator-operation-fields__row operator-operation-fields__row--edit"
   >
     <to-select
+      label="Estado"
+      [options]="operationalStatusOptions()"
+      [disabled]="operationalStatusDisabled()"
+      [(value)]="operationalStatus"
+    />
+    <to-select
       label="Registro"
       [options]="visibilityOptions()"
       [(value)]="visibility"

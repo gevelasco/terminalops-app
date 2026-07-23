@@ -62,8 +62,6 @@ export class ClientsDetailDrawerFacade {
   private dismissCallback: (() => void) | null = null;
 
   readonly balanceLoading = computed(() => this.balanceContext.clientBalanceLoading());
-  readonly balanceExpenses = computed(() => this.balanceContext.expenses());
-
   readonly client = computed(() => this.clientsFeature.selectedClient()!);
 
   readonly drawerLoading = signal(true);
@@ -383,6 +381,7 @@ export class ClientsDetailDrawerFacade {
           return of(null);
         }),
         finalize(() => this.collectionConfirming.set(false)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((updated) => {
         if (!updated) {

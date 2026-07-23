@@ -262,20 +262,6 @@
   background: var(--to-color-surface-muted);
 }
 
-.to-table-name-status {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.55rem;
-  min-width: 0;
-}
-
-.to-table-name-status__name {
-  font-weight: 600;
-  color: var(--to-color-text);
-  word-break: break-word;
-}
-
 .to-table-pill--rate-available {
   color: #166534;
   background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface, #fff));

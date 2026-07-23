@@ -1,0 +1,165 @@
+<section
+  class="destination-rates-map"
+  aria-label="Mapa de destinos con tarifa"
+>
+  <div class="destination-rates-map__canvas-wrap">
+    @if (loading() || !geoReady()) {
+      <div class="destination-rates-map__overlay">
+        <to-skeleton [lines]="4" />
+      </div>
+    }
+
+    @if (geoLoadFailed()) {
+      <p class="destination-rates-map__hint destination-rates-map__hint--error">
+        No se pudo cargar el mapa de tarifas. Intenta de nuevo en unos momentos.
+      </p>
+    } @else if (!loading() && rates().length === 0) {
+      <p class="destination-rates-map__hint">
+        No hay tarifas registradas para mostrar en el mapa.
+      </p>
+    } @else if (!loading() && coordsMeta().withCoords === 0 && rates().length > 0) {
+      <p class="destination-rates-map__hint">
+        Las tarifas no tienen coordenadas de destino; el mapa no puede pintar
+        estados todavía.
+      </p>
+    } @else if (!loading() && hasActiveFilter() && filteredRates().length === 0) {
+      <p class="destination-rates-map__hint">
+        Ninguna ruta coincide con la búsqueda.
+      </p>
+    }
+
+    <div
+      #chartHost
+      class="destination-rates-map__canvas"
+      [class.destination-rates-map__canvas--hidden]="geoLoadFailed()"
+      role="img"
+      aria-label="Mapa de calor de destinos por estado"
+    ></div>
+  </div>
+
+  <aside
+    class="destination-rates-map__sidebar"
+    aria-label="Resumen de tarifas"
+  >
+    <div class="destination-rates-map__kpis">
+      <to-kpi-card
+        title="Tarifas"
+        titleIcon="payment"
+        [value]="'' + filteredRates().length"
+      />
+      <to-kpi-card
+        title="Activas"
+        titleIcon="route"
+        [value]="'' + activeCount()"
+      />
+      <to-kpi-card
+        title="Estados"
+        titleIcon="target"
+        [value]="'' + stateCount()"
+      />
+    </div>
+
+    <div class="destination-rates-map__panel">
+      @if (panelMode() === 'search') {
+        <header class="destination-rates-map__panel-header">
+          <h3 class="destination-rates-map__panel-title">
+            {{ selectedState() || 'Resultados' }}
+          </h3>
+          <p class="destination-rates-map__panel-subtitle">
+            {{ selectedRouteCards().length }} ruta(s) encontradas
+          </p>
+        </header>
+      } @else if (panelMode() === 'state') {
+        <header class="destination-rates-map__panel-header">
+          <h3 class="destination-rates-map__panel-title">{{ selectedState() }}</h3>
+          <p class="destination-rates-map__panel-subtitle">
+            Rutas con tarifa
+          </p>
+        </header>
+      }
+
+      @if (panelMode() === 'idle') {
+        <p class="destination-rates-map__panel-hint">
+          Busca una ruta o selecciona un estado con destinos para ver tarifas.
+        </p>
+      } @else if (selectedRouteCards().length === 0) {
+        <p class="destination-rates-map__panel-hint">
+          @if (hasActiveFilter()) {
+            Ninguna ruta coincide con la búsqueda.
+          } @else {
+            No hay destinos con tarifa en este estado.
+          }
+        </p>
+      } @else {
+        <div class="destination-rates-map__cards" role="list">
+          @for (card of displayedRouteCards(); track card.rateId) {
+            <button
+              type="button"
+              class="destination-rates-map__card"
+              role="listitem"
+              [class.destination-rates-map__card--inactive]="!card.active"
+              (click)="onRouteCardClick(card)"
+            >
+              <div class="destination-rates-map__card-top">
+                <to-badge
+                  class="destination-rates-map__cp-badge"
+                  variant="neutral"
+                  >CP {{ card.postalCode }}</to-badge
+                >
+                @if (!card.active) {
+                  <span class="destination-rates-map__card-status">Inactiva</span>
+                }
+              </div>
+              @if (panelMode() === 'search' && !selectedState() && card.stateName) {
+                <p class="destination-rates-map__card-state">{{ card.stateName }}</p>
+              }
+              @if (card.locality) {
+                <p class="destination-rates-map__card-locality">
+                  {{ card.locality }}
+                </p>
+              }
+              @if (card.cityMunicipality) {
+                <p class="destination-rates-map__card-city">
+                  {{ card.cityMunicipality }}
+                </p>
+              }
+
+              <div class="destination-rates-map__card-section">
+                <p class="destination-rates-map__card-section-title">
+                  Tarifas por tipo de maniobra
+                </p>
+                @if (card.prices.length === 0) {
+                  <p class="destination-rates-map__card-empty">Sin precios</p>
+                } @else {
+                  <ul class="destination-rates-map__card-prices">
+                    @for (
+                      price of card.prices;
+                      track price.label + price.amountLabel
+                    ) {
+                      <li>
+                        <span>{{ price.label }}</span>
+                        <span>{{ price.amountLabel }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+
+              <p class="destination-rates-map__card-maneuvers">
+                Maniobras realizadas —
+                <strong>{{ card.maneuverCount }}</strong>
+              </p>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </aside>
+
+  @if (coordsMeta().withoutCoords > 0) {
+    <p class="destination-rates-map__footnote">
+      {{ coordsMeta().withoutCoords }} tarifa(s) sin coordenadas de destino no se
+      dibujan en el mapa.
+    </p>
+  }
+</section>

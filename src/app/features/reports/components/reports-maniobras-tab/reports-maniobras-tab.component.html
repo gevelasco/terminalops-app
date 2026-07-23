@@ -33,11 +33,11 @@
       [legend]="cancelledLegend()"
     />
     <to-kpi-card
-      title="Retrasadas"
-      titleIcon="alert"
-      [value]="delayedValue()"
-      [valueUnit]="delayedValueUnit()"
-      [legend]="delayedLegend()"
+      title="Ralenti"
+      titleIcon="calendar"
+      [value]="ralentiValue()"
+      [valueUnit]="ralentiValueUnit()"
+      [legend]="ralentiLegend()"
     />
     <to-kpi-card
       title="Km operativos"
@@ -91,7 +91,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (trip of geoMapTrips(); track trip.tripId) {
+                @for (trip of displayedGeoMapTrips().items; track trip.tripId) {
                   <tr>
                     <td>
                       <span
@@ -110,6 +110,9 @@
                 }
               </tbody>
             </table>
+            @if (cappedListHint(displayedGeoMapTrips()); as hint) {
+              <p class="reports-maniobras-panel__list-cap">{{ hint }}</p>
+            }
           }
         </div>
       </div>
@@ -141,7 +144,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (route of recurringIncidentRoutes(); track route.destination) {
+              @for (route of displayedRecurringIncidentRoutes().items; track route.destination) {
                 <tr>
                   <td [attr.title]="route.destination">{{ route.destination }}</td>
                   <td>{{ route.incidentCount }}</td>
@@ -153,6 +156,9 @@
               }
             </tbody>
           </table>
+          @if (cappedListHint(displayedRecurringIncidentRoutes()); as hint) {
+            <p class="reports-maniobras-panel__list-cap">{{ hint }}</p>
+          }
         }
       </div>
     </section>
@@ -231,6 +237,75 @@
           <to-echarts-host [option]="cargoWeightOption()" />
         } @else {
           <p class="reports-maniobras-panel__empty">Sin peso de carga registrado en el periodo.</p>
+        }
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel reports-maniobras-panel--ralenti">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Ralenti por cliente</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Exceso vs baseline (tarifa si existe, si no plan) · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__chart">
+        @if (hasRalentiByClient()) {
+          <to-echarts-host [option]="ralentiByClientOption()" />
+        } @else {
+          <p class="reports-maniobras-panel__empty">
+            Sin ralenti detectado en el periodo (o faltan fechas reales de tramo).
+          </p>
+        }
+      </div>
+    </section>
+
+    <section class="reports-maniobras-panel reports-maniobras-panel--ralenti-table">
+      <header class="reports-maniobras-panel__head">
+        <div>
+          <h2 class="reports-maniobras-panel__title">Detalle de ralenti</h2>
+          <p class="reports-maniobras-panel__subtitle">
+            Por tramo · baseline tarifa o plan · {{ periodSubtitle() }}
+          </p>
+        </div>
+      </header>
+      <div class="reports-maniobras-panel__incidents-body">
+        @if (!hasRalentiEvents()) {
+          <p class="reports-maniobras-panel__incidents-empty">Sin eventos de ralenti en el periodo.</p>
+        } @else {
+          <table class="reports-maniobras-panel__data-table reports-maniobras-panel__data-table--ralenti">
+            <thead>
+              <tr>
+                <th scope="col">Maniobra</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Tramo</th>
+                <th scope="col">Baseline</th>
+                <th scope="col">Real</th>
+                <th scope="col">Ralenti</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of displayedRalentiEvents().items; track row.tripId + '-' + row.leg) {
+                <tr>
+                  <td>{{ row.maneuverCode || '—' }}</td>
+                  <td [attr.title]="row.clientName">{{ row.clientName }}</td>
+                  <td>{{ ralentiLegLabel(row.leg) }}</td>
+                  <td>
+                    {{ formatHours(row.baselineHours) }}
+                    <span class="reports-maniobras-panel__muted">
+                      ({{ ralentiBaselineLabel(row.baselineSource) }})
+                    </span>
+                  </td>
+                  <td>{{ formatHours(row.actualHours) }}</td>
+                  <td>{{ formatHours(row.ralentiHours) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (cappedListHint(displayedRalentiEvents()); as hint) {
+            <p class="reports-maniobras-panel__list-cap">{{ hint }}</p>
+          }
         }
       </div>
     </section>

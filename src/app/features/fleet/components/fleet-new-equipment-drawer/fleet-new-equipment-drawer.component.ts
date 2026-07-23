@@ -25,7 +25,8 @@ import {
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { FleetHitchValidationBlockComponent } from '@features/fleet/components/fleet-hitch-validation-block/fleet-hitch-validation-block.component';
 import {
-  parseFleetRequiredDigits,
+  fleetModelYearErrorMessage,
+  parseFleetModelYear,
   registerFleetHitchSlotSync,
 } from '@app/features/fleet/utils/fleet-drawer-form.utils';
 import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
@@ -404,16 +405,12 @@ export class FleetNewEquipmentDrawerComponent {
       return;
     }
 
-    const yearParsed = parseFleetRequiredDigits(yearRaw, { maxLength: 4 });
-    if (yearParsed === 'empty') {
-      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+    const yearParsed = parseFleetModelYear(yearRaw);
+    if (!yearParsed.ok) {
+      this.toast.show(fleetModelYearErrorMessage(yearParsed.reason), 'warning');
       return;
     }
-    if (yearParsed === 'invalid') {
-      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
-      return;
-    }
-    const year = yearParsed;
+    const year = yearParsed.year;
 
     if (uid) {
       if (this.hitchUnitOnRoute()) {

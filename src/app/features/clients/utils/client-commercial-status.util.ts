@@ -1,10 +1,6 @@
 import type { ClientCommercialHealth } from '@shared/models/client.models';
-import {
-  buildClientBalanceSummary,
-  type ClientBalanceSummary,
-} from '@features/clients/utils/client-balance-summary';
+import type { ClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
 import { localYmd } from '@features/reports/utils/reports-filter';
-import type { Expense, Trip } from '@shared/models/logistics.models';
 
 /** Ventana (días) para marcar cartera como «Vence pronto». */
 export const CLIENT_COMMERCIAL_DUE_SOON_DAYS = 10;
@@ -58,7 +54,7 @@ export function deriveClientCommercialHealthFromCredit(
 }
 
 /**
- * Estatus comercial derivado de maniobras y cartera (única fuente de verdad en UI).
+ * Estatus comercial derivado del resumen de balance (API).
  */
 export function deriveClientCommercialHealthFromSummary(
   balance: ClientBalanceSummary,
@@ -68,14 +64,4 @@ export function deriveClientCommercialHealthFromSummary(
     balance.nextDueYmd,
     balance.hasTrips,
   );
-}
-
-export function deriveClientCommercialHealth(
-  clientId: string,
-  trips: readonly Trip[],
-  expenses: readonly Expense[] = [],
-  asOf: Date = new Date(),
-): ClientCommercialHealth {
-  const balance = buildClientBalanceSummary(clientId, trips, expenses, asOf);
-  return deriveClientCommercialHealthFromSummary(balance);
 }

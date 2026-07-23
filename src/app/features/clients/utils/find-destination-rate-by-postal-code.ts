@@ -91,18 +91,6 @@ export function resolveManeuverDestinationRate(
   return linkedRate;
 }
 
-/** @deprecated Usar findDestinationRateByRoute */
-export function findDestinationRateByPostalCode(
-  rates: readonly DestinationRate[],
-  postalCode: string,
-): DestinationRate | null {
-  const cp = normalizeMxPostalCodeDigits(postalCode);
-  if (cp.length !== 5) {
-    return null;
-  }
-  return rates.find((r) => r.active && r.postalCode === cp) ?? null;
-}
-
 export function findDestinationRatePriceByOperationCode(
   rate: DestinationRate,
   operationConfigurationCode: string,

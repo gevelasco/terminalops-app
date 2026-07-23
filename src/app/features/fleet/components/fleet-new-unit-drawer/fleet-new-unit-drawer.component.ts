@@ -16,7 +16,10 @@ import { ToastService } from '@core/notifications/toast.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
-import { parseFleetRequiredDigits } from '@features/fleet/utils/fleet-drawer-form.utils';
+import {
+  fleetModelYearErrorMessage,
+  parseFleetModelYear,
+} from '@features/fleet/utils/fleet-drawer-form.utils';
 import {
   MaintenanceEntry,
   TrailerTenureMode,
@@ -348,16 +351,12 @@ export class FleetNewUnitDrawerComponent {
       this.toast.show('Marca y placa son obligatorios.', 'warning');
       return;
     }
-    const yearParsed = parseFleetRequiredDigits(yearRaw, { maxLength: 4 });
-    if (yearParsed === 'empty') {
-      this.toast.show('Modelo (año) es obligatorio.', 'warning');
+    const yearParsed = parseFleetModelYear(yearRaw);
+    if (!yearParsed.ok) {
+      this.toast.show(fleetModelYearErrorMessage(yearParsed.reason), 'warning');
       return;
     }
-    if (yearParsed === 'invalid') {
-      this.toast.show('Modelo (año) debe ser un número de máximo 4 dígitos.', 'warning');
-      return;
-    }
-    const year = yearParsed;
+    const year = yearParsed.year;
     if (!motorNumber) {
       this.toast.show('Número de motor es obligatorio.', 'warning');
       return;

@@ -122,7 +122,7 @@
       role="list"
       aria-label="Unidades, convoyes y equipo disponible"
     >
-      @for (entry of overviewUnits(); track entry.unitId) {
+      @for (entry of displayedOverviewUnits(); track entry.unitId) {
         <app-fleet-overview-card
           [entry]="entry"
           [convoyInteractive]="true"
@@ -134,6 +134,17 @@
         />
       }
     </div>
+    @if (overviewHasMore()) {
+      <div class="fleet-overview-more">
+        <to-button
+          type="button"
+          variant="secondary"
+          (click)="showMoreOverviewUnits()"
+        >
+          Ver más ({{ overviewRemainingCount() }} restantes)
+        </to-button>
+      </div>
+    }
     @if (overviewUnits().length === 0) {
       <p class="fleet-empty-hint">
         @if (unitList().length === 0) {
@@ -155,6 +166,8 @@
         trackByKey="id"
         [interactiveRows]="true"
         [fleetIconTooltips]="false"
+        [(pageSize)]="tablePageSize"
+        [pageSizeOptions]="tablePageSizeOptions"
         (rowClick)="onUnitRowClick($event)"
       />
       @if (displayedUnitRows().length === 0) {
@@ -179,6 +192,8 @@
         trackByKey="id"
         [interactiveRows]="true"
         [fleetIconTooltips]="false"
+        [(pageSize)]="tablePageSize"
+        [pageSizeOptions]="tablePageSizeOptions"
         (rowClick)="onEquipmentRowClick($event)"
       />
       @if (displayedEquipmentRows().length === 0) {
