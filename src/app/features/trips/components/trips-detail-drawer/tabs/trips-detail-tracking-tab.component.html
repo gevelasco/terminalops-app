@@ -247,13 +247,43 @@
           </div>
         }
 
-        @if (!vm.realDatesEditEnabled() && vm.hasEmptyDelivery()) {
+        @if (
+          !vm.realDatesEditEnabled() &&
+          vm.hasEmptyDelivery() &&
+          !vm.emptyDeliveryFormOpen()
+        ) {
           <dl class="maniobra-detail__dl maniobra-detail__dl--schedule">
             <dt>Entrega de vacío</dt>
             <dd>{{ vm.plannedScheduleDisplay(vm.trip().emptyDeliveryAt) }}</dd>
             <dt>Lugar de entrega</dt>
             <dd>{{ vm.trip().emptyDeliveryPlace || '—' }}</dd>
           </dl>
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Documentos de entrega de vacío</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            @if (vm.docs("empty_delivery").length === 0) {
+              <p class="maniobra-detail__muted-block">Sin archivos adjuntos</p>
+            } @else {
+              <ul
+                class="maniobra-detail__doc-list"
+                aria-label="Documentos de entrega de vacío"
+              >
+                @for (doc of vm.docs("empty_delivery"); track doc.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="maniobra-detail__doc-link"
+                      (click)="vm.downloadTripDocument(doc)"
+                    >
+                      {{ doc.fileName }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
         }
 
         @if (!vm.realDatesEditEnabled() && vm.emptyDeliveryFormOpen()) {
@@ -292,6 +322,74 @@
                   ></textarea>
                 </div>
               }
+              <div class="fleet-unit-docs">
+                <div class="fleet-unit-docs__head">
+                  <h4 class="fleet-unit-sec__subtitle">Documentos de entrega de vacío</h4>
+                  <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+                </div>
+                @if (vm.docs("empty_delivery").length > 0) {
+                  <ul
+                    class="maniobra-detail__doc-list"
+                    aria-label="Documentos de entrega de vacío guardados"
+                  >
+                    @for (doc of vm.docs("empty_delivery"); track doc.id) {
+                      <li>
+                        <button
+                          type="button"
+                          class="maniobra-detail__doc-link"
+                          (click)="vm.downloadTripDocument(doc)"
+                        >
+                          {{ doc.fileName }}
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+                <div class="fleet-unit-upload">
+                  <input
+                    #fileEmptyDelivery
+                    type="file"
+                    class="fleet-unit-upload__input"
+                    tabindex="-1"
+                    multiple
+                    accept="image/*,.pdf,application/pdf"
+                    (change)="vm.onEmptyDeliveryFilesSelected($event)"
+                  />
+                  <button
+                    type="button"
+                    class="fleet-unit-upload__btn"
+                    [disabled]="vm.emptyDeliverySaving()"
+                    (click)="fileEmptyDelivery.click()"
+                  >
+                    <to-icon name="upload" [size]="14" />
+                    Elegir archivos
+                  </button>
+                </div>
+                @if (vm.emptyDeliveryNewFiles().length > 0) {
+                  <ul
+                    class="fleet-unit-files"
+                    aria-label="Archivos de entrega de vacío por subir"
+                  >
+                    @for (
+                      file of vm.emptyDeliveryNewFiles();
+                      track vm.trackEmptyDeliveryFile($index, file)
+                    ) {
+                      <li class="fleet-unit-files__row">
+                        <span class="fleet-unit-files__name">{{ file.name }}</span>
+                        <button
+                          type="button"
+                          class="fleet-unit-files__rm"
+                          aria-label="Quitar archivo"
+                          [disabled]="vm.emptyDeliverySaving()"
+                          (click)="vm.removeEmptyDeliveryNewFile($index)"
+                        >
+                          <to-icon name="delete" [size]="16" />
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
               <div class="maniobra-detail__empty-delivery-actions">
                 <to-button
                   type="button"

@@ -483,7 +483,11 @@ export type TripStoredDocument = {
   documentKind: TripDocumentKind | string;
 };
 
-export type TripDocumentKind = 'load' | 'operational_costs' | 'billing';
+export type TripDocumentKind =
+  | 'load'
+  | 'operational_costs'
+  | 'billing'
+  | 'empty_delivery';
 
 /**
  * Vanos / plazas ISO o chasis fijo (porte-contenedor, etc.).

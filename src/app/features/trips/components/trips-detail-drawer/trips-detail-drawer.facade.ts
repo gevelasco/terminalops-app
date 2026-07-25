@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, map, of } from 'rxjs';
+import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ToastService } from '@core/notifications/toast.service';
@@ -155,6 +155,7 @@ export class TripsDetailDrawerFacade {
   readonly emptyDeliveryAtDraft = signal('');
   readonly emptyDeliveryPlaceDraft = signal('');
   readonly emptyDeliveryJustificationDraft = signal('');
+  readonly emptyDeliveryNewFiles = signal<File[]>([]);
   readonly emptyDeliverySaving = signal(false);
   readonly loadDateDraft = signal('');
   readonly loadPlaceDraft = signal('');
@@ -676,6 +677,7 @@ export class TripsDetailDrawerFacade {
     this.emptyDeliveryAtDraft.set(isoToDateTimeLocalValue(t.emptyDeliveryAt));
     this.emptyDeliveryPlaceDraft.set(t.emptyDeliveryPlace?.trim() ?? '');
     this.emptyDeliveryJustificationDraft.set('');
+    this.emptyDeliveryNewFiles.set([]);
     this.loadPlacesCatalog.ensureLoaded();
     this.emptyDeliveryFormOpen.set(true);
   }
@@ -705,6 +707,27 @@ export class TripsDetailDrawerFacade {
     this.emptyDeliveryAtDraft.set('');
     this.emptyDeliveryPlaceDraft.set('');
     this.emptyDeliveryJustificationDraft.set('');
+    this.emptyDeliveryNewFiles.set([]);
+  }
+
+  onEmptyDeliveryFilesSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
+    if (files.length === 0) {
+      return;
+    }
+    this.emptyDeliveryNewFiles.update((prev) => [...prev, ...files]);
+  }
+
+  removeEmptyDeliveryNewFile(index: number): void {
+    this.emptyDeliveryNewFiles.update((prev) =>
+      prev.filter((_, i) => i !== index),
+    );
+  }
+
+  trackEmptyDeliveryFile(index: number, file: File): string {
+    return `${file.name}-${file.size}-${file.lastModified}-${index}`;
   }
 
   saveEmptyDelivery(): void {
@@ -742,16 +765,42 @@ export class TripsDetailDrawerFacade {
       return;
     }
 
+    const tripId = this.trip().id;
+    const pendingFiles = this.emptyDeliveryNewFiles();
     this.emptyDeliverySaving.set(true);
     this.tripsFeature
-      .updateEmptyDelivery(this.trip().id, {
+      .updateEmptyDelivery(tripId, {
         emptyDeliveryAt: iso,
         emptyDeliveryPlace: place,
         ...(justification
           ? { emptyDeliveryJustification: justification }
           : {}),
       })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap(() => {
+          if (pendingFiles.length === 0) {
+            return of(null);
+          }
+          return forkJoin(
+            pendingFiles.map((file) =>
+              this.tripsApi.uploadTripDocument(tripId, 'empty_delivery', file),
+            ),
+          ).pipe(
+            map(() => {
+              this.tripsFeature.selectTrip(tripId);
+              return null;
+            }),
+            catchError(() => {
+              this.toast.show(
+                'Entrega guardada, pero algunos documentos no se pudieron subir.',
+                'warning',
+              );
+              return of(null);
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.emptyDeliverySaving.set(false);
