@@ -539,6 +539,9 @@ export interface EquipmentFleetMeta {
   /** Última verificación físico-mecánica del remolque (ISO `YYYY-MM-DD`). */
   verificationPhysMechDate?: string;
   verificationPhysMechCost?: number;
+  verificationDoubleArticulatedApplies?: boolean;
+  verificationDoubleArticulatedDate?: string;
+  verificationDoubleArticulatedCost?: number;
   insurancePolicyNumber?: string;
   /** Aseguradora o nombre comercial del seguro (texto libre). */
   insuranceCarrierName?: string;
@@ -548,11 +551,16 @@ export interface EquipmentFleetMeta {
   insurancePaymentMethod?: string;
   insuranceInvoiceRequired?: boolean;
   insuranceCost?: number;
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentMaintenanceNames?: string[];
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentVerificationNames?: string[];
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentPolicyNames?: string[];
-  /** Factura de compra, título de propiedad, NOM-051, endosos, etc. */
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentOwnershipNames?: string[];
+  /** Documentos persistidos (id + nombre) para descarga/borrado. */
+  fleetDocuments?: FleetStoredDocument[];
 }
 
 export interface Unit {

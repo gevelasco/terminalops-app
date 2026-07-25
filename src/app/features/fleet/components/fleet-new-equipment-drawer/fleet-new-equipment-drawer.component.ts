@@ -14,7 +14,9 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { catchError, forkJoin, of, switchMap, throwError } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { EquipmentService as EquipmentApiService } from '@core/services/api/equipment';
 import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import {
@@ -40,6 +42,7 @@ import { EquipmentFeatureService } from '@features/fleet/services/equipment.serv
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   EquipmentFleetMeta,
+  FleetDocumentKind,
   MaintenanceEntry,
   TrailerTenureMode,
 } from '@shared/models/logistics.models';
@@ -126,6 +129,15 @@ function parseOptionalPositiveInt(raw: string): number | undefined | 'invalid' {
   return n;
 }
 
+/** Fecha + costo válidos (costo numérico ≥ 0, no vacío). */
+function hasValidDateAndCost(dateRaw: string, costRaw: string): boolean {
+  if (!parseYmd(dateRaw)) {
+    return false;
+  }
+  const cost = parseOptionalAmount(costRaw);
+  return cost !== 'invalid' && cost !== undefined;
+}
+
 @Component({
   selector: 'app-fleet-new-equipment-drawer',
   standalone: true,
@@ -157,6 +169,7 @@ export class FleetNewEquipmentDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
+  private readonly equipmentApi = inject(EquipmentApiService);
   private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
 
@@ -244,6 +257,8 @@ export class FleetNewEquipmentDrawerComponent {
   readonly trailerRecurringPaymentAmount = model('');
   readonly trailerRecurringPaymentDate = model('');
   readonly trailerRecurringInstallmentCount = model('');
+  readonly trailerRecurringPaymentCadence = model('monthly');
+  readonly trailerTenureBeneficiary = model('');
   readonly trailerManagementOwnerPayout = model('');
 
   readonly equipmentCapacityTons = model('');
@@ -258,8 +273,12 @@ export class FleetNewEquipmentDrawerComponent {
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
 
+  readonly physMechApplies = model(false);
   readonly verificationPhysMechDate = model('');
   readonly verificationPhysMechCost = model('');
+  readonly doubleArticApplies = model(false);
+  readonly verificationDoubleDate = model('');
+  readonly verificationDoubleCost = model('');
 
   readonly lastMaintenanceDate = model('');
   readonly lastMaintenanceType = model('servicio_completo');
@@ -294,14 +313,48 @@ export class FleetNewEquipmentDrawerComponent {
   readonly tireOptions = FLEET_TIRE_CONDITION_OPTIONS;
 
   readonly cadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
+  readonly tenureCadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
   readonly insurancePaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS.filter(
     (o) => o.value !== '',
   );
 
   readonly tenureOptions = this.planEntitlements.tenureOptions;
 
+  readonly showMaintenanceDocs = computed(() =>
+    hasValidDateAndCost(this.lastMaintenanceDate(), this.lastMaintenanceCost()),
+  );
+
+  readonly showVerificationDocs = computed(() => {
+    const physOk =
+      this.physMechApplies() &&
+      hasValidDateAndCost(
+        this.verificationPhysMechDate(),
+        this.verificationPhysMechCost(),
+      );
+    const doubleOk =
+      this.doubleArticApplies() &&
+      hasValidDateAndCost(this.verificationDoubleDate(), this.verificationDoubleCost());
+    return physOk || doubleOk;
+  });
+
+  private readonly clearHiddenDocUploads = (() => {
+    effect(() => {
+      if (!this.showMaintenanceDocs()) {
+        this.filesMaintenance.set([]);
+      }
+    });
+    effect(() => {
+      if (!this.showVerificationDocs()) {
+        this.filesVerification.set([]);
+      }
+    });
+    return true;
+  })();
+
   readonly physRenewal = computed(() =>
-    renewalFromLastDateForVerif(this.verificationPhysMechDate().trim(), 6),
+    this.physMechApplies()
+      ? renewalFromLastDateForVerif(this.verificationPhysMechDate().trim(), 6)
+      : null,
   );
 
   readonly insuranceRenewHint = computed(() =>
@@ -331,6 +384,16 @@ export class FleetNewEquipmentDrawerComponent {
     return this.trailerTenureMode() === 'leased'
       ? 'Plazos o meses de contrato'
       : 'Total de cuotas del crédito';
+  }
+
+  setTrailerTenureMode(raw: string): void {
+    const mode = (raw.trim() || 'owned') as TrailerTenureMode;
+    if (!this.planEntitlements.isTenureModeAllowed(mode)) {
+      this.toast.show(this.planEntitlements.tenureUpgradeMessage(), 'warning');
+      this.trailerTenureMode.set('owned');
+      return;
+    }
+    this.trailerTenureMode.set(mode);
   }
 
   private buildMaintenanceEntries(
@@ -390,6 +453,24 @@ export class FleetNewEquipmentDrawerComponent {
     target.update((prev) => prev.filter((_, i) => i !== index));
   }
 
+  togglePhysMechSwitch(): void {
+    const next = !this.physMechApplies();
+    this.physMechApplies.set(next);
+    if (!next) {
+      this.verificationPhysMechDate.set('');
+      this.verificationPhysMechCost.set('');
+    }
+  }
+
+  toggleDoubleArticSwitch(): void {
+    const next = !this.doubleArticApplies();
+    this.doubleArticApplies.set(next);
+    if (!next) {
+      this.verificationDoubleDate.set('');
+      this.verificationDoubleCost.set('');
+    }
+  }
+
   submit(): void {
     const uid = this.unitId().trim();
     const brandName = this.brandName().trim();
@@ -398,9 +479,9 @@ export class FleetNewEquipmentDrawerComponent {
     const plate = this.plate().trim().toUpperCase();
     const serial = this.serialNumber().trim().toUpperCase();
 
-    if (!brandName || !opType || !plate || !serial) {
+    if (!brandName || !opType || !plate) {
       this.toast.show(
-        'Marca, tipo de equipo, placa y número de serie son obligatorios.',
+        'Marca, modelo, tipo de equipo y placa son obligatorios.',
         'warning',
       );
       return;
@@ -431,14 +512,35 @@ export class FleetNewEquipmentDrawerComponent {
       }
     }
 
+    if (this.physMechApplies() && !this.verificationPhysMechDate().trim()) {
+      this.toast.show(
+        'Si aplica verificación físico-mecánica, indica la fecha.',
+        'warning',
+      );
+      return;
+    }
+    if (this.doubleArticApplies() && !this.verificationDoubleDate().trim()) {
+      this.toast.show(
+        'Si aplica doble articulado, indica la fecha de verificación.',
+        'warning',
+      );
+      return;
+    }
+
     const maintCost = parseOptionalAmount(this.lastMaintenanceCost());
     const insCost = parseOptionalAmount(this.insuranceCost());
-    const physCost = parseOptionalAmount(this.verificationPhysMechCost());
+    const physCost = this.physMechApplies()
+      ? parseOptionalAmount(this.verificationPhysMechCost())
+      : undefined;
+    const doubleCost = this.doubleArticApplies()
+      ? parseOptionalAmount(this.verificationDoubleCost())
+      : undefined;
     const axles = parseOptionalPositiveInt(this.equipmentAxleCount());
     if (
       maintCost === 'invalid' ||
       insCost === 'invalid' ||
       physCost === 'invalid' ||
+      doubleCost === 'invalid' ||
       axles === 'invalid'
     ) {
       this.toast.show(
@@ -477,6 +579,8 @@ export class FleetNewEquipmentDrawerComponent {
     let trailerRecurringPaymentAmount: number | undefined;
     let trailerRecurringPaymentDate: string | undefined;
     let trailerRecurringInstallmentCount: number | undefined;
+    let trailerRecurringPaymentCadence: string | undefined;
+    let trailerTenureBeneficiary: string | undefined;
     let trailerManagementOwnerPayout: number | undefined;
 
     if (tenureMode === 'owned') {
@@ -485,8 +589,14 @@ export class FleetNewEquipmentDrawerComponent {
       trailerRecurringPaymentAmount = recAmt === undefined ? undefined : recAmt;
       trailerRecurringPaymentDate = this.trailerRecurringPaymentDate().trim() || undefined;
       trailerRecurringInstallmentCount = recCount === undefined ? undefined : recCount;
+      trailerRecurringPaymentCadence =
+        this.trailerRecurringPaymentCadence().trim() || undefined;
+      trailerTenureBeneficiary = this.trailerTenureBeneficiary().trim() || undefined;
     } else if (tenureMode === 'managed') {
       trailerManagementOwnerPayout = ownerPayout === undefined ? undefined : ownerPayout;
+      trailerRecurringPaymentCadence =
+        this.trailerRecurringPaymentCadence().trim() || undefined;
+      trailerTenureBeneficiary = this.trailerTenureBeneficiary().trim() || undefined;
     }
 
     const tireLabel =
@@ -511,6 +621,8 @@ export class FleetNewEquipmentDrawerComponent {
       trailerRecurringPaymentAmount,
       trailerRecurringPaymentDate,
       trailerRecurringInstallmentCount,
+      trailerRecurringPaymentCadence,
+      trailerTenureBeneficiary,
       trailerManagementOwnerPayout,
       equipmentCapacityTons: this.equipmentCapacityTons().trim() || undefined,
       equipmentAxleCount: axles === undefined ? undefined : axles,
@@ -531,18 +643,39 @@ export class FleetNewEquipmentDrawerComponent {
       insuranceInvoiceRequired: this.insuranceInvoiceRequired(),
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
-      documentMaintenanceNames: this.filesMaintenance().map((f) => f.name),
-      documentPolicyNames: this.filesPolicy().map((f) => f.name),
-      documentOwnershipNames: this.filesOwnership().map((f) => f.name),
-      verificationPhysMechDate: this.verificationPhysMechDate().trim() || undefined,
-      verificationPhysMechCost: physCost === undefined ? undefined : physCost,
-      documentVerificationNames:
-        this.filesVerification().length > 0
-          ? this.filesVerification().map((f) => f.name)
-          : undefined,
+      verificationPhysMechDate: this.physMechApplies()
+        ? this.verificationPhysMechDate().trim() || undefined
+        : undefined,
+      verificationPhysMechCost:
+        this.physMechApplies() && physCost !== undefined ? physCost : undefined,
+      verificationDoubleArticulatedApplies: this.doubleArticApplies(),
+      verificationDoubleArticulatedDate: this.doubleArticApplies()
+        ? this.verificationDoubleDate().trim() || undefined
+        : undefined,
+      verificationDoubleArticulatedCost:
+        this.doubleArticApplies() && doubleCost !== undefined ? doubleCost : undefined,
     };
 
     const brandAbbr = deriveFleetBrandAbbr(brandName);
+    const resolvedSerial = serial || plate;
+    const pendingUploads: Array<{ kind: FleetDocumentKind; file: File }> = [
+      ...this.filesMaintenance().map((file) => ({
+        kind: 'maintenance' as const,
+        file,
+      })),
+      ...this.filesVerification().map((file) => ({
+        kind: 'verification' as const,
+        file,
+      })),
+      ...this.filesPolicy().map((file) => ({
+        kind: 'policy' as const,
+        file,
+      })),
+      ...this.filesOwnership().map((file) => ({
+        kind: 'ownership' as const,
+        file,
+      })),
+    ];
 
     this.saving.set(true);
     this.equipmentFeature
@@ -551,15 +684,35 @@ export class FleetNewEquipmentDrawerComponent {
         hitchPosition: uid
           ? hitchPositionForNewEquipmentOnUnit(this.equipmentCatalog(), uid) ?? undefined
           : undefined,
-        name: this.name().trim() || serial,
-        serialNumber: serial,
+        name: this.name().trim() || resolvedSerial,
+        serialNumber: resolvedSerial,
         plate,
         type: this.operationTypeLabel(opType),
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         fleetMeta: meta,
       })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((created) => {
+          if (pendingUploads.length === 0) {
+            return of(created);
+          }
+          return forkJoin(
+            pendingUploads.map(({ kind, file }) =>
+              this.equipmentApi.uploadEquipmentDocument(created.id, kind, file),
+            ),
+          ).pipe(
+            switchMap(() => of(created)),
+            catchError(() =>
+              throwError(() => ({
+                phase: 'documents' as const,
+                equipmentId: created.id,
+              })),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.fleetFeature.registerLocalCatalogEntry(
@@ -567,11 +720,30 @@ export class FleetNewEquipmentDrawerComponent {
             brandName,
             this.trailerVersion().trim() || undefined,
           );
-          this.toast.show('Equipo registrado.', 'success');
+          this.toast.show(
+            pendingUploads.length > 0
+              ? 'Equipo y documentos registrados.'
+              : 'Equipo registrado.',
+            'success',
+          );
           this.saved.emit();
           this.dismiss.emit();
         },
-        error: () => {
+        error: (err: unknown) => {
+          const docsFailed =
+            typeof err === 'object' &&
+            err !== null &&
+            'phase' in err &&
+            (err as { phase?: string }).phase === 'documents';
+          if (docsFailed) {
+            this.toast.show(
+              'El equipo se creó, pero no se pudieron subir los documentos. Ábrelo y súbelos de nuevo.',
+              'error',
+            );
+            this.saved.emit();
+            this.dismiss.emit();
+            return;
+          }
           this.toast.show('No se pudo guardar el equipo.', 'error');
           this.saving.set(false);
         },

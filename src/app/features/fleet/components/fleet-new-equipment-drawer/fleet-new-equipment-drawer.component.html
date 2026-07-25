@@ -20,7 +20,7 @@
       class="fleet-new-equipment-drawer__privacy-hint"
       tabindex="0"
       aria-label="Información sobre privacidad"
-      data-tooltip="Puedes registrar un equipo con lo mínimo. Agregar más datos te ayuda a operar, dar seguimiento y mantener alertas."
+      data-tooltip="Puedes registrar un equipo solo con marca, modelo, tipo y placa. Agregar más datos te ayuda a operar, dar seguimiento y mantener alertas."
     >
       <to-icon name="info" [size]="18" />
     </span>
@@ -95,7 +95,7 @@
     </div>
     <div class="fleet-unit-sec__grid2">
       <to-input
-        label="Número de serie *"
+        label="Número de serie"
         placeholder="Ej. CHS-882-A"
         [uppercase]="true"
         [(value)]="serialNumber"
@@ -124,9 +124,10 @@
       Propiedad y tenencia
     </h3>
     <to-select
-      label="Situación del activo *"
+      label="Situación del activo"
       [options]="tenureOptions()"
-      [(value)]="trailerTenureMode"
+      [value]="trailerTenureMode()"
+      (valueChange)="setTrailerTenureMode($event)"
     />
     @if (trailerTenureMode() === "owned") {
       <to-input
@@ -138,8 +139,24 @@
       />
     }
     @if (
+      trailerTenureMode() === "financed" ||
+      trailerTenureMode() === "leased" ||
+      trailerTenureMode() === "managed"
+    ) {
+      <to-input
+        label="Beneficiario"
+        type="text"
+        placeholder="Ej. Financiera ABC"
+        [(value)]="trailerTenureBeneficiary"
+      />
+    }
+    @if (
       trailerTenureMode() === "financed" || trailerTenureMode() === "leased"
     ) {
+      <p class="fleet-unit-sec__docs-hint">
+        Con monto, fecha de referencia, plazos y periodicidad se arma el
+        control de próximos pagos en el detalle del equipo.
+      </p>
       <div class="fleet-unit-sec__row-flex">
         <to-input
           [label]="tenureRecurringAmountLabel()"
@@ -149,26 +166,40 @@
           [(value)]="trailerRecurringPaymentAmount"
         />
         <to-input
-          label="Fecha de pago"
+          label="Fecha de pago de referencia"
           type="date"
           [(value)]="trailerRecurringPaymentDate"
         />
       </div>
-      <to-input
-        [label]="tenureInstallmentOrTermLabel()"
-        type="number"
-        placeholder="Ej. 36"
-        [(value)]="trailerRecurringInstallmentCount"
-      />
+      <div class="fleet-unit-sec__row-flex">
+        <to-input
+          [label]="tenureInstallmentOrTermLabel()"
+          type="number"
+          placeholder="Ej. 36"
+          [(value)]="trailerRecurringInstallmentCount"
+        />
+        <to-select
+          label="Periodicidad"
+          [options]="tenureCadenceOptions"
+          [(value)]="trailerRecurringPaymentCadence"
+        />
+      </div>
     }
     @if (trailerTenureMode() === "managed") {
-      <to-input
-        label="Pago al dueño / ganancia administrada"
-        type="text"
-        [groupThousands]="true"
-        placeholder="Ej. 8,500"
-        [(value)]="trailerManagementOwnerPayout"
-      />
+      <div class="fleet-unit-sec__row-flex">
+        <to-input
+          label="Pago al dueño / ganancia administrada"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. 8,500"
+          [(value)]="trailerManagementOwnerPayout"
+        />
+        <to-select
+          label="Periodicidad"
+          [options]="tenureCadenceOptions"
+          [(value)]="trailerRecurringPaymentCadence"
+        />
+      </div>
     }
 
     <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
@@ -278,41 +309,43 @@
       [rows]="3"
       [(value)]="lastMaintenanceNotes"
     />
-    <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
-    <p class="fleet-unit-sec__docs-hint">PDF o imagen del taller o factura.</p>
-    <div class="fleet-unit-upload">
-      <input
-        #fileMaint
-        type="file"
-        class="fleet-unit-upload__input"
-        tabindex="-1"
-        multiple
-        accept="image/*,.pdf,application/pdf"
-        (change)="onFiles($event, 'maint')"
-      />
-      <button
-        type="button"
-        class="fleet-unit-upload__btn"
-        (click)="fileMaint.click()"
-      >
-        Elegir archivos
-      </button>
-    </div>
-    @if (filesMaintenance().length > 0) {
-      <ul class="fleet-unit-files">
-        @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
-          <li class="fleet-unit-files__row">
-            <span class="fleet-unit-files__name">{{ f.name }}</span>
-            <button
-              type="button"
-              class="fleet-unit-files__rm"
-              (click)="removeFile('maint', $index)"
-            >
-              Quitar
-            </button>
-          </li>
-        }
-      </ul>
+    @if (showMaintenanceDocs()) {
+      <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
+      <p class="fleet-unit-sec__docs-hint">PDF o imagen del taller o factura.</p>
+      <div class="fleet-unit-upload">
+        <input
+          #fileMaint
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="onFiles($event, 'maint')"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="fileMaint.click()"
+        >
+          Elegir archivos
+        </button>
+      </div>
+      @if (filesMaintenance().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ f.name }}</span>
+              <button
+                type="button"
+                class="fleet-unit-files__rm"
+                (click)="removeFile('maint', $index)"
+              >
+                Quitar
+              </button>
+            </li>
+          }
+        </ul>
+      }
     }
   </section>
 
@@ -325,66 +358,119 @@
       En equipo solo aplica verificación físico-mecánica (no hay verificación de
       emisiones como en tractores).
     </p>
-    <div class="fleet-unit-sec__row-flex">
-      <to-input
-        label="Verificación físico-mecánica"
-        type="date"
-        [(value)]="verificationPhysMechDate"
-      />
-      <to-input
-        label="Costo"
-        type="text"
-        [groupThousands]="true"
-        placeholder="Ej. $ 850"
-        [(value)]="verificationPhysMechCost"
-      />
-    </div>
-    @if (physRenewal() === "soon") {
-      <p class="fleet-unit-callout fleet-unit-callout--warn">
-        La próxima revalidación estimada (6 meses) está a menos de 45 días.
-      </p>
-    }
-    @if (physRenewal() === "due") {
-      <p class="fleet-unit-callout fleet-unit-callout--bad">
-        La revalidación físico-mecánica puede estar vencida; agenda cita.
-      </p>
-    }
-
-    <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
-    <p class="fleet-unit-sec__docs-hint">Tarjetas o constancias escaneadas.</p>
-    <div class="fleet-unit-upload">
-      <input
-        #fileVerif
-        type="file"
-        class="fleet-unit-upload__input"
-        tabindex="-1"
-        multiple
-        accept="image/*,.pdf,application/pdf"
-        (change)="onFiles($event, 'verif')"
-      />
+    <div class="fleet-unit-toggle-row">
+      <span class="fleet-unit-toggle-row__label" id="fleet-eq-phys-mech-label">
+        Aplica verificación físico-mecánica
+      </span>
       <button
         type="button"
-        class="fleet-unit-upload__btn"
-        (click)="fileVerif.click()"
+        class="fleet-unit-toggle"
+        [class.fleet-unit-toggle--on]="physMechApplies()"
+        role="switch"
+        [attr.aria-checked]="physMechApplies()"
+        aria-labelledby="fleet-eq-phys-mech-label"
+        (click)="togglePhysMechSwitch()"
       >
-        Elegir archivos
+        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
       </button>
     </div>
-    @if (filesVerification().length > 0) {
-      <ul class="fleet-unit-files">
-        @for (f of filesVerification(); track trackFileEntry($index, f)) {
-          <li class="fleet-unit-files__row">
-            <span class="fleet-unit-files__name">{{ f.name }}</span>
-            <button
-              type="button"
-              class="fleet-unit-files__rm"
-              (click)="removeFile('verif', $index)"
-            >
-              Quitar
-            </button>
-          </li>
-        }
-      </ul>
+    @if (physMechApplies()) {
+      <div class="fleet-unit-sec__row-flex">
+        <to-input
+          label="Verificación físico-mecánica"
+          type="date"
+          [(value)]="verificationPhysMechDate"
+        />
+        <to-input
+          label="Costo"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. $ 850"
+          [(value)]="verificationPhysMechCost"
+        />
+      </div>
+      @if (physRenewal() === "soon") {
+        <p class="fleet-unit-callout fleet-unit-callout--warn">
+          La próxima revalidación estimada (6 meses) está a menos de 45 días.
+        </p>
+      }
+      @if (physRenewal() === "due") {
+        <p class="fleet-unit-callout fleet-unit-callout--bad">
+          La revalidación físico-mecánica puede estar vencida; agenda cita.
+        </p>
+      }
+    }
+
+    <div class="fleet-unit-toggle-row">
+      <span class="fleet-unit-toggle-row__label" id="fleet-eq-double-artic-label">
+        Aplica verificación de doble articulado
+      </span>
+      <button
+        type="button"
+        class="fleet-unit-toggle"
+        [class.fleet-unit-toggle--on]="doubleArticApplies()"
+        role="switch"
+        [attr.aria-checked]="doubleArticApplies()"
+        aria-labelledby="fleet-eq-double-artic-label"
+        (click)="toggleDoubleArticSwitch()"
+      >
+        <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+      </button>
+    </div>
+    @if (doubleArticApplies()) {
+      <div class="fleet-unit-sec__row-flex">
+        <to-input
+          label="Fecha verificación doble articulado"
+          type="date"
+          [(value)]="verificationDoubleDate"
+        />
+        <to-input
+          label="Costo"
+          type="text"
+          [groupThousands]="true"
+          placeholder="Ej. $ 850"
+          [(value)]="verificationDoubleCost"
+        />
+      </div>
+    }
+
+    @if (showVerificationDocs()) {
+      <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
+      <p class="fleet-unit-sec__docs-hint">Tarjetas o constancias escaneadas.</p>
+      <div class="fleet-unit-upload">
+        <input
+          #fileVerif
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="onFiles($event, 'verif')"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="fileVerif.click()"
+        >
+          Elegir archivos
+        </button>
+      </div>
+      @if (filesVerification().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (f of filesVerification(); track trackFileEntry($index, f)) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ f.name }}</span>
+              <button
+                type="button"
+                class="fleet-unit-files__rm"
+                (click)="removeFile('verif', $index)"
+              >
+                Quitar
+              </button>
+            </li>
+          }
+        </ul>
+      }
     }
   </section>
 

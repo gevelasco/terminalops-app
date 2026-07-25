@@ -3,7 +3,11 @@ import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import type { CreateEquipmentPayload } from '@shared/models/api/api-fleet.model';
 import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
-import type { Equipment } from '@shared/models/logistics.models';
+import type {
+  Equipment,
+  FleetDocumentKind,
+  FleetStoredDocument,
+} from '@shared/models/logistics.models';
 import {
   buildEquipmentWritePayload,
   type EquipmentPersistDraft,
@@ -99,5 +103,48 @@ export class EquipmentService {
         {},
       )
       .pipe(map((row) => normalizeEquipmentFromApi(row)));
+  }
+
+  uploadEquipmentDocument(
+    equipmentId: string,
+    documentKind: FleetDocumentKind,
+    file: File,
+  ): Observable<FleetStoredDocument> {
+    const id = equipmentId.trim();
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('documentKind', documentKind);
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('equipment', id, 'documents'),
+        form,
+      )
+      .pipe(
+        map((raw) => ({
+          id: Number(raw['id']),
+          fileName: String(raw['fileName'] ?? file.name),
+          documentKind: String(raw['documentKind'] ?? documentKind),
+        })),
+      );
+  }
+
+  downloadEquipmentDocument(
+    equipmentId: string,
+    documentId: number,
+  ): Observable<{ url: string }> {
+    const id = equipmentId.trim();
+    return this.http.get<{ url: string }>(
+      resourceByIdUrl('equipment', id, `documents/${documentId}/download`),
+    );
+  }
+
+  deleteEquipmentDocument(
+    equipmentId: string,
+    documentId: number,
+  ): Observable<{ id: number; deleted: boolean }> {
+    const id = equipmentId.trim();
+    return this.http.delete<{ id: number; deleted: boolean }>(
+      resourceByIdUrl('equipment', id, `documents/${documentId}`),
+    );
   }
 }

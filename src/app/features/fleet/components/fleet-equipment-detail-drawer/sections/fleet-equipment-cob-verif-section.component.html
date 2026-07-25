@@ -96,6 +96,41 @@
                   [(value)]="vm.newPhysVerifCost"
                 />
               </div>
+              <h4 class="fleet-unit-sec__subtitle">Comprobante (opcional)</h4>
+              <div class="fleet-unit-upload">
+                <input
+                  #filePhysVerif
+                  type="file"
+                  class="fleet-unit-upload__input"
+                  tabindex="-1"
+                  multiple
+                  accept="image/*,.pdf,application/pdf"
+                  (change)="vm.onNewPhysVerifFiles($event)"
+                />
+                <button
+                  type="button"
+                  class="fleet-unit-upload__btn"
+                  (click)="filePhysVerif.click()"
+                >
+                  Elegir archivos
+                </button>
+              </div>
+              @if (vm.newPhysVerifFiles().length > 0) {
+                <ul class="fleet-unit-files">
+                  @for (f of vm.newPhysVerifFiles(); track vm.trackFileEntry($index, f)) {
+                    <li class="fleet-unit-files__row">
+                      <span class="fleet-unit-files__name">{{ f.name }}</span>
+                      <button
+                        type="button"
+                        class="fleet-unit-files__rm"
+                        (click)="vm.removeNewPhysVerifFile($index)"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
               <div class="fleet-unit-detail__verif-form-actions">
                 <to-button
                   type="button"
@@ -109,6 +144,7 @@
                   type="button"
                   variant="primary"
                   size="sm"
+                  [disabled]="vm.saving()"
                   (click)="vm.savePhysVerifEntry()"
                 >
                   <to-icon name="save" [size]="14" />
@@ -118,15 +154,146 @@
             </div>
           }
         </div>
+
+        <div
+          class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--verif"
+          style="margin-top: 16px"
+        >
+          <p
+            class="fleet-unit-detail__badge-label fleet-unit-detail__badge-label--sentence"
+          >
+            Doble articulado
+          </p>
+          @if (vm.meta()?.verificationDoubleArticulatedApplies === true) {
+            <div class="fleet-unit-detail__verif-section-header">
+              <div class="fleet-unit-detail__badge-row">
+                <span
+                  class="fleet-unit-detail__badge fleet-unit-detail__badge--neutral"
+                >
+                  <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+                  {{ vm.formatYmd(vm.meta()?.verificationDoubleArticulatedDate) }}
+                </span>
+                <span
+                  [class]="
+                    vm.badgeRenewalClass(
+                      vm.renewalBucketFor(
+                        vm.meta()?.verificationDoubleArticulatedDate
+                      )
+                    )
+                  "
+                >
+                  <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+                  Próx.:
+                  {{
+                    vm.nextMx(
+                      vm.meta()?.verificationDoubleArticulatedDate,
+                      vm.verifCycleMo
+                    )
+                  }}
+                </span>
+              </div>
+              @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("double")) {
+                <div class="fleet-unit-detail__verif-action-btn">
+                  <to-button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    ariaLabel="Actualizar verificación de doble articulado"
+                    (click)="vm.startVerifEntry('double')"
+                  >
+                    <span class="fleet-unit-detail__maint-add-label">
+                      Verificación
+                    </span>
+                  </to-button>
+                </div>
+              }
+            </div>
+            <p class="fleet-unit-detail__verif-tracking">
+              Costo:
+              {{
+                vm.formatTrackingAmount(
+                  vm.meta()?.verificationDoubleArticulatedCost
+                )
+              }}
+            </p>
+          } @else {
+            @if (vm.canWriteFleet() && !vm.isVerifEntryOpen("double")) {
+              <div class="fleet-unit-detail__verif-section-header">
+                <p
+                  class="fleet-unit-detail__plain fleet-unit-detail__plain--verif-inline"
+                >
+                  {{ vm.doubleArticLabel(vm.meta()) }}
+                </p>
+                <div class="fleet-unit-detail__verif-action-btn">
+                  <to-button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    ariaLabel="Registrar verificación de doble articulado"
+                    (click)="vm.startVerifEntry('double')"
+                  >
+                    <span class="fleet-unit-detail__maint-add-label">
+                      Verificación
+                    </span>
+                  </to-button>
+                </div>
+              </div>
+            }
+          }
+          @if (vm.canWriteFleet() && vm.isVerifEntryOpen("double")) {
+            <div class="fleet-unit-detail__verif-form">
+              <div class="fleet-unit-detail__verif-form-grid">
+                <to-input
+                  label="Fecha de la verificación *"
+                  type="date"
+                  [max]="vm.today"
+                  [(value)]="vm.newVerifDate"
+                />
+                <to-input
+                  label="Costo"
+                  type="text"
+                  [groupThousands]="true"
+                  placeholder="Ej. 1,200"
+                  [(value)]="vm.newVerifCost"
+                />
+              </div>
+              <div class="fleet-unit-detail__verif-form-actions">
+                <to-button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  (click)="vm.cancelVerifEntry()"
+                >
+                  Cancelar
+                </to-button>
+                <to-button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  [disabled]="vm.saving()"
+                  (click)="vm.saveVerifEntry()"
+                >
+                  <to-icon name="save" [size]="14" />
+                  Guardar verificación
+                </to-button>
+              </div>
+            </div>
+          }
+        </div>
+
         <h4 class="fleet-unit-sec__subtitle" style="margin-top: 20px">
           Documentos de verificación
         </h4>
-        @if (vm.docNames("verification").length > 0) {
+        @if (vm.docs("verification").length > 0) {
           <ul class="fleet-unit-detail__doc-list">
-            @for (n of vm.docNames("verification"); track n) {
+            @for (doc of vm.docs("verification"); track doc.id) {
               <li class="fleet-unit-detail__doc-item">
-                <button type="button" class="fleet-unit-detail__doc-link" (click)="vm.downloadStoredDocument(n)">
-                  {{ n }}
+                <button
+                  type="button"
+                  class="fleet-unit-detail__doc-link"
+                  (click)="vm.downloadStoredDocument(doc)"
+                >
+                  {{ doc.fileName }}
                 </button>
               </li>
             }

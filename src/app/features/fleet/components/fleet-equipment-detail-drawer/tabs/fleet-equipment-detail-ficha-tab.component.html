@@ -263,17 +263,17 @@
       />
     }
     <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-    @if (vm.docNames("ownership").length > 0) {
+    @if (vm.docs("ownership").length > 0) {
       <ul
         class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
       >
-        @for (n of vm.docNames("ownership"); track n) {
+        @for (doc of vm.docs("ownership"); track doc.id) {
           <li class="fleet-unit-detail__file-line">
-            <span class="fleet-unit-detail__file-name">{{ n }}</span>
+            <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
             <button
               type="button"
               class="fleet-unit-detail__file-dl"
-              (click)="vm.downloadStoredDocument(n)"
+              (click)="vm.downloadStoredDocument(doc)"
             >
               Descargar
             </button>
@@ -364,14 +364,11 @@
         </div>
       }
       <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-      @if (vm.editOwnershipNames().length > 0) {
+      @if (vm.editOwnershipDocs().length > 0) {
         <ul class="fleet-unit-files">
-          @for (
-            n of vm.editOwnershipNames();
-            track vm.trackStringEntry($index, n)
-          ) {
+          @for (doc of vm.editOwnershipDocs(); track doc.id) {
             <li class="fleet-unit-files__row">
-              <span class="fleet-unit-files__name">{{ n }}</span>
+              <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
               <button
                 type="button"
                 class="fleet-unit-files__rm"

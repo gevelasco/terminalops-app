@@ -105,11 +105,11 @@
               Factura fiscal requerida
             </label>
             <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
-            @if (vm.editPolicyNames().length > 0) {
+            @if (vm.editPolicyDocs().length > 0) {
               <ul class="fleet-unit-files">
-                @for (n of vm.editPolicyNames(); track vm.trackStringEntry($index, n)) {
+                @for (doc of vm.editPolicyDocs(); track doc.id) {
                   <li class="fleet-unit-files__row">
-                    <span class="fleet-unit-files__name">{{ n }}</span>
+                    <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
                     <button
                       type="button"
                       class="fleet-unit-files__rm"
@@ -229,17 +229,17 @@
         @if (!vm.isEditing("insurance")) {
           <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
           <p class="fleet-unit-sec__docs-hint">PDF o recibos registrados.</p>
-          @if (vm.docNames("policy").length > 0) {
+          @if (vm.docs("policy").length > 0) {
             <ul
               class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
             >
-              @for (n of vm.docNames("policy"); track n) {
+              @for (doc of vm.docs("policy"); track doc.id) {
                 <li class="fleet-unit-detail__file-line">
-                  <span class="fleet-unit-detail__file-name">{{ n }}</span>
+                  <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
                   <button
                     type="button"
                     class="fleet-unit-detail__file-dl"
-                    (click)="vm.downloadStoredDocument(n)"
+                    (click)="vm.downloadStoredDocument(doc)"
                   >
                     Descargar
                   </button>

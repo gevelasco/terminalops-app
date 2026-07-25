@@ -7,8 +7,9 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { switchMap, type Subscription } from 'rxjs';
+import { forkJoin, of, switchMap, type Observable, type Subscription } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { EquipmentService as EquipmentApiService } from '@core/services/api/equipment';
 import { ExpensesService } from '@core/services/api/expenses';
 import {
   confirmFleetCoverageSchedulePayment,
@@ -49,7 +50,10 @@ import {
   tenurePaymentBounds,
 } from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
-import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
+import {
+  attachFleetMaintenanceDocNamesToNewestEntry,
+  isSubstantiveMaintenanceEntry,
+} from '@features/fleet/utils/fleet-maintenance-entry.util';
 import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import {
@@ -82,6 +86,7 @@ import {
 } from '@shared/utils/fleet/equipment-container-slot-options.util';
 import {
   FleetRenewalBucket,
+  complianceRenewalBucket,
   equipmentPhysMechTwoYearExemptionEnd,
   equipmentPhysMechVerificationBucket,
   equipmentPhysMechVerificationTooltip,
@@ -139,6 +144,8 @@ import {
   Equipment,
   EquipmentFleetMeta,
   Expense,
+  FleetDocumentKind,
+  FleetStoredDocument,
   MaintenanceEntry,
   TrailerTenureMode,
   Unit,
@@ -172,6 +179,7 @@ export class FleetEquipmentDetailDrawerFacade {
   private readonly planEntitlements = inject(PlanEntitlementService);
   readonly destroyRef = inject(DestroyRef);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
+  private readonly equipmentApi = inject(EquipmentApiService);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly expensesApi = inject(ExpensesService);
   private readonly unitsFeature = inject(UnitsFeatureService);
@@ -369,6 +377,7 @@ export class FleetEquipmentDetailDrawerFacade {
     return !!(
       meta?.maintenanceEntries?.length ||
       meta?.verificationEntries?.length ||
+      meta?.fleetDocuments?.length ||
       meta?.documentMaintenanceNames?.length ||
       meta?.documentVerificationNames?.length ||
       meta?.documentPolicyNames?.length ||
@@ -936,9 +945,12 @@ export class FleetEquipmentDetailDrawerFacade {
   }
   readonly today = fleetDrawerTodayIso();
 
-  readonly verifEntryKind = signal<'phys' | null>(null);
+  readonly verifEntryKind = signal<'phys' | 'double' | null>(null);
   readonly newPhysVerifDate = signal('');
   readonly newPhysVerifCost = signal('');
+  readonly newPhysVerifFiles = signal<File[]>([]);
+  readonly newVerifDate = signal('');
+  readonly newVerifCost = signal('');
 
   // -- Seguro: form signals --
   readonly editInsCarrierName = signal('');
@@ -949,7 +961,7 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly editInsInvoiceRequired = signal(false);
   readonly editInsCost = signal('');
   /** Póliza y comprobantes (copia editable al abrir seguro). */
-  readonly editPolicyNames = signal<string[]>([]);
+  readonly editPolicyDocs = signal<FleetStoredDocument[]>([]);
   readonly editPolicyNewFiles = signal<File[]>([]);
 
   startEditInsurance(): void {
@@ -967,12 +979,12 @@ export class FleetEquipmentDetailDrawerFacade {
     this.editInsPaymentMethod.set(m.insurancePaymentMethod?.trim() || '');
     this.editInsInvoiceRequired.set(m.insuranceInvoiceRequired === true);
     this.editInsCost.set(formatMoneyInputValue(m.insuranceCost));
-    this.editPolicyNames.set([...(m.documentPolicyNames ?? [])]);
+    this.editPolicyDocs.set([...this.docs('policy')]);
     this.editingSection.set('insurance');
   }
 
   removeEditPolicyDoc(index: number): void {
-    this.editPolicyNames.update((prev) => prev.filter((_, i) => i !== index));
+    this.editPolicyDocs.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onEditInsurancePolicyFiles(ev: Event): void {
@@ -995,16 +1007,13 @@ export class FleetEquipmentDetailDrawerFacade {
       this.toast.show('El costo del seguro debe ser un número válido (≥ 0).', 'warning');
       return;
     }
+    if (this.saving()) {
+      return;
+    }
     const cadenceLabel =
       this.cadenceOptions.find((o) => o.value === this.editInsCadence())?.label ||
       this.editInsCadence().trim() ||
       undefined;
-    const policyMerged = [
-      ...this.editPolicyNames(),
-      ...this.editPolicyNewFiles().map((f) => f.name),
-    ];
-    const documentPolicyNames =
-      policyMerged.length > 0 ? [...new Set(policyMerged)] : undefined;
     const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
       insuranceCarrierName: this.editInsCarrierName().trim() || undefined,
       insurancePolicyNumber: this.editInsPolicyNumber().trim() || undefined,
@@ -1013,17 +1022,35 @@ export class FleetEquipmentDetailDrawerFacade {
       insurancePaymentMethod: this.editInsPaymentMethod().trim() || undefined,
       insuranceInvoiceRequired: this.editInsInvoiceRequired(),
       insuranceCost: cost === undefined ? undefined : cost,
-      documentPolicyNames,
     };
-    this.editPolicyNewFiles.set([]);
-    this.persistCurrentEquipment(
-      'Seguro actualizado.',
-      { fleetMeta: fleetMetaDraft },
-      COB_SECTION_PERSIST_OPTIONS,
-    );
+    const original = this.docs('policy');
+    const kept = this.editPolicyDocs();
+    const files = this.editPolicyNewFiles();
+    this.saving.set(true);
+    this.syncEquipmentDocuments('policy', kept, files, original)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.editPolicyNewFiles.set([]);
+          this.saving.set(false);
+          this.persistCurrentEquipment(
+            'Seguro actualizado.',
+            { fleetMeta: fleetMetaDraft },
+            COB_SECTION_PERSIST_OPTIONS,
+          );
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron guardar los documentos del seguro.', 'error');
+        },
+      });
   }
   isPhysVerifFormOpen(): boolean {
     return this.verifEntryKind() === 'phys';
+  }
+
+  isVerifEntryOpen(kind: 'phys' | 'double'): boolean {
+    return this.verifEntryKind() === kind;
   }
 
   startPhysVerifEntry(): void {
@@ -1032,13 +1059,84 @@ export class FleetEquipmentDetailDrawerFacade {
     }
     this.newPhysVerifDate.set('');
     this.newPhysVerifCost.set('');
+    this.newPhysVerifFiles.set([]);
     this.verifEntryKind.set('phys');
+  }
+
+  startVerifEntry(kind: 'phys' | 'double'): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
+    if (kind === 'phys') {
+      this.startPhysVerifEntry();
+      return;
+    }
+    this.newVerifDate.set('');
+    this.newVerifCost.set('');
+    this.verifEntryKind.set('double');
   }
 
   cancelPhysVerifEntry(): void {
     this.verifEntryKind.set(null);
     this.newPhysVerifDate.set('');
     this.newPhysVerifCost.set('');
+    this.newPhysVerifFiles.set([]);
+    this.newVerifDate.set('');
+    this.newVerifCost.set('');
+  }
+
+  cancelVerifEntry(): void {
+    this.cancelPhysVerifEntry();
+  }
+
+  saveVerifEntry(): void {
+    if (!this.canWriteFleet()) {
+      return;
+    }
+    const kind = this.verifEntryKind();
+    if (kind !== 'double') {
+      return;
+    }
+    const date = this.newVerifDate().trim();
+    if (!date) {
+      this.toast.show('Indica la fecha de la nueva verificación.', 'warning');
+      return;
+    }
+    if (date > this.today) {
+      this.toast.show('La fecha no puede ser futura.', 'warning');
+      return;
+    }
+    const cost = parseFleetOptionalAmount(this.newVerifCost());
+    if (cost === 'invalid') {
+      this.toast.show('El costo debe ser un número válido (≥ 0).', 'warning');
+      return;
+    }
+    const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
+      verificationDoubleArticulatedApplies: true,
+      verificationDoubleArticulatedDate: date,
+      verificationDoubleArticulatedCost: cost === undefined ? undefined : cost,
+    };
+    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
+    this.cancelVerifEntry();
+    this.persistCurrentEquipment(
+      'Verificación de doble articulado registrada.',
+      { fleetMeta: fleetMetaDraft },
+      COB_SECTION_PERSIST_OPTIONS,
+    );
+  }
+
+  onNewPhysVerifFiles(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (list.length === 0) {
+      return;
+    }
+    this.newPhysVerifFiles.update((prev) => [...prev, ...list]);
+    input.value = '';
+  }
+
+  removeNewPhysVerifFile(index: number): void {
+    this.newPhysVerifFiles.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   savePhysVerifEntry(): void {
@@ -1059,17 +1157,37 @@ export class FleetEquipmentDetailDrawerFacade {
       this.toast.show('El costo debe ser un número válido (≥ 0).', 'warning');
       return;
     }
+    if (this.saving()) {
+      return;
+    }
     const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
       verificationPhysMechDate: date,
       verificationPhysMechCost: cost === undefined ? undefined : cost,
     };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.cancelPhysVerifEntry();
-    this.persistCurrentEquipment(
-      'Verificación físico-mecánica registrada.',
-      { fleetMeta: fleetMetaDraft },
-      COB_SECTION_PERSIST_OPTIONS,
-    );
+    const files = this.newPhysVerifFiles();
+    const existingDocs = this.docs('verification');
+    this.saving.set(true);
+    this.syncEquipmentDocuments('verification', existingDocs, files, existingDocs)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
+          this.cancelPhysVerifEntry();
+          this.saving.set(false);
+          this.persistCurrentEquipment(
+            'Verificación físico-mecánica registrada.',
+            { fleetMeta: fleetMetaDraft },
+            COB_SECTION_PERSIST_OPTIONS,
+          );
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show(
+            'No se pudieron subir los documentos de verificación.',
+            'error',
+          );
+        },
+      });
   }
 
   readonly addingMaint = signal(false);
@@ -1153,7 +1271,7 @@ export class FleetEquipmentDetailDrawerFacade {
     const resetTractorKmCounter = this.companyKmMaintControlActive();
     const tractor = this.assignedTractor();
 
-    const docs = this.newMaintFiles().map((f) => f.name);
+    const files = this.newMaintFiles();
     const paymentMethod = this.newMaintPaymentMethod().trim() || undefined;
     const entry: MaintenanceEntry = {
       date,
@@ -1161,19 +1279,35 @@ export class FleetEquipmentDetailDrawerFacade {
       cost,
       notes: this.newMaintNotes().trim() || undefined,
       paymentMethod,
-      documentNames: docs.length > 0 ? docs : undefined,
+      documentNames: files.length > 0 ? files.map((f) => f.name) : undefined,
       status: 'concluido',
     };
-    this.localMaintEntries.update((prev) => [...prev, entry]);
-    this.addingMaint.set(false);
-    this.resetNewMaintForm();
-    this.persistCurrentEquipment('Mantenimiento agregado.', undefined, {
-      onSuccess: () => {
-        if (resetTractorKmCounter && tractor) {
-          this.resetTractorMaintenanceKmCounter(tractor);
-        }
-      },
-    });
+    if (this.saving()) {
+      return;
+    }
+    const existingDocs = this.docs('maint');
+    this.saving.set(true);
+    this.syncEquipmentDocuments('maintenance', existingDocs, files, existingDocs)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.localMaintEntries.update((prev) => [...prev, entry]);
+          this.addingMaint.set(false);
+          this.resetNewMaintForm();
+          this.saving.set(false);
+          this.persistCurrentEquipment('Mantenimiento agregado.', undefined, {
+            onSuccess: () => {
+              if (resetTractorKmCounter && tractor) {
+                this.resetTractorMaintenanceKmCounter(tractor);
+              }
+            },
+          });
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron subir los comprobantes de mantenimiento.', 'error');
+        },
+      });
   }
 
   private resetTractorMaintenanceKmCounter(tractor: Unit): void {
@@ -1319,8 +1453,8 @@ export class FleetEquipmentDetailDrawerFacade {
   readonly editRecurringCadence = signal('');
   readonly editTenureBeneficiary = signal('');
   readonly editOwnerPayout = signal('');
-  /** Nombres de documentos de propiedad (copia editable al abrir tenencia). */
-  readonly editOwnershipNames = signal<string[]>([]);
+  /** Documentos de propiedad (copia editable al abrir tenencia). */
+  readonly editOwnershipDocs = signal<FleetStoredDocument[]>([]);
   readonly editOwnershipNewFiles = signal<File[]>([]);
 
   readonly tenureOptions = this.planEntitlements.tenureOptions;
@@ -1359,12 +1493,12 @@ export class FleetEquipmentDetailDrawerFacade {
     this.editRecurringCadence.set(m.trailerRecurringPaymentCadence ?? '');
     this.editTenureBeneficiary.set(m.trailerTenureBeneficiary ?? '');
     this.editOwnerPayout.set(formatMoneyInputValue(m.trailerManagementOwnerPayout));
-    this.editOwnershipNames.set([...(m.documentOwnershipNames ?? [])]);
+    this.editOwnershipDocs.set([...this.docs('ownership')]);
     this.editingSection.set('tenure');
   }
 
   removeEditOwnershipDoc(index: number): void {
-    this.editOwnershipNames.update((prev) => prev.filter((_, i) => i !== index));
+    this.editOwnershipDocs.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onEditTenureOwnershipFiles(ev: Event): void {
@@ -1431,12 +1565,6 @@ export class FleetEquipmentDetailDrawerFacade {
       trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
       trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
     }
-    const ownershipMerged = [
-      ...this.editOwnershipNames(),
-      ...this.editOwnershipNewFiles().map((f) => f.name),
-    ];
-    const documentOwnershipNames =
-      ownershipMerged.length > 0 ? [...new Set(ownershipMerged)] : undefined;
     const fleetMetaDraft: Partial<EquipmentFleetMeta> = {
       trailerTenureMode: mode,
       trailerCommercialValue,
@@ -1446,13 +1574,30 @@ export class FleetEquipmentDetailDrawerFacade {
       trailerRecurringPaymentCadence,
       trailerTenureBeneficiary,
       trailerManagementOwnerPayout,
-      documentOwnershipNames,
     };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.editOwnershipNewFiles.set([]);
-    this.persistCurrentEquipment('Propiedad y tenencia actualizadas.', {
-      fleetMeta: fleetMetaDraft,
-    });
+    if (this.saving()) {
+      return;
+    }
+    const original = this.docs('ownership');
+    const kept = this.editOwnershipDocs();
+    const files = this.editOwnershipNewFiles();
+    this.saving.set(true);
+    this.syncEquipmentDocuments('ownership', kept, files, original)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
+          this.editOwnershipNewFiles.set([]);
+          this.saving.set(false);
+          this.persistCurrentEquipment('Propiedad y tenencia actualizadas.', {
+            fleetMeta: fleetMetaDraft,
+          });
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron guardar los documentos de propiedad.', 'error');
+        },
+      });
   }
 
   // -- Ficha técnica --
@@ -1743,12 +1888,44 @@ export class FleetEquipmentDetailDrawerFacade {
         }
       }
     }
-    return [...base, ...local].filter(isSubstantiveMaintenanceEntry).sort((a, b) =>
-      (b.date ?? '').localeCompare(a.date ?? ''),
+    const sorted = [...base, ...local]
+      .filter(isSubstantiveMaintenanceEntry)
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+    return attachFleetMaintenanceDocNamesToNewestEntry(
+      sorted,
+      this.docs('maint').map((d) => d.fileName),
     );
   }
 
+  docs(which: 'maint' | 'verif' | 'policy' | 'ownership' | 'verification'): FleetStoredDocument[] {
+    const kind: FleetDocumentKind =
+      which === 'maint'
+        ? 'maintenance'
+        : which === 'verif' || which === 'verification'
+          ? 'verification'
+          : which;
+    const fromApi = (this.meta()?.fleetDocuments ?? []).filter(
+      (d) => d.documentKind === kind && Number.isFinite(d.id) && d.id > 0,
+    );
+    if (fromApi.length > 0) {
+      return fromApi;
+    }
+    return this.legacyDocNames(which).map((fileName, index) => ({
+      id: -(index + 1),
+      fileName,
+      documentKind: kind,
+    }));
+  }
+
   docNames(which: 'maint' | 'policy' | 'ownership' | 'verification'): string[] {
+    return this.docs(which)
+      .map((d) => d.fileName)
+      .filter(Boolean);
+  }
+
+  private legacyDocNames(
+    which: 'maint' | 'verif' | 'policy' | 'ownership' | 'verification',
+  ): string[] {
     const m = this.meta();
     if (!m) {
       return [];
@@ -1756,17 +1933,59 @@ export class FleetEquipmentDetailDrawerFacade {
     if (which === 'maint') {
       return m.documentMaintenanceNames ?? [];
     }
+    if (which === 'verif' || which === 'verification') {
+      return m.documentVerificationNames ?? [];
+    }
     if (which === 'ownership') {
       return m.documentOwnershipNames ?? [];
-    }
-    if (which === 'verification') {
-      return m.documentVerificationNames ?? [];
     }
     return m.documentPolicyNames ?? [];
   }
 
-  downloadStoredDocument(_fileName: string): void {
-    this.toast.show('La descarga de documentos estará disponible con la API de archivos.', 'info');
+  downloadStoredDocument(doc: FleetStoredDocument | string): void {
+    const equipmentId = this.effEquipment().id;
+    const resolved =
+      typeof doc === 'string'
+        ? this.docs('policy')
+            .concat(this.docs('verification'), this.docs('ownership'), this.docs('maint'))
+            .find((d) => d.fileName === doc)
+        : doc;
+    if (!resolved || resolved.id <= 0) {
+      this.toast.show(
+        'Este documento aún no está en el almacenamiento (vuelve a subirlo).',
+        'info',
+      );
+      return;
+    }
+    this.equipmentApi
+      .downloadEquipmentDocument(equipmentId, resolved.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ url }) => {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        },
+        error: () => {
+          this.toast.show('No se pudo descargar el documento.', 'error');
+        },
+      });
+  }
+
+  private syncEquipmentDocuments(
+    kind: FleetDocumentKind,
+    kept: readonly FleetStoredDocument[],
+    newFiles: readonly File[],
+    original: readonly FleetStoredDocument[],
+  ): Observable<unknown> {
+    const equipmentId = this.effEquipment().id;
+    const keptIds = new Set(kept.filter((d) => d.id > 0).map((d) => d.id));
+    const deletes = original
+      .filter((d) => d.id > 0 && !keptIds.has(d.id))
+      .map((d) => this.equipmentApi.deleteEquipmentDocument(equipmentId, d.id));
+    const uploads = newFiles.map((file) =>
+      this.equipmentApi.uploadEquipmentDocument(equipmentId, kind, file),
+    );
+    const ops = [...deletes, ...uploads];
+    return ops.length === 0 ? of(null) : forkJoin(ops);
   }
 
   physMechExemptionActive(): boolean {
@@ -1789,6 +2008,28 @@ export class FleetEquipmentDetailDrawerFacade {
 
   physMechTooltipText(): string {
     return equipmentPhysMechVerificationTooltip(this.effEquipment(), this.meta());
+  }
+
+  doubleArticLabel(m: EquipmentFleetMeta | undefined): string {
+    if (!m) {
+      return '—';
+    }
+    if (m.verificationDoubleArticulatedApplies === true) {
+      return 'Sí aplica';
+    }
+    if (m.verificationDoubleArticulatedApplies === false) {
+      return 'No aplica';
+    }
+    return '—';
+  }
+
+  renewalBucketFor(iso: string | undefined): FleetRenewalBucket {
+    return complianceRenewalBucket(iso, VERIF_MO);
+  }
+
+  nextMx(iso: string | undefined, cycleMonths: number): string {
+    const t = nextCycleFormatted(iso, cycleMonths);
+    return t ? t.replace(/^Próxima:\s*/i, '').trim() : '—';
   }
 
   physMechNextShortLabel(): string {
