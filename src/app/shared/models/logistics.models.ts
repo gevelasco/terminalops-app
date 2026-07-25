@@ -124,8 +124,13 @@ export interface Trip {
   clientCharge?: string;
   paymentMethod?: TripClientPaymentMethod;
   requiresInvoice?: boolean;
-  /** Nombres de archivos adjuntos (UI local; aún no hay storage persistente). */
+  /**
+   * @deprecated Preferir `tripDocuments` (persistidos con kind).
+   * Nombres legacy sin storage.
+   */
   attachedDocumentFileNames?: string[];
+  /** Documentos de maniobra (carga / costos / cobro). */
+  tripDocuments?: TripStoredDocument[];
   /**
    * `false` si se programó sin cliente/cobro (unidades propias).
    * Ausente o `true`: mostrar bloque de cliente y cobro.
@@ -205,10 +210,13 @@ export interface OperatorPrivateInsurance {
   planSummary: string;
 }
 
-/** Origen del adjunto en expediente del operador (mock: solo metadatos hasta backend). */
+/** Origen del adjunto en expediente del operador. */
 export type OperatorDocumentSlot = 'operation' | 'insurance';
 
-/** Referencia a un archivo adjunto (sin binario persistido en mock). */
+/**
+ * Referencia a un archivo adjunto del operador.
+ * Hoy se persisten metadatos (nombre/slot/fecha); la descarga binaria irá por storage.
+ */
 export interface OperatorAttachedDocument {
   id: string;
   fileName: string;
@@ -232,8 +240,9 @@ export interface OperatorEmergencyContact {
 export interface OperatorLastManeuver {
   tripId?: string;
   maneuverCode: string;
-  originCityMunicipality?: string;
-  destinationCityMunicipality?: string;
+  /** Labels armados por el API (`locality · city · CP`). */
+  origin?: string;
+  destination?: string;
   status?: TripStatus;
   occurredOn?: string;
 }
@@ -418,8 +427,6 @@ export interface UnitFleetMeta {
   insuranceLastPaymentDate?: string;
   /** Código de forma de pago (transfer, cash, check…), alineado con gastos. */
   insurancePaymentMethod?: string;
-  /** Si los cobros de la póliza requieren factura fiscal. */
-  insuranceInvoiceRequired?: boolean;
   /** Costo, precio pagado o cantidad asociada al ciclo de seguro (seguimiento). */
   insuranceCost?: number;
   /**
@@ -438,8 +445,6 @@ export interface UnitFleetMeta {
   gpsLastPaymentDate?: string;
   /** Código de forma de pago (transfer, cash, check…), alineado con gastos. */
   gpsPaymentMethod?: string;
-  /** Si los cobros del GPS requieren factura fiscal. */
-  gpsInvoiceRequired?: boolean;
   /** URL del portal del proveedor para ver ubicación en vivo. */
   gpsTrackingPortalUrl?: string;
   /**
@@ -470,6 +475,15 @@ export type FleetDocumentKind =
   | 'verification'
   | 'policy'
   | 'ownership';
+
+/** Documento de maniobra ya guardado en API/storage. */
+export type TripStoredDocument = {
+  id: number;
+  fileName: string;
+  documentKind: TripDocumentKind | string;
+};
+
+export type TripDocumentKind = 'load' | 'operational_costs' | 'billing';
 
 /**
  * Vanos / plazas ISO o chasis fijo (porte-contenedor, etc.).
@@ -549,7 +563,6 @@ export interface EquipmentFleetMeta {
   insuranceContractDate?: string;
   insuranceLastPaymentDate?: string;
   insurancePaymentMethod?: string;
-  insuranceInvoiceRequired?: boolean;
   insuranceCost?: number;
   /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentMaintenanceNames?: string[];
@@ -652,6 +665,16 @@ export type ExpenseVerificationScope =
   | 'emissions'
   | 'double_articulated';
 
+/** Slot de adjunto de gasto (hoy solo comprobante). */
+export type ExpenseDocumentSlot = 'receipt';
+
+export interface ExpenseAttachedDocument {
+  id: string;
+  fileName: string;
+  slot: ExpenseDocumentSlot;
+  addedAt?: string;
+}
+
 export interface Expense {
   id: string;
   /**
@@ -708,6 +731,8 @@ export interface Expense {
   isOperationalProvision?: boolean;
   /** Si el gasto debe contar con factura fiscal. */
   invoiceRequired?: boolean;
+  /** Comprobantes / facturas adjuntos (metadatos). */
+  documents?: ExpenseAttachedDocument[];
   /** Fecha en que se pagó (ISO). null = pendiente de pago. */
   paidAt?: string | null;
 }

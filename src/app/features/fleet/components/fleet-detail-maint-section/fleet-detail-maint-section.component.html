@@ -127,42 +127,50 @@
                     [rows]="3"
                     [(value)]="vm().newMaintNotes"
                   />
-                  <div class="fleet-unit-detail__maint-upload">
-                    <input
-                      #fileMaintNew
-                      type="file"
-                      class="fleet-unit-upload__input"
-                      tabindex="-1"
-                      multiple
-                      accept="image/*,.pdf,application/pdf"
-                      (change)="vm().onNewMaintFiles($event)"
-                    />
-                    <button
-                      type="button"
-                      class="fleet-unit-upload__btn"
-                      (click)="fileMaintNew.click()"
-                    >
-                      Elegir archivos
-                    </button>
+                  <div class="fleet-unit-docs">
+                    <div class="fleet-unit-docs__head">
+                      <h4 class="fleet-unit-sec__subtitle">Comprobantes</h4>
+                      <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+                    </div>
+                    <div class="fleet-unit-upload">
+                      <input
+                        #fileMaintNew
+                        type="file"
+                        class="fleet-unit-upload__input"
+                        tabindex="-1"
+                        multiple
+                        accept="image/*,.pdf,application/pdf"
+                        (change)="vm().onNewMaintFiles($event)"
+                      />
+                      <button
+                        type="button"
+                        class="fleet-unit-upload__btn"
+                        (click)="fileMaintNew.click()"
+                      >
+                        <to-icon name="upload" [size]="14" />
+                        Elegir archivos
+                      </button>
+                    </div>
+                    @if (vm().newMaintFiles().length > 0) {
+                      <ul class="fleet-unit-files">
+                        @for (f of vm().newMaintFiles(); track vm().trackFileEntry($index, f)) {
+                          <li class="fleet-unit-files__row">
+                            <span class="fleet-unit-files__name">{{
+                              f.name
+                            }}</span>
+                            <button
+                              type="button"
+                              class="fleet-unit-files__rm"
+                              aria-label="Quitar archivo"
+                              (click)="vm().removeNewMaintFile($index)"
+                            >
+                              <to-icon name="delete" [size]="16" />
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
                   </div>
-                  @if (vm().newMaintFiles().length > 0) {
-                    <ul class="fleet-unit-files">
-                      @for (f of vm().newMaintFiles(); track vm().trackFileEntry($index, f)) {
-                        <li class="fleet-unit-files__row">
-                          <span class="fleet-unit-files__name">{{
-                            f.name
-                          }}</span>
-                          <button
-                            type="button"
-                            class="fleet-unit-files__rm"
-                            (click)="vm().removeNewMaintFile($index)"
-                          >
-                            Quitar
-                          </button>
-                        </li>
-                      }
-                    </ul>
-                  }
                   <div class="fleet-unit-detail__maint-form-actions">
                     <to-button
                       type="button"
@@ -280,12 +288,19 @@
                               <button
                                 type="button"
                                 class="fleet-unit-detail__maint-info"
-                                [attr.popovertarget]="popoverIdPrefix() + '-docs-' + $index"
                                 [attr.aria-label]="
-                                  'Ver ' +
+                                  'Descargar ' +
                                   (entry.documentNames?.length ?? 0) +
                                   ' documento(s)'
                                 "
+                                [attr.title]="
+                                  (entry.documentNames?.length ?? 0) === 1
+                                    ? (entry.documentNames?.[0] ?? 'Descargar')
+                                    : 'Descargar ' +
+                                      (entry.documentNames?.length ?? 0) +
+                                      ' documentos'
+                                "
+                                (click)="downloadMaintDocs(entry.documentNames ?? [])"
                               >
                                 <svg
                                   width="16"
@@ -303,38 +318,6 @@
                                   >{{ entry.documentNames?.length }}</span
                                 >
                               </button>
-                              <div
-                                class="fleet-unit-detail__maint-popover"
-                                [id]="popoverIdPrefix() + '-docs-' + $index"
-                                popover="auto"
-                                role="dialog"
-                                aria-label="Documentos del mantenimiento"
-                              >
-                                <span
-                                  class="fleet-unit-detail__maint-popover-title"
-                                  >Documentos</span
-                                >
-                                <ul class="fleet-unit-detail__maint-popover-list">
-                                  @for (
-                                    n of entry.documentNames ?? [];
-                                    track n
-                                  ) {
-                                    <li>
-                                      @if (vm().downloadStoredDocument) {
-                                        <button
-                                          type="button"
-                                          class="fleet-unit-detail__doc-link"
-                                          (click)="vm().downloadStoredDocument?.(n)"
-                                        >
-                                          {{ n }}
-                                        </button>
-                                      } @else {
-                                        {{ n }}
-                                      }
-                                    </li>
-                                  }
-                                </ul>
-                              </div>
                             } @else {
                               <span
                                 class="fleet-unit-detail__maint-na"

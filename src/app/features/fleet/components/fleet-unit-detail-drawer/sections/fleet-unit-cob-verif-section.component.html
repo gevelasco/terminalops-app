@@ -397,101 +397,109 @@
           </div>
 
           @if (!vm.isEditing("verif")) {
-            <h4
-              class="fleet-unit-sec__subtitle fleet-unit-detail__verif-docs-title"
-            >
-              Documentos de verificación
-            </h4>
-            <p
-              class="fleet-unit-sec__docs-hint fleet-unit-detail__verif-docs-hint"
-            >
-              Tarjetas o constancias registradas.
-            </p>
-            @if (vm.docs("verif").length > 0) {
-              <ul
-                class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
-              >
-                @for (doc of vm.docs("verif"); track doc.id) {
-                  <li class="fleet-unit-detail__file-line">
-                    <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
-                    <button
-                      type="button"
-                      class="fleet-unit-detail__file-dl"
-                      (click)="vm.downloadStoredDocument(doc)"
-                    >
-                      Descargar
-                    </button>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="fleet-unit-detail__empty-files">
-                Sin archivos en el registro.
-              </p>
-            }
-          } @else {
-            <div
-              class="fleet-unit-sec__edit-form fleet-unit-detail__verif-docs-edit"
-            >
-              <h4
-                class="fleet-unit-sec__subtitle fleet-unit-detail__verif-docs-title"
-              >
-                Documentos de verificación
-              </h4>
-              @if (vm.editVerifDocs().length > 0) {
-                <ul class="fleet-unit-files">
-                  @for (doc of vm.editVerifDocs(); track doc.id) {
-                    <li class="fleet-unit-files__row">
-                      <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
+            <div class="fleet-unit-docs">
+              <div class="fleet-unit-docs__head">
+                <h4
+                  class="fleet-unit-sec__subtitle fleet-unit-detail__verif-docs-title"
+                >
+                  Documentos de verificación
+                </h4>
+                <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+              </div>
+              @if (vm.docs("verif").length > 0) {
+                <ul
+                  class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+                >
+                  @for (doc of vm.docs("verif"); track doc.id) {
+                    <li class="fleet-unit-detail__file-line">
+                      <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
                       <button
                         type="button"
-                        class="fleet-unit-files__rm"
-                        (click)="vm.removeEditVerifDoc($index)"
+                        class="fleet-unit-detail__file-dl"
+                        (click)="vm.downloadStoredDocument(doc)"
                       >
-                        Quitar
+                        Descargar
                       </button>
                     </li>
                   }
                 </ul>
               } @else {
                 <p class="fleet-unit-detail__empty-files">
-                  Sin documentos en la lista (puedes agregar abajo).
+                  Sin archivos en el registro.
                 </p>
               }
-              <div class="fleet-unit-upload">
-                <input
-                  #fileVerif
-                  type="file"
-                  class="fleet-unit-upload__input"
-                  tabindex="-1"
-                  multiple
-                  accept="image/*,.pdf,application/pdf"
-                  (change)="vm.onEditVerifFiles($event)"
-                />
-                <button
-                  type="button"
-                  class="fleet-unit-upload__btn"
-                  (click)="fileVerif.click()"
-                >
-                  Elegir archivos
-                </button>
+            </div>
+          } @else {
+            <div
+              class="fleet-unit-sec__edit-form fleet-unit-detail__verif-docs-edit"
+            >
+              <div class="fleet-unit-docs">
+                <div class="fleet-unit-docs__head">
+                  <h4
+                    class="fleet-unit-sec__subtitle fleet-unit-detail__verif-docs-title"
+                  >
+                    Documentos de verificación
+                  </h4>
+                  <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+                </div>
+                @if (vm.editVerifDocs().length > 0) {
+                  <ul class="fleet-unit-files">
+                    @for (doc of vm.editVerifDocs(); track doc.id) {
+                      <li class="fleet-unit-files__row">
+                        <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
+                        <button
+                          type="button"
+                          class="fleet-unit-files__rm"
+                          aria-label="Quitar archivo"
+                          (click)="vm.removeEditVerifDoc($index)"
+                        >
+                          <to-icon name="delete" [size]="16" />
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="fleet-unit-detail__empty-files">
+                    Sin documentos en la lista (puedes agregar abajo).
+                  </p>
+                }
+                <div class="fleet-unit-upload">
+                  <input
+                    #fileVerif
+                    type="file"
+                    class="fleet-unit-upload__input"
+                    tabindex="-1"
+                    multiple
+                    accept="image/*,.pdf,application/pdf"
+                    (change)="vm.onEditVerifFiles($event)"
+                  />
+                  <button
+                    type="button"
+                    class="fleet-unit-upload__btn"
+                    (click)="fileVerif.click()"
+                  >
+                    <to-icon name="upload" [size]="14" />
+                    Elegir archivos
+                  </button>
+                </div>
+                @if (vm.editVerifNewFiles().length > 0) {
+                  <ul class="fleet-unit-files">
+                    @for (f of vm.editVerifNewFiles(); track vm.trackFileEntry($index, f)) {
+                      <li class="fleet-unit-files__row">
+                        <span class="fleet-unit-files__name">{{ f.name }}</span>
+                        <button
+                          type="button"
+                          class="fleet-unit-files__rm"
+                          aria-label="Quitar archivo"
+                          (click)="vm.removeEditVerifNewFile($index)"
+                        >
+                          <to-icon name="delete" [size]="16" />
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
               </div>
-              @if (vm.editVerifNewFiles().length > 0) {
-                <ul class="fleet-unit-files">
-                  @for (f of vm.editVerifNewFiles(); track vm.trackFileEntry($index, f)) {
-                    <li class="fleet-unit-files__row">
-                      <span class="fleet-unit-files__name">{{ f.name }}</span>
-                      <button
-                        type="button"
-                        class="fleet-unit-files__rm"
-                        (click)="vm.removeEditVerifNewFile($index)"
-                      >
-                        Quitar
-                      </button>
-                    </li>
-                  }
-                </ul>
-              }
               <div class="fleet-unit-sec__edit-actions">
                 <to-button
                   type="button"

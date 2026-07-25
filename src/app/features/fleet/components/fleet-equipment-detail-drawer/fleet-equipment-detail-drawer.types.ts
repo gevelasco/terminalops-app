@@ -14,4 +14,11 @@ export interface FleetEquipmentDetailDrawerHostCallbacks {
   viewAssignedUnit: (unit: Unit) => void;
 }
 
-export type EquipmentEditingSection = 'id' | 'hitch' | 'tenure' | 'tech' | 'insurance' | null;
+export type EquipmentEditingSection =
+  | 'id'
+  | 'hitch'
+  | 'tenure'
+  | 'tech'
+  | 'insurance'
+  | 'verif'
+  | null;

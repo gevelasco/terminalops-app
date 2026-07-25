@@ -17,7 +17,11 @@ import type { TripLinkOptionsResponse } from '@shared/models/api/api-trips-link-
 import { mapApiTripLinkOption } from '@shared/models/api/api-trips-link-options.model';
 import { mapApiTripsMapResponse } from '@shared/models/api/api-trips-map.model';
 import type { TripsMapResponse } from '@shared/models/api/api-trips-map.model';
-import type { Trip } from '@shared/models/logistics.models';
+import type {
+  Trip,
+  TripDocumentKind,
+  TripStoredDocument,
+} from '@shared/models/logistics.models';
 import { mapApiTrip } from '@shared/data/api-mappers';
 import { buildFleetLinkOptionsQuery } from './fleet-link-options-query';
 import { SessionService } from '../state/session';
@@ -243,6 +247,49 @@ export class TripsService {
     return this.http.post<FuelEstimateResponse>(
       companyResourceUrl(companyId, 'trips/fuel-estimate'),
       payload,
+    );
+  }
+
+  uploadTripDocument(
+    tripId: string,
+    documentKind: TripDocumentKind,
+    file: File,
+  ): Observable<TripStoredDocument> {
+    const id = tripId.trim();
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('documentKind', documentKind);
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('trips', id, 'documents'),
+        form,
+      )
+      .pipe(
+        map((raw) => ({
+          id: Number(raw['id']),
+          fileName: String(raw['fileName'] ?? file.name),
+          documentKind: String(raw['documentKind'] ?? documentKind),
+        })),
+      );
+  }
+
+  downloadTripDocument(
+    tripId: string,
+    documentId: number,
+  ): Observable<{ url: string }> {
+    const id = tripId.trim();
+    return this.http.get<{ url: string }>(
+      resourceByIdUrl('trips', id, `documents/${documentId}/download`),
+    );
+  }
+
+  deleteTripDocument(
+    tripId: string,
+    documentId: number,
+  ): Observable<{ id: number; deleted: boolean }> {
+    const id = tripId.trim();
+    return this.http.delete<{ id: number; deleted: boolean }>(
+      resourceByIdUrl('trips', id, `documents/${documentId}`),
     );
   }
 }

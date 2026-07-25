@@ -1,7 +1,10 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '@core/notifications/toast.service';
-import { ExpensesService } from '@services/api/expenses';
+import {
+  ExpensesService,
+  type ExpenseWritePayload,
+} from '@services/api/expenses';
 import { SessionService } from '@services/state/session';
 import {
   EXPENSE_CURRENCY_OPTIONS,
@@ -33,11 +36,16 @@ import type {
 } from '@features/expenses/utils/expense-operational-relation.util';
 import type {
   Expense,
+  ExpenseAttachedDocument,
   ExpenseKind,
   ExpenseVerificationScope,
 } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { formatExpenseIncurredDateDisplay } from '@features/expenses/utils/expenses-form.util';
+import {
+  filesToExpenseDocuments,
+  toExpenseDocumentsApiPayload,
+} from '@features/expenses/utils/expense-attached-documents';
 import { isAdminRole } from '@shared/utils/access-control';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
@@ -97,7 +105,7 @@ export class ExpensesDetailDrawerFacade {
   readonly currency = signal('MXN');
   readonly paymentMethod = signal('');
   readonly incurredAt = signal('');
-  readonly invoiceRequired = signal(false);
+  readonly editDocuments = signal<ExpenseAttachedDocument[]>([]);
   readonly tripId = signal('');
   readonly relatedUnitId = signal('');
   readonly relatedEquipmentId = signal('');
@@ -283,8 +291,25 @@ export class ExpensesDetailDrawerFacade {
       incurredAt: date,
       paymentMethod: this.paymentMethod().trim() || undefined,
       vendor: this.vendor().trim() || undefined,
-      invoiceRequired: this.invoiceRequired(),
+      documents: toExpenseDocumentsApiPayload(this.editDocuments()),
     });
+  }
+
+  onEditDocumentsSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
+    if (files.length === 0) {
+      return;
+    }
+    this.editDocuments.update((prev) => [
+      ...prev,
+      ...filesToExpenseDocuments(files, 'receipt'),
+    ]);
+  }
+
+  removeEditDocument(id: string): void {
+    this.editDocuments.update((prev) => prev.filter((d) => d.id !== id));
   }
 
   rubroLabel(): string {
@@ -305,10 +330,6 @@ export class ExpensesDetailDrawerFacade {
     return (
       EXPENSE_VERIFICATION_SCOPE_OPTIONS.find((o) => o.value === v)?.label ?? v
     );
-  }
-
-  invoiceRequiredLabel(): string {
-    return this.expense()?.invoiceRequired === true ? 'Sí' : 'No';
   }
 
   amountFormatted(): string {
@@ -360,7 +381,7 @@ export class ExpensesDetailDrawerFacade {
     this.currency.set(e.currency || 'MXN');
     this.paymentMethod.set(e.paymentMethod ?? '');
     this.incurredAt.set(expenseIncurredDateInput(e.incurredAt));
-    this.invoiceRequired.set(e.invoiceRequired === true);
+    this.editDocuments.set([...(e.documents ?? [])]);
     this.tripId.set(e.tripId ?? '');
     this.relatedUnitId.set(e.relatedUnitId ?? '');
     this.relatedEquipmentId.set(e.relatedEquipmentId ?? '');
@@ -371,7 +392,7 @@ export class ExpensesDetailDrawerFacade {
     this.relationTab.set(inferExpenseRelationTab(e));
   }
 
-  private persistPatch(payload: Partial<Omit<Expense, 'id'>>): void {
+  private persistPatch(payload: Partial<ExpenseWritePayload>): void {
     const e = this.expense();
     if (!e || this.saving()) {
       return;

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
 import {
   operatorHasPhoto,
+  operatorPhotoErrorMessage,
   operatorPhotoInitials,
   readOperatorPhotoDataUrl,
 } from '@features/operators/utils/operator-photo';
@@ -58,20 +59,15 @@ export class OperatorIdentificationFieldsComponent {
       return;
     }
     this.photoSaving.set(true);
-    readOperatorPhotoDataUrl(file)
+    void readOperatorPhotoDataUrl(file)
       .then((url) => {
         this.photoDataUrl.set(url);
         this.photoSaving.set(false);
       })
-      .catch((err: Error) => {
+      .catch((err: unknown) => {
         this.photoSaving.set(false);
-        if (err.message === 'not-image') {
-          this.toast.show('Selecciona un archivo de imagen.', 'warning');
-        } else if (err.message === 'too-large') {
-          this.toast.show('La imagen debe pesar menos de 2 MB.', 'warning');
-        } else {
-          this.toast.show('No se pudo leer la imagen.', 'warning');
-        }
+        const code = err instanceof Error ? err.message : 'read-failed';
+        this.toast.show(operatorPhotoErrorMessage(code), 'warning');
       });
   }
 

@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
+import { filesToClientDocuments } from '@features/clients/utils/client-attached-documents';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
@@ -23,7 +24,11 @@ import {
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
 import { CLIENT_YES_NO_OPTIONS } from '@shared/catalogs/client-form-options';
 import { TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/trip-client-payment-options';
-import type { Client, CreateClientPayload } from '@shared/models/client.models';
+import type {
+  Client,
+  ClientAttachedDocument,
+  CreateClientPayload,
+} from '@shared/models/client.models';
 import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fields/client-contact-inline-fields.component';
 import { ClientDeliveryLocationFieldsComponent } from '../client-delivery-location-fields/client-delivery-location-fields.component';
 import { ClientFiscalFieldsComponent } from '../client-fiscal-fields/client-fiscal-fields.component';
@@ -79,6 +84,7 @@ export class ClientsNewDrawerComponent {
   readonly billCfdi = model('');
   readonly billEmail = model('');
   readonly billPhone = model('');
+  readonly documents = signal<ClientAttachedDocument[]>([]);
 
   readonly showDeliveryForm = signal(false);
   readonly deliveryCp = model('');
@@ -131,6 +137,23 @@ export class ClientsNewDrawerComponent {
     this.contactPhone.set('');
     this.contactEmail.set('');
     this.showContactForm.set(false);
+  }
+
+  onDocumentsSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (!list.length) {
+      return;
+    }
+    this.documents.update((prev) => [
+      ...prev,
+      ...filesToClientDocuments(list, 'fiscal'),
+    ]);
+    input.value = '';
+  }
+
+  removeDocument(id: string): void {
+    this.documents.update((prev) => prev.filter((d) => d.id !== id));
   }
 
   submit(): void {
@@ -210,6 +233,7 @@ export class ClientsNewDrawerComponent {
             },
           ])
         : [],
+      documents: [...this.documents()],
       payment: {
         hasCredit: hasCr,
         ...(hasCr && days != null ? { creditDays: days } : {}),

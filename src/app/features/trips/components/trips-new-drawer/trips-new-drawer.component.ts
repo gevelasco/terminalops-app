@@ -141,7 +141,7 @@ import { ToFleetComplianceIconsComponent } from '@shared/ui/to-fleet-compliance-
 import { ToFleetBrandComboboxComponent } from '@shared/ui/to-fleet-brand-combobox/to-fleet-brand-combobox.component';
 import { CargoDescriptionComboboxComponent } from '@features/trips/components/cargo-description-combobox/cargo-description-combobox.component';
 import type { ClientCargoHistoryItem } from '@shared/models/api/api-trips-cargo-history.model';
-import { combineLatest, EMPTY, of, type Observable } from 'rxjs';
+import { combineLatest, EMPTY, forkJoin, of, throwError, type Observable } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -152,6 +152,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs/operators';
+import type { TripDocumentKind } from '@shared/models/logistics.models';
 
 @Component({
   selector: 'app-trips-new-drawer',
@@ -406,9 +407,6 @@ export class TripsNewDrawerComponent {
     });
   });
 
-  /** Escaneos / fotos adjuntos (solo en cliente hasta envío al backend). */
-  readonly attachedFiles = signal<File[]>([]);
-
   /** Texto de ruta (origen/destino) derivado de CP + localidad + geocodificación. */
   readonly origin = model('');
   readonly destination = model('');
@@ -482,6 +480,34 @@ export class TripsNewDrawerComponent {
    */
   /** Por defecto activo: la mayoría de maniobras llevan cliente y cobro. */
   readonly includeClientBilling = model(true);
+
+  /** Documentos segmentados por sección (suben tras crear la maniobra). */
+  readonly filesLoad = signal<File[]>([]);
+  readonly filesOperationalCosts = signal<File[]>([]);
+  readonly filesBilling = signal<File[]>([]);
+
+  /** Docs de carga solo si hay fecha y lugar de carga. */
+  readonly showLoadDocs = computed(
+    () => this.loadDate().trim().length > 0 && this.loadPlace().trim().length > 0,
+  );
+
+  private readonly clearHiddenLoadDocs = (() => {
+    effect(() => {
+      if (!this.showLoadDocs()) {
+        this.filesLoad.set([]);
+      }
+    });
+    return true;
+  })();
+
+  private readonly clearHiddenBillingDocs = (() => {
+    effect(() => {
+      if (!this.includeClientBilling()) {
+        this.filesBilling.set([]);
+      }
+    });
+    return true;
+  })();
 
   /** Full → dos equipos obligatorios; otras configuraciones → uno (según catálogo). */
   readonly selectedOperationConfig = computed(() =>
@@ -1606,18 +1632,30 @@ export class TripsNewDrawerComponent {
     }
   }
 
-  onDocumentsSelected(ev: Event): void {
+  onDocumentsSelected(ev: Event, kind: TripDocumentKind): void {
     const input = ev.target as HTMLInputElement;
     const list = input.files ? Array.from(input.files) : [];
     if (list.length === 0) {
       return;
     }
-    this.attachedFiles.update((prev) => [...prev, ...list]);
+    const target =
+      kind === 'load'
+        ? this.filesLoad
+        : kind === 'operational_costs'
+          ? this.filesOperationalCosts
+          : this.filesBilling;
+    target.update((prev) => [...prev, ...list]);
     input.value = '';
   }
 
-  removeAttachedFile(index: number): void {
-    this.attachedFiles.update((prev) => prev.filter((_, i) => i !== index));
+  removeAttachedFile(kind: TripDocumentKind, index: number): void {
+    const target =
+      kind === 'load'
+        ? this.filesLoad
+        : kind === 'operational_costs'
+          ? this.filesOperationalCosts
+          : this.filesBilling;
+    target.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onUnitPicked(ev: UnitPickedEvent): void {
@@ -1969,10 +2007,45 @@ export class TripsNewDrawerComponent {
   }
 
   private runCreateTrip(payload: CreateTripPayload): void {
+    const pendingUploads: Array<{ kind: TripDocumentKind; file: File }> = [
+      ...(this.showLoadDocs()
+        ? this.filesLoad().map((file) => ({ kind: 'load' as const, file }))
+        : []),
+      ...this.filesOperationalCosts().map((file) => ({
+        kind: 'operational_costs' as const,
+        file,
+      })),
+      ...(this.includeClientBilling()
+        ? this.filesBilling().map((file) => ({
+            kind: 'billing' as const,
+            file,
+          }))
+        : []),
+    ];
+
     this.creating.set(true);
     this.tripsFeature
       .createTrip(payload)
       .pipe(
+        switchMap((created) => {
+          if (pendingUploads.length === 0) {
+            return of(created);
+          }
+          return forkJoin(
+            pendingUploads.map(({ kind, file }) =>
+              this.tripsApi.uploadTripDocument(created.id, kind, file),
+            ),
+          ).pipe(
+            switchMap(() => this.tripsApi.getTripById(created.id)),
+            map((refreshed) => refreshed ?? created),
+            catchError(() =>
+              throwError(() => ({
+                phase: 'documents' as const,
+                tripId: created.id,
+              })),
+            ),
+          );
+        }),
         finalize(() => this.creating.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -1983,7 +2056,34 @@ export class TripsNewDrawerComponent {
           }
           this.saved.emit(trip);
         },
-        error: () => this.toast.show('No se pudo guardar la maniobra.', 'error'),
+        error: (err: { phase?: string } | unknown) => {
+          if (
+            err &&
+            typeof err === 'object' &&
+            'phase' in err &&
+            (err as { phase?: string }).phase === 'documents'
+          ) {
+            this.toast.show(
+              'Maniobra creada, pero no se pudieron subir algunos documentos.',
+              'warning',
+            );
+            const tripId = (err as { tripId?: string }).tripId;
+            if (tripId) {
+              this.tripsApi
+                .getTripById(tripId)
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe({
+                  next: (trip) => {
+                    if (trip) {
+                      this.saved.emit(trip);
+                    }
+                  },
+                });
+            }
+            return;
+          }
+          this.toast.show('No se pudo guardar la maniobra.', 'error');
+        },
       });
   }
 

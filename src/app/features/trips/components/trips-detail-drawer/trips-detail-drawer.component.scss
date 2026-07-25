@@ -99,6 +99,24 @@
   margin: 0.2rem 0;
 }
 
+.maniobra-detail__doc-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--to-color-accent, var(--to-color-primary));
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--to-color-primary);
+    outline: none;
+  }
+}
+
 .maniobra-detail__incident-list {
   margin: 0 0 0.85rem;
   padding: 0;

@@ -230,11 +230,31 @@
           <dt>Proveedor / beneficiario</dt>
           <dd>{{ vm.expense()?.vendor?.trim() || "—" }}</dd>
         </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Factura fiscal requerida</dt>
-          <dd>{{ vm.invoiceRequiredLabel() }}</dd>
-        </div>
       </dl>
+      <div class="fleet-unit-docs">
+        <div class="fleet-unit-docs__head">
+          <h4 class="fleet-unit-sec__subtitle">Documentos del gasto</h4>
+          <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+        </div>
+        @if ((vm.expense()?.documents ?? []).length > 0) {
+          <ul class="fleet-unit-detail__file-list">
+            @for (d of vm.expense()?.documents ?? []; track d.id) {
+              <li class="fleet-unit-detail__file-line">
+                <span class="fleet-unit-detail__file-name">
+                  {{ d.fileName }}
+                  @if (d.addedAt) {
+                    <span class="fleet-unit-detail__mono">
+                      · {{ d.addedAt }}
+                    </span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="fleet-unit-sec__docs-hint">Sin archivos registrados.</p>
+        }
+      </div>
     } @else {
       <div class="fleet-unit-sec__edit-form">
         <div class="fleet-unit-sec__edit-grid">
@@ -273,15 +293,48 @@
           [value]="vm.vendor()"
           (valueChange)="vm.vendor.set($event)"
         />
-        <label class="expenses-detail__invoice-check">
-          <input
-            type="checkbox"
-            name="invoiceRequiredDetail"
-            [ngModel]="vm.invoiceRequired()"
-            (ngModelChange)="vm.invoiceRequired.set($event)"
-          />
-          <span>Factura fiscal requerida</span>
-        </label>
+        <div class="fleet-unit-docs">
+          <div class="fleet-unit-docs__head">
+            <h4 class="fleet-unit-sec__subtitle">Documentos del gasto</h4>
+            <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+          </div>
+          <div class="fleet-unit-upload">
+            <input
+              #edExpenseDocInput
+              type="file"
+              class="fleet-unit-upload__input"
+              tabindex="-1"
+              multiple
+              accept="image/*,.pdf,application/pdf"
+              (change)="vm.onEditDocumentsSelected($event)"
+            />
+            <button
+              type="button"
+              class="fleet-unit-upload__btn"
+              (click)="edExpenseDocInput.click()"
+            >
+              <to-icon name="upload" [size]="14" />
+              Elegir archivos
+            </button>
+          </div>
+          @if (vm.editDocuments().length > 0) {
+            <ul class="fleet-unit-files">
+              @for (d of vm.editDocuments(); track d.id) {
+                <li class="fleet-unit-files__row">
+                  <span class="fleet-unit-files__name">{{ d.fileName }}</span>
+                  <button
+                    type="button"
+                    class="fleet-unit-files__rm"
+                    aria-label="Quitar archivo"
+                    (click)="vm.removeEditDocument(d.id)"
+                  >
+                    <to-icon name="delete" [size]="16" />
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
         <div class="fleet-unit-sec__edit-actions">
           <to-button
             type="button"

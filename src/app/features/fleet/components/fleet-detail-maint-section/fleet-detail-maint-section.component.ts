@@ -21,4 +21,18 @@ export class FleetDetailMaintSectionComponent {
   readonly sectionId = input.required<string>();
   readonly popoverIdPrefix = input.required<string>();
   readonly odometerLabel = input('Kilómetro aprox.');
+
+  /** Descarga todos los comprobantes de la fila (sin popover nativo). */
+  downloadMaintDocs(names: readonly string[]): void {
+    const download = this.vm().downloadStoredDocument;
+    if (!download || names.length === 0) {
+      return;
+    }
+    for (const name of names) {
+      const trimmed = name.trim();
+      if (trimmed) {
+        download(trimmed);
+      }
+    }
+  }
 }

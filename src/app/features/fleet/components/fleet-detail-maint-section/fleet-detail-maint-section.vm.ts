@@ -37,6 +37,6 @@ export interface FleetDetailMaintSectionVm {
   trackMaintenanceEntry(index: number, entry: MaintenanceEntry): string;
   formatTrackingAmount(n: number | undefined): string;
   formatMaintDateShort(iso: string | undefined): string;
-  /** Opcional: descarga por nombre (resuelve id en fleetDocuments). */
+  /** Opcional: descarga por nombre (resuelve id en fleetDocuments). Preferir arrow en facade. */
   downloadStoredDocument?(fileName: string): void;
 }

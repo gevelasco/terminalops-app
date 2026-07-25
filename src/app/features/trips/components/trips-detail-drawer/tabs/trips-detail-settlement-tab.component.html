@@ -184,6 +184,27 @@
               </button>
             </div>
           }
+          <h4 class="maniobra-drawer__subsection-title">Documentos de cobro</h4>
+          @if (vm.docs('billing').length === 0) {
+            <p class="maniobra-detail__muted-block">Sin archivos adjuntos</p>
+          } @else {
+            <ul
+              class="maniobra-detail__doc-list"
+              aria-label="Documentos de cobro y facturación"
+            >
+              @for (doc of vm.docs('billing'); track doc.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="maniobra-detail__doc-link"
+                    (click)="vm.downloadTripDocument(doc)"
+                  >
+                    {{ doc.fileName }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
         } @else {
           <p class="maniobra-detail__muted-block">
             Maniobra interna: sin cliente externo ni cobro registrado al programar.
@@ -235,6 +256,27 @@
                     vm.settlementLineDate(line.incurredAt)
                   }}</span>
                 </div>
+              </li>
+            }
+          </ul>
+        }
+        <h4 class="maniobra-drawer__subsection-title">Documentos de costos</h4>
+        @if (vm.docs('operational_costs').length === 0) {
+          <p class="maniobra-detail__muted-block">Sin archivos adjuntos</p>
+        } @else {
+          <ul
+            class="maniobra-detail__doc-list"
+            aria-label="Documentos de costos operativos"
+          >
+            @for (doc of vm.docs('operational_costs'); track doc.id) {
+              <li>
+                <button
+                  type="button"
+                  class="maniobra-detail__doc-link"
+                  (click)="vm.downloadTripDocument(doc)"
+                >
+                  {{ doc.fileName }}
+                </button>
               </li>
             }
           </ul>

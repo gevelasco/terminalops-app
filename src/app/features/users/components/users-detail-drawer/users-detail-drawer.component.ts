@@ -21,6 +21,10 @@ import { SessionService } from '@core/services/state/session';
 import { initialsFromDisplayName } from '@core/services/state/user-profile';
 import { isNumericPublicId } from '@core/utils/api-date';
 import {
+  profilePhotoErrorMessage,
+  readProfilePhotoDataUrl,
+} from '@core/utils/profile-photo';
+import {
   formatMemberSinceLong,
   formatTenureLabel,
 } from '@core/utils/user-profile-tenure';
@@ -232,26 +236,17 @@ export class UsersDetailDrawerComponent {
     if (!file) {
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      this.toast.show('Selecciona un archivo de imagen.', 'warning');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      this.toast.show('La imagen debe pesar menos de 2 MB.', 'warning');
-      return;
-    }
     this.photoSaving.set(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = typeof reader.result === 'string' ? reader.result : '';
-      this.photoDataUrl.set(url);
-      this.savePhotoOnly(url);
-    };
-    reader.onerror = () => {
-      this.photoSaving.set(false);
-      this.toast.show('No se pudo leer la imagen.', 'warning');
-    };
-    reader.readAsDataURL(file);
+    void readProfilePhotoDataUrl(file)
+      .then((url) => {
+        this.photoDataUrl.set(url);
+        this.savePhotoOnly(url);
+      })
+      .catch((err: unknown) => {
+        this.photoSaving.set(false);
+        const code = err instanceof Error ? err.message : 'read-failed';
+        this.toast.show(profilePhotoErrorMessage(code), 'warning');
+      });
   }
 
   removePhotoAndSave(): void {

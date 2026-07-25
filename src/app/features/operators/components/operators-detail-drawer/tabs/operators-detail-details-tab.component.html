@@ -372,32 +372,37 @@
               </div>
             }
           </dl>
-          <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
-          @if (vm.insuranceDocuments().length > 0) {
-            <ul
-              class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
-            >
-              @for (d of vm.insuranceDocuments(); track d.id) {
-                <li class="fleet-unit-detail__file-line">
-                  <span class="fleet-unit-detail__file-name">
-                    {{ d.fileName }}
-                    <span class="fleet-unit-detail__mono">
-                      · {{ vm.displayIsoDate(d.addedAt) }}
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            @if (vm.insuranceDocuments().length > 0) {
+              <ul
+                class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+              >
+                @for (d of vm.insuranceDocuments(); track d.id) {
+                  <li class="fleet-unit-detail__file-line">
+                    <span class="fleet-unit-detail__file-name">
+                      {{ d.fileName }}
+                      <span class="fleet-unit-detail__mono">
+                        · {{ vm.displayIsoDate(d.addedAt) }}
+                      </span>
                     </span>
-                  </span>
-                  <button
-                    type="button"
-                    class="fleet-unit-detail__file-dl"
-                    (click)="vm.downloadOperatorDocument(d)"
-                  >
-                    Descargar
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="fleet-unit-sec__docs-hint">Sin archivos registrados.</p>
-          }
+                    <button
+                      type="button"
+                      class="fleet-unit-detail__file-dl"
+                      (click)="vm.downloadOperatorDocument(d)"
+                    >
+                      Descargar
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="fleet-unit-sec__docs-hint">Sin archivos registrados.</p>
+            }
+          </div>
         } @else {
           <div class="fleet-unit-sec__edit-form">
             <app-operator-coverage-fields
@@ -423,28 +428,30 @@
               [(privDeductible)]="vm.editPrivDeductible"
               [(privPlan)]="vm.editPrivPlan"
             />
-            <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
-            <p class="fleet-unit-sec__docs-hint">
-              Constancias IMSS, credencial, póliza PDF, etc.
-            </p>
-            <div class="fleet-unit-upload">
-              <input
-                #edInsDocInput
-                type="file"
-                class="fleet-unit-upload__input"
-                tabindex="-1"
-                multiple
-                accept="image/*,.pdf,application/pdf"
-                (change)="vm.onEditDocumentsSelected($event, 'insurance')"
-              />
-              <button
-                type="button"
-                class="fleet-unit-upload__btn"
-                (click)="edInsDocInput.click()"
-              >
-                Elegir archivos
-              </button>
-            </div>
+            <div class="fleet-unit-docs">
+              <div class="fleet-unit-docs__head">
+                <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
+                <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+              </div>
+              <div class="fleet-unit-upload">
+                <input
+                  #edInsDocInput
+                  type="file"
+                  class="fleet-unit-upload__input"
+                  tabindex="-1"
+                  multiple
+                  accept="image/*,.pdf,application/pdf"
+                  (change)="vm.onEditDocumentsSelected($event, 'insurance')"
+                />
+                <button
+                  type="button"
+                  class="fleet-unit-upload__btn"
+                  (click)="edInsDocInput.click()"
+                >
+                  <to-icon name="upload" [size]="14" />
+                  Elegir archivos
+                </button>
+              </div>
             @if (vm.editInsuranceDocuments().length > 0) {
               <ul class="fleet-unit-files">
                 @for (d of vm.editInsuranceDocuments(); track d.id) {
@@ -453,14 +460,16 @@
                     <button
                       type="button"
                       class="fleet-unit-files__rm"
+                      aria-label="Quitar archivo"
                       (click)="vm.removeEditDocument(d.id)"
                     >
-                      Quitar
+                      <to-icon name="delete" [size]="16" />
                     </button>
                   </li>
                 }
               </ul>
             }
+            </div>
             <div class="fleet-unit-sec__edit-actions">
               <to-button
                 type="button"

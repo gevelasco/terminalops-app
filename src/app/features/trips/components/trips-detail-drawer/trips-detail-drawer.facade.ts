@@ -64,11 +64,14 @@ import {
   Operator,
   Trip,
   TripContainerType,
+  TripDocumentKind,
   TripIncident,
   TripLoadType,
+  TripStoredDocument,
 } from '@shared/models/logistics.models';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
+import { TripsService as TripsApiService } from '@core/services/api/trips';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { isAdminRole } from '@shared/utils/access-control';
@@ -91,6 +94,7 @@ function defaultDetailTabForTrip(trip: Trip): TripsDetailTab {
 export class TripsDetailDrawerFacade {
   private readonly dateShort = inject(DateShortPipe);
   private readonly tripsFeature = inject(TripsFeatureService);
+  private readonly tripsApi = inject(TripsApiService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
   private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
@@ -981,6 +985,40 @@ export class TripsDetailDrawerFacade {
   loadPlaceDisplay(): string {
     return tripCargoDescriptionDisplay(this.trip().loadPlace);
   }
+
+  docs(kind: TripDocumentKind): TripStoredDocument[] {
+    return (this.trip().tripDocuments ?? []).filter(
+      (doc) => doc.documentKind === kind,
+    );
+  }
+
+  downloadTripDocument = (doc: TripStoredDocument): void => {
+    if (!doc?.id || doc.id <= 0) {
+      this.toast.show(
+        'Este documento aún no está en el almacenamiento.',
+        'info',
+      );
+      return;
+    }
+    this.tripsApi
+      .downloadTripDocument(this.trip().id, doc.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ url }) => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.download = doc.fileName || 'documento';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        },
+        error: () => {
+          this.toast.show('No se pudo descargar el documento.', 'error');
+        },
+      });
+  };
 
   paymentLabel(method?: Trip['paymentMethod']): string {
     return tripManeuverPaymentMethodLabel(method);

@@ -75,10 +75,23 @@ function loadEncryptedSession(): SessionData | null {
 }
 
 function saveEncryptedSession(data: SessionData): void {
-  sessionStorage.setItem(
-    SESSION_STORAGE_KEY,
-    obfuscate(JSON.stringify(data), SESSION_OBFUSCATE_KEY),
-  );
+  try {
+    sessionStorage.setItem(
+      SESSION_STORAGE_KEY,
+      obfuscate(JSON.stringify(data), SESSION_OBFUSCATE_KEY),
+    );
+  } catch {
+    // Quota: conserva sesión sin la foto (sigue en memoria / vuelve en el próximo login).
+    const withoutPhoto: SessionData = { ...data, photoDataUrl: '' };
+    try {
+      sessionStorage.setItem(
+        SESSION_STORAGE_KEY,
+        obfuscate(JSON.stringify(withoutPhoto), SESSION_OBFUSCATE_KEY),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 @Injectable({ providedIn: 'root' })

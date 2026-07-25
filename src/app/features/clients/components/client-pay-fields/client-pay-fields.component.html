@@ -19,18 +19,18 @@
     />
   }
 </div>
-@if (creditGranted()) {
-  <to-input
-    label="Límite o volumen de crédito (Alerta)"
-    [placeholder]="isNew ? 'Ej. 5 MMXN, por definir con dirección…' : ''"
-    [(value)]="payCreditAmount"
-  />
-}
 <div
   class="client-pay-fields__row"
   [class.client-pay-fields__row--new]="isNew"
   [class.client-pay-fields__row--edit]="!isNew"
 >
+  @if (creditGranted()) {
+    <to-input
+      label="Límite o volumen de crédito (Alerta)"
+      [placeholder]="isNew ? 'Ej. 5 MMXN, por definir con dirección…' : ''"
+      [(value)]="payCreditAmount"
+    />
+  }
   <to-select
     label="Método de pago preferido"
     placeholder="Opcional"

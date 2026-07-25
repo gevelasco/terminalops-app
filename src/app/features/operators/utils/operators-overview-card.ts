@@ -1,13 +1,13 @@
 import { operatorOperationalStatusLabel } from '@shared/catalogs/operator-form-options';
 import { companyTenureMonthsDaysLabelEs } from '@features/operators/utils/operator-company-tenure';
 import { operatorDaysWithoutManeuver } from '@features/operators/utils/operator-days-without-maneuver';
-import {
-  operatorHasPhoto,
-  operatorPhotoInitials,
-} from '@features/operators/utils/operator-photo';
-import type { Operator, OperatorOperationalStatus } from '@shared/models/logistics.models';
+import { operatorPhotoInitials } from '@features/operators/utils/operator-photo';
+import type {
+  Operator,
+  OperatorLastManeuver,
+  OperatorOperationalStatus,
+} from '@shared/models/logistics.models';
 import { operatorOperationalPillClass } from '@shared/utils/operator-operational-pill';
-import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import type { ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 
 export interface OperatorsOverviewCardView {
@@ -65,10 +65,30 @@ function formatIsoDateSlash(ymd: string): string {
   return `${day}/${month}/${year}`;
 }
 
+function formatOperatorLastManeuverRoute(
+  last: OperatorLastManeuver | undefined,
+): string {
+  if (!last) {
+    return '—';
+  }
+  const origin = last.origin?.trim() || '';
+  const destination = last.destination?.trim() || '';
+  if (!origin && !destination) {
+    return '—';
+  }
+  if (!origin) {
+    return destination;
+  }
+  if (!destination) {
+    return origin;
+  }
+  return `${origin} → ${destination}`;
+}
+
 export function buildOperatorsOverviewCard(operator: Operator): OperatorsOverviewCardView {
   const status = operator.status;
   const last = operator.lastManeuver;
-  const route = last ? formatTripRouteSummary(last) : '—';
+  const route = formatOperatorLastManeuverRoute(last);
   const nextPayDueYmd = operator.nextPayDueOn?.trim() || null;
 
   return {
@@ -80,9 +100,8 @@ export function buildOperatorsOverviewCard(operator: Operator): OperatorsOvervie
     status,
     statusLabel: operatorOperationalStatusLabel(status),
     statusPillClass: operatorOperationalPillClass(status),
-    photoUrl: operatorHasPhoto(operator.photoDataUrl)
-      ? (operator.photoDataUrl ?? null)
-      : null,
+    // Las cards siempre muestran iniciales; la foto solo vive en el drawer.
+    photoUrl: null,
     photoInitials: operatorPhotoInitials(operator.name),
     lastManeuverCode: last?.maneuverCode?.trim() || '—',
     lastManeuverRoute: route,

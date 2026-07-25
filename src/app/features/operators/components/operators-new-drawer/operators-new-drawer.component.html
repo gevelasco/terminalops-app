@@ -86,25 +86,30 @@
             [(paymentSchedule)]="paymentSchedule"
             [(paymentMethod)]="paymentMethod"
           />
-          <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
-          <div class="fleet-unit-upload">
-            <input
-              #opDocInput
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onDocumentsSelected($event, 'operation')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="opDocInput.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Documentación de operación</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            <div class="fleet-unit-upload">
+              <input
+                #opDocInput
+                type="file"
+                class="fleet-unit-upload__input"
+                tabindex="-1"
+                multiple
+                accept="image/*,.pdf,application/pdf"
+                (change)="onDocumentsSelected($event, 'operation')"
+              />
+              <button
+                type="button"
+                class="fleet-unit-upload__btn"
+                (click)="opDocInput.click()"
+              >
+                <to-icon name="upload" [size]="14" />
+                Elegir archivos
+              </button>
+            </div>
           @if (operationDocuments().length > 0) {
             <ul class="fleet-unit-files">
               @for (d of operationDocuments(); track d.id) {
@@ -113,16 +118,16 @@
                   <button
                     type="button"
                     class="fleet-unit-files__rm"
+                    aria-label="Quitar archivo"
                     (click)="removeDocument(d.id)"
                   >
-                    Quitar
+                    <to-icon name="delete" [size]="16" />
                   </button>
                 </li>
               }
             </ul>
-          } @else {
-            <p class="fleet-unit-sec__docs-hint">Sin archivos adjuntos.</p>
           }
+          </div>
         </section>
 
         <section
@@ -156,25 +161,30 @@
             [(privPlan)]="privPlan"
           />
 
-          <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
-          <div class="fleet-unit-upload">
-            <input
-              #insDocInput
-              type="file"
-              class="fleet-unit-upload__input"
-              tabindex="-1"
-              multiple
-              accept="image/*,.pdf,application/pdf"
-              (change)="onDocumentsSelected($event, 'insurance')"
-            />
-            <button
-              type="button"
-              class="fleet-unit-upload__btn"
-              (click)="insDocInput.click()"
-            >
-              Elegir archivos
-            </button>
-          </div>
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Documentación de cobertura</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            <div class="fleet-unit-upload">
+              <input
+                #insDocInput
+                type="file"
+                class="fleet-unit-upload__input"
+                tabindex="-1"
+                multiple
+                accept="image/*,.pdf,application/pdf"
+                (change)="onDocumentsSelected($event, 'insurance')"
+              />
+              <button
+                type="button"
+                class="fleet-unit-upload__btn"
+                (click)="insDocInput.click()"
+              >
+                <to-icon name="upload" [size]="14" />
+                Elegir archivos
+              </button>
+            </div>
           @if (insuranceDocuments().length > 0) {
             <ul class="fleet-unit-files">
               @for (d of insuranceDocuments(); track d.id) {
@@ -183,16 +193,16 @@
                   <button
                     type="button"
                     class="fleet-unit-files__rm"
+                    aria-label="Quitar archivo"
                     (click)="removeDocument(d.id)"
                   >
-                    Quitar
+                    <to-icon name="delete" [size]="16" />
                   </button>
                 </li>
               }
             </ul>
-          } @else {
-            <p class="fleet-unit-sec__docs-hint">Sin archivos adjuntos.</p>
           }
+          </div>
         </section>
   <div toSideDrawerFooter>
       <to-button type="button" variant="outline" (click)="dismiss.emit()">

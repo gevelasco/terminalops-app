@@ -7,7 +7,6 @@ import {
   input,
   output,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import type { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { DateShortPipe } from '@shared/pipes/date-short.pipe';
@@ -29,7 +28,6 @@ import { ExpensesDetailDrawerFacade } from './expenses-detail-drawer.facade';
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ExpensesDetailDrawerFacade, CurrencyMxPipe, DateShortPipe],
   imports: [
-    FormsModule,
     ToButtonComponent,
     ToConfirmDialogComponent,
     ToIconComponent,
@@ -41,7 +39,6 @@ import { ExpensesDetailDrawerFacade } from './expenses-detail-drawer.facade';
   ],
   templateUrl: './expenses-detail-drawer.component.html',
   styleUrls: [
-    './expenses-detail-drawer.component.scss',
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/styles/fleet-detail-drawer-footer.shared.scss',

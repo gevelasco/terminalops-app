@@ -42,10 +42,6 @@
                   <dd>{{ vm.insurancePaymentMethodLabel(vm.meta()?.gpsPaymentMethod) }}</dd>
                 </div>
                 <div class="fleet-unit-detail__row">
-                  <dt>Factura fiscal</dt>
-                  <dd>{{ vm.meta()?.gpsInvoiceRequired ? "Sí" : "No" }}</dd>
-                </div>
-                <div class="fleet-unit-detail__row">
                   <dt>Fecha de contratación</dt>
                   <dd>{{ vm.formatYmd(vm.meta()?.gpsContractDate) }}</dd>
                 </div>
@@ -139,16 +135,11 @@
               }
           } @else {
             <div class="fleet-unit-sec__edit-form">
-              <to-input
-                label="Marca o proveedor"
-                placeholder="Ej. SkyBitz, Motive…"
-                [(value)]="vm.editGpsBrand"
-              />
               <div class="fleet-unit-sec__edit-grid">
                 <to-input
-                  label="Fecha de contratación"
-                  type="date"
-                  [(value)]="vm.editGpsContractDate"
+                  label="Marca o proveedor"
+                  placeholder="Ej. SkyBitz, Motive…"
+                  [(value)]="vm.editGpsBrand"
                 />
                 <to-input
                   label="Portal (ubicación en vivo)"
@@ -157,12 +148,19 @@
                   [(value)]="vm.editGpsPortal"
                 />
               </div>
-              <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
+              <div class="fleet-unit-sec__edit-grid">
+                <to-input
+                  label="Fecha de contratación"
+                  type="date"
+                  [(value)]="vm.editGpsContractDate"
+                />
                 <to-select
                   label="Periodicidad"
                   [options]="vm.cadenceOptions"
                   [(value)]="vm.editGpsCadence"
                 />
+              </div>
+              <div class="fleet-unit-sec__edit-grid">
                 <to-input
                   label="Precio o cuota"
                   type="text"
@@ -176,14 +174,6 @@
                   [(value)]="vm.editGpsPaymentMethod"
                 />
               </div>
-              <label class="fleet-unit-detail__checkbox-row">
-                <input
-                  type="checkbox"
-                  [checked]="vm.editGpsInvoiceRequired()"
-                  (change)="vm.editGpsInvoiceRequired.set($any($event.target).checked)"
-                />
-                Factura fiscal requerida
-              </label>
               <div class="fleet-unit-toggle-row">
                 <span
                   class="fleet-unit-toggle-row__label"

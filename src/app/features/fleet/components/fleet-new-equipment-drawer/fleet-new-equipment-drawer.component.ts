@@ -269,7 +269,6 @@ export class FleetNewEquipmentDrawerComponent {
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
   readonly insurancePaymentMethod = model('transfer');
-  readonly insuranceInvoiceRequired = model(false);
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
 
@@ -640,7 +639,6 @@ export class FleetNewEquipmentDrawerComponent {
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insurancePaymentMethod: this.insurancePaymentMethod().trim() || undefined,
-      insuranceInvoiceRequired: this.insuranceInvoiceRequired(),
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
       verificationPhysMechDate: this.physMechApplies()

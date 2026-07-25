@@ -133,19 +133,48 @@
       placeholder="Taller, aseguradora, plataforma…"
       [(value)]="vendor"
     />
-    <label class="expenses-new__invoice-check">
-      <input
-        type="checkbox"
-        name="invoiceRequired"
-        [ngModel]="invoiceRequired()"
-        (ngModelChange)="invoiceRequired.set($event)"
-      />
-      <span>Factura fiscal requerida</span>
-    </label>
-    <p class="expenses-new__invoice-hint">
-      Marca si el gasto debe documentarse con factura para contabilidad o
-      deducibilidad.
-    </p>
+    <div class="fleet-unit-docs">
+      <div class="fleet-unit-docs__head">
+        <h4 class="fleet-unit-sec__subtitle">Documentos del gasto</h4>
+        <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+      </div>
+      <div class="fleet-unit-upload">
+        <input
+          #expenseDocInput
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="onDocumentsSelected($event)"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="expenseDocInput.click()"
+        >
+          <to-icon name="upload" [size]="14" />
+          Elegir archivos
+        </button>
+      </div>
+      @if (documents().length > 0) {
+        <ul class="fleet-unit-files">
+          @for (d of documents(); track d.id) {
+            <li class="fleet-unit-files__row">
+              <span class="fleet-unit-files__name">{{ d.fileName }}</span>
+              <button
+                type="button"
+                class="fleet-unit-files__rm"
+                aria-label="Quitar archivo"
+                (click)="removeDocument(d.id)"
+              >
+                <to-icon name="delete" [size]="16" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </section>
 
   <div toSideDrawerFooter>

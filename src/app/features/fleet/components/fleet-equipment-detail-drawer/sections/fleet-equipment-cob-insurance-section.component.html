@@ -44,10 +44,6 @@
               <dd>{{ vm.insurancePaymentMethodLabel(vm.meta()?.insurancePaymentMethod) }}</dd>
             </div>
             <div class="fleet-unit-detail__row">
-              <dt>Factura fiscal</dt>
-              <dd>{{ vm.meta()?.insuranceInvoiceRequired ? "Sí" : "No" }}</dd>
-            </div>
-            <div class="fleet-unit-detail__row">
               <dt>Fecha de contratación</dt>
               <dd>{{ vm.formatYmd(vm.meta()?.insuranceContractDate) }}</dd>
             </div>
@@ -58,31 +54,31 @@
           </dl>
         } @else {
           <div class="fleet-unit-sec__edit-form">
-            <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--full">
+            <div class="fleet-unit-sec__edit-grid">
               <to-input
                 label="Nombre del seguro"
                 placeholder="Ej. GNP, AXA, Qualitas…"
                 [(value)]="vm.editInsCarrierName"
               />
-            </div>
-            <div class="fleet-unit-sec__edit-grid">
               <to-input
                 label="Número de póliza"
                 placeholder="Póliza"
                 [(value)]="vm.editInsPolicyNumber"
               />
+            </div>
+            <div class="fleet-unit-sec__edit-grid">
               <to-input
                 label="Fecha de contratación"
                 type="date"
                 [(value)]="vm.editInsContractDate"
               />
-            </div>
-            <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
               <to-select
                 label="Periodicidad"
                 [options]="vm.cadenceOptions"
                 [(value)]="vm.editInsCadence"
               />
+            </div>
+            <div class="fleet-unit-sec__edit-grid">
               <to-input
                 label="Costo por ciclo"
                 type="text"
@@ -96,69 +92,69 @@
                 [(value)]="vm.editInsPaymentMethod"
               />
             </div>
-            <label class="fleet-unit-detail__checkbox-row">
-              <input
-                type="checkbox"
-                [checked]="vm.editInsInvoiceRequired()"
-                (change)="vm.editInsInvoiceRequired.set($any($event.target).checked)"
-              />
-              Factura fiscal requerida
-            </label>
-            <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
-            @if (vm.editPolicyDocs().length > 0) {
-              <ul class="fleet-unit-files">
-                @for (doc of vm.editPolicyDocs(); track doc.id) {
-                  <li class="fleet-unit-files__row">
-                    <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
-                    <button
-                      type="button"
-                      class="fleet-unit-files__rm"
-                      (click)="vm.removeEditPolicyDoc($index)"
-                    >
-                      Quitar
-                    </button>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="fleet-unit-detail__empty-files">
-                Sin documentos en la lista (puedes agregar abajo).
-              </p>
-            }
-            <div class="fleet-unit-upload">
-              <input
-                #filePolicyIns
-                type="file"
-                class="fleet-unit-upload__input"
-                tabindex="-1"
-                multiple
-                accept="image/*,.pdf,application/pdf"
-                (change)="vm.onEditInsurancePolicyFiles($event)"
-              />
-              <button
-                type="button"
-                class="fleet-unit-upload__btn"
-                (click)="filePolicyIns.click()"
-              >
-                Elegir archivos
-              </button>
+            <div class="fleet-unit-docs">
+              <div class="fleet-unit-docs__head">
+                <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+                <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+              </div>
+              @if (vm.editPolicyDocs().length > 0) {
+                <ul class="fleet-unit-files">
+                  @for (doc of vm.editPolicyDocs(); track doc.id) {
+                    <li class="fleet-unit-files__row">
+                      <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
+                      <button
+                        type="button"
+                        class="fleet-unit-files__rm"
+                        aria-label="Quitar archivo"
+                        (click)="vm.removeEditPolicyDoc($index)"
+                      >
+                        <to-icon name="delete" [size]="16" />
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="fleet-unit-detail__empty-files">
+                  Sin documentos en la lista (puedes agregar abajo).
+                </p>
+              }
+              <div class="fleet-unit-upload">
+                <input
+                  #filePolicyIns
+                  type="file"
+                  class="fleet-unit-upload__input"
+                  tabindex="-1"
+                  multiple
+                  accept="image/*,.pdf,application/pdf"
+                  (change)="vm.onEditInsurancePolicyFiles($event)"
+                />
+                <button
+                  type="button"
+                  class="fleet-unit-upload__btn"
+                  (click)="filePolicyIns.click()"
+                >
+                  <to-icon name="upload" [size]="14" />
+                  Elegir archivos
+                </button>
+              </div>
+              @if (vm.editPolicyNewFiles().length > 0) {
+                <ul class="fleet-unit-files">
+                  @for (f of vm.editPolicyNewFiles(); track vm.trackFileEntry($index, f)) {
+                    <li class="fleet-unit-files__row">
+                      <span class="fleet-unit-files__name">{{ f.name }}</span>
+                      <button
+                        type="button"
+                        class="fleet-unit-files__rm"
+                        aria-label="Quitar archivo"
+                        (click)="vm.removeEditInsurancePolicyNewFile($index)"
+                      >
+                        <to-icon name="delete" [size]="16" />
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
             </div>
-            @if (vm.editPolicyNewFiles().length > 0) {
-              <ul class="fleet-unit-files">
-                @for (f of vm.editPolicyNewFiles(); track vm.trackFileEntry($index, f)) {
-                  <li class="fleet-unit-files__row">
-                    <span class="fleet-unit-files__name">{{ f.name }}</span>
-                    <button
-                      type="button"
-                      class="fleet-unit-files__rm"
-                      (click)="vm.removeEditInsurancePolicyNewFile($index)"
-                    >
-                      Quitar
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
             <div class="fleet-unit-sec__edit-actions">
               <to-button
                 type="button"
@@ -227,29 +223,33 @@
           />
         }
         @if (!vm.isEditing("insurance")) {
-          <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
-          <p class="fleet-unit-sec__docs-hint">PDF o recibos registrados.</p>
-          @if (vm.docs("policy").length > 0) {
-            <ul
-              class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
-            >
-              @for (doc of vm.docs("policy"); track doc.id) {
-                <li class="fleet-unit-detail__file-line">
-                  <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
-                  <button
-                    type="button"
-                    class="fleet-unit-detail__file-dl"
-                    (click)="vm.downloadStoredDocument(doc)"
-                  >
-                    Descargar
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="fleet-unit-detail__empty-files">
-              Sin archivos en el registro.
-            </p>
-          }
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            @if (vm.docs("policy").length > 0) {
+              <ul
+                class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+              >
+                @for (doc of vm.docs("policy"); track doc.id) {
+                  <li class="fleet-unit-detail__file-line">
+                    <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
+                    <button
+                      type="button"
+                      class="fleet-unit-detail__file-dl"
+                      (click)="vm.downloadStoredDocument(doc)"
+                    >
+                      Descargar
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="fleet-unit-detail__empty-files">
+                Sin archivos en el registro.
+              </p>
+            }
+          </div>
         }
       </section>

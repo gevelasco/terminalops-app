@@ -525,7 +525,7 @@ export class FleetUnitDetailDrawerFacade {
           this.deleteSubmitting.set(false);
           const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
           this.toast.show(
-            detail || 'No se pudo eliminar la unidad. Inténtalo de nuevo.',
+            detail || 'No se pudo dar de baja la unidad. Inténtalo de nuevo.',
             'error',
           );
         },
@@ -942,7 +942,6 @@ export class FleetUnitDetailDrawerFacade {
   readonly editInsContractDate = signal('');
   readonly editInsCadence = signal('');
   readonly editInsPaymentMethod = signal('');
-  readonly editInsInvoiceRequired = signal(false);
   readonly editInsCost = signal('');
   /** Póliza y comprobantes (copia editable al abrir seguro). */
   readonly editPolicyDocs = signal<FleetStoredDocument[]>([]);
@@ -964,7 +963,6 @@ export class FleetUnitDetailDrawerFacade {
         '',
     );
     this.editInsPaymentMethod.set(m.insurancePaymentMethod?.trim() || '');
-    this.editInsInvoiceRequired.set(m.insuranceInvoiceRequired === true);
     this.editInsCost.set(formatMoneyInputValue(m.insuranceCost));
     this.editPolicyDocs.set([...this.docs('policy')]);
     this.editingSection.set('insurance');
@@ -1064,7 +1062,6 @@ export class FleetUnitDetailDrawerFacade {
       insuranceContractDate: this.editInsContractDate().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insurancePaymentMethod: this.editInsPaymentMethod().trim() || undefined,
-      insuranceInvoiceRequired: this.editInsInvoiceRequired(),
       insuranceCost: cost === undefined ? undefined : cost,
     };
     const original = this.docs('policy');
@@ -1095,7 +1092,6 @@ export class FleetUnitDetailDrawerFacade {
   readonly editGpsContractDate = signal('');
   readonly editGpsCadence = signal('annual');
   readonly editGpsPaymentMethod = signal('');
-  readonly editGpsInvoiceRequired = signal(false);
   readonly editGpsPrice = signal('');
   readonly editGpsPortal = signal('');
   readonly editGpsEndorse = signal(false);
@@ -1113,7 +1109,6 @@ export class FleetUnitDetailDrawerFacade {
         'annual',
     );
     this.editGpsPaymentMethod.set(m.gpsPaymentMethod?.trim() || '');
-    this.editGpsInvoiceRequired.set(m.gpsInvoiceRequired === true);
     this.editGpsPrice.set(formatMoneyInputValue(m.gpsPrice));
     this.editGpsPortal.set(m.gpsTrackingPortalUrl?.trim() || '');
     this.editGpsEndorse.set(m.gpsCoveredByInsuranceEndorsement === true);
@@ -1140,7 +1135,6 @@ export class FleetUnitDetailDrawerFacade {
         gpsContractDate: undefined,
         gpsLastPaymentDate: undefined,
         gpsPaymentMethod: undefined,
-        gpsInvoiceRequired: undefined,
         gpsTrackingPortalUrl: undefined,
         gpsCoveredByInsuranceEndorsement: undefined,
       };
@@ -1166,7 +1160,6 @@ export class FleetUnitDetailDrawerFacade {
       gpsContractDate: this.editGpsContractDate().trim() || undefined,
       gpsPaymentCadence: cadenceLabel,
       gpsPaymentMethod: this.editGpsPaymentMethod().trim() || undefined,
-      gpsInvoiceRequired: this.editGpsInvoiceRequired(),
       gpsPrice: price === undefined ? undefined : price,
       gpsTrackingPortalUrl: this.editGpsPortal().trim() || undefined,
       gpsCoveredByInsuranceEndorsement: this.editGpsEndorse() ? true : undefined,
@@ -2102,12 +2095,13 @@ export class FleetUnitDetailDrawerFacade {
     return m.documentPolicyNames ?? [];
   }
 
-  downloadStoredDocument(doc: FleetStoredDocument | string): void {
+  /** Arrow: se pasa a secciones hijas sin perder `this`. */
+  downloadStoredDocument = (doc: FleetStoredDocument | string): void => {
     const unitId = this.effUnit().id;
     const resolved =
       typeof doc === 'string'
-        ? this.docs('policy')
-            .concat(this.docs('verif'), this.docs('ownership'), this.docs('maint'))
+        ? this.docs('maint')
+            .concat(this.docs('verif'), this.docs('ownership'), this.docs('policy'))
             .find((d) => d.fileName === doc)
         : doc;
     if (!resolved || resolved.id <= 0) {
@@ -2122,13 +2116,20 @@ export class FleetUnitDetailDrawerFacade {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ url }) => {
-          window.open(url, '_blank', 'noopener,noreferrer');
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.download = resolved.fileName || 'documento';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
         },
         error: () => {
           this.toast.show('No se pudo descargar el documento.', 'error');
         },
       });
-  }
+  };
 
   private syncUnitDocuments(
     kind: FleetDocumentKind,

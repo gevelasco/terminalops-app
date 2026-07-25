@@ -7,7 +7,10 @@ import {
   mapApiOperatorOperationSummary,
   type OperatorOperationSummary,
 } from '@features/operators/utils/operator-operation-summary';
-import { buildOperatorPatchPayload } from '@shared/utils/operator-api-payload';
+import {
+  buildOperatorCreatePayload,
+  buildOperatorPatchPayload,
+} from '@shared/utils/operator-api-payload';
 import type { OperatorLinkOptionsResponse } from '@shared/models/api/api-fleet-link-options.model';
 import { mapApiOperatorLinkOption } from '@shared/models/api/api-fleet-link-options.model';
 import { buildFleetLinkOptionsQuery } from './fleet-link-options-query';
@@ -91,7 +94,10 @@ export class OperatorsService {
   postOperator(payload: Omit<Operator, 'id'>): Observable<Operator> {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http
-      .post<Record<string, unknown>>(companyResourceUrl(companyId, 'operators'), payload)
+      .post<Record<string, unknown>>(
+        companyResourceUrl(companyId, 'operators'),
+        buildOperatorCreatePayload(payload),
+      )
       .pipe(map((r) => mapApiOperator(r)));
   }
 

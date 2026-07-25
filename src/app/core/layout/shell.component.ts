@@ -100,8 +100,8 @@ export class ShellComponent implements OnDestroy {
 
   readonly avatarPhotoUrl = computed(
     () =>
-      this.profiles.profile()?.photoDataUrl?.trim() ??
-      this.session.photoDataUrl()?.trim() ??
+      this.profiles.profile()?.photoDataUrl?.trim() ||
+      this.session.photoDataUrl()?.trim() ||
       '',
   );
 

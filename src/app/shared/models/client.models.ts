@@ -22,6 +22,18 @@ export interface ClientBilling {
   billingPhone?: string;
 }
 
+/** Slot de adjunto en expediente del cliente. */
+export type ClientDocumentSlot = 'fiscal';
+
+/** Referencia a un archivo adjunto (constancia fiscal, CSF, etc.). */
+export interface ClientAttachedDocument {
+  id: string;
+  fileName: string;
+  slot: ClientDocumentSlot;
+  /** Fecha de registro (ISO `YYYY-MM-DD`). */
+  addedAt: string;
+}
+
 /**
  * Condición comercial de cobro. Se deriva en UI desde maniobras y cartera;
  * `watch_list` es el valor inicial al registrar un cliente nuevo.
@@ -76,6 +88,8 @@ export interface Client {
   billing?: ClientBilling;
   delivery?: ClientDelivery;
   contacts?: ClientContactPerson[];
+  /** Adjuntos de datos fiscales / facturación. */
+  documents?: ClientAttachedDocument[];
   payment?: ClientPaymentTerms;
   /** Total de maniobras vinculadas por `clientId` (solo en listado). */
   maneuverCount?: number;

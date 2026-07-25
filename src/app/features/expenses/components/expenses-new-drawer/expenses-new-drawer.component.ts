@@ -9,11 +9,14 @@ import {
   input,
   model,
   output,
+  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
-import { ExpensesService } from '@services/api/expenses';
+import {
+  ExpensesService,
+  type ExpenseWritePayload,
+} from '@services/api/expenses';
 import {
   EXPENSE_CURRENCY_OPTIONS,
   EXPENSE_PAYMENT_METHOD_OPTIONS,
@@ -28,12 +31,18 @@ import {
   validateExpenseRubroTripLink,
   type ExpenseRubro,
 } from '@features/expenses/utils/expense-rubro.util';
+import {
+  filesToExpenseDocuments,
+  toExpenseDocumentsApiPayload,
+} from '@features/expenses/utils/expense-attached-documents';
 import type {
   Expense,
+  ExpenseAttachedDocument,
   ExpenseKind,
   ExpenseVerificationScope,
 } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToTextareaComponent } from '@shared/ui/to-textarea/to-textarea.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -64,8 +73,8 @@ import { formatMoneyInputValue } from '@shared/utils/format-grouped-number';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     ToButtonComponent,
+    ToIconComponent,
     ToInputComponent,
     ToSelectComponent,
     ToSideDrawerComponent,
@@ -76,7 +85,6 @@ import { formatMoneyInputValue } from '@shared/utils/format-grouped-number';
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
-    './expenses-new-drawer.component.scss',
   ],
 })
 export class ExpensesNewDrawerComponent {
@@ -106,7 +114,7 @@ export class ExpensesNewDrawerComponent {
   readonly currency = model('MXN');
   readonly paymentMethod = model('');
   readonly incurredAt = model(todayYmd());
-  readonly invoiceRequired = model(false);
+  readonly documents = signal<ExpenseAttachedDocument[]>([]);
 
   readonly tripId = model('');
   readonly relatedUnitId = model('');
@@ -169,7 +177,7 @@ export class ExpensesNewDrawerComponent {
     this.currency.set(e.currency || 'MXN');
     this.paymentMethod.set(e.paymentMethod ?? '');
     this.incurredAt.set(expenseIncurredDateInput(e.incurredAt));
-    this.invoiceRequired.set(e.invoiceRequired === true);
+    this.documents.set([...(e.documents ?? [])]);
     this.tripId.set(e.tripId ?? '');
     this.relatedUnitId.set(e.relatedUnitId ?? '');
     this.relatedEquipmentId.set(e.relatedEquipmentId ?? '');
@@ -178,6 +186,23 @@ export class ExpensesNewDrawerComponent {
       this.verificationScope.set(e.verificationScope);
     }
     this.relationTab.set(inferExpenseRelationTab(e));
+  }
+
+  onDocumentsSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
+    if (files.length === 0) {
+      return;
+    }
+    this.documents.update((prev) => [
+      ...prev,
+      ...filesToExpenseDocuments(files, 'receipt'),
+    ]);
+  }
+
+  removeDocument(id: string): void {
+    this.documents.update((prev) => prev.filter((d) => d.id !== id));
   }
 
   submit(): void {
@@ -224,7 +249,7 @@ export class ExpensesNewDrawerComponent {
       descriptionHint,
     } = resolved.fields;
 
-    const payload: Omit<Expense, 'id'> = {
+    const payload: ExpenseWritePayload = {
       tripId,
       category: categoryOverride ?? categoryText,
       amount: amountResult,
@@ -235,7 +260,7 @@ export class ExpensesNewDrawerComponent {
         this.description().trim() || descriptionHint || undefined,
       vendor: this.vendor().trim() || undefined,
       paymentMethod: this.paymentMethod().trim() || undefined,
-      invoiceRequired: this.invoiceRequired(),
+      documents: toExpenseDocumentsApiPayload(this.documents()),
       relatedUnitId: relatedUnitId || undefined,
       relatedEquipmentId: relatedEquipmentId || undefined,
       relatedOperatorId: relatedOperatorId || undefined,

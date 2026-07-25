@@ -286,27 +286,32 @@
         (confirmCycle)="vm.confirmTenurePaymentCycle($event)"
       />
     }
-    <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-    @if (vm.docs("ownership").length > 0) {
-      <ul
-        class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
-      >
-        @for (doc of vm.docs("ownership"); track doc.id) {
-          <li class="fleet-unit-detail__file-line">
-            <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
-            <button
-              type="button"
-              class="fleet-unit-detail__file-dl"
-              (click)="vm.downloadStoredDocument(doc)"
-            >
-              Descargar
-            </button>
-          </li>
-        }
-      </ul>
-    } @else {
-      <p class="fleet-unit-detail__empty-files">Sin archivos en el registro.</p>
-    }
+    <div class="fleet-unit-docs">
+      <div class="fleet-unit-docs__head">
+        <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+        <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+      </div>
+      @if (vm.docs("ownership").length > 0) {
+        <ul
+          class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+        >
+          @for (doc of vm.docs("ownership"); track doc.id) {
+            <li class="fleet-unit-detail__file-line">
+              <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
+              <button
+                type="button"
+                class="fleet-unit-detail__file-dl"
+                (click)="vm.downloadStoredDocument(doc)"
+              >
+                Descargar
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="fleet-unit-detail__empty-files">Sin archivos en el registro.</p>
+      }
+    </div>
   } @else {
     <div class="fleet-unit-sec__edit-form">
       <div class="fleet-unit-sec__edit-grid">
@@ -387,65 +392,72 @@
           />
         </div>
       }
-      <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-
-      @if (vm.editOwnershipDocs().length > 0) {
-        <ul class="fleet-unit-files">
-          @for (doc of vm.editOwnershipDocs(); track doc.id) {
-            <li class="fleet-unit-files__row">
-              <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
-              <button
-                type="button"
-                class="fleet-unit-files__rm"
-                (click)="vm.removeEditOwnershipDoc($index)"
-              >
-                Quitar
-              </button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="fleet-unit-detail__empty-files">
-          Sin documentos en la lista (puedes agregar abajo).
-        </p>
-      }
-      <div class="fleet-unit-upload">
-        <input
-          #fileOwnTenure
-          type="file"
-          class="fleet-unit-upload__input"
-          tabindex="-1"
-          multiple
-          accept="image/*,.pdf,application/pdf"
-          (change)="vm.onEditTenureOwnershipFiles($event)"
-        />
-        <button
-          type="button"
-          class="fleet-unit-upload__btn"
-          (click)="fileOwnTenure.click()"
-        >
-          Elegir archivos
-        </button>
+      <div class="fleet-unit-docs">
+        <div class="fleet-unit-docs__head">
+          <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+          <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+        </div>
+        @if (vm.editOwnershipDocs().length > 0) {
+          <ul class="fleet-unit-files">
+            @for (doc of vm.editOwnershipDocs(); track doc.id) {
+              <li class="fleet-unit-files__row">
+                <span class="fleet-unit-files__name">{{ doc.fileName }}</span>
+                <button
+                  type="button"
+                  class="fleet-unit-files__rm"
+                  aria-label="Quitar archivo"
+                  (click)="vm.removeEditOwnershipDoc($index)"
+                >
+                  <to-icon name="delete" [size]="16" />
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="fleet-unit-detail__empty-files">
+            Sin documentos en la lista (puedes agregar abajo).
+          </p>
+        }
+        <div class="fleet-unit-upload">
+          <input
+            #fileOwnTenure
+            type="file"
+            class="fleet-unit-upload__input"
+            tabindex="-1"
+            multiple
+            accept="image/*,.pdf,application/pdf"
+            (change)="vm.onEditTenureOwnershipFiles($event)"
+          />
+          <button
+            type="button"
+            class="fleet-unit-upload__btn"
+            (click)="fileOwnTenure.click()"
+          >
+            <to-icon name="upload" [size]="14" />
+            Elegir archivos
+          </button>
+        </div>
+        @if (vm.editOwnershipNewFiles().length > 0) {
+          <ul class="fleet-unit-files">
+            @for (
+              f of vm.editOwnershipNewFiles();
+              track vm.trackFileEntry($index, f)
+            ) {
+              <li class="fleet-unit-files__row">
+                <span class="fleet-unit-files__name">{{ f.name }}</span>
+                <button
+                  type="button"
+                  class="fleet-unit-files__rm"
+                  aria-label="Quitar archivo"
+                  (click)="vm.removeEditTenureNewFile($index)"
+                >
+                  <to-icon name="delete" [size]="16" />
+                </button>
+              </li>
+            }
+          </ul>
+        }
       </div>
-      @if (vm.editOwnershipNewFiles().length > 0) {
-        <ul class="fleet-unit-files">
-          @for (
-            f of vm.editOwnershipNewFiles();
-            track vm.trackFileEntry($index, f)
-          ) {
-            <li class="fleet-unit-files__row">
-              <span class="fleet-unit-files__name">{{ f.name }}</span>
-              <button
-                type="button"
-                class="fleet-unit-files__rm"
-                (click)="vm.removeEditTenureNewFile($index)"
-              >
-                Quitar
-              </button>
-            </li>
-          }
-        </ul>
-      }
       <div class="fleet-unit-sec__edit-actions">
         <to-button
           type="button"

@@ -16,6 +16,10 @@ import { SessionService } from '@core/services/state/session';
 import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { initialsFromDisplayName } from '@core/services/state/user-profile';
 import {
+  profilePhotoErrorMessage,
+  readProfilePhotoDataUrl,
+} from '@core/utils/profile-photo';
+import {
   STAFF_MODULE_OPTIONS,
 } from '@shared/models/app-modules.models';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
@@ -114,23 +118,12 @@ export class UsersNewDrawerComponent {
     if (!file) {
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      this.toast.show('Selecciona un archivo de imagen.', 'warning');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      this.toast.show('La imagen debe pesar menos de 2 MB.', 'warning');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = typeof reader.result === 'string' ? reader.result : '';
-      this.photoDataUrl.set(url);
-    };
-    reader.onerror = () => {
-      this.toast.show('No se pudo leer la imagen.', 'warning');
-    };
-    reader.readAsDataURL(file);
+    void readProfilePhotoDataUrl(file)
+      .then((url) => this.photoDataUrl.set(url))
+      .catch((err: unknown) => {
+        const code = err instanceof Error ? err.message : 'read-failed';
+        this.toast.show(profilePhotoErrorMessage(code), 'warning');
+      });
   }
 
   removePhoto(): void {

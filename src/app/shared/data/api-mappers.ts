@@ -9,6 +9,7 @@ import {
 import type {
   Trip,
   TripIncident,
+  TripStoredDocument,
   Unit,
   UnitFleetMeta,
   Equipment,
@@ -41,6 +42,7 @@ export function mapApiClient(row: Record<string, unknown>): Client {
     | Record<string, unknown>
     | undefined;
   const contacts = (row['contacts'] as Record<string, unknown>[] | undefined) ?? [];
+  const documents = (row['documents'] as Record<string, unknown>[] | undefined) ?? [];
 
   return {
     id: resourceIdKey(row['id']),
@@ -97,6 +99,21 @@ export function mapApiClient(row: Record<string, unknown>): Client {
       phone: c['phone'] as string | undefined,
       email: c['email'] as string | undefined,
     })),
+    documents: documents
+      .map((d) => {
+        const slot = String(d['slot'] ?? '').trim();
+        const fileName = String(d['fileName'] ?? '').trim();
+        if (slot !== 'fiscal' || !fileName) {
+          return null;
+        }
+        return {
+          id: resourceIdKey(d['id']),
+          fileName,
+          slot: 'fiscal' as const,
+          addedAt: String(d['addedAt'] ?? '').trim() || new Date().toISOString().slice(0, 10),
+        };
+      })
+      .filter((d): d is NonNullable<typeof d> => d != null),
     maneuverCount:
       typeof row['maneuverCount'] === 'number' && Number.isFinite(row['maneuverCount'])
         ? row['maneuverCount']
@@ -230,19 +247,21 @@ function mapApiOperatorLastManeuver(
   return {
     tripId: row['tripId'] != null ? resourceIdKey(row['tripId']) : undefined,
     maneuverCode: code,
-    originCityMunicipality:
-      row['originCityMunicipality'] != null
-        ? String(row['originCityMunicipality']).trim() || undefined
-        : undefined,
-    destinationCityMunicipality:
-      row['destinationCityMunicipality'] != null
-        ? String(row['destinationCityMunicipality']).trim() || undefined
-        : undefined,
+    origin: parseOptionalRouteLabel(row['origin']),
+    destination: parseOptionalRouteLabel(row['destination']),
     status: row['status'] as Operator['lastManeuver'] extends { status?: infer S }
       ? S
       : never,
     occurredOn: parseOptionalIsoDate(row['occurredOn']),
   };
+}
+
+function parseOptionalRouteLabel(value: unknown): string | undefined {
+  const t = value != null ? String(value).trim() : '';
+  if (!t || t === '—') {
+    return undefined;
+  }
+  return t;
 }
 
 function parseOptionalIsoDate(value: unknown): string | undefined {
@@ -326,6 +345,24 @@ function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
   };
 }
 
+function mapApiTripDocuments(raw: unknown): TripStoredDocument[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const id = Number(row['id']);
+      const fileName = String(row['fileName'] ?? '').trim();
+      const documentKind = String(row['documentKind'] ?? '').trim();
+      if (!Number.isFinite(id) || id <= 0 || !fileName || !documentKind) {
+        return null;
+      }
+      return { id, fileName, documentKind };
+    })
+    .filter((doc): doc is TripStoredDocument => doc != null);
+}
+
 export function mapApiTrip(row: Record<string, unknown>): Trip {
   const trip = row as unknown as Trip;
   const rawEquipmentIds = row['equipmentIds'];
@@ -367,6 +404,7 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
       : trip.equipmentIds,
     incidents,
     hasIncident: (incidents ?? []).some((inc) => inc.isIncident === true),
+    tripDocuments: mapApiTripDocuments(row['tripDocuments']),
   };
   // Drop legacy API keys if still present on the wire.
   const ghost = mapped as Trip & Record<string, unknown>;

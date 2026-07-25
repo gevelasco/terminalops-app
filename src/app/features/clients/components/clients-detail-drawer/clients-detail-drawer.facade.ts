@@ -14,6 +14,7 @@ import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
 import { ClientsBalanceContextService } from '@features/clients/services/clients-balance-context.service';
+import { filesToClientDocuments } from '@features/clients/utils/client-attached-documents';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
@@ -39,6 +40,7 @@ import {
 } from '@shared/catalogs/trip-client-payment-options';
 import type {
   Client,
+  ClientAttachedDocument,
   ClientContactPerson,
 } from '@shared/models/client.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
@@ -111,6 +113,14 @@ export class ClientsDetailDrawerFacade {
   readonly billCfdi = signal('');
   readonly billEmail = signal('');
   readonly billPhone = signal('');
+  readonly editDocuments = signal<ClientAttachedDocument[]>([]);
+
+  readonly fiscalDocuments = computed(() =>
+    (this.client().documents ?? []).filter((d) => d.slot === 'fiscal'),
+  );
+  readonly editFiscalDocuments = computed(() =>
+    this.editDocuments().filter((d) => d.slot === 'fiscal'),
+  );
 
   readonly savedDeliveryPostalCode = signal('');
   readonly deliveryCp = signal('');
@@ -615,6 +625,27 @@ export class ClientsDetailDrawerFacade {
     this.persistClient(updated);
   }
 
+  onEditDocumentsSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const list = input.files ? Array.from(input.files) : [];
+    if (!list.length) {
+      return;
+    }
+    this.editDocuments.update((prev) => [
+      ...prev,
+      ...filesToClientDocuments(list, 'fiscal'),
+    ]);
+    input.value = '';
+  }
+
+  removeEditDocument(id: string): void {
+    this.editDocuments.update((prev) => prev.filter((d) => d.id !== id));
+  }
+
+  displayIsoDate(ymd: string | undefined): string {
+    return this.formatYmdEs(ymd);
+  }
+
   saveFiscal(): void {
     const base = this.client();
     const updated: Client = {
@@ -627,6 +658,7 @@ export class ClientsDetailDrawerFacade {
         billingEmail: this.billEmail().trim() || undefined,
         billingPhone: this.billPhone().trim() || undefined,
       },
+      documents: [...this.editDocuments()],
     };
     this.persistClient(updated);
   }
@@ -754,6 +786,7 @@ export class ClientsDetailDrawerFacade {
     this.billCfdi.set(b.cfdiUse ?? '');
     this.billEmail.set(b.billingEmail ?? '');
     this.billPhone.set(b.billingPhone ?? '');
+    this.editDocuments.set([...(c.documents ?? [])]);
     const d = c.delivery;
     this.savedDeliveryPostalCode.set(d?.postalCode?.trim() ?? '');
     this.deliveryCp.set(d?.postalCode ?? '');

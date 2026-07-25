@@ -152,29 +152,30 @@
       />
     }
 
-    <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
-    <p class="fleet-unit-sec__docs-hint">
-      Factura de compra, título de propiedad, NOM, endosos u otros (PDF o
-      imagen).
-    </p>
-    <div class="fleet-unit-upload">
-      <input
-        #fileOwn
-        type="file"
-        class="fleet-unit-upload__input"
-        tabindex="-1"
-        multiple
-        accept="image/*,.pdf,application/pdf"
-        (change)="onFiles($event, 'ownership')"
-      />
-      <button
-        type="button"
-        class="fleet-unit-upload__btn"
-        (click)="fileOwn.click()"
-      >
-        Elegir archivos
-      </button>
-    </div>
+    <div class="fleet-unit-docs">
+      <div class="fleet-unit-docs__head">
+        <h4 class="fleet-unit-sec__subtitle">Documentos de propiedad y legal</h4>
+        <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+      </div>
+      <div class="fleet-unit-upload">
+        <input
+          #fileOwn
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="onFiles($event, 'ownership')"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="fileOwn.click()"
+        >
+          <to-icon name="upload" [size]="14" />
+          Elegir archivos
+        </button>
+      </div>
     @if (filesOwnership().length > 0) {
       <ul class="fleet-unit-files">
         @for (f of filesOwnership(); track trackFileEntry($index, f)) {
@@ -183,14 +184,16 @@
             <button
               type="button"
               class="fleet-unit-files__rm"
+              aria-label="Quitar archivo"
               (click)="removeFile('ownership', $index)"
             >
-              Quitar
+              <to-icon name="delete" [size]="16" />
             </button>
           </li>
         }
       </ul>
     }
+    </div>
   </section>
 
   <section
@@ -274,26 +277,30 @@
       [(value)]="lastMaintenanceNotes"
     />
     @if (showMaintenanceDocs()) {
-      <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
-      <p class="fleet-unit-sec__docs-hint">PDF o imagen del taller o factura.</p>
-      <div class="fleet-unit-upload">
-        <input
-          #fileMaint
-          type="file"
-          class="fleet-unit-upload__input"
-          tabindex="-1"
-          multiple
-          accept="image/*,.pdf,application/pdf"
-          (change)="onFiles($event, 'maint')"
-        />
-        <button
-          type="button"
-          class="fleet-unit-upload__btn"
-          (click)="fileMaint.click()"
-        >
-          Elegir archivos
-        </button>
-      </div>
+      <div class="fleet-unit-docs">
+        <div class="fleet-unit-docs__head">
+          <h4 class="fleet-unit-sec__subtitle">Comprobante de mantenimiento</h4>
+          <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+        </div>
+        <div class="fleet-unit-upload">
+          <input
+            #fileMaint
+            type="file"
+            class="fleet-unit-upload__input"
+            tabindex="-1"
+            multiple
+            accept="image/*,.pdf,application/pdf"
+            (change)="onFiles($event, 'maint')"
+          />
+          <button
+            type="button"
+            class="fleet-unit-upload__btn"
+            (click)="fileMaint.click()"
+          >
+            <to-icon name="upload" [size]="14" />
+            Elegir archivos
+          </button>
+        </div>
       @if (filesMaintenance().length > 0) {
         <ul class="fleet-unit-files">
           @for (f of filesMaintenance(); track trackFileEntry($index, f)) {
@@ -302,14 +309,16 @@
               <button
                 type="button"
                 class="fleet-unit-files__rm"
+                aria-label="Quitar archivo"
                 (click)="removeFile('maint', $index)"
               >
-                Quitar
+                <to-icon name="delete" [size]="16" />
               </button>
             </li>
           }
         </ul>
       }
+      </div>
     }
   </section>
 
@@ -439,26 +448,30 @@
     }
 
     @if (showVerificationDocs()) {
-      <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
-      <p class="fleet-unit-sec__docs-hint">Tarjetas o constancias escaneadas.</p>
-      <div class="fleet-unit-upload">
-        <input
-          #fileVerif
-          type="file"
-          class="fleet-unit-upload__input"
-          tabindex="-1"
-          multiple
-          accept="image/*,.pdf,application/pdf"
-          (change)="onFiles($event, 'verif')"
-        />
-        <button
-          type="button"
-          class="fleet-unit-upload__btn"
-          (click)="fileVerif.click()"
-        >
-          Elegir archivos
-        </button>
-      </div>
+      <div class="fleet-unit-docs">
+        <div class="fleet-unit-docs__head">
+          <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
+          <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+        </div>
+        <div class="fleet-unit-upload">
+          <input
+            #fileVerif
+            type="file"
+            class="fleet-unit-upload__input"
+            tabindex="-1"
+            multiple
+            accept="image/*,.pdf,application/pdf"
+            (change)="onFiles($event, 'verif')"
+          />
+          <button
+            type="button"
+            class="fleet-unit-upload__btn"
+            (click)="fileVerif.click()"
+          >
+            <to-icon name="upload" [size]="14" />
+            Elegir archivos
+          </button>
+        </div>
       @if (filesVerification().length > 0) {
         <ul class="fleet-unit-files">
           @for (f of filesVerification(); track trackFileEntry($index, f)) {
@@ -467,14 +480,16 @@
               <button
                 type="button"
                 class="fleet-unit-files__rm"
+                aria-label="Quitar archivo"
                 (click)="removeFile('verif', $index)"
               >
-                Quitar
+                <to-icon name="delete" [size]="16" />
               </button>
             </li>
           }
         </ul>
       }
+      </div>
     }
   </section>
 
@@ -489,25 +504,25 @@
         placeholder="Ej. GNP, AXA, Qualitas…"
         [(value)]="insuranceCarrierName"
       />
-    </div>
-    <div class="fleet-unit-sec__row-flex">
       <to-input
         label="Número de póliza"
         placeholder="Póliza"
         [(value)]="insurancePolicyNumber"
       />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
       <to-input
         label="Fecha de contratación"
         type="date"
         [(value)]="insuranceContractDate"
       />
-    </div>
-    <div class="fleet-unit-sec__row-flex">
       <to-select
         label="Periodicidad"
         [options]="cadenceOptions"
         [(value)]="insurancePaymentCadence"
       />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
       <to-input
         label="Costo"
         type="text"
@@ -515,22 +530,12 @@
         placeholder="Ej. 12,500"
         [(value)]="insuranceCost"
       />
-    </div>
-    <div class="fleet-unit-sec__row-flex">
       <to-select
         label="Forma de pago"
         [options]="insurancePaymentMethodOptions"
         [(value)]="insurancePaymentMethod"
       />
     </div>
-    <label class="fleet-unit-detail__checkbox-row">
-      <input
-        type="checkbox"
-        [checked]="insuranceInvoiceRequired()"
-        (change)="insuranceInvoiceRequired.set($any($event.target).checked)"
-      />
-      Factura fiscal requerida
-    </label>
     @if (insuranceRenewHint(); as hint) {
       @if (hint.status === "soon") {
         <p class="fleet-unit-callout fleet-unit-callout--warn">
@@ -543,26 +548,30 @@
       }
     }
 
-    <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
-    <p class="fleet-unit-sec__docs-hint">PDF de la póliza o recibos de pago.</p>
-    <div class="fleet-unit-upload">
-      <input
-        #filePol
-        type="file"
-        class="fleet-unit-upload__input"
-        tabindex="-1"
-        multiple
-        accept="image/*,.pdf,application/pdf"
-        (change)="onFiles($event, 'policy')"
-      />
-      <button
-        type="button"
-        class="fleet-unit-upload__btn"
-        (click)="filePol.click()"
-      >
-        Elegir archivos
-      </button>
-    </div>
+    <div class="fleet-unit-docs">
+      <div class="fleet-unit-docs__head">
+        <h4 class="fleet-unit-sec__subtitle">Póliza y comprobantes</h4>
+        <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+      </div>
+      <div class="fleet-unit-upload">
+        <input
+          #filePol
+          type="file"
+          class="fleet-unit-upload__input"
+          tabindex="-1"
+          multiple
+          accept="image/*,.pdf,application/pdf"
+          (change)="onFiles($event, 'policy')"
+        />
+        <button
+          type="button"
+          class="fleet-unit-upload__btn"
+          (click)="filePol.click()"
+        >
+          <to-icon name="upload" [size]="14" />
+          Elegir archivos
+        </button>
+      </div>
     @if (filesPolicy().length > 0) {
       <ul class="fleet-unit-files">
         @for (f of filesPolicy(); track trackFileEntry($index, f)) {
@@ -571,14 +580,16 @@
             <button
               type="button"
               class="fleet-unit-files__rm"
+              aria-label="Quitar archivo"
               (click)="removeFile('policy', $index)"
             >
-              Quitar
+              <to-icon name="delete" [size]="16" />
             </button>
           </li>
         }
       </ul>
     }
+    </div>
   </section>
 
   <section
@@ -586,51 +597,45 @@
     aria-labelledby="fleet-sec-gps"
   >
     <h3 id="fleet-sec-gps" class="fleet-unit-sec__title">GPS y rastreo</h3>
-    <to-input
-      label="Marca o proveedor"
-      placeholder="Ej. SkyBitz, Motive, CalAmp…"
-      [(value)]="gpsProviderBrand"
-    />
-      <div class="fleet-unit-sec__row-flex">
-        <to-input
-          label="Fecha de contratación"
-          type="date"
-          [(value)]="gpsContractDate"
-        />
-        <to-input
-          label="Portal (ubicación en vivo)"
-          type="url"
-          placeholder="https://proveedor.com/mi-cuenta"
-          [(value)]="gpsTrackingPortalUrl"
-        />
-      </div>
-      <div class="fleet-unit-sec__row-flex">
-        <to-select
-          label="Periodicidad"
-          [options]="cadenceOptions"
-          [(value)]="gpsPaymentCadence"
-        />
-        <to-input
-          label="Precio o cuota"
-          type="text"
-          [groupThousands]="true"
-          placeholder="Ej. 450"
-          [(value)]="gpsPrice"
-        />
-        <to-select
-          label="Forma de pago"
-          [options]="insurancePaymentMethodOptions"
-          [(value)]="gpsPaymentMethod"
-        />
-      </div>
-      <label class="fleet-unit-detail__checkbox-row">
-        <input
-          type="checkbox"
-          [checked]="gpsInvoiceRequired()"
-          (change)="gpsInvoiceRequired.set($any($event.target).checked)"
-        />
-        Factura fiscal requerida
-      </label>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Marca o proveedor"
+        placeholder="Ej. SkyBitz, Motive, CalAmp…"
+        [(value)]="gpsProviderBrand"
+      />
+      <to-input
+        label="Portal (ubicación en vivo)"
+        type="url"
+        placeholder="https://proveedor.com/mi-cuenta"
+        [(value)]="gpsTrackingPortalUrl"
+      />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Fecha de contratación"
+        type="date"
+        [(value)]="gpsContractDate"
+      />
+      <to-select
+        label="Periodicidad"
+        [options]="cadenceOptions"
+        [(value)]="gpsPaymentCadence"
+      />
+    </div>
+    <div class="fleet-unit-sec__row-flex">
+      <to-input
+        label="Precio o cuota"
+        type="text"
+        [groupThousands]="true"
+        placeholder="Ej. 450"
+        [(value)]="gpsPrice"
+      />
+      <to-select
+        label="Forma de pago"
+        [options]="insurancePaymentMethodOptions"
+        [(value)]="gpsPaymentMethod"
+      />
+    </div>
       @if (gpsRenewHint(); as hint) {
         @if (hint.status === "soon") {
           <p class="fleet-unit-callout fleet-unit-callout--warn">

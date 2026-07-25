@@ -1,9 +1,19 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, expand, map, Observable, reduce } from 'rxjs';
-import type { Expense } from '@shared/models/logistics.models';
+import type { ExpenseDocumentApiPayload } from '@features/expenses/utils/expense-attached-documents';
+import type {
+  Expense,
+  ExpenseAttachedDocument,
+  ExpenseDocumentSlot,
+} from '@shared/models/logistics.models';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url';
+
+/** Payload de alta/edición: documentos van en forma API (id numérico opcional). */
+export type ExpenseWritePayload = Omit<Expense, 'id' | 'documents'> & {
+  documents?: ExpenseDocumentApiPayload[];
+};
 
 export interface ExpensesListParams {
   from?: string;
@@ -110,12 +120,27 @@ function normalizeExpensePublicId(value: unknown): string {
   return String(value).trim();
 }
 
+function mapApiExpenseDocuments(
+  docs: Expense['documents'] | undefined,
+): ExpenseAttachedDocument[] | undefined {
+  if (!Array.isArray(docs)) {
+    return undefined;
+  }
+  return docs.map((doc) => ({
+    id: normalizeExpensePublicId(doc.id),
+    fileName: String(doc.fileName ?? '').trim(),
+    slot: (doc.slot === 'receipt' ? 'receipt' : 'receipt') as ExpenseDocumentSlot,
+    ...(doc.addedAt?.trim() ? { addedAt: doc.addedAt.trim() } : {}),
+  }));
+}
+
 function mapApiExpenseRow(row: Expense): Expense {
   const amountRaw = row.amount as unknown;
   const amount =
     typeof amountRaw === 'number'
       ? amountRaw
       : Number(String(amountRaw ?? '').replace(/,/g, '')) || 0;
+  const documents = mapApiExpenseDocuments(row.documents);
 
   return {
     ...row,
@@ -144,6 +169,7 @@ function mapApiExpenseRow(row: Expense): Expense {
         ? row.relatedOperatorLabel.trim()
         : undefined,
     amount,
+    ...(documents ? { documents } : {}),
     ...(row.relatedUnitId != null && row.relatedUnitId !== ''
       ? { relatedUnitId: normalizeExpensePublicId(row.relatedUnitId) }
       : {}),
@@ -312,7 +338,7 @@ export class ExpensesService {
     );
   }
 
-  postExpense(payload: Omit<Expense, 'id'>): Observable<Expense> {
+  postExpense(payload: ExpenseWritePayload): Observable<Expense> {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http
       .post<Expense>(companyResourceUrl(companyId, 'expenses'), {
@@ -322,7 +348,7 @@ export class ExpensesService {
       .pipe(map((e) => mapApiExpenseRow(e)));
   }
 
-  patchExpense(id: string, payload: Partial<Omit<Expense, 'id'>>): Observable<Expense> {
+  patchExpense(id: string, payload: Partial<ExpenseWritePayload>): Observable<Expense> {
     const expenseId = id.trim();
     return this.http
       .patch<Expense>(resourceByIdUrl('expenses', expenseId), {

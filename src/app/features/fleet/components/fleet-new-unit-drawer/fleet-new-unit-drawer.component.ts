@@ -194,13 +194,11 @@ export class FleetNewUnitDrawerComponent {
   readonly insurancePolicyNumber = model('');
   readonly insurancePaymentCadence = model('annual');
   readonly insurancePaymentMethod = model('transfer');
-  readonly insuranceInvoiceRequired = model(false);
   readonly insuranceContractDate = model('');
   readonly insuranceCost = model('');
   readonly gpsProviderBrand = model('');
   readonly gpsPaymentCadence = model('annual');
   readonly gpsPaymentMethod = model('transfer');
-  readonly gpsInvoiceRequired = model(false);
   readonly gpsContractDate = model('');
   readonly gpsPrice = model('');
   readonly gpsTrackingPortalUrl = model('');
@@ -629,7 +627,6 @@ export class FleetNewUnitDrawerComponent {
       insurancePolicyNumber: this.insurancePolicyNumber().trim() || undefined,
       insurancePaymentCadence: cadenceLabel,
       insurancePaymentMethod: this.insurancePaymentMethod().trim() || undefined,
-      insuranceInvoiceRequired: this.insuranceInvoiceRequired(),
       insuranceContractDate: this.insuranceContractDate().trim() || undefined,
       insuranceCost: insCost === undefined ? undefined : insCost,
       ...(gpsHasContent
@@ -638,7 +635,6 @@ export class FleetNewUnitDrawerComponent {
             gpsProviderBrand: this.gpsProviderBrand().trim() || undefined,
             gpsPaymentCadence: gpsCadenceLabel,
             gpsPaymentMethod: this.gpsPaymentMethod().trim() || undefined,
-            gpsInvoiceRequired: this.gpsInvoiceRequired(),
             gpsContractDate: this.gpsContractDate().trim() || undefined,
             gpsPrice: gpsPriceParsed === undefined ? undefined : gpsPriceParsed,
             gpsTrackingPortalUrl: this.gpsTrackingPortalUrl().trim() || undefined,

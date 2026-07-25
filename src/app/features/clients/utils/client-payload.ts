@@ -1,3 +1,4 @@
+import { toClientDocumentsApiPayload } from '@features/clients/utils/client-attached-documents';
 import type {
   Client,
   ClientContactPerson,
@@ -95,6 +96,7 @@ export function buildClientApiWriteBody(
     maneuverCount: _maneuverCount,
     commercialHealth: _commercialHealth,
     delivery,
+    documents,
     ...rest
   } = input as Client;
   const paymentBody = payment
@@ -123,5 +125,8 @@ export function buildClientApiWriteBody(
     ...rest,
     ...(paymentBody ? { payment: paymentBody } : {}),
     ...(deliveryBody ? { delivery: deliveryBody } : {}),
+    ...(documents !== undefined
+      ? { documents: toClientDocumentsApiPayload(documents) }
+      : {}),
   };
 }
