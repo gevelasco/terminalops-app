@@ -1,0 +1,105 @@
+/**
+ * Empty de feature (tarjeta grande) + hint de tabla (sencillo).
+ * Importar en el SCSS del componente: `@use '…/feature-empty-panel';`
+ */
+
+.to-feature-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-height: min(22rem, 55dvh);
+  margin: 0.75rem 0 0;
+  padding: 2.25rem 1.5rem;
+  text-align: center;
+  border-radius: var(--to-radius-md);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      color-mix(in srgb, var(--to-color-primary) 10%, transparent),
+      transparent 55%
+    ),
+    var(--to-color-surface);
+  box-sizing: border-box;
+}
+
+.to-feature-empty__visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 0.35rem;
+  color: var(--to-color-primary);
+}
+
+.to-feature-empty__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--to-color-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--to-color-primary) 22%, transparent);
+  animation: to-feature-empty-pulse 2.4s ease-in-out infinite;
+}
+
+.to-feature-empty__visual to-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.to-feature-empty__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--to-color-text);
+}
+
+.to-feature-empty__copy {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
+}
+
+.to-feature-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+/** Empty sencillo bajo tablas / listados filtrados. */
+.to-feature-empty-hint {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--to-radius-md);
+  font-size: 0.8125rem;
+  color: var(--to-color-text-muted);
+  background: var(--to-color-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+@keyframes to-feature-empty-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .to-feature-empty__ring {
+    animation: none;
+  }
+}

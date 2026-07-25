@@ -17,6 +17,10 @@ export interface AuthUser {
   moduleGrants?: import('@shared/models/app-modules.models').StaffModuleGrant[];
   companyId: string;
   companyName?: string;
+  /** Plan de la empresa desde companies.subscription_plan (login / JWT). */
+  subscriptionPlan?: string | null;
+  /** Lema de la empresa desde companies.tagline (login). */
+  companyTagline?: string | null;
   theme: ThemeScheme;
   memberSince?: string;
   department?: string;
@@ -132,4 +136,6 @@ export interface SessionData {
   operationalCenterSettlementConsId?: string;
   operationalCenterLatitude?: number;
   operationalCenterLongitude?: number;
+  /** Plan comercial de la empresa (`basic` | `standard` | `pro` o alias legacy). */
+  subscriptionPlanId?: string;
 }

@@ -66,38 +66,83 @@
           @if (isNavigable(item)) {
             <button
               type="button"
-              class="notifications-drawer__item-btn"
+              class="notifications-drawer__row"
               (click)="onItemActivate(item)"
             >
-              <div class="notifications-drawer__icon-wrap" aria-hidden="true">
-                <to-icon [name]="iconName(item.icon)" [size]="20" />
+              <span
+                class="notifications-drawer__rail"
+                [class.notifications-drawer__rail--danger]="item.tone === 'danger'"
+                [class.notifications-drawer__rail--warning]="item.tone === 'warning'"
+                aria-hidden="true"
+              ></span>
+              <div
+                class="notifications-drawer__icon-wrap"
+                [class.notifications-drawer__icon-wrap--danger]="item.tone === 'danger'"
+                [class.notifications-drawer__icon-wrap--warning]="item.tone === 'warning'"
+                aria-hidden="true"
+              >
+                <to-icon [name]="iconName(item.icon)" [size]="18" />
               </div>
               <div class="notifications-drawer__content">
-                <p class="notifications-drawer__title">
-                  {{ item.title }} — {{ item.subjectLabel }}
-                </p>
-                <div class="notifications-drawer__footer">
+                <p class="notifications-drawer__title">{{ item.title }}</p>
+                @if (item.subjectLabel.trim()) {
+                  <p class="notifications-drawer__subject">{{ item.subjectLabel }}</p>
+                }
+                <div class="notifications-drawer__meta">
                   <time [attr.datetime]="item.occurredAt">{{
                     formatDate(item.occurredAt)
                   }}</time>
-                  <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                  @if (item.actorLabel.trim()) {
+                    <span class="notifications-drawer__meta-sep" aria-hidden="true"
+                      >·</span
+                    >
+                    <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                  }
                 </div>
               </div>
+              <span class="notifications-drawer__chevron" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 6l6 6-6 6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
             </button>
           } @else {
-            <div class="notifications-drawer__item-static">
-              <div class="notifications-drawer__icon-wrap" aria-hidden="true">
-                <to-icon [name]="iconName(item.icon)" [size]="20" />
+            <div class="notifications-drawer__row notifications-drawer__row--static">
+              <span
+                class="notifications-drawer__rail"
+                [class.notifications-drawer__rail--danger]="item.tone === 'danger'"
+                [class.notifications-drawer__rail--warning]="item.tone === 'warning'"
+                aria-hidden="true"
+              ></span>
+              <div
+                class="notifications-drawer__icon-wrap"
+                [class.notifications-drawer__icon-wrap--danger]="item.tone === 'danger'"
+                [class.notifications-drawer__icon-wrap--warning]="item.tone === 'warning'"
+                aria-hidden="true"
+              >
+                <to-icon [name]="iconName(item.icon)" [size]="18" />
               </div>
               <div class="notifications-drawer__content">
-                <p class="notifications-drawer__title">
-                  {{ item.title }} — {{ item.subjectLabel }}
-                </p>
-                <div class="notifications-drawer__footer">
+                <p class="notifications-drawer__title">{{ item.title }}</p>
+                @if (item.subjectLabel.trim()) {
+                  <p class="notifications-drawer__subject">{{ item.subjectLabel }}</p>
+                }
+                <div class="notifications-drawer__meta">
                   <time [attr.datetime]="item.occurredAt">{{
                     formatDate(item.occurredAt)
                   }}</time>
-                  <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                  @if (item.actorLabel.trim()) {
+                    <span class="notifications-drawer__meta-sep" aria-hidden="true"
+                      >·</span
+                    >
+                    <span class="notifications-drawer__actor">{{ item.actorLabel }}</span>
+                  }
                 </div>
               </div>
             </div>

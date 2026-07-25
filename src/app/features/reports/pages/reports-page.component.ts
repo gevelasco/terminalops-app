@@ -69,6 +69,9 @@ export class ReportsPageComponent {
 
   constructor() {
     effect(() => {
+      if (!this.session.isLoggedIn()) {
+        return;
+      }
       const allowed = new Set(this.tabs().map((t) => t.id));
       if (!allowed.has(this.tab())) {
         this.tab.set('maniobras');

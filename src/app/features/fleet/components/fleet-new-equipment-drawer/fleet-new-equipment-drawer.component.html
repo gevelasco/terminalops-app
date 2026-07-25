@@ -125,7 +125,7 @@
     </h3>
     <to-select
       label="Situación del activo *"
-      [options]="tenureOptions"
+      [options]="tenureOptions()"
       [(value)]="trailerTenureMode"
     />
     @if (trailerTenureMode() === "owned") {

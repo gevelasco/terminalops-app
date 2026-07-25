@@ -136,6 +136,10 @@
   <div class="expenses-table-block">
     @if (initialLoading()) {
       <to-skeleton [lines]="5" />
+    } @else if (showListEmptyNoExpenses()) {
+      <p class="to-feature-empty-hint" role="status">
+        No hay gastos registrados aún.
+      </p>
     } @else {
       <p class="expenses-page__hint">
         Gastos del periodo seleccionado. Clic en una fila para ver detalle o editar.
@@ -161,12 +165,8 @@
       </div>
 
       @if (showEmptyHint()) {
-        <p class="expenses-empty-hint">
-          @if (searchQuery().trim() || !periodIsCurrentMonth()) {
-            Ningún gasto coincide con los filtros actuales.
-          } @else {
-            No hay gastos registrados en este periodo.
-          }
+        <p class="to-feature-empty-hint" role="status">
+          Ningún gasto coincide con los filtros actuales.
         </p>
       }
     }

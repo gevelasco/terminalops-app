@@ -1,8 +1,16 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthFacade } from '@core/services/auth.facade';
+import {
+  SUBSCRIPTION_PLANS,
+  formatPlanPriceMxn,
+  type SubscriptionPlan,
+  type SubscriptionPlanId,
+} from '@shared/billing/subscription-plans';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+
+type RegisterView = 'plans' | 'checkout';
 
 @Component({
   selector: 'app-register-page',
@@ -15,6 +23,11 @@ export class RegisterPageComponent {
   private readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
 
+  readonly plans = SUBSCRIPTION_PLANS;
+  readonly formatPrice = formatPlanPriceMxn;
+
+  readonly view = signal<RegisterView>('plans');
+  readonly selectedPlanId = signal<SubscriptionPlanId | null>(null);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
   readonly invitationCode = signal('');
@@ -23,8 +36,30 @@ export class RegisterPageComponent {
 
   readonly currentYear = new Date().getFullYear();
 
+  readonly selectedPlan = computed(() => {
+    const id = this.selectedPlanId();
+    if (!id) {
+      return null;
+    }
+    return this.plans.find((p) => p.id === id) ?? null;
+  });
+
+  readonly showPlans = computed(() => this.view() === 'plans');
+  readonly showCheckout = computed(() => this.view() === 'checkout' && !!this.selectedPlan());
+  readonly showRegisterForm = computed(() => {
+    const plan = this.selectedPlan();
+    return this.showCheckout() && !!plan?.signupEnabled;
+  });
+
   readonly canSubmit = computed(() => {
-    return this.invitationCode().trim().length > 0 && !this.submitting();
+    const plan = this.selectedPlan();
+    if (!plan?.signupEnabled || this.view() !== 'checkout') {
+      return false;
+    }
+    if (plan.requiresInvitation && this.invitationCode().trim().length === 0) {
+      return false;
+    }
+    return !this.submitting();
   });
 
   readonly passwordMismatch = computed(() => {
@@ -32,6 +67,18 @@ export class RegisterPageComponent {
     const confirm = this.confirmPassword();
     return confirm.length > 0 && pwd !== confirm;
   });
+
+  selectPlan(plan: SubscriptionPlan): void {
+    this.selectedPlanId.set(plan.id);
+    this.error.set(null);
+    this.view.set('checkout');
+  }
+
+  backToPlans(): void {
+    this.view.set('plans');
+    this.selectedPlanId.set(null);
+    this.error.set(null);
+  }
 
   onSubmit(event: SubmitEvent): void {
     event.preventDefault();
@@ -45,13 +92,19 @@ export class RegisterPageComponent {
   tryRegister(form: HTMLFormElement): void {
     this.error.set(null);
 
+    const plan = this.selectedPlan();
+    if (!plan?.signupEnabled) {
+      this.error.set('Este plan aún no está disponible para registro.');
+      return;
+    }
+
     const fd = new FormData(form);
     const invitationCode = String(fd.get('invitationCode') ?? '').trim();
     const password = String(fd.get('password') ?? '');
     const confirmPassword = String(fd.get('confirmPassword') ?? '');
 
-    if (!invitationCode) {
-      this.error.set('Debes ingresar un código de invitación para registrarte.');
+    if (plan.requiresInvitation && !invitationCode) {
+      this.error.set('Debes ingresar un código de invitación para el plan Básico.');
       return;
     }
 

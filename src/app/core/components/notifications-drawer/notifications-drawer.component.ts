@@ -37,16 +37,9 @@ export class NotificationsDrawerComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
 
   readonly dismiss = output<void>();
-  readonly dayTotalChange = output<number>();
 
   ngOnInit(): void {
-    this.facade.load({
-      onLoaded: (response) => {
-        if (response.period === 'day') {
-          this.dayTotalChange.emit(response.total);
-        }
-      },
-    });
+    this.facade.load();
   }
 
   ngOnDestroy(): void {

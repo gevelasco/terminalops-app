@@ -17,6 +17,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import {
   TripsService as TripsApiService,
@@ -118,6 +119,7 @@ export class TripsPageComponent implements OnInit {
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly opResolver = inject(OperationConfigurationResolverService);
   private readonly searchField = viewChild<ToInputComponent>('searchField');
   private readonly searchKeepFocus = signal(false);
@@ -125,6 +127,8 @@ export class TripsPageComponent implements OnInit {
 
   private mapRefreshTimer: ReturnType<typeof setInterval> | null = null;
   private listWasLoading = false;
+  /** Solo la primera hidratación decide Ruta vs Lista por defecto. */
+  private routeDefaultApplied = false;
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -146,18 +150,50 @@ export class TripsPageComponent implements OnInit {
       .subscribe((q) => this.searchQuery.set(q));
 
     effect(() => {
+      const hydrated = this.tripsFeature.tripsHydrated();
+      const loading = this.tripsFeature.loading();
+      if (!hydrated || loading || this.routeDefaultApplied) {
+        return;
+      }
+      this.routeDefaultApplied = true;
+      const empty = this.tripsFeature.trips().length === 0;
+      if (
+        empty &&
+        this.viewMode() === 'route' &&
+        this.tripsFeature.selectedTripId() == null
+      ) {
+        untracked(() => this.viewMode.set('list'));
+      }
+    });
+
+    effect(() => {
       const mode = this.viewMode();
       const overlayOpen =
         this.newTripOpen() || this.tripsFeature.selectedTripId() != null;
-      if (mode === 'route' && !overlayOpen) {
+      const hydrated = this.tripsFeature.tripsHydrated();
+      const hasOperationalTrips = this.tripsFeature.trips().length > 0;
+
+      if (mode === 'route' && !overlayOpen && hydrated && hasOperationalTrips) {
         this.tripsMap.resumeAfterOverlay();
         this.startMapRefresh();
         return;
       }
+
       this.stopMapRefresh();
+      if (mode === 'route' && hydrated && !hasOperationalTrips) {
+        this.tripsMap.clearIdle();
+        this.stateFleet.clear();
+      }
       if (mode !== 'route') {
         this.stateFleet.clear();
       }
+    });
+
+    effect(() => {
+      if (this.viewMode() !== 'list') {
+        return;
+      }
+      untracked(() => this.operationConfigs.loadOperationConfigurations());
     });
 
     effect(() => {
@@ -210,6 +246,25 @@ export class TripsPageComponent implements OnInit {
     { id: 'route', label: 'Ruta', icon: 'mapSearch', htmlId: 'maniobra-tab-route' },
     { id: 'list', label: 'Lista', icon: 'list', htmlId: 'maniobra-tab-list' },
   ];
+
+  /** Ruta: skeleton hasta conocer si hay maniobras operativas. */
+  readonly routeViewLoading = computed(
+    () => !this.tripsFeature.tripsHydrated() || this.tripsFeature.loading(),
+  );
+
+  /** Ruta: sin programadas/en curso → no montar mapa (ni /map ni geo). */
+  readonly routeViewEmpty = computed(
+    () =>
+      this.tripsFeature.tripsHydrated() &&
+      !this.tripsFeature.loading() &&
+      this.tripsFeature.trips().length === 0,
+  );
+
+  readonly routeViewShowMap = computed(
+    () =>
+      this.tripsFeature.tripsHydrated() &&
+      this.tripsFeature.trips().length > 0,
+  );
 
   readonly statusFilter = signal<TripsStatusFilter>('all');
 
@@ -294,6 +349,14 @@ export class TripsPageComponent implements OnInit {
       !this.hasListRows(),
   );
 
+  /** Lista sin filtros: no hay ninguna maniobra en la empresa. */
+  readonly showListEmptyNoTrips = computed(
+    () =>
+      this.showEmptyHint() &&
+      !this.searchQuery().trim() &&
+      this.statusFilter() === 'all',
+  );
+
   readonly filterTabs: ReadonlyArray<ToFilterTab<TripsStatusFilter>> = [
     { id: 'all', label: 'Todos', icon: 'grid' },
     { id: 'in_transit', label: tripStatusUiLabel('in_transit'), icon: 'truck' },
@@ -316,7 +379,6 @@ export class TripsPageComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.operationConfigs.loadOperationConfigurations();
     this.tripsFeature.loadTrips();
     this.openTripFromQuery(this.route.snapshot.queryParamMap.get('tripId'));
     this.route.queryParamMap
@@ -351,6 +413,7 @@ export class TripsPageComponent implements OnInit {
       return;
     }
     this.viewMode.set('list');
+    this.operationConfigs.loadOperationConfigurations();
     this.tripsFeature.selectTrip(id);
     void this.router.navigate([], {
       relativeTo: this.route,
@@ -394,10 +457,12 @@ export class TripsPageComponent implements OnInit {
     if (!id) {
       return;
     }
+    this.operationConfigs.loadOperationConfigurations();
     this.tripsFeature.selectTrip(id);
   }
 
   onMapTripSelect(tripId: string): void {
+    this.operationConfigs.loadOperationConfigurations();
     this.tripsFeature.selectTrip(tripId);
   }
 
@@ -424,6 +489,18 @@ export class TripsPageComponent implements OnInit {
 
   onDetailDismiss(): void {
     this.tripsFeature.clearSelection();
+  }
+
+  openNewTrip(): void {
+    const thisMonth = this.planEntitlements.countTripsInCurrentMonth(
+      this.tripsFeature.trips(),
+    );
+    if (!this.planEntitlements.canAddTripThisMonth(thisMonth)) {
+      this.toast.show(this.planEntitlements.tripLimitMessage(), 'warning');
+      return;
+    }
+    this.operationConfigs.loadOperationConfigurations();
+    this.newTripOpen.set(true);
   }
 
   onTripCreated(_trip: Trip): void {

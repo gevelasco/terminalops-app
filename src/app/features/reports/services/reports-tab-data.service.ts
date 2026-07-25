@@ -15,7 +15,8 @@ import { reportsFilterCacheKey } from '@features/reports/utils/reports-filter-ca
 import type { ReportsBalanceData } from '@shared/models/api/api-reports-balance.model';
 import type { ReportsFleetData } from '@shared/models/api/api-reports-fleet.model';
 import type { ReportsManiobrasData } from '@shared/models/api/api-reports-maniobras.model';
-import { catchError, forkJoin, map, Observable, of, shareReplay } from 'rxjs';
+import { catchError, defer, forkJoin, map, Observable, of, shareReplay, throwError } from 'rxjs';
+import { SessionService } from '@core/services/state/session';
 
 export type ReportsBalanceBundle = {
   balance: ReportsBalanceData;
@@ -33,6 +34,7 @@ export class ReportsTabDataService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly reportsApi = inject(ReportsService);
   private readonly expensesApi = inject(ExpensesService);
+  private readonly session = inject(SessionService);
 
   private balanceCache: CachedStream<ReportsBalanceData> | null = null;
   private maniobrasCache: CachedStream<ReportsManiobrasData> | null = null;
@@ -62,29 +64,35 @@ export class ReportsTabDataService {
 
   /** Balance + calendario de pagos (un solo request al calendar endpoint). */
   getBalanceBundle(filter: ReportsFilter): Observable<ReportsBalanceBundle> {
-    const range = dashboardUpcomingPaymentsRange();
+    return defer(() => {
+      if (!this.session.companyId()?.trim()) {
+        return throwError(() => new Error('No hay empresa en sesión'));
+      }
 
-    const fromDate = new Date(filter.fromYear, filter.fromMonth - 1 - 12, 1, 12, 0, 0, 0);
-    const lookbackFrom = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const range = dashboardUpcomingPaymentsRange();
 
-    const lastDay = new Date(filter.toYear, filter.toMonth, 0).getDate();
-    const fullMonthTo = `${filter.toYear}-${String(filter.toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const fromDate = new Date(filter.fromYear, filter.fromMonth - 1 - 12, 1, 12, 0, 0, 0);
+      const lookbackFrom = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const from = lookbackFrom < range.fetchFrom ? lookbackFrom : range.fetchFrom;
-    const to = fullMonthTo > range.to ? fullMonthTo : range.to;
+      const lastDay = new Date(filter.toYear, filter.toMonth, 0).getDate();
+      const fullMonthTo = `${filter.toYear}-${String(filter.toMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    return forkJoin({
-      balance: this.getBalance(filter),
-      calendarItems: this.expensesApi
-        .getAllExpensesCalendarItems({ from, to })
-        .pipe(catchError(() => of([] as ExpenseCalendarItem[]))),
-    }).pipe(
-      map(({ balance, calendarItems }) => ({
-        balance,
-        calendarItems,
-        upcomingPayments: buildDashboardUpcomingPayments(calendarItems, range),
-      })),
-    );
+      const from = lookbackFrom < range.fetchFrom ? lookbackFrom : range.fetchFrom;
+      const to = fullMonthTo > range.to ? fullMonthTo : range.to;
+
+      return forkJoin({
+        balance: this.getBalance(filter),
+        calendarItems: this.expensesApi
+          .getAllExpensesCalendarItems({ from, to })
+          .pipe(catchError(() => of([] as ExpenseCalendarItem[]))),
+      }).pipe(
+        map(({ balance, calendarItems }) => ({
+          balance,
+          calendarItems,
+          upcomingPayments: buildDashboardUpcomingPayments(calendarItems, range),
+        })),
+      );
+    });
   }
 
   clearCache(): void {
@@ -104,8 +112,13 @@ export class ReportsTabDataService {
     if (current?.filterKey === filterKey) {
       return current.stream;
     }
-    // refCount: true suelta el stream cuando no hay suscriptores (evita cache huérfana).
-    const stream = factory().pipe(shareReplay({ bufferSize: 1, refCount: true }));
+    // defer: convierte throws síncronos (p. ej. sin companyId al logout) en error RxJS.
+    const stream = defer(() => {
+      if (!this.session.companyId()?.trim()) {
+        return throwError(() => new Error('No hay empresa en sesión'));
+      }
+      return factory();
+    }).pipe(shareReplay({ bufferSize: 1, refCount: true }));
     const entry = { filterKey, stream };
     setCache(entry);
     return stream;

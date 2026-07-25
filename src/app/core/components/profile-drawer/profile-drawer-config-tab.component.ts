@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  computed,
   inject,
   model,
   signal,
@@ -17,6 +18,7 @@ import {
 import { SessionService } from '@core/services/state/session';
 import { formatOperationalSettingChangedAt } from '@core/services/state/user-preferences';
 import { syncCompanySettingsFromProfile } from '@core/components/profile-drawer/profile-drawer-company-settings.util';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import {
   companyMaintenancePolicyModeFromSession,
   MAINTENANCE_DATE_PERIOD_OPTIONS,
@@ -63,6 +65,7 @@ export class ProfileDrawerConfigTabComponent {
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
   private readonly companies = inject(CompaniesService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
 
   readonly maintDatePeriodOptions = [...MAINTENANCE_DATE_PERIOD_OPTIONS];
   readonly autoExpensePaymentMethodOptions = TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS;
@@ -73,6 +76,19 @@ export class ProfileDrawerConfigTabComponent {
       { id: 'date', label: 'Por fechas' },
     ];
   readonly saving = signal(false);
+
+  readonly canUseDieselAutomatic = this.planEntitlements.canUseDieselAutomatic;
+  readonly canUseMaintenancePolicy = this.planEntitlements.canUseMaintenancePolicy;
+  readonly planName = this.planEntitlements.planName;
+
+  readonly dieselPlanHint = computed(() =>
+    this.canUseDieselAutomatic() ? null : this.planEntitlements.dieselUpgradeMessage(),
+  );
+  readonly maintenancePlanHint = computed(() =>
+    this.canUseMaintenancePolicy()
+      ? null
+      : this.planEntitlements.maintenanceUpgradeMessage(),
+  );
 
   readonly draftMaintenanceMode = model<CompanyMaintenancePolicyMode>('none');
   readonly draftKmInterval = model('');
@@ -143,6 +159,10 @@ export class ProfileDrawerConfigTabComponent {
     if (mode === this.draftMaintenanceMode()) {
       return;
     }
+    if (mode !== 'none' && !this.canUseMaintenancePolicy()) {
+      this.toast.show(this.planEntitlements.maintenanceUpgradeMessage(), 'warning');
+      return;
+    }
     if (
       mode === 'none' &&
       (this.draftMaintenanceMode() === 'km' || this.draftMaintenanceMode() === 'date')
@@ -166,6 +186,10 @@ export class ProfileDrawerConfigTabComponent {
   }
 
   toggleDraftDieselControl(): void {
+    if (!this.canUseDieselAutomatic()) {
+      this.toast.show(this.planEntitlements.dieselUpgradeMessage(), 'warning');
+      return;
+    }
     const next = !this.draftDieselControlEnabled();
     if (!next && this.draftDieselControlEnabled()) {
       this.pendingDisableKind.set('diesel');
@@ -218,6 +242,23 @@ export class ProfileDrawerConfigTabComponent {
   saveCompanyConfiguration(): void {
     const companyId = this.session.companyId();
     if (!companyId) {
+      return;
+    }
+
+    if (
+      this.draftDieselControlEnabled() &&
+      !this.planEntitlements.canUseDieselAutomatic()
+    ) {
+      this.toast.show(this.planEntitlements.dieselUpgradeMessage(), 'warning');
+      this.draftDieselControlEnabled.set(false);
+      return;
+    }
+    if (
+      this.draftMaintenanceMode() !== 'none' &&
+      !this.planEntitlements.canUseMaintenancePolicy()
+    ) {
+      this.toast.show(this.planEntitlements.maintenanceUpgradeMessage(), 'warning');
+      this.draftMaintenanceMode.set('none');
       return;
     }
 
@@ -386,12 +427,14 @@ export class ProfileDrawerConfigTabComponent {
   }
 
   private loadDraftFromSession(): void {
-    const mode = companyMaintenancePolicyModeFromSession({
-      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
-      maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
-      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
-      maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
-    });
+    const mode = this.canUseMaintenancePolicy()
+      ? companyMaintenancePolicyModeFromSession({
+          maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+          maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
+          maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+          maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
+        })
+      : 'none';
     this.draftMaintenanceMode.set(mode);
     const km = this.session.maintenanceKmIntervalDefault();
     this.draftKmInterval.set(
@@ -401,7 +444,9 @@ export class ProfileDrawerConfigTabComponent {
       this.session.maintenanceDatePeriodDefault() ?? 'semiannual',
     );
     this.draftIntelligentEnabled.set(this.session.operationalAnalysisEnabled());
-    this.draftDieselControlEnabled.set(this.session.dieselControlEnabled());
+    this.draftDieselControlEnabled.set(
+      this.canUseDieselAutomatic() && this.session.dieselControlEnabled(),
+    );
     this.draftTripAssistPrefillEnabled.set(this.session.tripAssistPrefillEnabled());
     const percent = this.session.tripAutoMaintenanceProvisionPercent();
     this.draftMaintenanceProvisionPercent.set(

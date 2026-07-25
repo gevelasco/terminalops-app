@@ -6,7 +6,7 @@
   <to-button
     type="button"
     variant="primary"
-    (click)="newOperatorOpen.set(true)"
+    (click)="openNewOperator()"
   >
     <span class="operators-page-header__btn-icon" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24">
@@ -90,7 +90,37 @@
 
   @if (pageTab() === "operators") {
     @if (!hasOperators()) {
-      <p class="operators-overview__empty">No hay operadores registrados.</p>
+      <div class="to-feature-empty" role="status">
+        <div class="to-feature-empty__visual" aria-hidden="true">
+          <span class="to-feature-empty__ring"></span>
+          <to-icon name="groups" [size]="36" />
+        </div>
+        <h3 class="to-feature-empty__title">No hay operadores aún</h3>
+        <p class="to-feature-empty__copy">
+          Registra tu primer operador para ver su estatus, cobertura y última
+          maniobra en esta vista.
+        </p>
+        <div class="to-feature-empty__actions">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            (click)="onPageTabSelect('list')"
+          >
+            Ver lista
+          </to-button>
+          @if (canWriteOperators()) {
+            <to-button
+              type="button"
+              variant="primary"
+              size="sm"
+              (click)="openNewOperator()"
+            >
+              Nuevo operador
+            </to-button>
+          }
+        </div>
+      </div>
     } @else {
       <app-operators-overview
         [cards]="displayedOverviewCards()"
@@ -98,13 +128,24 @@
       />
     }
   } @else {
-    <div class="operators-table-block">
-      <to-table
-        [columns]="columns"
-        [rows]="displayedOperatorRows()"
-        [interactiveRows]="true"
-        (rowClick)="onRowClick($event)"
-      />
-    </div>
+    @if (!hasOperators()) {
+      <p class="to-feature-empty-hint" role="status">
+        No hay operadores registrados aún.
+      </p>
+    } @else {
+      <div class="operators-table-block">
+        <to-table
+          [columns]="columns"
+          [rows]="displayedOperatorRows()"
+          [interactiveRows]="true"
+          (rowClick)="onRowClick($event)"
+        />
+        @if (displayedOperatorRows().length === 0) {
+          <p class="to-feature-empty-hint" role="status">
+            Ningún operador coincide con la búsqueda.
+          </p>
+        }
+      </div>
+    }
   }
 }

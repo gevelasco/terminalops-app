@@ -1,8 +1,7 @@
-<div class="login-page">
-  <div class="login-page__ambient" aria-hidden="true"></div>
-  <div class="login-page__pattern" aria-hidden="true"></div>
+<div class="login-page register-page">
+  <div class="login-page__photo" aria-hidden="true"></div>
 
-  <div class="login-page__frame">
+  <div class="login-page__frame register-page__frame">
     <header class="login-page__brand">
       <div class="login-page__logo">
         <img
@@ -15,130 +14,328 @@
       </div>
       <div class="login-page__brand-text">
         <span class="login-page__product">TerminalOps</span>
-        <span class="login-page__tagline">Alta de empresa · Administrador</span>
+        <span class="login-page__tagline">Planes · Alta de empresa</span>
       </div>
     </header>
 
-    <section class="login-page__card" aria-labelledby="register-heading">
-      <h1 id="register-heading" class="login-page__title">Crear cuenta</h1>
-      <p class="login-page__subtitle">
-        Registra tu empresa y tu usuario administrador. Necesitas un código de
-        invitación válido para continuar.
-      </p>
-
-      <form class="login-page__form" (submit)="onSubmit($event)" novalidate>
-        <to-input
-          label="Nombre de la empresa"
-          placeholder="Ej. Grupo Empresarial"
-          inputName="companyName"
-          [autocomplete]="'organization'"
-          [disabled]="submitting()"
-        />
-
-        <div class="login-page__row">
-          <to-input
-            label="Nombre"
-            placeholder="nombre"
-            inputName="firstName"
-            prefixIcon="user"
-            [autocomplete]="'given-name'"
-            [disabled]="submitting()"
-          />
-          <to-input
-            label="Apellido"
-            placeholder="apellido"
-            inputName="lastName"
-            [autocomplete]="'family-name'"
-            [disabled]="submitting()"
-          />
+    @if (showPlans()) {
+      <section
+        class="register-page__plans register-page__panel"
+        aria-labelledby="plans-heading"
+      >
+        <div class="register-page__plans-intro">
+          <p class="register-page__eyebrow">Precios transparentes</p>
+          <h1 id="plans-heading" class="register-page__heading">
+            Elige el plan de tu operación
+          </h1>
         </div>
 
-        <to-input
-          label="Usuario"
-          placeholder="usuario"
-          inputName="username"
-          prefixIcon="user"
-          [autocomplete]="'username'"
-          [disabled]="submitting()"
-        />
+        <div class="register-page__plan-grid" role="list">
+          @for (plan of plans; track plan.id; let i = $index) {
+            <article
+              class="register-page__plan"
+              role="listitem"
+              [class.register-page__plan--disabled]="!plan.signupEnabled"
+              [class.register-page__plan--featured]="plan.id === 'standard'"
+              [class.register-page__plan--pro]="plan.id === 'pro'"
+              [style.--plan-delay]="i * 80 + 'ms'"
+            >
+              <div class="register-page__plan-top">
+                @if (plan.id === 'standard') {
+                  <span class="register-page__ribbon">Más popular</span>
+                }
+                <div class="register-page__plan-glow" aria-hidden="true"></div>
 
-        <to-input
-          label="Correo electrónico"
-          type="email"
-          placeholder="tu@empresa.com"
-          inputName="email"
-          [autocomplete]="'email'"
-          [disabled]="submitting()"
-        />
+                <div class="register-page__plan-names">
+                  <span class="register-page__plan-name">{{ plan.name }}</span>
+                  @if (plan.signupEnabled) {
+                    <span class="register-page__badge register-page__badge--live"
+                      >Disponible</span
+                    >
+                  } @else {
+                    <span class="register-page__badge">Próximamente</span>
+                  }
+                </div>
+                <p class="register-page__plan-tagline">{{ plan.tagline }}</p>
+                <p class="register-page__plan-audience">{{ plan.audience }}</p>
+              </div>
 
-        <to-input
-          label="Teléfono"
-          type="text"
-          placeholder="52 +"
-          inputName="phone"
-          [autocomplete]="'tel'"
-          [disabled]="submitting()"
-        />
+              <div class="register-page__plan-price">
+                <div class="register-page__plan-price-row">
+                  <span class="register-page__plan-amount">{{
+                    formatPrice(plan.priceMxnMonthly)
+                  }}</span>
+                  <span class="register-page__plan-period-inline">/ mes</span>
+                </div>
+                <span class="register-page__plan-period">{{
+                  plan.currencyNote
+                }}</span>
+                <span class="register-page__plan-usd"
+                  >≈ USD {{ plan.priceUsdApprox }}</span
+                >
+              </div>
 
-        <to-input
-          label="Contraseña"
-          type="password"
-          placeholder="Mínimo 6 caracteres"
-          inputName="password"
-          prefixIcon="lock"
-          [passwordToggle]="true"
-          [autocomplete]="'new-password'"
-          [disabled]="submitting()"
-          [(value)]="password"
-        />
+              <ul class="register-page__limits">
+                @for (limit of plan.limits; track limit.label) {
+                  <li>
+                    <span>{{ limit.label }}</span>
+                    <strong>{{ limit.value }}</strong>
+                  </li>
+                }
+              </ul>
 
-        <to-input
-          label="Confirmar contraseña"
-          type="password"
-          placeholder="Repite tu contraseña"
-          inputName="confirmPassword"
-          prefixIcon="lock"
-          [passwordToggle]="true"
-          [autocomplete]="'new-password'"
-          [disabled]="submitting()"
-          [error]="
-            passwordMismatch() ? 'Las contraseñas no coinciden' : undefined
-          "
-          [(value)]="confirmPassword"
-        />
+              <ul class="register-page__features">
+                @for (feature of plan.features; track feature.label) {
+                  @if (feature.included) {
+                    <li [class.register-page__feature--soon]="!!feature.note">
+                      <span
+                        class="register-page__feature-mark"
+                        aria-hidden="true"
+                        >✓</span
+                      >
+                      <span>
+                        {{ feature.label }}
+                        @if (feature.note) {
+                          <em>({{ feature.note }})</em>
+                        }
+                      </span>
+                    </li>
+                  }
+                }
+              </ul>
 
-        <to-input
-          label="Código de invitación"
-          placeholder="clave de acceso"
-          inputName="invitationCode"
-          prefixIcon="lock"
-          [autocomplete]="'off'"
-          [disabled]="submitting()"
-          [(value)]="invitationCode"
-        />
+              <div class="register-page__plan-footer">
+                <button
+                  type="button"
+                  class="register-page__plan-cta-btn"
+                  [class.register-page__plan-cta-btn--primary]="plan.signupEnabled"
+                  [class.register-page__plan-cta-btn--ghost]="!plan.signupEnabled"
+                  (click)="selectPlan(plan)"
+                >
+                  @if (plan.signupEnabled) {
+                    Continuar con {{ plan.name }}
+                  } @else {
+                    Ver detalle
+                  }
+                </button>
+                <p class="register-page__plan-hint">
+                  @if (!plan.signupEnabled) {
+                    {{ plan.disabledHint || plan.ctaLabel }}
+                  } @else {
+                    &nbsp;
+                  }
+                </p>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
 
-        @if (error()) {
-          <p class="login-page__error" role="alert">{{ error() }}</p>
-        }
-
-        <div class="login-page__actions">
-          <to-button
-            type="submit"
-            variant="primary"
-            [disabled]="!canSubmit() || passwordMismatch()"
-            [loading]="submitting()"
+    @if (showCheckout() && selectedPlan(); as plan) {
+      <section
+        class="register-page__checkout register-page__panel"
+        aria-labelledby="register-heading"
+      >
+        <div class="register-page__checkout-bar">
+          <button
+            type="button"
+            class="register-page__back"
+            (click)="backToPlans()"
+            [disabled]="submitting()"
           >
-            Registrar empresa
-          </to-button>
+            ← Volver a planes
+          </button>
+          <div class="register-page__checkout-summary">
+            <span class="register-page__checkout-plan">{{ plan.name }}</span>
+            <span class="register-page__checkout-price">{{
+              formatPrice(plan.priceMxnMonthly)
+            }}</span>
+            <span class="register-page__checkout-period">/ mes + IVA</span>
+          </div>
         </div>
-      </form>
 
-      <p class="login-page__foot">
-        ¿Ya tienes cuenta?
-        <a routerLink="/login" class="login-page__link">Inicia sesión</a>
+        @if (showRegisterForm()) {
+          <div
+            class="login-page__card register-page__form-card"
+            aria-labelledby="register-heading"
+          >
+            <h2 id="register-heading" class="login-page__title">
+              Crear cuenta · {{ plan.name }}
+            </h2>
+            <p class="login-page__subtitle">
+              Registra tu empresa y tu usuario administrador. Requiere un código
+              de invitación válido.
+            </p>
+
+            <form
+              class="login-page__form"
+              (submit)="onSubmit($event)"
+              novalidate
+            >
+              <to-input
+                label="Nombre de la empresa"
+                placeholder="Ej. Grupo Empresarial"
+                inputName="companyName"
+                [autocomplete]="'organization'"
+                [disabled]="submitting()"
+              />
+
+              <div class="login-page__row">
+                <to-input
+                  label="Nombre"
+                  placeholder="nombre"
+                  inputName="firstName"
+                  prefixIcon="user"
+                  [autocomplete]="'given-name'"
+                  [disabled]="submitting()"
+                />
+                <to-input
+                  label="Apellido"
+                  placeholder="apellido"
+                  inputName="lastName"
+                  [autocomplete]="'family-name'"
+                  [disabled]="submitting()"
+                />
+              </div>
+
+              <to-input
+                label="Usuario"
+                placeholder="usuario"
+                inputName="username"
+                prefixIcon="user"
+                [autocomplete]="'username'"
+                [disabled]="submitting()"
+              />
+
+              <to-input
+                label="Correo electrónico"
+                type="email"
+                placeholder="tu@empresa.com"
+                inputName="email"
+                [autocomplete]="'email'"
+                [disabled]="submitting()"
+              />
+
+              <to-input
+                label="Teléfono"
+                type="text"
+                placeholder="52 +"
+                inputName="phone"
+                [autocomplete]="'tel'"
+                [disabled]="submitting()"
+              />
+
+              <to-input
+                label="Contraseña"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                inputName="password"
+                prefixIcon="lock"
+                [passwordToggle]="true"
+                [autocomplete]="'new-password'"
+                [disabled]="submitting()"
+                [(value)]="password"
+              />
+
+              <to-input
+                label="Confirmar contraseña"
+                type="password"
+                placeholder="Repite tu contraseña"
+                inputName="confirmPassword"
+                prefixIcon="lock"
+                [passwordToggle]="true"
+                [autocomplete]="'new-password'"
+                [disabled]="submitting()"
+                [error]="
+                  passwordMismatch()
+                    ? 'Las contraseñas no coinciden'
+                    : undefined
+                "
+                [(value)]="confirmPassword"
+              />
+
+              <to-input
+                label="Código de invitación"
+                placeholder="clave de acceso"
+                inputName="invitationCode"
+                prefixIcon="lock"
+                [autocomplete]="'off'"
+                [disabled]="submitting()"
+                [(value)]="invitationCode"
+              />
+
+              @if (error()) {
+                <p class="login-page__error" role="alert">{{ error() }}</p>
+              }
+
+              <div class="login-page__actions">
+                <to-button
+                  type="submit"
+                  variant="primary"
+                  [disabled]="!canSubmit() || passwordMismatch()"
+                  [loading]="submitting()"
+                >
+                  Registrar empresa · {{ plan.name }}
+                </to-button>
+              </div>
+            </form>
+
+            <p class="login-page__foot">
+              ¿Ya tienes cuenta?
+              <a routerLink="/login" class="login-page__link">Inicia sesión</a>
+            </p>
+          </div>
+        } @else {
+          <div
+            class="login-page__card register-page__wait"
+            aria-live="polite"
+            aria-labelledby="register-heading"
+          >
+            <h2 id="register-heading" class="login-page__title">
+              {{ plan.name }} aún no está a la venta
+            </h2>
+            <p class="login-page__subtitle">
+              Precio de referencia:
+              <strong>{{ formatPrice(plan.priceMxnMonthly) }}</strong>
+              {{ plan.currencyNote }}. Cuando abramos este plan podrás
+              contratarlo desde aquí.
+            </p>
+            <ul class="register-page__wait-limits">
+              @for (limit of plan.limits; track limit.label) {
+                <li>
+                  <span>{{ limit.label }}</span>
+                  <strong>{{ limit.value }}</strong>
+                </li>
+              }
+            </ul>
+            <div class="register-page__wait-actions">
+              <button
+                type="button"
+                class="register-page__plan-cta-btn register-page__plan-cta-btn--primary"
+                (click)="backToPlans()"
+              >
+                Volver a planes
+              </button>
+            </div>
+            <p class="login-page__foot">
+              Mientras tanto, el plan Básico está disponible con invitación.
+            </p>
+          </div>
+        }
+      </section>
+    }
+
+    <div class="register-page__bottom">
+      @if (showPlans()) {
+        <p class="register-page__bottom-login">
+          ¿Ya tienes cuenta?
+          <a routerLink="/login">Inicia sesión</a>
+        </p>
+      }
+      <p class="register-page__bottom-copy">
+        © {{ currentYear }} Axolotl Technology
       </p>
-    </section>
-
-    <p class="login-page__legal">© {{ currentYear }} AXOLOTL TECHNOLOGY</p>
+    </div>
   </div>
 </div>

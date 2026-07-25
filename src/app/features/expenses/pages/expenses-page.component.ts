@@ -280,6 +280,14 @@ export class ExpensesPageComponent implements OnInit {
       !this.hasExpenseRows(),
   );
 
+  /** Lista sin filas ni búsqueda: empty simple (sin tabla vacía). */
+  readonly showListEmptyNoExpenses = computed(
+    () =>
+      this.showEmptyHint() &&
+      !this.listReloading() &&
+      !this.searchQuery().trim(),
+  );
+
   onSearchFocusIn(): void {
     this.searchKeepFocus.set(true);
   }

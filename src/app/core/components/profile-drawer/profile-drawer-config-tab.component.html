@@ -110,14 +110,16 @@
           [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
           role="switch"
           [attr.aria-checked]="draftDieselControlEnabled()"
-          [disabled]="saving()"
+          [disabled]="saving() || !canUseDieselAutomatic()"
           aria-labelledby="profile-setting-diesel"
           (click)="toggleDraftDieselControl()"
         >
           <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
         </button>
       </div>
-      @if (!draftDieselControlEnabled()) {
+      @if (dieselPlanHint(); as hint) {
+        <p class="profile-drawer__setting-desc">{{ hint }}</p>
+      } @else if (!draftDieselControlEnabled()) {
         <p class="profile-drawer__setting-desc">
           Estima consumo y costos de diesel según distancia, unidad, carga y
           rendimiento.
@@ -140,7 +142,9 @@
           <p class="profile-drawer__setting-meta">{{ maintenanceStatusLabel() }}</p>
         </div>
       </div>
-      @if (draftMaintenanceMode() === 'none') {
+      @if (maintenancePlanHint(); as hint) {
+        <p class="profile-drawer__setting-desc">{{ hint }}</p>
+      } @else if (draftMaintenanceMode() === 'none') {
         <p class="profile-drawer__setting-desc">
           Cada unidad define su próximo servicio de forma manual. Activa control
           por km o por fechas para estandarizarlo a nivel empresa.

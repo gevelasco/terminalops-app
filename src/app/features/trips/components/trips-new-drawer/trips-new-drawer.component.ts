@@ -29,6 +29,7 @@ import {
 } from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
@@ -187,6 +188,7 @@ export class TripsNewDrawerComponent {
   private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly tripsFeature = inject(TripsFeatureService);
   private readonly destinationRatesApi = inject(DestinationRatesApiService);
   private readonly operationalCentersFeature = inject(OperationalCentersFeatureService);
@@ -199,7 +201,9 @@ export class TripsNewDrawerComponent {
 
   readonly dieselEstimateLoading = signal(false);
   /** Control automático de diesel (config empresa en sesión). */
-  readonly dieselControlEnabled = computed(() => this.session.dieselControlEnabled());
+  readonly dieselControlEnabled = computed(() =>
+    this.planEntitlements.effectiveDieselControlEnabled(),
+  );
   /** Preferencia empresa: autollenado en Nueva Maniobra. */
   readonly autoRecognitionEnabled = computed(() => this.session.tripAssistPrefillEnabled());
   readonly dieselLitersPlaceholder = computed(() =>
@@ -1117,7 +1121,7 @@ export class TripsNewDrawerComponent {
       .subscribe();
 
     effect((onCleanup) => {
-      if (!this.session.dieselControlEnabled()) {
+      if (!this.dieselControlEnabled()) {
         this.resetFuelEstimateAutoState();
         return;
       }

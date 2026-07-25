@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { CompanyUsersApiService } from '@core/services/api/company-users';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
+import { planDisplayName } from '@shared/billing/subscription-plans';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -39,6 +40,7 @@ export class AccountPageComponent {
           data.name,
           data.tagline ?? '',
         );
+        this.session.setSubscriptionPlan(data.subscriptionPlan);
       }
       return data;
     },
@@ -79,21 +81,9 @@ export class AccountPageComponent {
     }
   });
 
-  readonly planLabel = computed(() => {
-    const p = this.accountData()?.subscriptionPlan;
-    switch (p) {
-      case 'trial':
-        return 'Trial';
-      case 'starter':
-        return 'Starter';
-      case 'professional':
-        return 'Professional';
-      case 'enterprise':
-        return 'Enterprise';
-      default:
-        return p ?? '—';
-    }
-  });
+  readonly planLabel = computed(() =>
+    planDisplayName(this.accountData()?.subscriptionPlan),
+  );
 
   readonly formattedCreatedAt = computed(() =>
     this.formatDate(this.accountData()?.createdAt),

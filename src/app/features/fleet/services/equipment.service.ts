@@ -30,6 +30,7 @@ export class EquipmentFeatureService {
   private readonly _equipment = signal<readonly Equipment[]>([]);
   private readonly _selectedEquipmentId = signal<string | null>(null);
   private readonly _loading = signal(false);
+  private readonly _hydrated = signal(false);
 
   private initialLoadStarted = false;
   private disposed = false;
@@ -49,6 +50,8 @@ export class EquipmentFeatureService {
     return this._equipment().find((e) => e.id === id) ?? null;
   });
   readonly loading = this._loading.asReadonly();
+  /** True tras el primer fetch (éxito o error). */
+  readonly hydrated = this._hydrated.asReadonly();
 
   loadEquipment(): void {
     if (this.disposed) {
@@ -178,6 +181,7 @@ export class EquipmentFeatureService {
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._loading.set(false);
+            this._hydrated.set(true);
           }
         }),
       )
@@ -281,6 +285,7 @@ export class EquipmentFeatureService {
     this._equipment.set([]);
     this._selectedEquipmentId.set(null);
     this._loading.set(false);
+    this._hydrated.set(false);
     this.initialLoadStarted = false;
   }
 }

@@ -40,6 +40,7 @@ export class TripsFeatureService {
 
   readonly trips = this.operationalSync.trips;
   readonly loading = this.operationalSync.tripsLoading;
+  readonly tripsHydrated = this.operationalSync.tripsHydrated;
   readonly listEpoch = this.operationalSync.tripsEpoch;
   readonly selectedTripId = this._selectedTripId.asReadonly();
   readonly selectedTrip = computed(() => {

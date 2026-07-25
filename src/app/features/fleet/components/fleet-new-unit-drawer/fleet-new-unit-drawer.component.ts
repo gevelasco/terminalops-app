@@ -13,6 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@core/notifications/toast.service';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
@@ -41,7 +42,6 @@ import {
   FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TIRE_CONDITION_OPTIONS,
   FLEET_TRANSPORT_TYPE_OPTIONS,
-  FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
@@ -144,6 +144,7 @@ export class FleetNewUnitDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly unitsFeature = inject(UnitsFeatureService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -231,7 +232,7 @@ export class FleetNewUnitDrawerComponent {
     (o) => o.value !== '',
   );
 
-  readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
+  readonly tenureOptions = this.planEntitlements.tenureOptions;
 
   readonly physRenewal = computed(() =>
     renewalFromLastDate(this.verificationPhysMechDate(), 6),
@@ -432,7 +433,14 @@ export class FleetNewUnitDrawerComponent {
 
     const tenureModeRaw = this.trailerTenureMode().trim() as TrailerTenureMode;
     const TENURE: TrailerTenureMode[] = ['owned', 'financed', 'leased', 'managed'];
-    const tenureMode: TrailerTenureMode = TENURE.includes(tenureModeRaw) ? tenureModeRaw : 'owned';
+    let tenureMode: TrailerTenureMode = TENURE.includes(tenureModeRaw)
+      ? tenureModeRaw
+      : 'owned';
+    if (!this.planEntitlements.isTenureModeAllowed(tenureMode)) {
+      this.toast.show(this.planEntitlements.tenureUpgradeMessage(), 'warning');
+      tenureMode = 'owned';
+      this.trailerTenureMode.set('owned');
+    }
 
     const commercialVal = parseOptionalAmount(this.trailerCommercialValue());
     const recAmt = parseOptionalAmount(this.trailerRecurringPaymentAmount());

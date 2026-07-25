@@ -1,6 +1,7 @@
 @use "../../../shared/styles/toolbar-filter-tabs.scss";
 @use "../../../shared/styles/trip-operation-type-badge.scss";
 @use "../../../shared/styles/trip-maneuver-status-pill.scss";
+@use "../../../shared/styles/feature-empty-panel";
 
 :host.maniobra-page-host {
   display: flex;
@@ -37,6 +38,12 @@
 
   .maniobra-toolbar {
     margin-bottom: 1rem;
+  }
+
+  /* Mismo tamaño natural que Flota: no estirar al alto del viewport. */
+  .to-feature-empty {
+    flex: 0 0 auto;
+    align-self: stretch;
   }
 
   app-maniobra-route-map {
@@ -223,16 +230,6 @@
     padding: 0;
     box-sizing: border-box;
   }
-}
-
-.maniobra-empty-hint {
-  margin: 0;
-  padding: 0.65rem 0.85rem;
-  border-radius: var(--to-radius-md);
-  font-size: 0.8125rem;
-  color: var(--to-color-text-muted);
-  background: var(--to-color-surface-muted);
-  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
 }
 
 .maniobra-route__hint {

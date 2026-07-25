@@ -7,6 +7,12 @@ import { SessionService } from '@core/services/state/session';
 import { ThemeService } from '@core/services/state/theme';
 import { UserPreferencesStore } from '@core/services/state/user-preferences';
 import { UserProfileStore } from '@core/services/state/user-profile';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
+import {
+  NotificationsUnreadStore,
+  restoreNotifLastSeen,
+  snapshotNotifLastSeen,
+} from '@core/services/state/notifications-unread.store';
 
 /** Limpieza total de estado cliente al cerrar sesión o por 401. */
 @Injectable({ providedIn: 'root' })
@@ -18,15 +24,21 @@ export class LogoutService {
   private readonly theme = inject(ThemeService);
   private readonly operationalTrips = inject(OperationalFleetSyncService);
   private readonly clientsApi = inject(ClientsService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
+  private readonly notificationsUnread = inject(NotificationsUnreadStore);
 
   clearClientState(): void {
+    const notifLastSeen = snapshotNotifLastSeen();
     this.session.clearSession();
     this.profiles.clear();
     this.preferences.clear();
     this.checklist.clear();
     this.theme.resetOnLogout();
     this.operationalTrips.clearOnLogout();
+    this.planEntitlements.reset();
+    this.notificationsUnread.stop();
     this.clientsApi.invalidateClientPickerCache();
     clearAllBrowserStorage();
+    restoreNotifLastSeen(notifLastSeen);
   }
 }

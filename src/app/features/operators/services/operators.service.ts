@@ -31,6 +31,7 @@ export class OperatorsFeatureService {
   private readonly _operators = signal<readonly Operator[]>([]);
   private readonly _selectedOperatorId = signal<string | null>(null);
   private readonly _loading = signal(false);
+  private readonly _hydrated = signal(false);
 
   private initialLoadStarted = false;
   private disposed = false;
@@ -50,6 +51,7 @@ export class OperatorsFeatureService {
     return this._operators().find((o) => o.id === id) ?? null;
   });
   readonly loading = this._loading.asReadonly();
+  readonly hydrated = this._hydrated.asReadonly();
 
   loadOperators(): void {
     if (this.disposed) {
@@ -151,6 +153,7 @@ export class OperatorsFeatureService {
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._loading.set(false);
+            this._hydrated.set(true);
           }
         }),
       )
@@ -204,6 +207,7 @@ export class OperatorsFeatureService {
     this._operators.set([]);
     this._selectedOperatorId.set(null);
     this._loading.set(false);
+    this._hydrated.set(false);
     this.initialLoadStarted = false;
   }
 }

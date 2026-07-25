@@ -7,7 +7,8 @@ import { UnitsFeatureService } from './units.service';
 import type { FleetBrandType } from '@shared/models/api/fleet-catalog.model';
 
 /**
- * Orquestador del módulo Flota: overview + listados al entrar.
+ * Orquestador del módulo Flota: unidades + equipo al entrar;
+ * overview solo si hay activos que mostrar.
  * El catálogo de marcas/versiones se carga al abrir un side drawer que lo usa.
  */
 @Injectable()
@@ -26,12 +27,25 @@ export class FleetFeatureService {
     this.destroyRef.onDestroy(() => this.dispose());
   }
 
+  readonly listsLoading = computed(
+    () => this.unitsFeature.loading() || this.equipmentFeature.loading(),
+  );
+
+  readonly listsHydrated = computed(
+    () => this.unitsFeature.hydrated() && this.equipmentFeature.hydrated(),
+  );
+
+  readonly hasFleetAssets = computed(
+    () => this.unitsFeature.units().length > 0 || this.equipmentFeature.equipment().length > 0,
+  );
+
   readonly loading = computed(
     () =>
-      this.overviewFeature.loading() ||
-      this.unitsFeature.loading() ||
-      this.equipmentFeature.loading(),
+      this.listsLoading() ||
+      (this.hasFleetAssets() && this.overviewFeature.loading()),
   );
+
+  readonly overviewLoading = this.overviewFeature.loading;
 
   readonly catalogLoading = this.catalogFeature.loading;
 
@@ -51,15 +65,33 @@ export class FleetFeatureService {
   readonly selectedEquipment = this.equipmentFeature.selectedEquipment;
   readonly pendingDetailTab = this._pendingDetailTab.asReadonly();
 
-  /** Overview + unidades + equipo en paralelo (una vez por visita). */
+  /** Unidades + equipo (una vez). Overview bajo demanda si hay flota. */
   loadFleetModule(): void {
     if (this.disposed || this.moduleLoadStarted) {
       return;
     }
     this.moduleLoadStarted = true;
-    this.overviewFeature.loadOverview();
     this.unitsFeature.loadUnits();
     this.equipmentFeature.loadEquipment();
+  }
+
+  /** GET /fleet/overview solo cuando hay unidades o equipo. */
+  ensureOverviewLoaded(): void {
+    if (this.disposed) {
+      return;
+    }
+    if (!this.hasFleetAssets()) {
+      this.overviewFeature.clearIdle();
+      return;
+    }
+    this.overviewFeature.loadOverview();
+  }
+
+  clearOverviewIdle(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.overviewFeature.clearIdle();
   }
 
   /** GET /fleet/catalog — solo al abrir drawer de alta/edición con marcas. */
@@ -89,9 +121,13 @@ export class FleetFeatureService {
     if (this.disposed) {
       return;
     }
-    this.overviewFeature.refreshOverview();
     this.unitsFeature.refreshUnits();
     this.equipmentFeature.refreshEquipment();
+    if (this.overviewFeature.hasLoadedOnce()) {
+      this.overviewFeature.refreshOverview();
+    } else if (this.hasFleetAssets()) {
+      this.overviewFeature.loadOverview();
+    }
   }
 
   requestDetailTab(tab: FleetDetailDrawerTab): void {

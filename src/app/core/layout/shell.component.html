@@ -270,7 +270,7 @@
           </svg>
           @if (notificationCount() > 0) {
             <span class="shell-notifications-btn__badge" aria-hidden="true">{{
-              notificationCount()
+              notificationBadgeLabel()
             }}</span>
           }
         </button>
@@ -330,10 +330,7 @@
 }
 
 @if (notificationsDrawerOpen()) {
-  <app-notifications-drawer
-    (dismiss)="closeNotificationsDrawer()"
-    (dayTotalChange)="onNotificationsDayTotal($event)"
-  />
+  <app-notifications-drawer (dismiss)="closeNotificationsDrawer()" />
 }
 
 @if (checklistDrawerOpen()) {

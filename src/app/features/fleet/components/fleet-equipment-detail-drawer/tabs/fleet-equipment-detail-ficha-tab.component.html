@@ -288,7 +288,7 @@
       <div class="fleet-unit-sec__edit-grid">
         <to-select
           label="Situación del activo"
-          [options]="vm.tenureOptions"
+          [options]="vm.tenureOptions()"
           [value]="vm.editTenureMode()"
           (valueChange)="vm.setEditTenureMode($event)"
         />

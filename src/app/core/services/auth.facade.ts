@@ -58,6 +58,14 @@ export class AuthFacade {
       name: user.name ?? payload.name ?? '',
       email: user.email ?? payload.email ?? '',
       companyName: user.companyName ?? payload.companyName,
+      subscriptionPlan:
+        user.subscriptionPlan ??
+        payload.subscriptionPlan ??
+        null,
+      companyTagline:
+        user.companyTagline ??
+        payload.companyTagline ??
+        null,
       phone: user.phone ?? payload.phone ?? '',
       jobTitle: user.jobTitle ?? payload.jobTitle,
       photoDataUrl: user.photoDataUrl ?? payload.photoDataUrl ?? '',
@@ -144,6 +152,13 @@ export class AuthFacade {
     };
 
     this.session.setSession(response.access_token, response.refresh_token, merged);
+    this.session.setSubscriptionPlan(merged.subscriptionPlan ?? 'basic');
+    if (merged.companyName || merged.companyTagline) {
+      this.session.setCompanyBranding(
+        merged.companyName?.trim() || this.session.companyName() || '',
+        merged.companyTagline?.trim() || '',
+      );
+    }
     this.profiles.hydrateFromSession();
     this.theme.setPreset(theme);
   }

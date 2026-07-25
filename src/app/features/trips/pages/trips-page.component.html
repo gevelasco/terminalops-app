@@ -6,7 +6,7 @@
     <to-button
       type="button"
       variant="primary"
-      (click)="newTripOpen.set(true)"
+      (click)="openNewTrip()"
     >
     <span class="maniobra-page-header__btn-icon" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24">
@@ -106,20 +106,62 @@
   </div>
 
   @if (viewMode() === "route") {
-    <p class="maniobra-route__hint">
-      Maniobras activas por estado en el mapa. Selecciona un estado para ver
-      unidades y equipos; clic en una tarjeta para abrir el detalle.
-    </p>
-    <app-maniobra-route-map
-      [items]="tripsMap.items()"
-      [meta]="tripsMap.meta()"
-      [loading]="tripsMap.loading()"
-      [error]="tripsMap.error()"
-      (tripSelect)="onMapTripSelect($event)"
-    />
+    @if (!routeViewEmpty()) {
+      <p class="maniobra-route__hint">
+        Maniobras activas por estado en el mapa. Selecciona un estado para ver
+        unidades y equipos; clic en una tarjeta para abrir el detalle.
+      </p>
+    }
+    @if (routeViewLoading()) {
+      <to-skeleton [lines]="6" />
+    } @else if (routeViewEmpty()) {
+      <div class="to-feature-empty" role="status">
+        <div class="to-feature-empty__visual" aria-hidden="true">
+          <span class="to-feature-empty__ring"></span>
+          <to-icon name="mapSearch" [size]="36" />
+        </div>
+        <h3 class="to-feature-empty__title">No hay maniobras en curso</h3>
+        <p class="to-feature-empty__copy">
+          Cuando haya maniobras programadas o en tránsito, verás su ruta y
+          flota en el mapa.
+        </p>
+        <div class="to-feature-empty__actions">
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            (click)="viewMode.set('list')"
+          >
+            Ver lista
+          </to-button>
+          @if (canWriteTrips()) {
+            <to-button
+              type="button"
+              variant="primary"
+              size="sm"
+              (click)="openNewTrip()"
+            >
+              Nueva maniobra
+            </to-button>
+          }
+        </div>
+      </div>
+    } @else if (routeViewShowMap()) {
+      <app-maniobra-route-map
+        [items]="tripsMap.items()"
+        [meta]="tripsMap.meta()"
+        [loading]="tripsMap.loading()"
+        [error]="tripsMap.error()"
+        (tripSelect)="onMapTripSelect($event)"
+      />
+    }
   } @else if (viewMode() === "list") {
     @if (initialListLoading()) {
       <to-skeleton [lines]="5" />
+    } @else if (showListEmptyNoTrips()) {
+      <p class="to-feature-empty-hint" role="status">
+        No hay maniobras registradas aún.
+      </p>
     } @else {
       <div
         class="maniobra-table-wrap"
@@ -140,12 +182,8 @@
       </div>
 
       @if (showEmptyHint()) {
-        <p class="maniobra-empty-hint">
-          @if (searchQuery().trim() || statusFilter() !== 'all') {
-            Ninguna maniobra coincide con los filtros actuales.
-          } @else {
-            No hay maniobras registradas.
-          }
+        <p class="to-feature-empty-hint" role="status">
+          Ninguna maniobra coincide con los filtros actuales.
         </p>
       }
     }

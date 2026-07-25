@@ -130,6 +130,30 @@
   @if (pageTab() === "clients") {
     @if (loading()) {
       <to-skeleton [lines]="4" />
+    } @else if (!hasBalanceCards() && !searchQuery().trim()) {
+      <div class="to-feature-empty" role="status">
+        <div class="to-feature-empty__visual" aria-hidden="true">
+          <span class="to-feature-empty__ring"></span>
+          <to-icon name="client" [size]="36" />
+        </div>
+        <h3 class="to-feature-empty__title">No hay clientes aún</h3>
+        <p class="to-feature-empty__copy">
+          Agrega tu primer cliente para ver saldos, próximos cobros y su
+          expediente comercial.
+        </p>
+        @if (canWriteCommercial()) {
+          <div class="to-feature-empty__actions">
+            <to-button
+              type="button"
+              variant="primary"
+              size="sm"
+              (click)="newClientOpen.set(true)"
+            >
+              Nuevo cliente
+            </to-button>
+          </div>
+        }
+      </div>
     } @else {
       <p class="clients-page__hint">
         Cartera por cliente con saldo pendiente y próximos cobros. Clic en una
@@ -142,37 +166,49 @@
         />
       }
       @if (showClientsEmptyHint()) {
-        <div class="clients-empty-hint">
-          <p class="clients-empty-hint__text">
-            @if (searchQuery().trim()) {
-              Ningún cliente coincide con la búsqueda.
-            } @else {
-              No hay clientes registrados.
-            }
-          </p>
-          @if (canWriteCommercial() && !searchQuery().trim()) {
+        <p class="to-feature-empty-hint" role="status">
+          Ningún cliente coincide con la búsqueda.
+        </p>
+      }
+    }
+  } @else {
+    @if (ratesFeature.loading()) {
+      <to-skeleton [lines]="4" />
+    } @else if (ratesFeature.rates().length === 0) {
+      <div class="to-feature-empty" role="status">
+        <div class="to-feature-empty__visual" aria-hidden="true">
+          <span class="to-feature-empty__ring"></span>
+          <to-icon name="route" [size]="36" />
+        </div>
+        <h3 class="to-feature-empty__title">No hay tarifas aún</h3>
+        <p class="to-feature-empty__copy">
+          Crea tu primera tarifa de destino para ver rutas y costos en el mapa
+          por estado.
+        </p>
+        @if (canWriteCommercial()) {
+          <div class="to-feature-empty__actions">
             <to-button
               type="button"
               variant="primary"
               size="sm"
-              (click)="newClientOpen.set(true)"
+              (click)="newRateOpen.set(true)"
             >
-              Agregar cliente
+              Nueva tarifa
             </to-button>
-          }
-        </div>
-      }
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="clients-page__hint clients-page__hint--rates">
+        Destinos con tarifa por estado. Busca por CP, estado, municipio, colonia,
+        tipo o costo; o haz clic en un estado para ver las rutas.
+      </p>
+      <app-destination-rates-map
+        [rates]="ratesFeature.rates()"
+        [loading]="ratesFeature.loading()"
+        [filterQuery]="searchInput()"
+        (rateSelect)="onMapRateSelect($event)"
+      />
     }
-  } @else {
-    <p class="clients-page__hint clients-page__hint--rates">
-      Destinos con tarifa por estado. Busca por CP, estado, municipio, colonia,
-      tipo o costo; o haz clic en un estado para ver las rutas.
-    </p>
-    <app-destination-rates-map
-      [rates]="ratesFeature.rates()"
-      [loading]="ratesFeature.loading()"
-      [filterQuery]="searchInput()"
-      (rateSelect)="onMapRateSelect($event)"
-    />
   }
 </div>

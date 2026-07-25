@@ -8,12 +8,14 @@ import {
   model,
   OnInit,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { OperatorsDetailDrawerComponent } from '@features/operators/components/operators-detail-drawer/operators-detail-drawer.component';
 import { OperatorsNewDrawerComponent } from '@features/operators/components/operators-new-drawer/operators-new-drawer.component';
@@ -90,6 +92,7 @@ export class OperatorsPageComponent implements OnInit {
   protected readonly operatorsFeature = inject(OperatorsFeatureService);
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
   protected readonly isMobileViewport = injectIsMobileViewport();
 
@@ -118,9 +121,28 @@ export class OperatorsPageComponent implements OnInit {
         this.pendingOperatorId.set(null);
       }
     });
+
+    effect(() => {
+      const hydrated = this.operatorsFeature.hydrated();
+      const loading = this.operatorsFeature.loading();
+      if (!hydrated || loading || this.operatorsDefaultApplied) {
+        return;
+      }
+      this.operatorsDefaultApplied = true;
+      const empty = this.operatorsFeature.operators().length === 0;
+      if (
+        empty &&
+        this.pageTab() === 'operators' &&
+        this.pendingOperatorId() == null &&
+        this.operatorsFeature.selectedOperatorId() == null
+      ) {
+        untracked(() => this.pageTab.set('list'));
+      }
+    });
   }
 
   private readonly pendingOperatorId = signal<string | null>(null);
+  private operatorsDefaultApplied = false;
 
   readonly pageTab = signal<OperatorsPageTab>('operators');
   readonly viewSegmentTabs: readonly ToSegmentTab<OperatorsPageTab>[] = [
@@ -241,6 +263,15 @@ export class OperatorsPageComponent implements OnInit {
 
   onDetailDismiss(): void {
     this.operatorsFeature.clearSelection();
+  }
+
+  openNewOperator(): void {
+    const count = this.operatorsFeature.operators().length;
+    if (!this.planEntitlements.canAddOperator(count)) {
+      this.toast.show(this.planEntitlements.operatorLimitMessage(), 'warning');
+      return;
+    }
+    this.newOperatorOpen.set(true);
   }
 
   onOperatorCreated(_op: Operator): void {

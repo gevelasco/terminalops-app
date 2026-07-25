@@ -11,7 +11,9 @@ import {
   CompanyUsersApiService,
   type CompanyUserRow,
 } from '@core/services/api/company-users';
+import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { userTableModuleIcons } from '@shared/utils/staff-module-present';
 import { UsersDetailDrawerComponent } from '@features/users/components/users-detail-drawer/users-detail-drawer.component';
 import { UsersNewDrawerComponent } from '@features/users/components/users-new-drawer/users-new-drawer.component';
@@ -41,6 +43,8 @@ import {
 export class UsersPageComponent {
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
+  private readonly toast = inject(ToastService);
 
   readonly newUserOpen = signal(false);
   readonly selectedUserId = signal<number | null>(null);
@@ -79,6 +83,29 @@ export class UsersPageComponent {
       moduleAccessIcons: userTableModuleIcons(row.allowedModules, row.role),
     })),
   );
+
+  openNewUser(): void {
+    const rows = this.users.value() ?? [];
+    const staffCount = rows.filter((u) => u.role === 'staff').length;
+    const adminCount = rows.filter((u) => u.role === 'admin').length;
+    // Alta por defecto es staff; si ambos cupos están llenos, bloquear.
+    const canStaff = this.planEntitlements.canAddStaff(staffCount);
+    const canAdmin = this.planEntitlements.canAddAdmin(adminCount);
+    if (!canStaff && !canAdmin) {
+      this.toast.show(
+        `${this.planEntitlements.staffLimitMessage()} ${this.planEntitlements.adminLimitMessage()}`,
+        'warning',
+      );
+      return;
+    }
+    if (!canStaff) {
+      this.toast.show(
+        `${this.planEntitlements.staffLimitMessage()} Puedes crear un administrador si tu plan lo permite.`,
+        'warning',
+      );
+    }
+    this.newUserOpen.set(true);
+  }
 
   reloadUsers(): void {
     this.users.reload();

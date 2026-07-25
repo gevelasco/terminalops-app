@@ -47,6 +47,24 @@ export class FleetOverviewFeatureService {
     this.runFetch();
   }
 
+  /** True si ya se pidió /overview al menos una vez en esta visita. */
+  hasLoadedOnce(): boolean {
+    return this.moduleLoadStarted;
+  }
+
+  /** Sin flota: limpia estado y evita /overview. */
+  clearIdle(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.requestGen.invalidate();
+    this.fetchSub?.unsubscribe();
+    this.fetchSub = null;
+    this._overview.set(EMPTY_OVERVIEW);
+    this._loading.set(false);
+    this.moduleLoadStarted = false;
+  }
+
   findItemByUnitId(unitId: string): FleetOverviewItemDto | undefined {
     const n = Number(unitId);
     if (!Number.isFinite(n)) {

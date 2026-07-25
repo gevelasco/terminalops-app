@@ -22,6 +22,7 @@ import { filter } from 'rxjs';
 import { ProfileDrawerComponent } from '@core/components/profile-drawer/profile-drawer.component';
 import { AuthFacade } from '@core/services/auth.facade';
 import { SessionService } from '@core/services/state/session';
+import { NotificationsUnreadStore } from '@core/services/state/notifications-unread.store';
 import {
   initialsFromDisplayName,
   UserProfileStore,
@@ -50,14 +51,13 @@ export class ShellComponent implements OnDestroy {
   private readonly session = inject(SessionService);
   private readonly profiles = inject(UserProfileStore);
   private readonly preferences = inject(UserPreferencesStore);
+  private readonly notificationsUnread = inject(NotificationsUnreadStore);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly profileDrawerOpen = signal(false);
   readonly notificationsDrawerOpen = signal(false);
   readonly checklistDrawerOpen = signal(false);
-  /** Conteo del día: se obtiene al abrir el drawer (sin prefetch global). */
-  readonly notificationBadgeCount = signal(0);
   /** Drawer lateral en viewport estrecho (móvil / tablet) */
   readonly navOpen = signal(false);
 
@@ -121,7 +121,15 @@ export class ShellComponent implements OnDestroy {
     visibleNavItems(this.session.allowedModules(), 'bottom', APP_NAV_ITEMS),
   );
 
-  readonly notificationCount = computed(() => this.notificationBadgeCount());
+  readonly notificationCount = computed(() => this.notificationsUnread.badgeCount());
+
+  readonly notificationBadgeLabel = computed(() => {
+    const n = this.notificationCount();
+    if (n > 99) {
+      return '99+';
+    }
+    return String(n);
+  });
 
   readonly companyTitle = computed(
     () => this.session.companyName()?.trim() || 'Mi empresa',
@@ -136,6 +144,7 @@ export class ShellComponent implements OnDestroy {
       this.profiles.hydrateFromSession();
       this.preferences.ensureLoaded();
     }
+    this.notificationsUnread.start();
     this.router.events
       .pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
@@ -167,7 +176,6 @@ export class ShellComponent implements OnDestroy {
     if (this.checklistDrawerOpen()) {
       this.profileDrawerOpen.set(false);
       this.notificationsDrawerOpen.set(false);
-      this.notificationBadgeCount.set(0);
     }
   }
 
@@ -178,19 +186,15 @@ export class ShellComponent implements OnDestroy {
   toggleNotificationsDrawer(): void {
     this.profileDrawerOpen.set(false);
     this.checklistDrawerOpen.set(false);
-    this.notificationsDrawerOpen.update((open) => !open);
-    if (!this.notificationsDrawerOpen()) {
-      this.notificationBadgeCount.set(0);
+    const next = !this.notificationsDrawerOpen();
+    this.notificationsDrawerOpen.set(next);
+    if (next) {
+      this.notificationsUnread.markSeen();
     }
-  }
-
-  onNotificationsDayTotal(total: number): void {
-    this.notificationBadgeCount.set(total);
   }
 
   closeNotificationsDrawer(): void {
     this.notificationsDrawerOpen.set(false);
-    this.notificationBadgeCount.set(0);
   }
 
   openProfileDrawer(): void {
@@ -200,7 +204,6 @@ export class ShellComponent implements OnDestroy {
     }
     this.profiles.hydrateFromSession();
     this.notificationsDrawerOpen.set(false);
-    this.notificationBadgeCount.set(0);
     this.checklistDrawerOpen.set(false);
     this.profileDrawerOpen.set(true);
   }
@@ -220,6 +223,7 @@ export class ShellComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.notificationsUnread.stop();
     document.body.style.overflow = '';
   }
 }

@@ -57,6 +57,21 @@ export class TripsMapService {
     this.refresh({ silent: true });
   }
 
+  /** Limpia estado local sin pedir /map (p. ej. sin maniobras operativas). */
+  clearIdle(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.requestGen.invalidate();
+    this.fetchSub?.unsubscribe();
+    this.fetchSub = null;
+    this._items.set([]);
+    this._meta.set(null);
+    this._loading.set(false);
+    this._error.set(false);
+    this.initialLoadStarted = false;
+  }
+
   refresh(options?: { silent?: boolean }): void {
     if (this.disposed) {
       return;

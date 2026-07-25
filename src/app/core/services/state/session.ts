@@ -16,6 +16,7 @@ import {
   resolveStaffModuleGrants,
 } from '@shared/utils/access-control';
 import { APP_MODULE_CODES, type AppModuleCode } from '@shared/models/app-modules.models';
+import { normalizeSubscriptionPlanId } from '@shared/billing/subscription-plans';
 
 const SESSION_STORAGE_KEY = '_to_s';
 const SESSION_OBFUSCATE_KEY = 't3rm1n4l0ps_s3ss10n';
@@ -197,6 +198,9 @@ export class SessionService {
   readonly operationalCenterLongitude = computed(
     () => this.data()?.operationalCenterLongitude ?? null,
   );
+  readonly subscriptionPlanId = computed(
+    () => this.data()?.subscriptionPlanId ?? null,
+  );
 
   canReadModule(module: AppModuleCode): boolean {
     return canReadModuleAccess(this.role(), this.moduleGrants(), module);
@@ -261,6 +265,20 @@ export class SessionService {
       return;
     }
     const next = { ...current, companyName, companyTagline };
+    this.data.set(next);
+    saveEncryptedSession(next);
+  }
+
+  setSubscriptionPlan(planId: string | null | undefined): void {
+    const current = this.data();
+    if (!current) {
+      return;
+    }
+    const normalized = normalizeSubscriptionPlanId(planId);
+    if (current.subscriptionPlanId === normalized) {
+      return;
+    }
+    const next = { ...current, subscriptionPlanId: normalized };
     this.data.set(next);
     saveEncryptedSession(next);
   }
@@ -560,6 +578,7 @@ export class SessionService {
       ),
       companyId: String(user.companyId ?? payload?.companyId ?? ''),
       companyName: user.companyName ?? payload?.companyName,
+      companyTagline: user.companyTagline ?? payload?.companyTagline ?? undefined,
       theme: user.theme === 'dark' ? 'dark' : 'light',
       id: String(user.id ?? payload?.id ?? ''),
       username: user.username ?? payload?.username ?? '',
@@ -676,6 +695,9 @@ export class SessionService {
         user.operationalCenterLatitude ?? payload?.operationalCenterLatitude,
       operationalCenterLongitude:
         user.operationalCenterLongitude ?? payload?.operationalCenterLongitude,
+      subscriptionPlanId: normalizeSubscriptionPlanId(
+        user.subscriptionPlan ?? this.data()?.subscriptionPlanId,
+      ),
     };
   }
 

@@ -13,6 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CompanyUsersApiService } from '@core/services/api/company-users';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { initialsFromDisplayName } from '@core/services/state/user-profile';
 import {
   STAFF_MODULE_OPTIONS,
@@ -59,6 +60,7 @@ export class UsersNewDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -162,35 +164,62 @@ export class UsersNewDrawerComponent {
     }
     this.saving.set(true);
     this.api
-      .createUser(companyId, {
-        username,
-        password,
-        displayName,
-        email,
-        phone: this.draftPhone().trim() || undefined,
-        jobTitle: this.draftJobTitle().trim() || undefined,
-        photoDataUrl: this.photoDataUrl().trim() || undefined,
-        role: this.draftRole(),
-        moduleGrants:
-          this.draftRole() === 'staff'
-            ? staffModuleGrantsFromDraft(this.draftPermissions())
-            : undefined,
-      })
+      .listUsers(companyId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (created) => {
-          this.saving.set(false);
-          this.saved.emit(created);
-          this.dismiss.emit();
-          this.toast.show('Usuario creado.', 'success');
+        next: (rows) => {
+          const role = this.draftRole();
+          if (role === 'staff') {
+            const staffCount = rows.filter((u) => u.role === 'staff').length;
+            if (!this.planEntitlements.canAddStaff(staffCount)) {
+              this.saving.set(false);
+              this.toast.show(this.planEntitlements.staffLimitMessage(), 'warning');
+              return;
+            }
+          } else {
+            const adminCount = rows.filter((u) => u.role === 'admin').length;
+            if (!this.planEntitlements.canAddAdmin(adminCount)) {
+              this.saving.set(false);
+              this.toast.show(this.planEntitlements.adminLimitMessage(), 'warning');
+              return;
+            }
+          }
+          this.api
+            .createUser(companyId, {
+              username,
+              password,
+              displayName,
+              email,
+              phone: this.draftPhone().trim() || undefined,
+              jobTitle: this.draftJobTitle().trim() || undefined,
+              photoDataUrl: this.photoDataUrl().trim() || undefined,
+              role: this.draftRole(),
+              moduleGrants:
+                this.draftRole() === 'staff'
+                  ? staffModuleGrantsFromDraft(this.draftPermissions())
+                  : undefined,
+            })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: (created) => {
+                this.saving.set(false);
+                this.saved.emit(created);
+                this.dismiss.emit();
+                this.toast.show('Usuario creado.', 'success');
+              },
+              error: (err) => {
+                this.saving.set(false);
+                const msg =
+                  typeof err?.error?.message === 'string'
+                    ? err.error.message
+                    : 'No se pudo crear el usuario.';
+                this.toast.show(msg, 'error');
+              },
+            });
         },
-        error: (err) => {
+        error: () => {
           this.saving.set(false);
-          const msg =
-            typeof err?.error?.message === 'string'
-              ? err.error.message
-              : 'No se pudo crear el usuario.';
-          this.toast.show(msg, 'error');
+          this.toast.show('No se pudo validar el cupo de usuarios del plan.', 'error');
         },
       });
   }

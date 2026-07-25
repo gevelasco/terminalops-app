@@ -14,6 +14,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ToastService } from '@core/notifications/toast.service';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { EQUIPMENT_OPERATION_TYPE_OPTIONS } from '@shared/catalogs/fleet-form-options';
 import {
   coerceContainerSlotForOperationType,
@@ -34,7 +36,6 @@ import { cyclicRenewalHint } from '@features/fleet/utils/fleet-cyclic-renewal-hi
 import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
 import { Equipment, Unit } from '@shared/models/logistics.models';
-import { ToastService } from '@core/notifications/toast.service';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
@@ -57,7 +58,6 @@ import {
   FLEET_MAINTENANCE_TYPE_OPTIONS,
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_TIRE_CONDITION_OPTIONS,
-  FLEET_TRAILER_TENURE_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 
@@ -157,6 +157,7 @@ export class FleetNewEquipmentDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
 
   readonly units = input<Unit[]>([]);
@@ -297,7 +298,7 @@ export class FleetNewEquipmentDrawerComponent {
     (o) => o.value !== '',
   );
 
-  readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
+  readonly tenureOptions = this.planEntitlements.tenureOptions;
 
   readonly physRenewal = computed(() =>
     renewalFromLastDateForVerif(this.verificationPhysMechDate().trim(), 6),
@@ -449,7 +450,14 @@ export class FleetNewEquipmentDrawerComponent {
 
     const tenureModeRaw = this.trailerTenureMode().trim() as TrailerTenureMode;
     const TENURE: TrailerTenureMode[] = ['owned', 'financed', 'leased', 'managed'];
-    const tenureMode: TrailerTenureMode = TENURE.includes(tenureModeRaw) ? tenureModeRaw : 'owned';
+    let tenureMode: TrailerTenureMode = TENURE.includes(tenureModeRaw)
+      ? tenureModeRaw
+      : 'owned';
+    if (!this.planEntitlements.isTenureModeAllowed(tenureMode)) {
+      this.toast.show(this.planEntitlements.tenureUpgradeMessage(), 'warning');
+      tenureMode = 'owned';
+      this.trailerTenureMode.set('owned');
+    }
 
     const commercialVal = parseOptionalAmount(this.trailerCommercialValue());
     const recAmt = parseOptionalAmount(this.trailerRecurringPaymentAmount());

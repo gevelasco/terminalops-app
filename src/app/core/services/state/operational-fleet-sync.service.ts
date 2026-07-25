@@ -26,6 +26,7 @@ export class OperationalFleetSyncService {
 
   private readonly _trips = signal<readonly Trip[]>([]);
   private readonly _tripsLoading = signal(false);
+  private readonly _tripsHydrated = signal(false);
   private readonly _tripsEpoch = signal(0);
   private readonly _fleetMutationEpoch = signal(0);
   private readonly _operatorsMutationEpoch = signal(0);
@@ -39,6 +40,8 @@ export class OperationalFleetSyncService {
 
   readonly trips = this._trips.asReadonly();
   readonly tripsLoading = this._tripsLoading.asReadonly();
+  /** True tras el primer fetch (o replace) de la caché operativa. */
+  readonly tripsHydrated = this._tripsHydrated.asReadonly();
   /** Incrementa cuando cambia la lista en memoria (p. ej. tab lista de maniobras). */
   readonly tripsEpoch = this._tripsEpoch.asReadonly();
   readonly fleetMutationEpoch = this._fleetMutationEpoch.asReadonly();
@@ -70,6 +73,7 @@ export class OperationalFleetSyncService {
   replaceTrips(trips: readonly Trip[]): void {
     this._trips.set(trips);
     this.loadStarted = true;
+    this._tripsHydrated.set(true);
     this._tripsEpoch.update((n) => n + 1);
   }
 
@@ -109,6 +113,7 @@ export class OperationalFleetSyncService {
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._tripsLoading.set(false);
+            this._tripsHydrated.set(true);
           }
         }),
       )
@@ -127,6 +132,7 @@ export class OperationalFleetSyncService {
     this.fetchSub = null;
     this._trips.set([]);
     this._tripsLoading.set(false);
+    this._tripsHydrated.set(false);
     this.loadStarted = false;
     this._tripsEpoch.set(0);
     this._fleetMutationEpoch.set(0);

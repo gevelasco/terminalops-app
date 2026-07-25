@@ -139,12 +139,17 @@
 .login-page__actions {
   margin-top: 0.25rem;
   width: 100%;
-}
 
-.login-page__actions ::ng-deep .to-button {
-  width: 100%;
-  justify-content: center;
-  min-height: 2.75rem;
+  to-button {
+    display: flex;
+    width: 100%;
+  }
+
+  to-button ::ng-deep .to-button {
+    width: 100%;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
 }
 
 .login-page__foot {

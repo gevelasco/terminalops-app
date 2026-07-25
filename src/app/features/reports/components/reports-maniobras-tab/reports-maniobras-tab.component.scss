@@ -283,9 +283,9 @@
   color: var(--to-color-text);
 }
 
+.reports-maniobras-panel--ralenti,
 .reports-maniobras-panel--ralenti-table {
-  grid-column: 1 / -1;
-  min-height: 220px;
+  min-height: 260px;
 }
 
 .reports-maniobras-panel__muted {
@@ -337,8 +337,7 @@
     grid-template-columns: 1fr;
   }
 
-  .reports-maniobras-panel--map,
-  .reports-maniobras-panel--ralenti-table {
+  .reports-maniobras-panel--map {
     grid-column: auto;
   }
 

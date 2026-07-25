@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import type {
   StaffGrantableModuleCode,
   StaffModuleGrant,
@@ -16,6 +16,32 @@ export interface CompanyAccount {
   subscriptionPlan: string | null;
   subscriptionEndsAt: string | null;
   createdAt: string | null;
+}
+
+function mapCompanyAccount(row: Record<string, unknown>): CompanyAccount {
+  return {
+    id: Number(row['id'] ?? 0),
+    name: String(row['name'] ?? ''),
+    tagline:
+      row['tagline'] == null && row['tagLine'] == null
+        ? null
+        : String(row['tagline'] ?? row['tagLine'] ?? ''),
+    subscriptionStatus: String(
+      row['subscriptionStatus'] ?? row['subscription_status'] ?? 'active',
+    ),
+    subscriptionPlan:
+      row['subscriptionPlan'] != null || row['subscription_plan'] != null
+        ? String(row['subscriptionPlan'] ?? row['subscription_plan'])
+        : null,
+    subscriptionEndsAt:
+      row['subscriptionEndsAt'] != null || row['subscription_ends_at'] != null
+        ? String(row['subscriptionEndsAt'] ?? row['subscription_ends_at'])
+        : null,
+    createdAt:
+      row['createdAt'] != null || row['created_at'] != null
+        ? String(row['createdAt'] ?? row['created_at'])
+        : null,
+  };
 }
 
 export interface UpdateCompanyAccountPayload {
@@ -74,19 +100,23 @@ export class CompanyUsersApiService {
   private readonly http = inject(HttpClient);
 
   getAccount(companyId: string | number): Observable<CompanyAccount> {
-    return this.http.get<CompanyAccount>(
-      `${environment.apiUrl}/companies/${companyId}/account`,
-    );
+    return this.http
+      .get<Record<string, unknown>>(
+        `${environment.apiUrl}/companies/${companyId}/account`,
+      )
+      .pipe(map((row) => mapCompanyAccount(row)));
   }
 
   updateAccount(
     companyId: string | number,
     payload: UpdateCompanyAccountPayload,
   ): Observable<CompanyAccount> {
-    return this.http.patch<CompanyAccount>(
-      `${environment.apiUrl}/companies/${companyId}/account`,
-      payload,
-    );
+    return this.http
+      .patch<Record<string, unknown>>(
+        `${environment.apiUrl}/companies/${companyId}/account`,
+        payload,
+      )
+      .pipe(map((row) => mapCompanyAccount(row)));
   }
 
   listUsers(companyId: string | number): Observable<CompanyUserRow[]> {

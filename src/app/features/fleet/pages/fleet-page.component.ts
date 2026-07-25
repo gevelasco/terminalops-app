@@ -8,12 +8,14 @@ import {
   model,
   OnInit,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '@core/notifications/toast.service';
 import { OperationalFleetSyncService } from '@core/services/state/operational-fleet-sync.service';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-overview-card/fleet-overview-card.component';
 import { FleetEquipmentDetailDrawerComponent } from '@features/fleet/components/fleet-equipment-detail-drawer/fleet-equipment-detail-drawer.component';
@@ -128,6 +130,7 @@ export class FleetPageComponent implements OnInit {
   protected readonly fleet = inject(FleetFeatureService);
   private readonly operationalSync = inject(OperationalFleetSyncService);
   private readonly session = inject(SessionService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
   protected readonly isMobileViewport = injectIsMobileViewport();
 
@@ -147,9 +150,42 @@ export class FleetPageComponent implements OnInit {
     });
 
     effect(() => {
+      const hydrated = this.fleet.listsHydrated();
+      const loading = this.fleet.listsLoading();
+      if (!hydrated || loading || this.overviewDefaultApplied) {
+        return;
+      }
+      this.overviewDefaultApplied = true;
+      const empty = !this.fleet.hasFleetAssets();
+      if (
+        empty &&
+        this.tab() === 'overview' &&
+        this.pendingUnitId() == null &&
+        this.pendingEquipmentId() == null
+      ) {
+        untracked(() => this.tab.set('units'));
+      }
+    });
+
+    effect(() => {
+      if (this.tab() !== 'overview') {
+        return;
+      }
+      const hydrated = this.fleet.listsHydrated();
+      if (!hydrated) {
+        return;
+      }
+      if (this.fleet.hasFleetAssets()) {
+        untracked(() => this.fleet.ensureOverviewLoaded());
+      } else {
+        untracked(() => this.fleet.clearOverviewIdle());
+      }
+    });
+
+    effect(() => {
       const unitId = this.pendingUnitId();
       const equipmentId = this.pendingEquipmentId();
-      if (this.fleet.loading()) {
+      if (this.fleet.listsLoading() || !this.fleet.listsHydrated()) {
         return;
       }
       if (unitId) {
@@ -176,6 +212,8 @@ export class FleetPageComponent implements OnInit {
 
   private readonly pendingUnitId = signal<string | null>(null);
   private readonly pendingEquipmentId = signal<string | null>(null);
+  /** Solo la primera hidratación decide Flota vs Unidades por defecto. */
+  private overviewDefaultApplied = false;
 
   readonly tab = signal<FleetPageTab>('overview');
   readonly viewSegmentTabs: readonly ToSegmentTab<FleetPageTab>[] = [
@@ -201,9 +239,27 @@ export class FleetPageComponent implements OnInit {
     { id: 'maintenance', label: fleetOperationalKeyLabel('maintenance'), icon: 'maintenance' },
   ];
 
-  readonly loadingOverview = this.fleet.loading;
-  readonly loadingUnits = this.fleet.loading;
-  readonly loadingEquipment = this.fleet.loading;
+  readonly overviewViewLoading = computed(
+    () =>
+      !this.fleet.listsHydrated() ||
+      this.fleet.listsLoading() ||
+      (this.fleet.hasFleetAssets() && this.fleet.overviewLoading()),
+  );
+
+  readonly overviewViewEmpty = computed(
+    () =>
+      this.fleet.listsHydrated() &&
+      !this.fleet.listsLoading() &&
+      !this.fleet.hasFleetAssets(),
+  );
+
+  readonly loadingOverview = this.overviewViewLoading;
+  readonly loadingUnits = computed(
+    () => !this.fleet.listsHydrated() || this.fleet.listsLoading(),
+  );
+  readonly loadingEquipment = computed(
+    () => !this.fleet.listsHydrated() || this.fleet.listsLoading(),
+  );
 
   readonly unitList = this.fleet.units;
   readonly equipmentList = this.fleet.equipment;
@@ -527,8 +583,20 @@ export class FleetPageComponent implements OnInit {
     this.fleet.selectEquipment(String(equipmentId));
   }
 
+  openNewUnit(): void {
+    if (!this.planEntitlements.canAddUnit(this.unitList().length)) {
+      this.toast.show(this.planEntitlements.unitLimitMessage(), 'warning');
+      return;
+    }
+    this.newUnitOpen.set(true);
+  }
+
   openNewEquipment(): void {
     if (this.unitList().length === 0) {
+      return;
+    }
+    if (!this.planEntitlements.canAddEquipment(this.equipmentList().length)) {
+      this.toast.show(this.planEntitlements.equipmentLimitMessage(), 'warning');
       return;
     }
     this.newEquipmentOpen.set(true);

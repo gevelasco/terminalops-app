@@ -34,6 +34,7 @@ export class UnitsFeatureService {
   private readonly _units = signal<readonly Unit[]>([]);
   private readonly _selectedUnitId = signal<string | null>(null);
   private readonly _loading = signal(false);
+  private readonly _hydrated = signal(false);
 
   private initialLoadStarted = false;
   private disposed = false;
@@ -53,6 +54,8 @@ export class UnitsFeatureService {
     return this._units().find((u) => u.id === id) ?? null;
   });
   readonly loading = this._loading.asReadonly();
+  /** True tras el primer fetch (éxito o error). */
+  readonly hydrated = this._hydrated.asReadonly();
 
   loadUnits(): void {
     if (this.disposed) {
@@ -178,6 +181,7 @@ export class UnitsFeatureService {
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._loading.set(false);
+            this._hydrated.set(true);
           }
         }),
       )
@@ -281,6 +285,7 @@ export class UnitsFeatureService {
     this._units.set([]);
     this._selectedUnitId.set(null);
     this._loading.set(false);
+    this._hydrated.set(false);
     this.initialLoadStarted = false;
   }
 }

@@ -1,3 +1,5 @@
+@use "../../../shared/styles/feature-empty-panel";
+
 :host.clients-page-host {
   display: flex;
   flex-direction: column;
@@ -22,6 +24,12 @@
 
   &:not(.clients-table-block--rates) {
     flex: 1 1 auto;
+  }
+
+  /* Mismo tamaño natural que Flota: no estirar al alto del viewport. */
+  .to-feature-empty {
+    flex: 0 0 auto;
+    align-self: stretch;
   }
 }
 
@@ -190,23 +198,4 @@
 
 .clients-page__hint--rates {
   margin-bottom: 0.75rem;
-}
-
-.clients-empty-hint {
-  margin: 0;
-  padding: 0.85rem 1rem;
-  border-radius: var(--to-radius-md);
-  background: var(--to-color-surface-muted);
-  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
-}
-
-.clients-empty-hint__text {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--to-color-text-muted);
 }

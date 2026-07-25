@@ -37,6 +37,13 @@ export interface NotificationsFeedParams {
   countOnly?: boolean;
 }
 
+export interface NotificationsSummaryResponse {
+  hasNew: boolean;
+  count: number;
+  latestOccurredAt: string | null;
+  since: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificationsService {
   private readonly http = inject(HttpClient);
@@ -57,6 +64,16 @@ export class NotificationsService {
     return this.http.get<NotificationsFeedResponse>(
       companyResourceUrl(companyId, 'notifications'),
       { params: httpParams },
+    );
+  }
+
+  /** Badge: eventos posteriores a `since` (ISO). */
+  getSummary(sinceIso: string): Observable<NotificationsSummaryResponse> {
+    const companyId = requireCompanyId(this.session.companyId());
+    const params = new HttpParams().set('since', sinceIso);
+    return this.http.get<NotificationsSummaryResponse>(
+      companyResourceUrl(companyId, 'notifications/summary'),
+      { params },
     );
   }
 }

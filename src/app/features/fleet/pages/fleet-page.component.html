@@ -4,7 +4,7 @@
     [subtitle]="isMobileViewport() ? '' : 'Unidades y equipamiento'"
   >
     @if (canWriteFleet() && tab() === 'units') {
-      <to-button type="button" variant="primary" (click)="newUnitOpen.set(true)">
+      <to-button type="button" variant="primary" (click)="openNewUnit()">
         <to-icon name="unit" [size]="18" />
         Nueva unidad
       </to-button>
@@ -110,8 +110,40 @@
 }
 
 @if (tab() === 'overview') {
-  @if (loadingOverview()) {
+  @if (overviewViewLoading()) {
     <to-skeleton [lines]="4" />
+  } @else if (overviewViewEmpty()) {
+    <div class="to-feature-empty" role="status">
+      <div class="to-feature-empty__visual" aria-hidden="true">
+        <span class="to-feature-empty__ring"></span>
+        <to-icon name="truck" [size]="36" />
+      </div>
+      <h3 class="to-feature-empty__title">No hay flota aún</h3>
+      <p class="to-feature-empty__copy">
+        Registra tu primera unidad para ver convoyes, estatus y equipo en esta
+        vista.
+      </p>
+      <div class="to-feature-empty__actions">
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          (click)="onViewTabSelect('units')"
+        >
+          Ver unidades
+        </to-button>
+        @if (canWriteFleet()) {
+          <to-button
+            type="button"
+            variant="primary"
+            size="sm"
+            (click)="openNewUnit()"
+          >
+            Nueva unidad
+          </to-button>
+        }
+      </div>
+    </div>
   } @else {
     <p class="fleet-overview__hint">
       Unidades, convoyes y equipo disponible. Clic en una tarjeta para abrir la
@@ -146,12 +178,8 @@
       </div>
     }
     @if (overviewUnits().length === 0) {
-      <p class="fleet-empty-hint">
-        @if (unitList().length === 0) {
-          No hay unidades registradas.
-        } @else {
-          Ninguna unidad coincide con los filtros actuales.
-        }
+      <p class="to-feature-empty-hint">
+        Ninguna unidad coincide con los filtros actuales.
       </p>
     }
   }
@@ -171,7 +199,7 @@
         (rowClick)="onUnitRowClick($event)"
       />
       @if (displayedUnitRows().length === 0) {
-        <p class="fleet-empty-hint">
+        <p class="to-feature-empty-hint">
           @if (unitList().length === 0) {
             No hay unidades registradas.
           } @else {
@@ -197,7 +225,7 @@
         (rowClick)="onEquipmentRowClick($event)"
       />
       @if (displayedEquipmentRows().length === 0) {
-        <p class="fleet-empty-hint">
+        <p class="to-feature-empty-hint">
           @if (equipmentList().length === 0) {
             No hay equipo registrado.
           } @else {

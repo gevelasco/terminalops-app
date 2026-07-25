@@ -125,7 +125,7 @@
     } @else if (listLoading()) {
       <to-skeleton [lines]="6" />
     } @else if (!hasEntries()) {
-      <p class="expenses-calendar-main__empty">
+      <p class="expenses-calendar-main__empty" role="status">
         No hay gastos ni obligaciones en este periodo.
       </p>
     } @else {

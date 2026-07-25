@@ -16,6 +16,7 @@ import {
   subscribeFleetCoverageExpensesPage,
 } from '@features/fleet/utils/fleet-coverage-payment.util';
 import { SessionService } from '@core/services/state/session';
+import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
@@ -134,7 +135,6 @@ import {
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TRANSPORT_TYPE_OPTIONS,
-  FLEET_TRAILER_TENURE_OPTIONS,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
   FLEET_RESOURCE_VISIBILITY_OPTIONS,
@@ -178,6 +178,7 @@ const COB_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
 export class FleetUnitDetailDrawerFacade {
   readonly toast = inject(ToastService);
   readonly session = inject(SessionService);
+  private readonly planEntitlements = inject(PlanEntitlementService);
   readonly destroyRef = inject(DestroyRef);
   private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
@@ -244,9 +245,10 @@ export class FleetUnitDetailDrawerFacade {
 
   readonly companyMaintPolicy = computed(() =>
     companyMaintenancePolicyFromSession({
-      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+      maintenanceKmControlEnabled: this.planEntitlements.effectiveMaintenanceKmEnabled(),
       maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
-      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+      maintenanceDateControlEnabled:
+        this.planEntitlements.effectiveMaintenanceDateEnabled(),
       maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
     }),
   );
@@ -1368,7 +1370,7 @@ export class FleetUnitDetailDrawerFacade {
   readonly editOwnershipNames = signal<string[]>([]);
   readonly editOwnershipNewFiles = signal<File[]>([]);
 
-  readonly tenureOptions = FLEET_TRAILER_TENURE_OPTIONS;
+  readonly tenureOptions = this.planEntitlements.tenureOptions;
   readonly tenureCadenceOptions = FLEET_PAYMENT_CADENCE_OPTIONS;
 
   tenureCadenceLabel(): string {
@@ -1427,11 +1429,22 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   setEditTenureMode(raw: string): void {
-    this.editTenureMode.set(trailerTenureModeOrDefault(raw));
+    const mode = trailerTenureModeOrDefault(raw);
+    if (!this.planEntitlements.isTenureModeAllowed(mode)) {
+      this.toast.show(this.planEntitlements.tenureUpgradeMessage(), 'warning');
+      this.editTenureMode.set('owned');
+      return;
+    }
+    this.editTenureMode.set(mode);
   }
 
   saveEditTenure(): void {
-    const mode = trailerTenureModeOrDefault(this.editTenureMode());
+    let mode = trailerTenureModeOrDefault(this.editTenureMode());
+    if (!this.planEntitlements.isTenureModeAllowed(mode)) {
+      this.toast.show(this.planEntitlements.tenureUpgradeMessage(), 'warning');
+      mode = 'owned';
+      this.editTenureMode.set('owned');
+    }
     const commercial = parseFleetOptionalAmount(this.editCommercialValue());
     const recAmt = parseFleetOptionalAmount(this.editRecurringAmount());
     const recCount = parseFleetOptionalPositiveInt(this.editRecurringInstallments());
