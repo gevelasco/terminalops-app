@@ -319,7 +319,19 @@
                                     n of entry.documentNames ?? [];
                                     track n
                                   ) {
-                                    <li>{{ n }}</li>
+                                    <li>
+                                      @if (vm().downloadStoredDocument) {
+                                        <button
+                                          type="button"
+                                          class="fleet-unit-detail__doc-link"
+                                          (click)="vm().downloadStoredDocument?.(n)"
+                                        >
+                                          {{ n }}
+                                        </button>
+                                      } @else {
+                                        {{ n }}
+                                      }
+                                    </li>
                                   }
                                 </ul>
                               </div>

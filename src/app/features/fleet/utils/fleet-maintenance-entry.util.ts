@@ -21,3 +21,30 @@ export function isSubstantiveMaintenanceEntry(
   }
   return false;
 }
+
+/**
+ * Los documentos de mantenimiento viven a nivel unidad (`fleetDocuments` /
+ * `documentMaintenanceNames`), no en cada fila del historial. Para la tabla
+ * Docs, se muestran en la entrada más reciente.
+ */
+export function attachFleetMaintenanceDocNamesToNewestEntry(
+  entries: readonly MaintenanceEntry[],
+  maintDocNames: readonly string[],
+): MaintenanceEntry[] {
+  if (entries.length === 0 || maintDocNames.length === 0) {
+    return [...entries];
+  }
+  const [newest, ...rest] = entries;
+  const existing = newest.documentNames ?? [];
+  const merged = [...existing];
+  for (const name of maintDocNames) {
+    const trimmed = name.trim();
+    if (trimmed && !merged.includes(trimmed)) {
+      merged.push(trimmed);
+    }
+  }
+  if (merged.length === existing.length) {
+    return [...entries];
+  }
+  return [{ ...newest, documentNames: merged }, ...rest];
+}

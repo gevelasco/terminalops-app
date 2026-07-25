@@ -63,7 +63,10 @@ import {
 } from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
-import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
+import {
+  attachFleetMaintenanceDocNamesToNewestEntry,
+  isSubstantiveMaintenanceEntry,
+} from '@features/fleet/utils/fleet-maintenance-entry.util';
 import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
@@ -1262,7 +1265,7 @@ export class FleetUnitDetailDrawerFacade {
       this.metaOverride.update((p) => ({ ...p, ...metaPatch }));
     }
 
-    const docs = this.newMaintFiles().map((f) => f.name);
+    const files = this.newMaintFiles();
     const paymentMethod = this.newMaintPaymentMethod().trim() || undefined;
     const entry: MaintenanceEntry = {
       date,
@@ -1270,16 +1273,37 @@ export class FleetUnitDetailDrawerFacade {
       cost,
       notes: this.newMaintNotes().trim() || undefined,
       paymentMethod,
-      documentNames: docs.length > 0 ? docs : undefined,
+      documentNames: files.length > 0 ? files.map((f) => f.name) : undefined,
       status: 'concluido',
     };
-    this.localMaintEntries.update((prev) => [...prev, entry]);
-    this.addingMaint.set(false);
-    this.resetNewMaintForm();
-    this.persistCurrentUnit(
-      'Mantenimiento agregado.',
-      Object.keys(metaPatch).length > 0 ? { fleetMeta: metaPatch } : undefined,
-    );
+    if (this.saving()) {
+      return;
+    }
+    const existingDocs = this.docs('maint');
+    this.saving.set(true);
+    this.syncUnitDocuments('maintenance', existingDocs, files, existingDocs)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.localMaintEntries.update((prev) => [...prev, entry]);
+          this.addingMaint.set(false);
+          this.resetNewMaintForm();
+          this.saving.set(false);
+          this.persistCurrentUnit(
+            'Mantenimiento agregado.',
+            Object.keys(metaPatch).length > 0
+              ? { fleetMeta: metaPatch }
+              : undefined,
+          );
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show(
+            'No se pudieron subir los documentos del mantenimiento.',
+            'error',
+          );
+        },
+      });
   }
 
 
@@ -1999,6 +2023,8 @@ export class FleetUnitDetailDrawerFacade {
    * se devuelven ordenadas por fecha desc; en caso contrario se sintetiza una
    * sola fila a partir de `lastMaintenance*` y los nombres de archivo legados
    * para que las unidades viejas no se vean vacías.
+   * Docs de storage (`fleetDocuments` kind=maintenance) se muestran en la
+   * entrada más reciente (aún no hay vínculo entry↔documento en API).
    */
   maintenanceEntries(): MaintenanceEntry[] {
     const m = this.meta();
@@ -2021,8 +2047,12 @@ export class FleetUnitDetailDrawerFacade {
         }
       }
     }
-    return [...base, ...local].filter(isSubstantiveMaintenanceEntry).sort((a, b) =>
-      (b.date ?? '').localeCompare(a.date ?? ''),
+    const sorted = [...base, ...local]
+      .filter(isSubstantiveMaintenanceEntry)
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+    return attachFleetMaintenanceDocNamesToNewestEntry(
+      sorted,
+      this.docs('maint').map((d) => d.fileName),
     );
   }
 

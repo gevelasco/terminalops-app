@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   HostListener,
   inject,
   model,
@@ -118,6 +119,15 @@ function renewalFromLastDate(iso: string, cycleMonths: number): RenewUi {
   return 'ok';
 }
 
+/** Fecha + costo válidos (costo numérico ≥ 0, no vacío). */
+function hasValidDateAndCost(dateRaw: string, costRaw: string): boolean {
+  if (!parseYmd(dateRaw)) {
+    return false;
+  }
+  const cost = parseOptionalAmount(costRaw);
+  return cost !== 'invalid' && cost !== undefined;
+}
+
 @Component({
   selector: 'app-fleet-new-unit-drawer',
   standalone: true,
@@ -171,8 +181,10 @@ export class FleetNewUnitDrawerComponent {
   readonly lastMaintenanceCost = model('');
   readonly lastMaintenanceNotes = model('');
   readonly tireCondition = model('good');
+  readonly physMechApplies = model(false);
   readonly verificationPhysMechDate = model('');
   readonly verificationPhysMechCost = model('');
+  readonly emissionsApplies = model(false);
   readonly verificationEmissionsDate = model('');
   readonly verificationEmissionsCost = model('');
   readonly doubleArticApplies = model(false);
@@ -201,9 +213,9 @@ export class FleetNewUnitDrawerComponent {
   readonly trailerManagementOwnerPayout = model('');
   /** Número de serie / VIN (opcional en alta). */
   readonly serialNumber = model('');
-  /** Número de motor (obligatorio en alta). */
+  /** Número de motor (opcional en alta). */
   readonly motorNumber = model('');
-  /** Capacidad de carga en toneladas (obligatorio en alta). */
+  /** Capacidad de carga en toneladas (opcional en alta). */
   readonly capacityTons = model('');
   /** Nombre comercial o alias interno (opcional). */
   readonly unitAlias = model('');
@@ -238,11 +250,38 @@ export class FleetNewUnitDrawerComponent {
 
   readonly tenureOptions = this.planEntitlements.tenureOptions;
 
+  readonly showMaintenanceDocs = computed(() =>
+    hasValidDateAndCost(this.lastMaintenanceDate(), this.lastMaintenanceCost()),
+  );
+
+  readonly showVerificationDocs = computed(() => {
+    const physOk =
+      this.physMechApplies() &&
+      hasValidDateAndCost(
+        this.verificationPhysMechDate(),
+        this.verificationPhysMechCost(),
+      );
+    const emisOk =
+      this.emissionsApplies() &&
+      hasValidDateAndCost(
+        this.verificationEmissionsDate(),
+        this.verificationEmissionsCost(),
+      );
+    const doubleOk =
+      this.doubleArticApplies() &&
+      hasValidDateAndCost(this.verificationDoubleDate(), this.verificationDoubleCost());
+    return physOk || emisOk || doubleOk;
+  });
+
   readonly physRenewal = computed(() =>
-    renewalFromLastDate(this.verificationPhysMechDate(), 6),
+    this.physMechApplies()
+      ? renewalFromLastDate(this.verificationPhysMechDate(), 6)
+      : null,
   );
   readonly emissionsRenewal = computed(() =>
-    renewalFromLastDate(this.verificationEmissionsDate(), 6),
+    this.emissionsApplies()
+      ? renewalFromLastDate(this.verificationEmissionsDate(), 6)
+      : null,
   );
 
   readonly insuranceRenewHint = computed(() =>
@@ -258,6 +297,16 @@ export class FleetNewUnitDrawerComponent {
     registerFleetVersionResetOnBrandChange({
       brandName: () => this.brandName(),
       versionName: this.trailerVersion,
+    });
+    effect(() => {
+      if (!this.showMaintenanceDocs()) {
+        this.filesMaintenance.set([]);
+      }
+    });
+    effect(() => {
+      if (!this.showVerificationDocs()) {
+        this.filesVerification.set([]);
+      }
     });
     afterNextRender(() => this.drawerLoading.set(false));
   }
@@ -324,8 +373,31 @@ export class FleetNewUnitDrawerComponent {
     input.value = '';
   }
 
+  togglePhysMechSwitch(): void {
+    const next = !this.physMechApplies();
+    this.physMechApplies.set(next);
+    if (!next) {
+      this.verificationPhysMechDate.set('');
+      this.verificationPhysMechCost.set('');
+    }
+  }
+
+  toggleEmissionsSwitch(): void {
+    const next = !this.emissionsApplies();
+    this.emissionsApplies.set(next);
+    if (!next) {
+      this.verificationEmissionsDate.set('');
+      this.verificationEmissionsCost.set('');
+    }
+  }
+
   toggleDoubleArticSwitch(): void {
-    this.doubleArticApplies.set(!this.doubleArticApplies());
+    const next = !this.doubleArticApplies();
+    this.doubleArticApplies.set(next);
+    if (!next) {
+      this.verificationDoubleDate.set('');
+      this.verificationDoubleCost.set('');
+    }
   }
 
   toggleGpsEndorsementSwitch(): void {
@@ -346,14 +418,15 @@ export class FleetNewUnitDrawerComponent {
 
   submit(): void {
     const brandName = this.brandName().trim();
+    const versionName = this.trailerVersion().trim();
     const yearRaw = this.modelYear().trim();
     const plate = this.plate().trim().toUpperCase();
     const motorNumber = this.motorNumber().trim().toUpperCase();
     const lbRaw = this.grossVehicleWeightLb().trim().replace(/,/g, '');
     const tonsRaw = this.capacityTons().trim().replace(/,/g, '');
 
-    if (!brandName || !plate) {
-      this.toast.show('Marca y placa son obligatorios.', 'warning');
+    if (!brandName || !versionName || !plate) {
+      this.toast.show('Marca, versión, modelo y placa son obligatorios.', 'warning');
       return;
     }
     const yearParsed = parseFleetModelYear(yearRaw);
@@ -362,20 +435,18 @@ export class FleetNewUnitDrawerComponent {
       return;
     }
     const year = yearParsed.year;
-    if (!motorNumber) {
-      this.toast.show('Número de motor es obligatorio.', 'warning');
-      return;
+
+    let capacityTons: number | undefined;
+    let capacityKg = 0;
+    if (tonsRaw) {
+      const tons = Number(tonsRaw);
+      if (!Number.isFinite(tons) || tons <= 0) {
+        this.toast.show('La capacidad en toneladas no es válida.', 'warning');
+        return;
+      }
+      capacityTons = tons;
+      capacityKg = Math.round(tons * 1000);
     }
-    if (!tonsRaw) {
-      this.toast.show('Indica la capacidad en toneladas.', 'warning');
-      return;
-    }
-    const capacityTons = Number(tonsRaw);
-    if (!Number.isFinite(capacityTons) || capacityTons <= 0) {
-      this.toast.show('La capacidad en toneladas no es válida.', 'warning');
-      return;
-    }
-    const capacityKg = Math.round(capacityTons * 1000);
     if (lbRaw) {
       const lb = Number(lbRaw);
       if (!Number.isFinite(lb) || lb <= 0 || !Number.isInteger(lb)) {
@@ -384,13 +455,28 @@ export class FleetNewUnitDrawerComponent {
       }
     }
 
+    if (this.physMechApplies() && !this.verificationPhysMechDate().trim()) {
+      this.toast.show(
+        'Si aplica verificación físico-mecánica, indica la fecha.',
+        'warning',
+      );
+      return;
+    }
+    if (this.emissionsApplies() && !this.verificationEmissionsDate().trim()) {
+      this.toast.show('Si aplica verificación de emisiones, indica la fecha.', 'warning');
+      return;
+    }
     if (this.doubleArticApplies() && !this.verificationDoubleDate().trim()) {
       this.toast.show('Si aplica doble articulado, indica la fecha de verificación.', 'warning');
       return;
     }
 
-    const physCost = parseOptionalAmount(this.verificationPhysMechCost());
-    const emisCost = parseOptionalAmount(this.verificationEmissionsCost());
+    const physCost = this.physMechApplies()
+      ? parseOptionalAmount(this.verificationPhysMechCost())
+      : undefined;
+    const emisCost = this.emissionsApplies()
+      ? parseOptionalAmount(this.verificationEmissionsCost())
+      : undefined;
     const doubleCost = this.doubleArticApplies()
       ? parseOptionalAmount(this.verificationDoubleCost())
       : undefined;
@@ -523,10 +609,16 @@ export class FleetNewUnitDrawerComponent {
         maintCost === undefined ? undefined : maintCost,
       ),
       tireCondition: tireLabel,
-      verificationPhysMechDate: this.verificationPhysMechDate().trim() || undefined,
-      verificationPhysMechCost: physCost === undefined ? undefined : physCost,
-      verificationEmissionsDate: this.verificationEmissionsDate().trim() || undefined,
-      verificationEmissionsCost: emisCost === undefined ? undefined : emisCost,
+      verificationPhysMechDate: this.physMechApplies()
+        ? this.verificationPhysMechDate().trim() || undefined
+        : undefined,
+      verificationPhysMechCost:
+        this.physMechApplies() && physCost !== undefined ? physCost : undefined,
+      verificationEmissionsDate: this.emissionsApplies()
+        ? this.verificationEmissionsDate().trim() || undefined
+        : undefined,
+      verificationEmissionsCost:
+        this.emissionsApplies() && emisCost !== undefined ? emisCost : undefined,
       verificationDoubleArticulatedApplies: this.doubleArticApplies(),
       verificationDoubleArticulatedDate: this.doubleArticApplies()
         ? this.verificationDoubleDate().trim() || undefined
@@ -583,8 +675,8 @@ export class FleetNewUnitDrawerComponent {
         plate,
         transportType: this.transportType().trim() || undefined,
         capacityKg,
-        capacityTons,
-        motorNumber,
+        ...(capacityTons !== undefined ? { capacityTons } : {}),
+        motorNumber: motorNumber || undefined,
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,
         serialNumber: this.serialNumber().trim().toUpperCase() || undefined,
