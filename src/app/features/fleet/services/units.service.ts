@@ -244,6 +244,7 @@ export class UnitsFeatureService {
       documentVerificationNames: _d2,
       documentPolicyNames: _d3,
       documentOwnershipNames: _d4,
+      fleetDocuments: _d5,
       trailerTenureMode: _t1,
       trailerCommercialValue: _t2,
       trailerRecurringPaymentAmount: _t3,

@@ -7,9 +7,10 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { switchMap, type Subscription } from 'rxjs';
+import { forkJoin, of, switchMap, type Observable, type Subscription } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ExpensesService } from '@core/services/api/expenses';
+import { UnitsService as UnitsApiService } from '@core/services/api/units';
 import {
   confirmFleetCoverageSchedulePayment,
   resolveFleetCoverageConfirmDueDate,
@@ -126,6 +127,8 @@ import {
 import {
   Equipment,
   Expense,
+  FleetDocumentKind,
+  FleetStoredDocument,
   MaintenanceEntry,
   TrailerTenureMode,
   Unit,
@@ -181,6 +184,7 @@ export class FleetUnitDetailDrawerFacade {
   private readonly planEntitlements = inject(PlanEntitlementService);
   readonly destroyRef = inject(DestroyRef);
   private readonly unitsFeature = inject(UnitsFeatureService);
+  private readonly unitsApi = inject(UnitsApiService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly expensesApi = inject(ExpensesService);
@@ -401,6 +405,7 @@ export class FleetUnitDetailDrawerFacade {
     return !!(
       meta?.maintenanceEntries?.length ||
       meta?.verificationEntries?.length ||
+      meta?.fleetDocuments?.length ||
       meta?.documentMaintenanceNames?.length ||
       meta?.documentVerificationNames?.length ||
       meta?.documentPolicyNames?.length ||
@@ -937,10 +942,10 @@ export class FleetUnitDetailDrawerFacade {
   readonly editInsInvoiceRequired = signal(false);
   readonly editInsCost = signal('');
   /** Póliza y comprobantes (copia editable al abrir seguro). */
-  readonly editPolicyNames = signal<string[]>([]);
+  readonly editPolicyDocs = signal<FleetStoredDocument[]>([]);
   readonly editPolicyNewFiles = signal<File[]>([]);
   /** Documentos de verificación (copia editable). */
-  readonly editVerifNames = signal<string[]>([]);
+  readonly editVerifDocs = signal<FleetStoredDocument[]>([]);
   readonly editVerifNewFiles = signal<File[]>([]);
 
   startEditInsurance(): void {
@@ -958,12 +963,12 @@ export class FleetUnitDetailDrawerFacade {
     this.editInsPaymentMethod.set(m.insurancePaymentMethod?.trim() || '');
     this.editInsInvoiceRequired.set(m.insuranceInvoiceRequired === true);
     this.editInsCost.set(formatMoneyInputValue(m.insuranceCost));
-    this.editPolicyNames.set([...(m.documentPolicyNames ?? [])]);
+    this.editPolicyDocs.set([...this.docs('policy')]);
     this.editingSection.set('insurance');
   }
 
   removeEditPolicyDoc(index: number): void {
-    this.editPolicyNames.update((prev) => prev.filter((_, i) => i !== index));
+    this.editPolicyDocs.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onEditInsurancePolicyFiles(ev: Event): void {
@@ -983,13 +988,12 @@ export class FleetUnitDetailDrawerFacade {
   startEditVerif(): void {
     this.requestFocusDetailTab('cob');
     this.clearStagedDocUploads();
-    const m = this.meta() ?? {};
-    this.editVerifNames.set([...(m.documentVerificationNames ?? [])]);
+    this.editVerifDocs.set([...this.docs('verif')]);
     this.editingSection.set('verif');
   }
 
   removeEditVerifDoc(index: number): void {
-    this.editVerifNames.update((prev) => prev.filter((_, i) => i !== index));
+    this.editVerifDocs.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onEditVerifFiles(ev: Event): void {
@@ -1007,16 +1011,35 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   saveEditVerif(): void {
-    const merged = [
-      ...this.editVerifNames(),
-      ...this.editVerifNewFiles().map((f) => f.name),
-    ];
-    const documentVerificationNames =
-      merged.length > 0 ? [...new Set(merged)] : undefined;
-    const fleetMetaDraft: Partial<UnitFleetMeta> = { documentVerificationNames };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.editVerifNewFiles.set([]);
-    this.persistCurrentUnit('Documentos de verificación actualizados.', { fleetMeta: fleetMetaDraft });
+    if (this.saving()) {
+      return;
+    }
+    const original = this.docs('verif');
+    const kept = this.editVerifDocs();
+    const files = this.editVerifNewFiles();
+    this.saving.set(true);
+    this.syncUnitDocuments('verification', kept, files, original)
+      .pipe(
+        switchMap(() => this.unitsFeature.fetchUnitDetail(this.effUnit().id)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (detail) => {
+          this.saving.set(false);
+          this.editVerifNewFiles.set([]);
+          if (detail) {
+            this.unitSource.set(detail);
+            this.unitsFeature.upsertUnitSummary(detail);
+          }
+          this.metaOverride.set({});
+          this.toast.show('Documentos de verificación actualizados.', 'success');
+          this.editingSection.set(null);
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron guardar los documentos.', 'error');
+        },
+      });
   }
 
   saveEditInsurance(): void {
@@ -1025,16 +1048,13 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('El costo del seguro debe ser un número válido (≥ 0).', 'warning');
       return;
     }
+    if (this.saving()) {
+      return;
+    }
     const cadenceLabel =
       this.cadenceOptions.find((o) => o.value === this.editInsCadence())?.label ||
       this.editInsCadence().trim() ||
       undefined;
-    const policyMerged = [
-      ...this.editPolicyNames(),
-      ...this.editPolicyNewFiles().map((f) => f.name),
-    ];
-    const documentPolicyNames =
-      policyMerged.length > 0 ? [...new Set(policyMerged)] : undefined;
     const fleetMetaDraft: Partial<UnitFleetMeta> = {
       insuranceCarrierName: this.editInsCarrierName().trim() || undefined,
       insurancePolicyNumber: this.editInsPolicyNumber().trim() || undefined,
@@ -1043,14 +1063,28 @@ export class FleetUnitDetailDrawerFacade {
       insurancePaymentMethod: this.editInsPaymentMethod().trim() || undefined,
       insuranceInvoiceRequired: this.editInsInvoiceRequired(),
       insuranceCost: cost === undefined ? undefined : cost,
-      documentPolicyNames,
     };
-    this.editPolicyNewFiles.set([]);
-    this.persistCurrentUnit(
-      'Seguro actualizado.',
-      { fleetMeta: fleetMetaDraft },
-      COB_SECTION_PERSIST_OPTIONS,
-    );
+    const original = this.docs('policy');
+    const kept = this.editPolicyDocs();
+    const files = this.editPolicyNewFiles();
+    this.saving.set(true);
+    this.syncUnitDocuments('policy', kept, files, original)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.editPolicyNewFiles.set([]);
+          this.saving.set(false);
+          this.persistCurrentUnit(
+            'Seguro actualizado.',
+            { fleetMeta: fleetMetaDraft },
+            COB_SECTION_PERSIST_OPTIONS,
+          );
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron guardar los documentos del seguro.', 'error');
+        },
+      });
   }
 
   // -- GPS: form signals --
@@ -1366,8 +1400,8 @@ export class FleetUnitDetailDrawerFacade {
   readonly editRecurringCadence = signal('');
   readonly editTenureBeneficiary = signal('');
   readonly editOwnerPayout = signal('');
-  /** Nombres de documentos de propiedad (copia editable al abrir tenencia). */
-  readonly editOwnershipNames = signal<string[]>([]);
+  /** Documentos de propiedad (copia editable al abrir tenencia). */
+  readonly editOwnershipDocs = signal<FleetStoredDocument[]>([]);
   readonly editOwnershipNewFiles = signal<File[]>([]);
 
   readonly tenureOptions = this.planEntitlements.tenureOptions;
@@ -1406,12 +1440,12 @@ export class FleetUnitDetailDrawerFacade {
     this.editRecurringCadence.set(m.trailerRecurringPaymentCadence ?? '');
     this.editTenureBeneficiary.set(m.trailerTenureBeneficiary ?? '');
     this.editOwnerPayout.set(formatMoneyInputValue(m.trailerManagementOwnerPayout));
-    this.editOwnershipNames.set([...(m.documentOwnershipNames ?? [])]);
+    this.editOwnershipDocs.set([...this.docs('ownership')]);
     this.editingSection.set('tenure');
   }
 
   removeEditOwnershipDoc(index: number): void {
-    this.editOwnershipNames.update((prev) => prev.filter((_, i) => i !== index));
+    this.editOwnershipDocs.update((prev) => prev.filter((_, i) => i !== index));
   }
 
   onEditTenureOwnershipFiles(ev: Event): void {
@@ -1478,12 +1512,6 @@ export class FleetUnitDetailDrawerFacade {
       trailerTenureBeneficiary = this.editTenureBeneficiary().trim() || undefined;
       trailerRecurringPaymentCadence = this.editRecurringCadence().trim() || undefined;
     }
-    const ownershipMerged = [
-      ...this.editOwnershipNames(),
-      ...this.editOwnershipNewFiles().map((f) => f.name),
-    ];
-    const documentOwnershipNames =
-      ownershipMerged.length > 0 ? [...new Set(ownershipMerged)] : undefined;
     const fleetMetaDraft: Partial<UnitFleetMeta> = {
       trailerTenureMode: mode,
       trailerCommercialValue,
@@ -1493,13 +1521,30 @@ export class FleetUnitDetailDrawerFacade {
       trailerRecurringPaymentCadence,
       trailerTenureBeneficiary,
       trailerManagementOwnerPayout,
-      documentOwnershipNames,
     };
-    this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
-    this.editOwnershipNewFiles.set([]);
-    this.persistCurrentUnit('Propiedad y tenencia actualizadas.', {
-      fleetMeta: fleetMetaDraft,
-    });
+    if (this.saving()) {
+      return;
+    }
+    const original = this.docs('ownership');
+    const kept = this.editOwnershipDocs();
+    const files = this.editOwnershipNewFiles();
+    this.saving.set(true);
+    this.syncUnitDocuments('ownership', kept, files, original)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.metaOverride.update((prev) => ({ ...prev, ...fleetMetaDraft }));
+          this.editOwnershipNewFiles.set([]);
+          this.saving.set(false);
+          this.persistCurrentUnit('Propiedad y tenencia actualizadas.', {
+            fleetMeta: fleetMetaDraft,
+          });
+        },
+        error: () => {
+          this.saving.set(false);
+          this.toast.show('No se pudieron guardar los documentos de propiedad.', 'error');
+        },
+      });
   }
 
   // -- Tren motriz y capacidad: form signals --
@@ -1981,7 +2026,36 @@ export class FleetUnitDetailDrawerFacade {
     );
   }
 
+  docs(which: 'maint' | 'verif' | 'policy' | 'ownership'): FleetStoredDocument[] {
+    const kind: FleetDocumentKind =
+      which === 'maint'
+        ? 'maintenance'
+        : which === 'verif'
+          ? 'verification'
+          : which;
+    const fromApi = (this.meta()?.fleetDocuments ?? []).filter(
+      (d) => d.documentKind === kind && Number.isFinite(d.id) && d.id > 0,
+    );
+    if (fromApi.length > 0) {
+      return fromApi;
+    }
+    // Fallback legacy: solo nombres (sin id → no descargables).
+    return this.legacyDocNames(which).map((fileName, index) => ({
+      id: -(index + 1),
+      fileName,
+      documentKind: kind,
+    }));
+  }
+
   docNames(which: 'maint' | 'verif' | 'policy' | 'ownership'): string[] {
+    return this.docs(which)
+      .map((d) => d.fileName)
+      .filter(Boolean);
+  }
+
+  private legacyDocNames(
+    which: 'maint' | 'verif' | 'policy' | 'ownership',
+  ): string[] {
     const m = this.meta();
     if (!m) {
       return [];
@@ -1998,8 +2072,50 @@ export class FleetUnitDetailDrawerFacade {
     return m.documentPolicyNames ?? [];
   }
 
-  downloadStoredDocument(_fileName: string): void {
-    this.toast.show('La descarga de documentos estará disponible con la API de archivos.', 'info');
+  downloadStoredDocument(doc: FleetStoredDocument | string): void {
+    const unitId = this.effUnit().id;
+    const resolved =
+      typeof doc === 'string'
+        ? this.docs('policy')
+            .concat(this.docs('verif'), this.docs('ownership'), this.docs('maint'))
+            .find((d) => d.fileName === doc)
+        : doc;
+    if (!resolved || resolved.id <= 0) {
+      this.toast.show(
+        'Este documento aún no está en el almacenamiento (vuelve a subirlo).',
+        'info',
+      );
+      return;
+    }
+    this.unitsApi
+      .downloadUnitDocument(unitId, resolved.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ url }) => {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        },
+        error: () => {
+          this.toast.show('No se pudo descargar el documento.', 'error');
+        },
+      });
+  }
+
+  private syncUnitDocuments(
+    kind: FleetDocumentKind,
+    kept: readonly FleetStoredDocument[],
+    newFiles: readonly File[],
+    original: readonly FleetStoredDocument[],
+  ): Observable<unknown> {
+    const unitId = this.effUnit().id;
+    const keptIds = new Set(kept.filter((d) => d.id > 0).map((d) => d.id));
+    const deletes = original
+      .filter((d) => d.id > 0 && !keptIds.has(d.id))
+      .map((d) => this.unitsApi.deleteUnitDocument(unitId, d.id));
+    const uploads = newFiles.map((file) =>
+      this.unitsApi.uploadUnitDocument(unitId, kind, file),
+    );
+    const ops = [...deletes, ...uploads];
+    return ops.length === 0 ? of(null) : forkJoin(ops);
   }
 
   doubleArticLabel(m: UnitFleetMeta | undefined): string {

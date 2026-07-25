@@ -4,7 +4,11 @@ import { map, Observable } from 'rxjs';
 import { mapApiUnit } from '@shared/data/api-mappers';
 import type { CreateUnitPayload } from '@shared/models/api/api-fleet.model';
 import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
-import type { Unit } from '@shared/models/logistics.models';
+import type {
+  FleetDocumentKind,
+  FleetStoredDocument,
+  Unit,
+} from '@shared/models/logistics.models';
 import {
   buildUnitWritePayload,
   type UnitPersistDraft,
@@ -104,5 +108,48 @@ export class UnitsService {
         {},
       )
       .pipe(map((r) => mapApiUnit(r)));
+  }
+
+  uploadUnitDocument(
+    unitId: string,
+    documentKind: FleetDocumentKind,
+    file: File,
+  ): Observable<FleetStoredDocument> {
+    const id = unitId.trim();
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('documentKind', documentKind);
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl('units', id, 'documents'),
+        form,
+      )
+      .pipe(
+        map((raw) => ({
+          id: Number(raw['id']),
+          fileName: String(raw['fileName'] ?? file.name),
+          documentKind: String(raw['documentKind'] ?? documentKind),
+        })),
+      );
+  }
+
+  downloadUnitDocument(
+    unitId: string,
+    documentId: number,
+  ): Observable<{ url: string }> {
+    const id = unitId.trim();
+    return this.http.get<{ url: string }>(
+      resourceByIdUrl('units', id, `documents/${documentId}/download`),
+    );
+  }
+
+  deleteUnitDocument(
+    unitId: string,
+    documentId: number,
+  ): Observable<{ id: number; deleted: boolean }> {
+    const id = unitId.trim();
+    return this.http.delete<{ id: number; deleted: boolean }>(
+      resourceByIdUrl('units', id, `documents/${documentId}`),
+    );
   }
 }

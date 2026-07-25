@@ -12,10 +12,13 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { catchError, forkJoin, of, switchMap, throwError } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
+import { UnitsService as UnitsApiService } from '@core/services/api/units';
 import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
+import type { FleetDocumentKind } from '@shared/models/logistics.models';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
   fleetModelYearErrorMessage,
@@ -144,6 +147,7 @@ export class FleetNewUnitDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly fleetFeature = inject(FleetFeatureService);
   private readonly unitsFeature = inject(UnitsFeatureService);
+  private readonly unitsApi = inject(UnitsApiService);
   private readonly planEntitlements = inject(PlanEntitlementService);
   private readonly toast = inject(ToastService);
 
@@ -551,13 +555,27 @@ export class FleetNewUnitDrawerComponent {
               : undefined,
           }
         : { hasGps: false }),
-      documentMaintenanceNames: this.filesMaintenance().map((f) => f.name),
-      documentVerificationNames: this.filesVerification().map((f) => f.name),
-      documentPolicyNames: this.filesPolicy().map((f) => f.name),
-      documentOwnershipNames: this.filesOwnership().map((f) => f.name),
     };
 
     const brandAbbr = deriveFleetBrandAbbr(brandName);
+    const pendingUploads: Array<{ kind: FleetDocumentKind; file: File }> = [
+      ...this.filesMaintenance().map((file) => ({
+        kind: 'maintenance' as const,
+        file,
+      })),
+      ...this.filesVerification().map((file) => ({
+        kind: 'verification' as const,
+        file,
+      })),
+      ...this.filesPolicy().map((file) => ({
+        kind: 'policy' as const,
+        file,
+      })),
+      ...this.filesOwnership().map((file) => ({
+        kind: 'ownership' as const,
+        file,
+      })),
+    ];
 
     this.saving.set(true);
     this.unitsFeature
@@ -573,7 +591,28 @@ export class FleetNewUnitDrawerComponent {
         name: this.unitAlias().trim() || undefined,
         fleetMeta: meta,
       })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((created) => {
+          if (pendingUploads.length === 0) {
+            return of(created);
+          }
+          // Éxito solo si TODOS los documentos suben. Si falla alguno, no toast de éxito.
+          return forkJoin(
+            pendingUploads.map(({ kind, file }) =>
+              this.unitsApi.uploadUnitDocument(created.id, kind, file),
+            ),
+          ).pipe(
+            switchMap(() => of(created)),
+            catchError(() =>
+              throwError(() => ({
+                phase: 'documents' as const,
+                unitId: created.id,
+              })),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.fleetFeature.registerLocalCatalogEntry(
@@ -581,11 +620,31 @@ export class FleetNewUnitDrawerComponent {
             brandName,
             this.trailerVersion().trim() || undefined,
           );
-          this.toast.show('Unidad registrada.', 'success');
+          this.toast.show(
+            pendingUploads.length > 0
+              ? 'Unidad y documentos registrados.'
+              : 'Unidad registrada.',
+            'success',
+          );
           this.saved.emit();
           this.dismiss.emit();
         },
-        error: () => {
+        error: (err: unknown) => {
+          const docsFailed =
+            typeof err === 'object' &&
+            err !== null &&
+            'phase' in err &&
+            (err as { phase?: string }).phase === 'documents';
+          if (docsFailed) {
+            // La unidad ya existe en API; no mostramos éxito completo.
+            this.toast.show(
+              'La unidad se creó, pero no se pudieron subir los documentos. Ábrela y súbelos de nuevo.',
+              'error',
+            );
+            this.saved.emit();
+            this.dismiss.emit();
+            return;
+          }
           this.toast.show('No se pudo guardar la unidad.', 'error');
           this.saving.set(false);
         },

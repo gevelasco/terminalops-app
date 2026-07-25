@@ -446,13 +446,30 @@ export interface UnitFleetMeta {
    * Si el GPS consta como endoso o anexo en la póliza del remolque (cobertura o listado del activo).
    */
   gpsCoveredByInsuranceEndorsement?: boolean;
-  /** Solo nombres de archivo en cliente hasta API de storage. */
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentMaintenanceNames?: string[];
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentVerificationNames?: string[];
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentPolicyNames?: string[];
-  /** Factura de compra, título de propiedad, NOM, endosos, etc. */
+  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
   documentOwnershipNames?: string[];
+  /** Documentos persistidos (id + nombre) para descarga/borrado. */
+  fleetDocuments?: FleetStoredDocument[];
 }
+
+/** Documento de flota ya guardado en API/storage. */
+export type FleetStoredDocument = {
+  id: number;
+  fileName: string;
+  documentKind: 'maintenance' | 'verification' | 'policy' | 'ownership' | string;
+};
+
+export type FleetDocumentKind =
+  | 'maintenance'
+  | 'verification'
+  | 'policy'
+  | 'ownership';
 
 /**
  * Vanos / plazas ISO o chasis fijo (porte-contenedor, etc.).
