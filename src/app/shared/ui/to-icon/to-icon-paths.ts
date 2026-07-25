@@ -53,6 +53,9 @@ export const TO_ICON_PATHS = {
   download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
   /** Subir archivo (Material `upload`). */
   upload: 'M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z',
+  /** Adjuntar foto (Material `add_a_photo`). */
+  camera:
+    'M3 4V1h2v3h3v2H5v3H3V6H0V4h3zm3 6V7h3V4h7l1.83 2H21c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V10h3zm7 9c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-3.2-5c0 1.77 1.43 3.2 3.2 3.2s3.2-1.43 3.2-3.2-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2z',
   /** Día actual resaltado (filtros de periodo). */
   periodToday:
     'M19 3h-1V2h-2v1H8V2H6v1H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z',

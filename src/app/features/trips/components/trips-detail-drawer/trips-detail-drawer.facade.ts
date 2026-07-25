@@ -76,6 +76,7 @@ import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { isAdminRole } from '@shared/utils/access-control';
 import { resourceIdsEqual } from '@shared/utils/resource-id';
+import { isTripFollowUpLocked } from '@features/trips/utils/trip-post-completion-lock';
 
 export type TripsDetailTab = 'maneuver' | 'tracking' | 'settlement';
 
@@ -131,14 +132,27 @@ export class TripsDetailDrawerFacade {
   readonly canWriteTrips = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.TRIPS),
   );
-  readonly canPostTripBitacora = computed(() => this.session.canPostTripBitacora());
-  readonly canMarkTripIncident = computed(() => this.session.canMarkTripIncident());
+  /** Completada hace más de 7 días: bitácora y entrega de vacío cerradas. */
+  readonly isTripFollowUpLocked = computed(() =>
+    isTripFollowUpLocked(this.tripsFeature.selectedTrip()),
+  );
+  readonly canPostTripBitacora = computed(
+    () => this.session.canPostTripBitacora() && !this.isTripFollowUpLocked(),
+  );
+  readonly canMarkTripIncident = computed(
+    () => this.session.canMarkTripIncident() && !this.isTripFollowUpLocked(),
+  );
 
   readonly drawerLoading = signal(false);
   readonly expensesForSettlement = signal<readonly Expense[]>([]);
 
   readonly bitacoraDraft = signal('');
   readonly markAsIncidentDraft = signal(false);
+  readonly bitacoraDraftImages = signal<File[]>([]);
+  readonly bitacoraDraftPreviewUrls = signal<string[]>([]);
+  /** Presigned URLs for chat images: `${incidentId}:${imageId}` → url. */
+  readonly bitacoraImageUrls = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly bitacoraImageLoading = new Set<string>();
   readonly bitacoraSaving = signal(false);
   readonly collectSaving = signal(false);
   readonly cancelSubmitting = signal(false);
@@ -229,7 +243,8 @@ export class TripsDetailDrawerFacade {
     return (
       this.canWriteTrips() &&
       !noContainer &&
-      (status === 'in_transit' || status === 'completed')
+      (status === 'in_transit' || status === 'completed') &&
+      !isTripFollowUpLocked(trip)
     );
   });
   readonly realScheduleDrafts = computed(
@@ -260,6 +275,9 @@ export class TripsDetailDrawerFacade {
         this.detailTabTripId = t.id;
         this.detailTab.set(defaultDetailTabForTrip(t));
         this.closeEmptyDeliveryForm();
+        this.bitacoraDraft.set('');
+        this.markAsIncidentDraft.set(false);
+        this.clearBitacoraDraftImages();
       }
       this.ensureEquipmentCatalogLoaded();
       this.centersFeature.loadOperationalCenters();
@@ -316,6 +334,20 @@ export class TripsDetailDrawerFacade {
         this.realDatesEditEnabled()
       ) {
         this.resetRealScheduleEdit();
+      }
+    });
+
+    effect(() => {
+      const t = this.tripsFeature.selectedTrip();
+      if (!t) {
+        this.bitacoraImageUrls.set(new Map());
+        this.bitacoraImageLoading.clear();
+        return;
+      }
+      for (const entry of t.incidents ?? []) {
+        for (const img of entry.images ?? []) {
+          this.ensureBitacoraImageUrl(t.id, entry.id, img.id);
+        }
       }
     });
   }
@@ -1173,6 +1205,13 @@ export class TripsDetailDrawerFacade {
     return tripBitacoraEntriesSorted(this.trip());
   }
 
+  bitacoraImageUrl(incidentId: string, imageId: number): string | null {
+    return (
+      this.bitacoraImageUrls().get(this.bitacoraImageKey(incidentId, imageId)) ??
+      null
+    );
+  }
+
   onBitacoraDraftInput(ev: Event): void {
     this.bitacoraDraft.set((ev.target as HTMLTextAreaElement).value);
   }
@@ -1181,10 +1220,67 @@ export class TripsDetailDrawerFacade {
     this.markAsIncidentDraft.set((ev.target as HTMLInputElement).checked);
   }
 
+  onBitacoraImagesSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = '';
+    if (files.length === 0) {
+      return;
+    }
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (images.length === 0) {
+      this.toast.show('Selecciona archivos de imagen (JPG, PNG, etc.).', 'warning');
+      return;
+    }
+    const previews = images.map((f) => URL.createObjectURL(f));
+    this.bitacoraDraftImages.update((prev) => [...prev, ...images]);
+    this.bitacoraDraftPreviewUrls.update((prev) => [...prev, ...previews]);
+  }
+
+  removeBitacoraDraftImage(index: number): void {
+    const urls = this.bitacoraDraftPreviewUrls();
+    const url = urls[index];
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.bitacoraDraftImages.update((prev) => prev.filter((_, i) => i !== index));
+    this.bitacoraDraftPreviewUrls.update((prev) =>
+      prev.filter((_, i) => i !== index),
+    );
+  }
+
+  clearBitacoraDraftImages(): void {
+    for (const url of this.bitacoraDraftPreviewUrls()) {
+      URL.revokeObjectURL(url);
+    }
+    this.bitacoraDraftImages.set([]);
+    this.bitacoraDraftPreviewUrls.set([]);
+  }
+
+  openBitacoraImage(url: string): void {
+    if (!url) {
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   registerBitacoraEntry(): void {
+    if (!this.canPostTripBitacora() || this.bitacoraSaving()) {
+      if (this.isTripFollowUpLocked()) {
+        this.toast.show(
+          'La maniobra está cerrada: ya no se puede agregar a la bitácora.',
+          'warning',
+        );
+      }
+      return;
+    }
     const text = this.bitacoraDraft().trim();
-    if (!text) {
-      this.toast.show('Escribe una nota antes de agregarla a la bitácora.', 'warning');
+    const pendingImages = this.bitacoraDraftImages();
+    if (!text && pendingImages.length === 0) {
+      this.toast.show(
+        'Escribe una nota o adjunta una imagen antes de agregar a la bitácora.',
+        'warning',
+      );
       return;
     }
     const postedBy = this.session.username()?.trim();
@@ -1194,15 +1290,54 @@ export class TripsDetailDrawerFacade {
     }
     const isIncident =
       this.canMarkTripIncident() && this.markAsIncidentDraft();
+    const tripId = this.trip().id;
     this.bitacoraSaving.set(true);
     this.tripsFeature
-      .postTripIncident(this.trip().id, text, postedBy, isIncident)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .postTripIncident(tripId, text, postedBy, isIncident)
+      .pipe(
+        switchMap(({ trip, lastBitacoraEntryId }) => {
+          const incidentId =
+            lastBitacoraEntryId ||
+            [...(trip.incidents ?? [])]
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime(),
+              )[0]?.id ||
+            '';
+          if (!incidentId || pendingImages.length === 0) {
+            return of({ uploaded: true as const });
+          }
+          return forkJoin(
+            pendingImages.map((file) =>
+              this.tripsApi.uploadTripIncidentImage(tripId, incidentId, file),
+            ),
+          ).pipe(
+            map(() => {
+              this.tripsFeature.selectTrip(tripId);
+              return { uploaded: true as const };
+            }),
+            catchError(() => {
+              this.toast.show(
+                'Entrada guardada, pero algunas imágenes no se pudieron subir.',
+                'warning',
+              );
+              this.tripsFeature.selectTrip(tripId);
+              return of({ uploaded: false as const });
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
-        next: () => {
+        next: (result) => {
           this.bitacoraDraft.set('');
           this.markAsIncidentDraft.set(false);
+          this.clearBitacoraDraftImages();
           this.bitacoraSaving.set(false);
+          if (!result.uploaded) {
+            return;
+          }
           this.toast.show(
             isIncident
               ? 'Incidente registrado en la bitácora.'
@@ -1214,6 +1349,39 @@ export class TripsDetailDrawerFacade {
           this.bitacoraSaving.set(false);
           this.toast.show('No se pudo guardar la entrada. Inténtalo de nuevo.', 'error');
         },
+      });
+  }
+
+  private bitacoraImageKey(incidentId: string, imageId: number): string {
+    return `${incidentId}:${imageId}`;
+  }
+
+  private ensureBitacoraImageUrl(
+    tripId: string,
+    incidentId: string,
+    imageId: number,
+  ): void {
+    const key = this.bitacoraImageKey(incidentId, imageId);
+    if (this.bitacoraImageUrls().has(key) || this.bitacoraImageLoading.has(key)) {
+      return;
+    }
+    this.bitacoraImageLoading.add(key);
+    this.tripsApi
+      .downloadTripIncidentImage(tripId, incidentId, imageId)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(() => of(null)),
+      )
+      .subscribe((res) => {
+        this.bitacoraImageLoading.delete(key);
+        if (!res?.url) {
+          return;
+        }
+        this.bitacoraImageUrls.update((prev) => {
+          const next = new Map(prev);
+          next.set(key, res.url);
+          return next;
+        });
       });
   }
 }

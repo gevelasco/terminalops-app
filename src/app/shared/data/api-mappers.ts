@@ -334,6 +334,30 @@ export function mapApiEquipment(row: Record<string, unknown>): Equipment {
   };
 }
 
+function mapApiTripIncidentImages(
+  raw: unknown,
+): NonNullable<TripIncident['images']> {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const id = Number(row['id']);
+      const fileName = String(row['fileName'] ?? '').trim();
+      if (!Number.isFinite(id) || id <= 0 || !fileName) {
+        return null;
+      }
+      return {
+        id,
+        fileName,
+        contentType:
+          row['contentType'] == null ? null : String(row['contentType']),
+      };
+    })
+    .filter((img): img is NonNullable<typeof img> => img != null);
+}
+
 function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
   return {
     id: resourceIdKey(row['id']),
@@ -342,6 +366,7 @@ function mapApiTripIncident(row: Record<string, unknown>): TripIncident {
     postedBy: String(row['postedBy'] ?? ''),
     postedByLabel: row['postedByLabel'] as string | undefined,
     isIncident: row['isIncident'] === true,
+    images: mapApiTripIncidentImages(row['images']),
   };
 }
 
@@ -382,6 +407,8 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
     operatorName: String(row['operatorName'] ?? '').trim() || undefined,
     unitOperationalCode: String(row['unitOperationalCode'] ?? '').trim() || undefined,
     createdAt: String(row['createdAt'] ?? trip.createdAt ?? ''),
+    completedAt:
+      String(row['completedAt'] ?? trip.completedAt ?? '').trim() || null,
     plannedDepartureAt: String(row['plannedDepartureAt'] ?? trip.plannedDepartureAt ?? ''),
     plannedArrivalAt: String(row['plannedArrivalAt'] ?? trip.plannedArrivalAt ?? ''),
     plannedCompletionAt: String(row['plannedCompletionAt'] ?? trip.plannedCompletionAt ?? ''),

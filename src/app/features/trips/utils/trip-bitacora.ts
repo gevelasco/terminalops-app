@@ -4,6 +4,7 @@ export function isTripBitacoraIncident(entry: Pick<TripIncident, 'isIncident'>):
   return entry.isIncident === true;
 }
 
+/** Más recientes primero. */
 export function tripBitacoraSorted(
   incidents: readonly TripIncident[] | undefined,
 ): TripIncident[] {

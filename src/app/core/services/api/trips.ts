@@ -161,14 +161,57 @@ export class TripsService {
     description: string,
     postedBy: string,
     isIncident = false,
-  ): Observable<Trip> {
+  ): Observable<{ trip: Trip; lastBitacoraEntryId: string }> {
     return this.http
       .post<Record<string, unknown>>(resourceByIdUrl('trips', tripId, 'incidents'), {
         description,
         postedBy,
         isIncident,
       })
-      .pipe(map((r) => mapApiTrip(r)));
+      .pipe(
+        map((r) => ({
+          trip: mapApiTrip(r),
+          lastBitacoraEntryId: String(r['lastBitacoraEntryId'] ?? '').trim(),
+        })),
+      );
+  }
+
+  uploadTripIncidentImage(
+    tripId: string,
+    incidentId: string,
+    file: File,
+  ): Observable<{ id: number; fileName: string }> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http
+      .post<Record<string, unknown>>(
+        resourceByIdUrl(
+          'trips',
+          tripId.trim(),
+          `incidents/${encodeURIComponent(incidentId)}/images`,
+        ),
+        form,
+      )
+      .pipe(
+        map((raw) => ({
+          id: Number(raw['id']),
+          fileName: String(raw['fileName'] ?? file.name),
+        })),
+      );
+  }
+
+  downloadTripIncidentImage(
+    tripId: string,
+    incidentId: string,
+    imageId: number,
+  ): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(
+      resourceByIdUrl(
+        'trips',
+        tripId.trim(),
+        `incidents/${encodeURIComponent(incidentId)}/images/${imageId}/download`,
+      ),
+    );
   }
 
   postTripCancel(tripId: string, payload: CancelTripPayload): Observable<Trip> {

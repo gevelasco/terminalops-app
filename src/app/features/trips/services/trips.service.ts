@@ -162,11 +162,14 @@ export class TripsFeatureService {
     description: string,
     postedBy: string,
     isIncident = false,
-  ): Observable<Trip> {
+  ): Observable<{ trip: Trip; lastBitacoraEntryId: string }> {
     const keepId = this._selectedTripId() ?? tripId;
     const requestId = this.requestGen.next();
     return this.tripsApi.postTripIncident(tripId, description, postedBy, isIncident).pipe(
-      map((updated) => this.applyUpdatedTrip(updated, keepId, requestId, 'list')),
+      map(({ trip, lastBitacoraEntryId }) => ({
+        trip: this.applyUpdatedTrip(trip, keepId, requestId, 'list'),
+        lastBitacoraEntryId,
+      })),
     );
   }
 

@@ -24,6 +24,12 @@ export type TripContainerType = '20dc' | '20hc' | '40dc' | '40hc' | '45hc' | 'na
 export type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 /** Entrada de bitácora de maniobra; `isIncident` marca el subconjunto operativo excepcional. */
+export interface TripIncidentImage {
+  id: number;
+  fileName: string;
+  contentType?: string | null;
+}
+
 export interface TripIncident {
   id: string;
   description: string;
@@ -35,6 +41,8 @@ export interface TripIncident {
   postedByLabel?: string;
   /** Si es true, cuenta en alertas, métricas y columna de incidente. */
   isIncident?: boolean;
+  /** Imágenes adjuntas (chat / evidencia visual). */
+  images?: TripIncidentImage[];
 }
 
 export interface Trip {
@@ -54,6 +62,8 @@ export interface Trip {
   status: TripStatus;
   /** Alta de la maniobra en el sistema (`created_at`). */
   createdAt: string;
+  /** Momento en que pasó a completada (`completed_at`). */
+  completedAt?: string | null;
   /** Plan operativo — salida de patio. */
   plannedDepartureAt: string;
   /** Plan operativo — llegada al cliente. */

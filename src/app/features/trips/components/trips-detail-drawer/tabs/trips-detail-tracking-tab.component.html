@@ -483,9 +483,40 @@
                     >{{ vm.fmt(entry.createdAt) }}</time
                   >
                 </div>
-                <p class="maniobra-detail__incident-desc">
-                  {{ entry.description }}
-                </p>
+                @if (entry.description.trim()) {
+                  <p class="maniobra-detail__incident-desc">
+                    {{ entry.description }}
+                  </p>
+                }
+                @if ((entry.images?.length ?? 0) > 0) {
+                  <div
+                    class="maniobra-detail__bitacora-images"
+                    aria-label="Imágenes de la entrada"
+                  >
+                    @for (img of entry.images; track img.id) {
+                      @if (vm.bitacoraImageUrl(entry.id, img.id); as url) {
+                        <button
+                          type="button"
+                          class="maniobra-detail__bitacora-image-btn"
+                          (click)="vm.openBitacoraImage(url)"
+                          [attr.aria-label]="'Ver imagen ' + img.fileName"
+                        >
+                          <img
+                            class="maniobra-detail__bitacora-image"
+                            [src]="url"
+                            [alt]="img.fileName"
+                            loading="lazy"
+                          />
+                        </button>
+                      } @else {
+                        <div
+                          class="maniobra-detail__bitacora-image-placeholder"
+                          aria-hidden="true"
+                        ></div>
+                      }
+                    }
+                  </div>
+                }
               </li>
             }
           </ul>
@@ -495,7 +526,12 @@
           </p>
         }
         <div class="maniobra-detail__incident-add">
-          @if (vm.canPostTripBitacora()) {
+          @if (vm.isTripFollowUpLocked()) {
+            <p class="maniobra-detail__muted-block">
+              Maniobra cerrada: pasaron más de 7 días desde el completado. Ya no
+              se pueden agregar notas ni fotos a la bitácora.
+            </p>
+          } @else if (vm.canPostTripBitacora()) {
             <label
               class="maniobra-detail__incident-label"
               for="maniobra-bitacora-draft"
@@ -510,17 +546,72 @@
               placeholder="Nota operativa, contexto o novedad…"
               [disabled]="vm.bitacoraSaving()"
             ></textarea>
-            <label class="maniobra-detail__bitacora-incident-check">
+            @if (vm.bitacoraDraftPreviewUrls().length > 0) {
+              <div
+                class="maniobra-detail__bitacora-draft-previews"
+                aria-label="Imágenes por adjuntar"
+              >
+                @for (
+                  preview of vm.bitacoraDraftPreviewUrls();
+                  track preview;
+                  let i = $index
+                ) {
+                  <div class="maniobra-detail__bitacora-draft-preview">
+                    <img [src]="preview" alt="" />
+                    <button
+                      type="button"
+                      class="maniobra-detail__bitacora-draft-remove"
+                      (click)="vm.removeBitacoraDraftImage(i)"
+                      [disabled]="vm.bitacoraSaving()"
+                      aria-label="Quitar imagen"
+                    >
+                      <to-icon name="close" [size]="12" />
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+            <div class="maniobra-detail__bitacora-composer-row">
+              <input
+                id="maniobra-bitacora-images"
+                class="visually-hidden"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/*"
+                multiple
+                [disabled]="vm.bitacoraSaving()"
+                (change)="vm.onBitacoraImagesSelected($event)"
+              />
+              <label
+                class="maniobra-detail__bitacora-camera"
+                for="maniobra-bitacora-images"
+                [attr.aria-disabled]="vm.bitacoraSaving() ? 'true' : null"
+                title="Adjuntar imágenes"
+              >
+                <to-icon name="camera" [size]="16" />
+                <span>Imagen</span>
+              </label>
               @if (vm.canMarkTripIncident()) {
-                <input
-                  type="checkbox"
-                  [checked]="vm.markAsIncidentDraft()"
-                  (change)="vm.onMarkAsIncidentDraftChange($event)"
-                  [disabled]="vm.bitacoraSaving()"
-                />
-                <span>Marcar como incidente</span>
+                <label
+                  class="maniobra-detail__bitacora-incident-check"
+                  [class.maniobra-detail__bitacora-incident-check--on]="
+                    vm.markAsIncidentDraft()
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="vm.markAsIncidentDraft()"
+                    (change)="vm.onMarkAsIncidentDraftChange($event)"
+                    [disabled]="vm.bitacoraSaving()"
+                  />
+                  <to-icon
+                    class="maniobra-detail__bitacora-incident-check-icon"
+                    name="warning"
+                    [size]="14"
+                  />
+                  <span>Marcar como incidente</span>
+                </label>
               }
-            </label>
+            </div>
             <to-button
               type="button"
               variant="primary"

@@ -184,10 +184,8 @@
               </button>
             </div>
           }
-          <h4 class="maniobra-drawer__subsection-title">Documentos de cobro</h4>
-          @if (vm.docs('billing').length === 0) {
-            <p class="maniobra-detail__muted-block">Sin archivos adjuntos</p>
-          } @else {
+          @if (vm.docs('billing').length > 0) {
+            <h4 class="maniobra-drawer__subsection-title">Documentos de cobro</h4>
             <ul
               class="maniobra-detail__doc-list"
               aria-label="Documentos de cobro y facturación"
