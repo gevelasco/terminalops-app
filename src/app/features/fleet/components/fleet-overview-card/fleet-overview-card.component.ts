@@ -14,7 +14,6 @@ import {
   overviewTripCompletionLine,
   overviewTripProgress,
 } from '@features/fleet/utils/fleet-overview-trip-metrics';
-import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-row';
 import type { FleetOverviewTripDto } from '@shared/models/api/fleet-overview.model';
 
@@ -56,7 +55,15 @@ export class FleetOverviewCardComponent {
   }
 
   tripRouteLabel(trip: FleetOverviewTripDto): string {
-    return formatTripRouteSummary(trip);
+    const compact = trip.origin?.trim();
+    if (compact && compact !== '—' && !/^—\s*→\s*—$/.test(compact)) {
+      return compact;
+    }
+    const destination = trip.destination?.trim();
+    if (destination && destination !== '—') {
+      return destination;
+    }
+    return '—';
   }
 
   onCardActivate(): void {

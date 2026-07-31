@@ -10,7 +10,7 @@ import { NotificationsService } from '@core/services/api/notifications';
 import { SessionService } from '@core/services/state/session';
 
 export const NOTIF_LAST_SEEN_STORAGE_PREFIX = 'to.notif.lastSeen';
-const POLL_MS = 60_000;
+const POLL_MS = 180_000;
 
 /** Snapshot de watermarks para restaurarlos tras clearAllBrowserStorage. */
 export function snapshotNotifLastSeen(): Record<string, string> {

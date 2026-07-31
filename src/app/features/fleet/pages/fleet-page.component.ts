@@ -56,7 +56,6 @@ import {
   attachOverviewCompliance,
   type FleetOverviewCardEntry,
 } from '@features/fleet/utils/fleet-overview-view';
-import { formatTripRouteSummary } from '@features/trips/utils/trip-display-labels';
 import {
   buildFleetEquipmentCsv,
   buildFleetUnitsCsv,
@@ -472,7 +471,7 @@ export class FleetPageComponent implements OnInit {
           entry.statusPill.label,
           entry.trip?.maneuverCode,
           entry.trip?.clientName,
-          entry.trip ? formatTripRouteSummary(entry.trip) : '',
+          entry.trip?.origin?.trim() || '',
           ...entry.hitched.map((e) => e.operationalCode),
           ...entry.hitched.map((e) => e.equipmentType),
         ]

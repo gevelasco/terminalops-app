@@ -40,10 +40,9 @@ export interface FleetOverviewTripDto {
   tripId: number;
   maneuverCode: string;
   clientName: string;
-  /** Ciudad/municipio de origen (partes postales). */
-  originCityMunicipality?: string;
-  /** Ciudad/municipio de destino (partes postales). */
-  destinationCityMunicipality?: string;
+  /** Ruta compacta lista para UI: «Ciudad, Estado → Ciudad, Estado». */
+  origin: string;
+  destination: string;
   status: FleetOverviewTripStatus;
   plannedDepartureAt?: string;
   plannedArrivalAt?: string;
@@ -51,8 +50,8 @@ export interface FleetOverviewTripDto {
   departureAt?: string;
   arrivedAt?: string;
   returnAt?: string;
-  /** Distancia OSRM ida; km operativos = routeDistanceKm × 2. */
-  routeDistanceKm?: number;
+  /** Km operativos ida + vuelta (mismo criterio que maniobras). */
+  operationalDistanceKm?: number;
   operatorName?: string;
 }
 
