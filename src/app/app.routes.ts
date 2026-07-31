@@ -18,6 +18,22 @@ export const routes: Routes = [
       import('./core/pages/register-page.component').then((m) => m.RegisterPageComponent),
   },
   {
+    path: 'forgot-password',
+    canActivate: [loginPageGuard],
+    loadComponent: () =>
+      import('./core/pages/forgot-password-page.component').then(
+        (m) => m.ForgotPasswordPageComponent,
+      ),
+  },
+  {
+    path: 'reset-password',
+    canActivate: [loginPageGuard],
+    loadComponent: () =>
+      import('./core/pages/reset-password-page.component').then(
+        (m) => m.ResetPasswordPageComponent,
+      ),
+  },
+  {
     path: '',
     loadComponent: () => import('./core/layout/shell.component').then((m) => m.ShellComponent),
     canActivateChild: [authGuard],

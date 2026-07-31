@@ -32,6 +32,19 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/sign-up`, payload);
   }
 
+  forgotPassword(email: string): Observable<{ ok: true }> {
+    return this.http.post<{ ok: true }>(`${environment.apiUrl}/auth/forgot-password`, {
+      email,
+    });
+  }
+
+  resetPassword(token: string, password: string): Observable<{ ok: true }> {
+    return this.http.post<{ ok: true }>(`${environment.apiUrl}/auth/reset-password`, {
+      token,
+      password,
+    });
+  }
+
   refreshAccessToken(): Observable<void> {
     if (this.refreshInFlight$) {
       return this.refreshInFlight$;

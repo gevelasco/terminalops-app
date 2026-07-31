@@ -48,6 +48,12 @@
           [disabled]="submitting()"
         />
 
+        <p class="login-page__forgot">
+          <a routerLink="/forgot-password" class="login-page__link"
+            >¿Olvidaste tu contraseña?</a
+          >
+        </p>
+
         @if (error()) {
         <p class="login-page__error" role="alert">{{ error() }}</p>
         }
