@@ -1,4 +1,7 @@
-import { APP_CHART_PALETTE } from '@shared/charts/app-chart-palette';
+import {
+  APP_CHART_PALETTE,
+  APP_CHART_SEMANTIC,
+} from '@shared/charts/app-chart-palette';
 
 /**
  * Alias de la paleta global (`@shared/charts/app-chart-palette`).
@@ -6,37 +9,27 @@ import { APP_CHART_PALETTE } from '@shared/charts/app-chart-palette';
  */
 export const STITCH_PALETTE = APP_CHART_PALETTE;
 
-export const DASHBOARD_CHART_PRIMARY_FALLBACK = STITCH_PALETTE[0];
+export const DASHBOARD_CHART_PRIMARY_FALLBACK = APP_CHART_SEMANTIC.primary;
 
-/** Acentos — mapeados desde la paleta de 5 colores. */
+/** Acentos semánticos para series fijas (actividad, flujo, etc.). */
 export const CHART_MUTED_ACCENT = {
-  gray: STITCH_PALETTE[2],
-  grayMid: STITCH_PALETTE[1],
-  sage: STITCH_PALETTE[2],
-  sand: STITCH_PALETTE[3],
+  gray: APP_CHART_SEMANTIC.scheduled,
+  grayMid: APP_CHART_SEMANTIC.expense,
+  sage: APP_CHART_SEMANTIC.inTransit,
+  sand: APP_CHART_SEMANTIC.warning,
 } as const;
 
-/** Mezcla hacia gris claro para suavizar cualquier tono de gráfica. */
-export const CHART_SOFTEN_BLEND = 0.24;
+/** Mezcla hacia softBlend (wash azul claro) para fills/áreas. */
+export const CHART_SOFTEN_BLEND = 0.28;
 
-/** En curso / positivo — verde apagado (no saturado). */
-export const CHART_MUTED_IN_TRANSIT = CHART_MUTED_ACCENT.sage;
+/** En curso / positivo. */
+export const CHART_MUTED_IN_TRANSIT = APP_CHART_SEMANTIC.inTransit;
 
 /** Programadas / neutro secundario. */
-export const CHART_MUTED_SCHEDULED = CHART_MUTED_ACCENT.gray;
+export const CHART_MUTED_SCHEDULED = APP_CHART_SEMANTIC.scheduled;
 
 /** Gastos / líneas secundarias. */
-export const CHART_MUTED_EXPENSE = CHART_MUTED_ACCENT.grayMid;
-
-/** Contraste para segmentos adicionales — repite ciclo de paleta. */
-const DASHBOARD_SLICE_CONTRAST = [
-  STITCH_PALETTE[1],
-  STITCH_PALETTE[2],
-  STITCH_PALETTE[3],
-  STITCH_PALETTE[4],
-  '#9CA3AF',
-  '#4B5563',
-] as const;
+export const CHART_MUTED_EXPENSE = APP_CHART_SEMANTIC.expense;
 
 function rgbStringToHex(rgb: string): string | null {
   const match = rgb.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
@@ -80,11 +73,9 @@ function isUsableChartHex(hex: string | null): hex is string {
   return normalized !== '#000000' && normalized !== '#000';
 }
 
-/**
- * Color primario de gráficas — Stitch #111827.
- */
+/** Color primario de gráficas (harbor navy). */
 export function dashboardChartPrimary(): string {
-  return STITCH_PALETTE[0];
+  return APP_CHART_SEMANTIC.primary;
 }
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -103,13 +94,17 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Mezcla un color sólido hacia el tono claro de la paleta global (color 4). */
+/** Mezcla un color sólido hacia el softBlend de la paleta. */
 export function softenChartColor(hex: string, amount = CHART_SOFTEN_BLEND): string {
   const rgb = hexToRgb(hex);
   if (!rgb) {
     return hex;
   }
-  const target = hexToRgb(APP_CHART_PALETTE[3]) ?? { r: 226, g: 232, b: 240 };
+  const target = hexToRgb(APP_CHART_SEMANTIC.softBlend) ?? {
+    r: 230,
+    g: 238,
+    b: 242,
+  };
   const t = Math.min(1, Math.max(0, amount));
   return rgbToHex(
     Math.round(rgb.r + (target.r - rgb.r) * t),
@@ -149,3 +144,5 @@ export function dashboardDestinationBarWidth(destinationCount: number): number {
   }
   return 12;
 }
+
+export { APP_CHART_SEMANTIC, resolveCssColor, isUsableChartHex };

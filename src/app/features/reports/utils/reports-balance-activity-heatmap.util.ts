@@ -4,7 +4,7 @@ import {
   expensesCalendarWeekdayLabels,
   type ExpensesCalendarWeekRow,
 } from '@features/expenses/utils/expenses-calendar.util';
-import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
+import { APP_CHART_SEMANTIC } from '@shared/charts/app-chart-palette';
 import type {
   ReportsBalanceDailyActivityDay,
   ReportsBalanceDailyActivityEvent,
@@ -278,17 +278,17 @@ export function formatReportsBalanceActivityTooltip(
   return lines.join('\n');
 }
 
-/** Ingresos cobrados — color 1. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = STITCH_PALETTE[0];
+/** Ingresos cobrados. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = APP_CHART_SEMANTIC.revenue;
 
-/** Cobros por cobrar — color 2. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE = STITCH_PALETTE[1];
+/** Cobros por cobrar. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE = APP_CHART_SEMANTIC.inTransit;
 
-/** Cuentas por pagar — color 3. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE = STITCH_PALETTE[2];
+/** Cuentas por pagar. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE = APP_CHART_SEMANTIC.warning;
 
-/** Gastos confirmados — color 4. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = STITCH_PALETTE[3];
+/** Gastos confirmados. */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = APP_CHART_SEMANTIC.expense;
 
 export interface ReportsBalanceActivityHeatIntensityBounds {
   maxIncome: number;

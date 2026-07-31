@@ -1,75 +1,61 @@
 import {
   CHART_MUTED_ACCENT,
-  CHART_MUTED_EXPENSE,
-  CHART_MUTED_IN_TRANSIT,
-  CHART_MUTED_SCHEDULED,
-  CHART_SOFTEN_BLEND,
-  DASHBOARD_CHART_PRIMARY_FALLBACK,
-  dashboardChartPrimary,
   hexToRgb,
   rgbaFromHex,
-  softenChartColor,
   STITCH_PALETTE,
 } from '@features/dashboard/utils/dashboard-chart-colors';
+import { APP_CHART_SEMANTIC } from '@shared/charts/app-chart-palette';
 
 /**
- * Paleta fintech — alineada al dashboard, tonos apagados.
- * Ciclo categórico: azul (tema) · gris · sage · sand.
+ * Paleta fintech — alineada al dashboard (Harbor Steel).
  */
 export const REPORTS_FINTECH_ACCENT = CHART_MUTED_ACCENT;
 
-/** Neutros de UI — paleta Stitch. */
+/** Neutros de UI — tipografía / ejes. */
 export const REPORTS_BRAND = {
-  text: '#111827',
-  textMuted: '#6B7280',
-  axis: '#9CA3AF',
-  grid: '#E5E7EB',
+  text: '#1B1B1B',
+  textMuted: '#64748B',
+  axis: '#94A3B8',
+  grid: '#E2E8F0',
   surface: '#FFFFFF',
   white: '#FFFFFF',
-  /** Mapas / fondos suaves */
-  mapFill: '#F9FAFB',
-  mapBorder: '#D1D5DB',
+  mapFill: '#F8FAFC',
+  mapBorder: '#CBD5E1',
   /** @deprecated Alias legacy */
-  navy: STITCH_PALETTE[0],
+  navy: APP_CHART_SEMANTIC.primary,
   periwinkle: STITCH_PALETTE[1],
   sky: STITCH_PALETTE[2],
-  cream: STITCH_PALETTE[4],
-  warmYellow: STITCH_PALETTE[3],
-  paleBlueGray: STITCH_PALETTE[3],
-  deepTeal: STITCH_PALETTE[0],
-  charcoal: STITCH_PALETTE[0],
-  sage: STITCH_PALETTE[2],
+  cream: APP_CHART_SEMANTIC.softBlend,
+  warmYellow: APP_CHART_SEMANTIC.warning,
+  paleBlueGray: STITCH_PALETTE[4],
+  deepTeal: APP_CHART_SEMANTIC.margin,
+  charcoal: APP_CHART_SEMANTIC.primary,
+  sage: APP_CHART_SEMANTIC.inTransit,
   blue: STITCH_PALETTE[1],
-  mint: STITCH_PALETTE[2],
-  charcoalTeal: STITCH_PALETTE[0],
+  mint: APP_CHART_SEMANTIC.success,
+  charcoalTeal: APP_CHART_SEMANTIC.primary,
   tealMid: STITCH_PALETTE[1],
-  mintStrong: STITCH_PALETTE[2],
+  mintStrong: APP_CHART_SEMANTIC.success,
 } as const;
 
 export const REPORTS_CHART_PALETTE = {
-  primary: STITCH_PALETTE[0],
+  primary: APP_CHART_SEMANTIC.primary,
   primaryLight: STITCH_PALETTE[1],
-  primarySoft: STITCH_PALETTE[4],
+  primarySoft: APP_CHART_SEMANTIC.softBlend,
   accent: STITCH_PALETTE[2],
-  accentSoft: STITCH_PALETTE[4],
-  revenue: STITCH_PALETTE[0],
-  expense: STITCH_PALETTE[1],
-  expenseDark: STITCH_PALETTE[2],
-  margin: STITCH_PALETTE[2],
-  marginLight: STITCH_PALETTE[4],
-  success: STITCH_PALETTE[1],
-  warning: STITCH_PALETTE[3],
-  danger: '#991b1b',
-  inTransit: STITCH_PALETTE[1],
-  scheduled: STITCH_PALETTE[2],
-  completed: STITCH_PALETTE[0],
-  series: [
-    STITCH_PALETTE[0],
-    STITCH_PALETTE[1],
-    STITCH_PALETTE[2],
-    STITCH_PALETTE[3],
-    STITCH_PALETTE[4],
-  ] as const,
+  accentSoft: APP_CHART_SEMANTIC.softBlend,
+  revenue: APP_CHART_SEMANTIC.revenue,
+  expense: APP_CHART_SEMANTIC.expense,
+  expenseDark: APP_CHART_SEMANTIC.expense,
+  margin: APP_CHART_SEMANTIC.margin,
+  marginLight: STITCH_PALETTE[2],
+  success: APP_CHART_SEMANTIC.success,
+  warning: APP_CHART_SEMANTIC.warning,
+  danger: APP_CHART_SEMANTIC.danger,
+  inTransit: APP_CHART_SEMANTIC.inTransit,
+  scheduled: APP_CHART_SEMANTIC.scheduled,
+  completed: APP_CHART_SEMANTIC.completed,
+  series: [...STITCH_PALETTE] as unknown as readonly string[],
   axis: REPORTS_BRAND.axis,
   axisLabel: REPORTS_BRAND.textMuted,
   grid: REPORTS_BRAND.grid,
@@ -77,7 +63,8 @@ export const REPORTS_CHART_PALETTE = {
   textMuted: REPORTS_BRAND.textMuted,
   surface: REPORTS_BRAND.surface,
   gaugeTrack: REPORTS_BRAND.grid,
-  tooltipBg: 'rgba(17, 24, 39, 0.92)',
+  /** Contraste tipo referencia: tooltip oscuro = azul del shell. */
+  tooltipBg: 'rgba(17, 24, 39, 0.94)',
   tooltipText: REPORTS_BRAND.white,
   labelOnFill: REPORTS_BRAND.white,
   labelOnLightFill: REPORTS_BRAND.text,
@@ -88,22 +75,21 @@ export const REPORTS_CHART_PALETTE = {
 export const REPORTS_FINTECH = REPORTS_CHART_PALETTE;
 
 const P = REPORTS_CHART_PALETTE;
-const A = REPORTS_FINTECH_ACCENT;
 
 export type ReportsChartColorOptions = {
   primaryColor?: string;
 };
 
-/** Color primario Stitch. */
+/** Color primario de gráficas. */
 export function reportsChartPrimary(): string {
-  return STITCH_PALETTE[0];
+  return APP_CHART_SEMANTIC.primary;
 }
 
 export function resolveReportsChartPrimary(options?: ReportsChartColorOptions): string {
-  return options?.primaryColor ?? STITCH_PALETTE[0];
+  return options?.primaryColor ?? APP_CHART_SEMANTIC.primary;
 }
 
-/** Colores semánticos — siempre comienzan desde color 1. */
+/** Colores semánticos — independientes del índice categórico. */
 export function reportsChartSemanticColors(_primary?: string): {
   primary: string;
   revenue: string;
@@ -116,21 +102,22 @@ export function reportsChartSemanticColors(_primary?: string): {
   success: string;
 } {
   return {
-    primary: STITCH_PALETTE[0],
-    revenue: STITCH_PALETTE[0],
-    expense: STITCH_PALETTE[1],
-    margin: STITCH_PALETTE[2],
-    completed: STITCH_PALETTE[0],
-    inTransit: STITCH_PALETTE[1],
-    scheduled: STITCH_PALETTE[2],
-    warning: STITCH_PALETTE[3],
-    success: STITCH_PALETTE[1],
+    primary: APP_CHART_SEMANTIC.primary,
+    revenue: APP_CHART_SEMANTIC.revenue,
+    expense: APP_CHART_SEMANTIC.expense,
+    margin: APP_CHART_SEMANTIC.margin,
+    completed: APP_CHART_SEMANTIC.completed,
+    inTransit: APP_CHART_SEMANTIC.inTransit,
+    scheduled: APP_CHART_SEMANTIC.scheduled,
+    warning: APP_CHART_SEMANTIC.warning,
+    success: APP_CHART_SEMANTIC.success,
   };
 }
 
-/** Ciclo de paleta: #0F172A · #1D4ED8 · #60A5FA · #E2E8F0 · #F8FAFC. */
+/** Ciclo categórico Harbor Steel. */
 export function reportsChartSliceColorAt(index: number, _primary?: string): string {
-  const normalized = ((index % STITCH_PALETTE.length) + STITCH_PALETTE.length) % STITCH_PALETTE.length;
+  const normalized =
+    ((index % STITCH_PALETTE.length) + STITCH_PALETTE.length) % STITCH_PALETTE.length;
   return STITCH_PALETTE[normalized];
 }
 

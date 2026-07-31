@@ -4,16 +4,21 @@ import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors
 import {
   type ReportsChartColorOptions,
   REPORTS_CHART_PALETTE,
-  reportsChartAccentLabelStyle,
+  reportsChartLabelIsLightFill,
   reportsChartOnFillLabelStyle,
   reportsChartTooltip,
 } from '../reports-chart-palette';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
-const treemapLabelStyle = {
-  show: true,
-  ...reportsChartOnFillLabelStyle({ fontSize: 11 }),
-};
+function treemapLabelForFill(color: string) {
+  return {
+    show: true,
+    ...reportsChartOnFillLabelStyle({
+      fontSize: 11,
+      lightFill: reportsChartLabelIsLightFill(color),
+    }),
+  };
+}
 
 /** Treemap — utilidad del periodo (ingreso vs costos de maniobra). */
 export function buildReportsBalanceProfitTreemapOption(
@@ -34,31 +39,25 @@ export function buildReportsBalanceProfitTreemapOption(
     label?: Record<string, unknown>;
   }[] = [];
 
-  const pushChild = (
-    name: string,
-    value: number,
-    label: Record<string, unknown>,
-  ): void => {
+  const pushChild = (name: string, value: number): void => {
     const color = STITCH_PALETTE[children.length % STITCH_PALETTE.length];
-    children.push({ name, value, itemStyle: { color }, label });
+    children.push({
+      name,
+      value,
+      itemStyle: { color },
+      label: treemapLabelForFill(color),
+    });
   };
 
-  pushChild('Ingreso pactado', revenue || 1, treemapLabelStyle);
-  pushChild(
-    'Costo directo',
-    directCost || (revenue > 0 ? 0.001 : 1),
-    treemapLabelStyle,
-  );
+  pushChild('Ingreso pactado', revenue || 1);
+  pushChild('Costo directo', directCost || (revenue > 0 ? 0.001 : 1));
 
   if (tripExpenses > 0) {
-    pushChild('Gastos de maniobra', tripExpenses, treemapLabelStyle);
+    pushChild('Gastos de maniobra', tripExpenses);
   }
 
   if (margin > 0) {
-    pushChild('Utilidad', margin, {
-      show: true,
-      ...reportsChartAccentLabelStyle({ fontSize: 11 }),
-    });
+    pushChild('Utilidad', margin);
   }
 
   return {
@@ -67,16 +66,26 @@ export function buildReportsBalanceProfitTreemapOption(
       text: marginPct == null ? '—' : `${marginPct}%`,
       subtext: 'MARGEN',
       left: '50%',
-      top: '46%',
+      top: '44%',
       textAlign: 'center',
+      // Pastilla del color del sidemenu: contraste fijo sobre tiles claros/oscuros.
+      backgroundColor: 'rgba(17, 24, 39, 0.92)',
+      borderRadius: 12,
+      padding: [10, 16, 8, 16],
       textStyle: {
-        fontSize: 17,
+        fontSize: 18,
         fontWeight: 700,
-        color: P.labelAccent,
-        textShadowColor: 'rgba(23, 36, 63, 0.35)',
-        textShadowBlur: 3,
+        color: '#FFFFFF',
+        textShadowColor: 'transparent',
+        textShadowBlur: 0,
       },
-      subtextStyle: { fontSize: 8, fontWeight: 700, color: P.labelAccent },
+      subtextStyle: {
+        fontSize: 9,
+        fontWeight: 700,
+        color: 'rgba(255, 255, 255, 0.72)',
+        textShadowColor: 'transparent',
+        textShadowBlur: 0,
+      },
     },
     tooltip: {
       ...reportsChartTooltip(),
@@ -98,7 +107,8 @@ export function buildReportsBalanceProfitTreemapOption(
         top: 4,
         bottom: 4,
         label: {
-          ...treemapLabelStyle,
+          show: true,
+          ...reportsChartOnFillLabelStyle({ fontSize: 11, lightFill: true }),
           formatter: (p) => {
             const name = String((p as { name?: string }).name ?? '');
             const value = Number((p as { value?: number }).value) || 0;

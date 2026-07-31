@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsBalanceCompositionSlice } from '@shared/models/api/api-reports-balance.model';
-import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
+import { APP_CHART_SEMANTIC } from '@shared/charts/app-chart-palette';
 import {
   type ReportsChartColorOptions,
   REPORTS_CHART_PALETTE,
@@ -13,10 +13,10 @@ import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
 function buildCompositionColorMap(_primary: string): Record<string, string> {
   return {
-    collected: STITCH_PALETTE[0],
-    receivable: STITCH_PALETTE[1],
-    expenses: STITCH_PALETTE[2],
-    provisions: STITCH_PALETTE[3],
+    collected: APP_CHART_SEMANTIC.revenue,
+    receivable: APP_CHART_SEMANTIC.inTransit,
+    expenses: APP_CHART_SEMANTIC.expense,
+    provisions: APP_CHART_SEMANTIC.warning,
   };
 }
 

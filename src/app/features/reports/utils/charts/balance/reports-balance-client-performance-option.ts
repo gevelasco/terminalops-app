@@ -1,8 +1,8 @@
 import type { EChartsOption } from 'echarts';
 import type { ReportsBalanceMarginByClient } from '@shared/models/api/api-reports-balance.model';
-import { STITCH_PALETTE } from '@features/dashboard/utils/dashboard-chart-colors';
 import {
   type ReportsChartColorOptions,
+  reportsChartFinancialColors,
   reportsChartLegend,
   reportsChartTooltip,
   reportsChartValueAxis,
@@ -22,7 +22,7 @@ export function buildReportsBalanceClientPerformanceOption(
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 8);
   const labels = ordered.map((r) => r.clientName);
-  const colors = { revenue: STITCH_PALETTE[0], expense: STITCH_PALETTE[1], margin: STITCH_PALETTE[2] };
+  const colors = reportsChartFinancialColors(options?.primaryColor);
   const valueAxis = reportsChartValueAxis();
 
   return {
