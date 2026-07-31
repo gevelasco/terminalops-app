@@ -1,7 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/** Mensaje legible desde respuestas Nest (string | message | message[]). */
+/** Mensaje legible desde Nest o `ApiHttpError` del interceptor. */
 export function parseHttpApiErrorMessage(err: unknown): string | null {
+  if (err && typeof err === 'object' && 'apiMessage' in err) {
+    const apiMessage = (err as { apiMessage?: unknown }).apiMessage;
+    if (typeof apiMessage === 'string') {
+      const t = apiMessage.trim();
+      if (t) {
+        return t;
+      }
+    }
+  }
+
   if (!(err instanceof HttpErrorResponse)) {
     if (err instanceof Error) {
       const t = err.message.trim();

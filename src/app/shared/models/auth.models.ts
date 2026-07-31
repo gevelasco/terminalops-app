@@ -21,6 +21,8 @@ export interface AuthUser {
   subscriptionPlan?: string | null;
   /** Lema de la empresa desde companies.tagline (login). */
   companyTagline?: string | null;
+  /** Logo de la empresa (data URL o URL) desde login / cuenta. */
+  companyLogoDataUrl?: string | null;
   theme: ThemeScheme;
   memberSince?: string;
   department?: string;
@@ -97,6 +99,7 @@ export interface SessionData {
   companyId: string;
   companyName?: string;
   companyTagline?: string;
+  companyLogoDataUrl?: string;
   theme: ThemeScheme;
   id: string;
   username: string;

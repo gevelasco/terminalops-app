@@ -76,6 +76,18 @@
   padding: 0.35rem 0 0.15rem;
 }
 
+.register-page__plan-grid--single {
+  grid-template-columns: minmax(0, 22rem);
+  justify-content: center;
+  grid-template-rows: none;
+
+  .register-page__plan {
+    display: flex;
+    flex-direction: column;
+    grid-row: auto;
+  }
+}
+
 .register-page__plan {
   --plan-delay: 0ms;
   position: relative;

@@ -21,6 +21,7 @@ import { SessionService } from '@core/services/state/session';
 import { ThemeService, type ThemePreset } from '@core/services/state/theme';
 import { ToastService } from '@core/notifications/toast.service';
 import { isNumericPublicId } from '@core/utils/api-date';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import {
   profilePhotoErrorMessage,
   readProfilePhotoDataUrl,
@@ -291,13 +292,13 @@ export class ProfileDrawerComponent {
           this.toast.show('Datos personales actualizados.', 'success');
           this.saved.emit(profile);
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.saving.set(false);
-          const msg =
-            typeof err?.error?.message === 'string'
-              ? err.error.message
-              : 'No se pudieron guardar los datos personales.';
-          this.toast.show(msg, 'warning');
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ??
+              'No se pudieron guardar los datos personales.',
+            'warning',
+          );
         },
       });
   }
@@ -333,16 +334,16 @@ export class ProfileDrawerComponent {
           this.saving.set(false);
           this.toast.show('Contraseña actualizada.', 'success');
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.saving.set(false);
-          const status = err?.status as number | undefined;
-          const msg =
-            typeof err?.error?.message === 'string'
-              ? err.error.message
-              : status === 401
+          const status = (err as { status?: number } | null)?.status;
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ??
+              (status === 401
                 ? 'La contraseña actual no es correcta.'
-                : 'No se pudo actualizar la contraseña.';
-          this.toast.show(msg, 'warning');
+                : 'No se pudo actualizar la contraseña.'),
+            'warning',
+          );
         },
       });
   }

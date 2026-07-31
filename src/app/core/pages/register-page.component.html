@@ -30,8 +30,9 @@
           </h1>
         </div>
 
-        <div class="register-page__plan-grid" role="list">
+        <div class="register-page__plan-grid register-page__plan-grid--single" role="list">
           @for (plan of plans; track plan.id; let i = $index) {
+            @if (isPlanCardVisible(plan.id)) {
             <article
               class="register-page__plan"
               role="listitem"
@@ -60,20 +61,22 @@
                 <p class="register-page__plan-audience">{{ plan.audience }}</p>
               </div>
 
-              <div class="register-page__plan-price">
-                <div class="register-page__plan-price-row">
-                  <span class="register-page__plan-amount">{{
-                    formatPrice(plan.priceMxnMonthly)
+              @if (isPlanPriceVisible(plan.id)) {
+                <div class="register-page__plan-price">
+                  <div class="register-page__plan-price-row">
+                    <span class="register-page__plan-amount">{{
+                      formatPrice(plan.priceMxnMonthly)
+                    }}</span>
+                    <span class="register-page__plan-period-inline">/ mes</span>
+                  </div>
+                  <span class="register-page__plan-period">{{
+                    plan.currencyNote
                   }}</span>
-                  <span class="register-page__plan-period-inline">/ mes</span>
+                  <span class="register-page__plan-usd"
+                    >≈ USD {{ plan.priceUsdApprox }}</span
+                  >
                 </div>
-                <span class="register-page__plan-period">{{
-                  plan.currencyNote
-                }}</span>
-                <span class="register-page__plan-usd"
-                  >≈ USD {{ plan.priceUsdApprox }}</span
-                >
-              </div>
+              }
 
               <ul class="register-page__limits">
                 @for (limit of plan.limits; track limit.label) {
@@ -113,7 +116,7 @@
                   (click)="selectPlan(plan)"
                 >
                   @if (plan.signupEnabled) {
-                    Continuar con {{ plan.name }}
+                    Continuar con invitación
                   } @else {
                     Ver detalle
                   }
@@ -121,12 +124,15 @@
                 <p class="register-page__plan-hint">
                   @if (!plan.signupEnabled) {
                     {{ plan.disabledHint || plan.ctaLabel }}
+                  } @else if (plan.requiresInvitation) {
+                    Invitación de un solo uso
                   } @else {
                     &nbsp;
                   }
                 </p>
               </div>
             </article>
+            }
           }
         </div>
       </section>
@@ -147,11 +153,19 @@
             ← Volver a planes
           </button>
           <div class="register-page__checkout-summary">
-            <span class="register-page__checkout-plan">{{ plan.name }}</span>
-            <span class="register-page__checkout-price">{{
-              formatPrice(plan.priceMxnMonthly)
-            }}</span>
-            <span class="register-page__checkout-period">/ mes + IVA</span>
+            <span class="register-page__checkout-plan"
+              >{{ plan.name }} · Beta</span
+            >
+            @if (plan.requiresInvitation) {
+              <span class="register-page__checkout-period"
+                >Licencia según invitación</span
+              >
+            } @else if (isPlanPriceVisible(plan.id)) {
+              <span class="register-page__checkout-price">{{
+                formatPrice(plan.priceMxnMonthly)
+              }}</span>
+              <span class="register-page__checkout-period">/ mes + IVA</span>
+            }
           </div>
         </div>
 
@@ -161,11 +175,12 @@
             aria-labelledby="register-heading"
           >
             <h2 id="register-heading" class="login-page__title">
-              Crear cuenta · {{ plan.name }}
+              Crear cuenta · {{ plan.name }} Beta
             </h2>
             <p class="login-page__subtitle">
-              Registra tu empresa y tu usuario administrador. Requiere un código
-              de invitación válido.
+              El código de invitación es obligatorio y de un solo uso. Define el
+              plan y la duración de la licencia. Los upgrades (Standard / Pro +)
+              se canjean después desde Cuenta.
             </p>
 
             <form
@@ -276,7 +291,7 @@
                   [disabled]="!canSubmit() || passwordMismatch()"
                   [loading]="submitting()"
                 >
-                  Registrar empresa · {{ plan.name }}
+                  Registrar empresa · {{ plan.name }} Beta
                 </to-button>
               </div>
             </form>

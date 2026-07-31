@@ -1,5 +1,10 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import type { ChecklistTodo } from '@core/models/checklist-todo.models';
+import {
+  ChecklistApiService,
+  type ChecklistTodoApi,
+} from '@core/services/api/checklist';
 import { SessionService } from '@core/services/state/session';
 
 const STORAGE_PREFIX = 'terminalops.checklist.';
@@ -8,7 +13,7 @@ function storageKey(username: string): string {
   return `${STORAGE_PREFIX}${username}`;
 }
 
-function loadTodos(username: string): ChecklistTodo[] {
+function loadLocalTodos(username: string): ChecklistTodo[] {
   try {
     const raw = localStorage.getItem(storageKey(username));
     if (!raw) {
@@ -21,6 +26,14 @@ function loadTodos(username: string): ChecklistTodo[] {
     return parsed.filter(isChecklistTodo);
   } catch {
     return [];
+  }
+}
+
+function clearLocalTodos(username: string): void {
+  try {
+    localStorage.removeItem(storageKey(username));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -37,11 +50,25 @@ function isChecklistTodo(value: unknown): value is ChecklistTodo {
   );
 }
 
+function toTodo(row: ChecklistTodoApi): ChecklistTodo {
+  return {
+    id: row.id,
+    text: row.text,
+    completed: row.completed,
+    createdAt: row.createdAt,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ChecklistTodosStore {
   private readonly session = inject(SessionService);
+  private readonly api = inject(ChecklistApiService);
   private readonly items = signal<ChecklistTodo[]>([]);
-  private loadedForUser: string | null = null;
+  private loadedKey: string | null = null;
+  private loadPromise: Promise<void> | null = null;
+
+  readonly loading = signal(false);
+  readonly mutating = signal(false);
 
   /** Más recientes primero. */
   readonly todos = computed(() =>
@@ -50,58 +77,154 @@ export class ChecklistTodosStore {
     ),
   );
 
-  readonly pendingCount = computed(() => this.todos().filter((t) => !t.completed).length);
+  readonly pendingCount = computed(() =>
+    this.todos().filter((t) => !t.completed).length,
+  );
 
   ensureLoaded(): void {
-    const user = this.session.username() ?? 'default';
-    if (this.loadedForUser === user) {
+    void this.refresh();
+  }
+
+  async refresh(): Promise<void> {
+    const companyId = this.session.companyId();
+    const userId = this.session.userId();
+    if (!companyId || !userId) {
+      this.loadedKey = null;
+      this.items.set([]);
       return;
     }
-    this.loadedForUser = user;
-    this.items.set(loadTodos(user));
+
+    const key = `${companyId}:${userId}`;
+    if (this.loadPromise && this.loadedKey === key) {
+      return this.loadPromise;
+    }
+    if (this.loadedKey === key && !this.loading()) {
+      return;
+    }
+
+    this.loadedKey = key;
+    this.loading.set(true);
+    const promise = this.fetchAndMaybeMigrate(companyId)
+      .catch((err: unknown) => {
+        if (this.loadedKey === key) {
+          this.loadedKey = null;
+          this.items.set([]);
+        }
+        throw err;
+      })
+      .finally(() => {
+        if (this.loadPromise === promise) {
+          this.loadPromise = null;
+        }
+        if (this.loadedKey === key || this.loadedKey === null) {
+          this.loading.set(false);
+        }
+      });
+    this.loadPromise = promise;
+    return promise;
   }
 
-  add(text: string): boolean {
+  async add(text: string): Promise<boolean> {
     const trimmed = text.trim();
-    if (!trimmed) {
+    const companyId = this.session.companyId();
+    if (!trimmed || !companyId) {
       return false;
     }
-    const next: ChecklistTodo = {
-      id: crypto.randomUUID(),
-      text: trimmed,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    };
-    this.items.update((list) => [next, ...list]);
-    this.persist();
-    return true;
+    this.mutating.set(true);
+    try {
+      const created = await firstValueFrom(this.api.create(companyId, trimmed));
+      this.items.update((list) => [toTodo(created), ...list]);
+      return true;
+    } finally {
+      this.mutating.set(false);
+    }
   }
 
-  toggleCompleted(id: string): void {
+  async toggleCompleted(id: string): Promise<void> {
+    const companyId = this.session.companyId();
+    const current = this.items().find((t) => t.id === id);
+    if (!companyId || !current) {
+      return;
+    }
+    const nextCompleted = !current.completed;
     this.items.update((list) =>
       list.map((item) =>
-        item.id === id ? { ...item, completed: !item.completed } : item,
+        item.id === id ? { ...item, completed: nextCompleted } : item,
       ),
     );
-    this.persist();
+    try {
+      await firstValueFrom(
+        this.api.update(companyId, id, { completed: nextCompleted }),
+      );
+    } catch {
+      this.items.update((list) =>
+        list.map((item) =>
+          item.id === id ? { ...item, completed: current.completed } : item,
+        ),
+      );
+      throw new Error('No se pudo actualizar la tarea.');
+    }
   }
 
-  remove(id: string): void {
+  async remove(id: string): Promise<void> {
+    const companyId = this.session.companyId();
+    const removed = this.items().find((t) => t.id === id);
+    if (!companyId || !removed) {
+      return;
+    }
     this.items.update((list) => list.filter((item) => item.id !== id));
-    this.persist();
+    try {
+      await firstValueFrom(this.api.remove(companyId, id));
+    } catch {
+      this.items.update((list) => [removed, ...list]);
+      throw new Error('No se pudo eliminar la tarea.');
+    }
   }
 
+  /** Solo limpia cache en memoria (logout). Los datos quedan en el servidor. */
   clear(): void {
-    this.loadedForUser = null;
+    this.loadedKey = null;
+    this.loadPromise = null;
+    this.loading.set(false);
+    this.mutating.set(false);
     this.items.set([]);
   }
 
-  private persist(): void {
-    const user = this.loadedForUser ?? this.session.username() ?? 'default';
-    try {
-      localStorage.setItem(storageKey(user), JSON.stringify(this.items()));
-    } catch {
-      /* ignore quota / private mode */
+  private async fetchAndMaybeMigrate(companyId: string): Promise<void> {
+    const remote = await firstValueFrom(this.api.list(companyId));
+    const mapped = remote.map(toTodo);
+    if (mapped.length > 0) {
+      this.items.set(mapped);
+      const username = this.session.username();
+      if (username) {
+        clearLocalTodos(username);
+      }
+      return;
     }
+
+    const username = this.session.username();
+    const local = username ? loadLocalTodos(username) : [];
+    if (local.length === 0) {
+      this.items.set([]);
+      return;
+    }
+
+    const oldestFirst = [...local].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    for (const todo of oldestFirst) {
+      const created = await firstValueFrom(this.api.create(companyId, todo.text));
+      if (todo.completed) {
+        await firstValueFrom(
+          this.api.update(companyId, created.id, { completed: true }),
+        );
+      }
+    }
+    if (username) {
+      clearLocalTodos(username);
+    }
+    const migrated = await firstValueFrom(this.api.list(companyId));
+    this.items.set(migrated.map(toTodo));
   }
 }

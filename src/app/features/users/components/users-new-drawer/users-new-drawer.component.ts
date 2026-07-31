@@ -38,6 +38,7 @@ import {
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import type { CompanyUserRow } from '@core/services/api/company-users';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 
 @Component({
   selector: 'app-users-new-drawer',
@@ -200,13 +201,12 @@ export class UsersNewDrawerComponent {
                 this.dismiss.emit();
                 this.toast.show('Usuario creado.', 'success');
               },
-              error: (err) => {
+              error: (err: unknown) => {
                 this.saving.set(false);
-                const msg =
-                  typeof err?.error?.message === 'string'
-                    ? err.error.message
-                    : 'No se pudo crear el usuario.';
-                this.toast.show(msg, 'error');
+                this.toast.show(
+                  parseHttpApiErrorMessage(err) ?? 'No se pudo crear el usuario.',
+                  'error',
+                );
               },
             });
         },

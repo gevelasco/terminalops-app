@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { AuthFacade } from '@core/services/auth.facade';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -26,10 +27,10 @@ export class LoginPageComponent {
     if (!(form instanceof HTMLFormElement)) {
       return;
     }
-    this.tryLogin(form);
+    void this.tryLogin(form);
   }
 
-  tryLogin(form: HTMLFormElement): void {
+  async tryLogin(form: HTMLFormElement): Promise<void> {
     this.error.set(null);
     const fd = new FormData(form);
     const email = String(fd.get('email') ?? '').trim();
@@ -39,15 +40,13 @@ export class LoginPageComponent {
       return;
     }
     this.submitting.set(true);
-    this.auth.login(email, password).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        void this.router.navigateByUrl('/dashboard');
-      },
-      error: () => {
-        this.submitting.set(false);
-        this.error.set('Correo o contraseña incorrectos.');
-      },
-    });
+    try {
+      await firstValueFrom(this.auth.login(email, password));
+      void this.router.navigateByUrl('/dashboard');
+    } catch {
+      this.error.set('Correo o contraseña incorrectos.');
+    } finally {
+      this.submitting.set(false);
+    }
   }
 }

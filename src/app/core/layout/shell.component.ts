@@ -29,7 +29,6 @@ import {
 } from '@core/services/state/user-profile';
 import { APP_NAV_ITEMS } from '@shared/models/app-modules.models';
 import { roleDisplayLabel, visibleNavItems } from '@shared/utils/access-control';
-import { UserPreferencesStore } from '@core/services/state/user-preferences';
 
 @Component({
   selector: 'app-shell',
@@ -50,7 +49,6 @@ export class ShellComponent implements OnDestroy {
   private readonly auth = inject(AuthFacade);
   private readonly session = inject(SessionService);
   private readonly profiles = inject(UserProfileStore);
-  private readonly preferences = inject(UserPreferencesStore);
   private readonly notificationsUnread = inject(NotificationsUnreadStore);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -139,10 +137,18 @@ export class ShellComponent implements OnDestroy {
     () => this.session.companyTagline()?.trim() || 'Operaciones Logísticas',
   );
 
+  readonly companyLogoUrl = computed(
+    () => this.session.companyLogoDataUrl()?.trim() || null,
+  );
+
+  /** Fallback cuando la empresa aún no tiene logo. */
+  readonly companyInitials = computed(() =>
+    initialsFromDisplayName(this.companyTitle()),
+  );
+
   constructor() {
     if (this.session.username()) {
       this.profiles.hydrateFromSession();
-      this.preferences.ensureLoaded();
     }
     this.notificationsUnread.start();
     this.router.events

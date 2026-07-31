@@ -59,10 +59,7 @@
 @if (loading()) {
   <to-skeleton [lines]="6" />
 } @else if (summary()) {
-  <div
-    class="dashboard-kpis"
-    [class.dashboard-kpis--three]="!showFinancialInsights()"
-  >
+  <div class="dashboard-kpis">
     <to-kpi-card
       title="En curso"
       titleIcon="route"
@@ -87,19 +84,28 @@
     />
     @if (showFinancialInsights()) {
       <to-kpi-card
-        title="Balance del día"
+        title="Resultado 7 días"
         titleIcon="wallet"
-        [value]="dailyResultValue()"
-        [legend]="dailyResultLegend()"
-        [deltaLabel]="dailyResultMeta()"
-        [deltaTone]="dailyResultTone()"
+        [value]="weekResultValue()"
+        [legend]="weekResultLegend()"
+        [deltaLabel]="weekResultMeta()"
+        [deltaTone]="weekResultTone()"
+      />
+    } @else {
+      <to-kpi-card
+        title="Completadas hoy"
+        titleIcon="target"
+        [value]="completedTodayValue()"
+        [valueUnit]="completedTodayValueUnit()"
+        [legend]="completedTodayLegend()"
+        [deltaLabel]="completedTodayMeta()"
       />
     }
   </div>
 
   <div
     class="dashboard-body"
-    [class.dashboard-body--with-upcoming]="showUpcomingPayments()"
+    [class.dashboard-body--with-upcoming]="showAsideList()"
   >
     @if (!isMobileViewport()) {
     <section class="dashboard-panel dashboard-panel--flow">
@@ -175,6 +181,55 @@
           }
         </ul>
       </section>
+    } @else if (showUpcomingDepartures()) {
+      <section
+        class="dashboard-panel dashboard-panel--upcoming"
+        aria-labelledby="dashboard-upcoming-departures-title"
+      >
+        <header class="dashboard-panel__head">
+          <div>
+            <h2 id="dashboard-upcoming-departures-title" class="dashboard-panel__title">
+              Próximas salidas
+            </h2>
+            <p class="dashboard-panel__subtitle">Programadas · más cercanas primero</p>
+          </div>
+        </header>
+        <ul class="dashboard-upcoming-list">
+          @for (row of upcomingDepartures(); track row.id) {
+            <li
+              class="dashboard-upcoming-list__item dashboard-upcoming-list__item--action"
+              tabindex="0"
+              role="button"
+              (click)="openTrip(row.id)"
+              (keydown.enter)="openTrip(row.id)"
+              (keydown.space)="$event.preventDefault(); openTrip(row.id)"
+            >
+              <span class="dashboard-upcoming-list__type">
+                <span class="dashboard-upcoming-list__icon" aria-hidden="true">
+                  <to-icon name="route" [size]="14" />
+                </span>
+                <span class="dashboard-upcoming-list__type-label">
+                  {{ row.maneuverCode }}
+                  <span class="dashboard-upcoming-list__dest">· {{ row.destinationLabel }}</span>
+                </span>
+              </span>
+              <span
+                class="dashboard-upcoming-list__amount"
+                [class.dashboard-upcoming-list__amount--warn]="row.missingAssignment"
+              >
+                {{ row.operatorLabel }}
+              </span>
+              <span
+                class="dashboard-upcoming-list__date"
+                [class.dashboard-upcoming-list__date--overdue]="row.overdue"
+                >{{ row.departureLabel }}</span
+              >
+            </li>
+          } @empty {
+            <li class="dashboard-upcoming-list__empty">Sin salidas programadas</li>
+          }
+        </ul>
+      </section>
     }
 
     @if (!isMobileViewport()) {
@@ -202,9 +257,9 @@
                 class="dashboard-recent-table__row"
                 tabindex="0"
                 role="button"
-                (click)="openRecentTrip(trip.id)"
-                (keydown.enter)="openRecentTrip(trip.id)"
-                (keydown.space)="$event.preventDefault(); openRecentTrip(trip.id)"
+                (click)="openTrip(trip.id)"
+                (keydown.enter)="openTrip(trip.id)"
+                (keydown.space)="$event.preventDefault(); openTrip(trip.id)"
               >
                 <td>
                   <span [class]="tripStatusClass(trip.status, trip.falseManeuver)">

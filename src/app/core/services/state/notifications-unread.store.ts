@@ -1,5 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, of } from 'rxjs';
+import {
+  Subject,
+  Subscription,
+  catchError,
+  exhaustMap,
+  of,
+} from 'rxjs';
 import { NotificationsService } from '@core/services/api/notifications';
 import { SessionService } from '@core/services/state/session';
 
@@ -55,6 +61,8 @@ export class NotificationsUnreadStore {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private started = false;
   private onFocus: (() => void) | null = null;
+  private readonly refresh$ = new Subject<void>();
+  private refreshSub: Subscription | null = null;
 
   readonly badgeCount = computed(() => this.unreadCount());
 
@@ -64,6 +72,24 @@ export class NotificationsUnreadStore {
     }
     this.started = true;
     this.ensureBaselineLastSeen();
+    this.refreshSub = this.refresh$
+      .pipe(
+        exhaustMap(() => {
+          const companyId = this.session.companyId();
+          const userId = this.session.userId();
+          if (!companyId || !userId) {
+            return of(null);
+          }
+          const since = this.readLastSeen() ?? new Date().toISOString();
+          return this.api.getSummary(since).pipe(catchError(() => of(null)));
+        }),
+      )
+      .subscribe((summary) => {
+        if (!summary) {
+          return;
+        }
+        this.unreadCount.set(summary.count > 0 ? summary.count : 0);
+      });
     this.refresh();
     this.pollTimer = setInterval(() => this.refresh(), POLL_MS);
     this.onFocus = () => this.refresh();
@@ -80,6 +106,8 @@ export class NotificationsUnreadStore {
       window.removeEventListener('focus', this.onFocus);
       this.onFocus = null;
     }
+    this.refreshSub?.unsubscribe();
+    this.refreshSub = null;
     this.unreadCount.set(0);
   }
 
@@ -91,21 +119,10 @@ export class NotificationsUnreadStore {
   }
 
   refresh(): void {
-    const companyId = this.session.companyId();
-    const userId = this.session.userId();
-    if (!companyId || !userId) {
+    if (!this.started) {
       return;
     }
-    const since = this.readLastSeen() ?? new Date().toISOString();
-    this.api
-      .getSummary(since)
-      .pipe(catchError(() => of(null)))
-      .subscribe((summary) => {
-        if (!summary) {
-          return;
-        }
-        this.unreadCount.set(summary.count > 0 ? summary.count : 0);
-      });
+    this.refresh$.next();
   }
 
   private storageKey(): string | null {

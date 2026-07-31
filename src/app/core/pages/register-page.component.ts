@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { AuthFacade } from '@core/services/auth.facade';
 import {
   SUBSCRIPTION_PLANS,
@@ -7,6 +8,7 @@ import {
   type SubscriptionPlan,
   type SubscriptionPlanId,
 } from '@shared/billing/subscription-plans';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 
@@ -25,6 +27,20 @@ export class RegisterPageComponent {
 
   readonly plans = SUBSCRIPTION_PLANS;
   readonly formatPrice = formatPlanPriceMxn;
+
+  /**
+   * Temporal: en /register solo se muestra Básico (entrada a la beta).
+   * Standard y Pro+ siguen en `plans` (no borrar).
+   * Pro+ se activa después desde Cuenta con código de invitación Pro+.
+   */
+  isPlanCardVisible(planId: SubscriptionPlanId): boolean {
+    return planId === 'basic';
+  }
+
+  /** Temporal: oculta precio en Básico mientras la beta es sin cargo. */
+  isPlanPriceVisible(planId: SubscriptionPlanId): boolean {
+    return planId !== 'basic';
+  }
 
   readonly view = signal<RegisterView>('plans');
   readonly selectedPlanId = signal<SubscriptionPlanId | null>(null);
@@ -86,10 +102,10 @@ export class RegisterPageComponent {
     if (!(form instanceof HTMLFormElement)) {
       return;
     }
-    this.tryRegister(form);
+    void this.tryRegister(form);
   }
 
-  tryRegister(form: HTMLFormElement): void {
+  async tryRegister(form: HTMLFormElement): Promise<void> {
     this.error.set(null);
 
     const plan = this.selectedPlan();
@@ -104,7 +120,7 @@ export class RegisterPageComponent {
     const confirmPassword = String(fd.get('confirmPassword') ?? '');
 
     if (plan.requiresInvitation && !invitationCode) {
-      this.error.set('Debes ingresar un código de invitación para el plan Básico.');
+      this.error.set('Debes ingresar un código de invitación válido.');
       return;
     }
 
@@ -119,47 +135,40 @@ export class RegisterPageComponent {
     }
 
     this.submitting.set(true);
-    this.auth
-      .signUp({
-        companyName: String(fd.get('companyName') ?? '').trim(),
-        firstName: String(fd.get('firstName') ?? '').trim(),
-        lastName: String(fd.get('lastName') ?? '').trim(),
-        username: String(fd.get('username') ?? '').trim(),
-        email: String(fd.get('email') ?? '').trim(),
-        phone: String(fd.get('phone') ?? '').trim(),
-        password,
-        invitationCode,
-      })
-      .subscribe({
-        next: () => {
-          this.submitting.set(false);
-          void this.router.navigateByUrl('/dashboard');
-        },
-        error: (err) => {
-          this.submitting.set(false);
-          const status = err?.status as number | undefined;
-          const apiMessage =
-            typeof err?.error?.message === 'string'
-              ? err.error.message
-              : Array.isArray(err?.error?.message)
-                ? err.error.message.join(' ')
-                : null;
-          if (status === 403) {
-            this.error.set(apiMessage ?? 'Código de invitación inválido o no autorizado.');
-            return;
-          }
-          if (status === 409) {
-            this.error.set(
-              apiMessage ??
-                'El usuario o correo ya están registrados. Si ya te registraste, inicia sesión.',
-            );
-            return;
-          }
-          this.error.set(
-            apiMessage ??
-              'No se pudo completar el registro. Verifica los datos e intenta de nuevo.',
-          );
-        },
-      });
+    try {
+      await firstValueFrom(
+        this.auth.signUp({
+          companyName: String(fd.get('companyName') ?? '').trim(),
+          firstName: String(fd.get('firstName') ?? '').trim(),
+          lastName: String(fd.get('lastName') ?? '').trim(),
+          username: String(fd.get('username') ?? '').trim(),
+          email: String(fd.get('email') ?? '').trim(),
+          phone: String(fd.get('phone') ?? '').trim(),
+          password,
+          invitationCode,
+        }),
+      );
+      void this.router.navigateByUrl('/dashboard');
+    } catch (err: unknown) {
+      const apiMessage = parseHttpApiErrorMessage(err);
+      const status = (err as { status?: number } | null)?.status;
+      if (status === 403) {
+        this.error.set(apiMessage ?? 'Código de invitación inválido.');
+        return;
+      }
+      if (status === 409) {
+        this.error.set(
+          apiMessage ??
+            'El usuario o correo ya están registrados. Si ya te registraste, inicia sesión.',
+        );
+        return;
+      }
+      this.error.set(
+        apiMessage ??
+          'No se pudo completar el registro. Verifica los datos e intenta de nuevo.',
+      );
+    } finally {
+      this.submitting.set(false);
+    }
   }
 }

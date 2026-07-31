@@ -32,6 +32,7 @@ import {
   STAFF_MODULE_OPTIONS,
 } from '@shared/models/app-modules.models';
 import { roleDisplayLabel } from '@shared/utils/access-control';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
 import {
   emptyStaffModulePermissionDraftMap,
@@ -295,13 +296,13 @@ export class UsersDetailDrawerComponent {
           this.saved.emit(updated);
           this.toast.show('Datos personales actualizados.', 'success');
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.saving.set(false);
-          const msg =
-            typeof err?.error?.message === 'string'
-              ? err.error.message
-              : 'No se pudieron guardar los datos personales.';
-          this.toast.show(msg, 'warning');
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ??
+              'No se pudieron guardar los datos personales.',
+            'warning',
+          );
         },
       });
   }

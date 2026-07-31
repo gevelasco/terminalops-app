@@ -66,6 +66,10 @@ export class AuthFacade {
         user.companyTagline ??
         payload.companyTagline ??
         null,
+      companyLogoDataUrl:
+        user.companyLogoDataUrl ??
+        payload.companyLogoDataUrl ??
+        null,
       phone: user.phone ?? payload.phone ?? '',
       jobTitle: user.jobTitle ?? payload.jobTitle,
       photoDataUrl: user.photoDataUrl ?? payload.photoDataUrl ?? '',
@@ -115,10 +119,10 @@ export class AuthFacade {
         user.tripAutoControlPaymentMethod ??
         payload.tripAutoControlPaymentMethod ??
         'cash',
-      allowedModules:
-        user.allowedModules ??
-        payload.allowedModules ??
-        resolveAllowedModules(user.role ?? payload.role),
+      allowedModules: resolveAllowedModules(
+        user.role ?? payload.role,
+        user.moduleGrants ?? payload.moduleGrants,
+      ),
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ?? payload.maintenanceKmControlEnabled ?? false,
       maintenanceKmIntervalDefault:
@@ -158,6 +162,9 @@ export class AuthFacade {
         merged.companyName?.trim() || this.session.companyName() || '',
         merged.companyTagline?.trim() || '',
       );
+    }
+    if (merged.companyLogoDataUrl != null) {
+      this.session.setCompanyLogo(merged.companyLogoDataUrl);
     }
     this.profiles.hydrateFromSession();
     this.theme.setPreset(theme);

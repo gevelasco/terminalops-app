@@ -2,6 +2,22 @@
   z-index: 125;
 }
 
+:host ::ng-deep .to-side-drawer__body.notifications-drawer__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.notifications-drawer__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .notifications-drawer__count {
   display: inline-flex;
   align-items: center;
@@ -22,6 +38,15 @@
   flex-shrink: 0;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 80%, transparent);
+}
+
+.notifications-drawer__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.65rem 0.75rem 1rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .notifications-drawer__tabs {
@@ -71,10 +96,6 @@
   border-color: color-mix(in srgb, var(--to-color-border) 88%, transparent);
   background: var(--to-color-surface-muted);
   color: var(--to-color-text);
-}
-
-.notifications-drawer__body {
-  padding: 0.65rem 0.75rem 1rem;
 }
 
 .notifications-drawer__empty {
@@ -299,7 +320,7 @@
     }
   }
 
-  .notifications-drawer__body {
+  .notifications-drawer__scroll {
     padding: 0.5rem 0.55rem 0.85rem;
   }
 

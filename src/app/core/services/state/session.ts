@@ -2,7 +2,6 @@ import { Injectable, computed, signal } from '@angular/core';
 import { jwtDecode } from 'jwt-decode';
 import type {
   AuthUser,
-  LoginResponse,
   SessionData,
   ThemeScheme,
 } from '@shared/models/auth.models';
@@ -81,12 +80,16 @@ function saveEncryptedSession(data: SessionData): void {
       obfuscate(JSON.stringify(data), SESSION_OBFUSCATE_KEY),
     );
   } catch {
-    // Quota: conserva sesión sin la foto (sigue en memoria / vuelve en el próximo login).
-    const withoutPhoto: SessionData = { ...data, photoDataUrl: '' };
+    // Quota: conserva sesión sin foto/logo (siguen en memoria).
+    const withoutHeavy: SessionData = {
+      ...data,
+      photoDataUrl: '',
+      companyLogoDataUrl: '',
+    };
     try {
       sessionStorage.setItem(
         SESSION_STORAGE_KEY,
-        obfuscate(JSON.stringify(withoutPhoto), SESSION_OBFUSCATE_KEY),
+        obfuscate(JSON.stringify(withoutHeavy), SESSION_OBFUSCATE_KEY),
       );
     } catch {
       /* ignore */
@@ -101,13 +104,19 @@ export class SessionService {
   readonly token = computed(() => this.data()?.token ?? null);
   readonly refreshToken = computed(() => this.data()?.refreshToken ?? null);
   readonly role = computed(() => this.data()?.role ?? null);
-  readonly allowedModules = computed(() => this.data()?.allowedModules ?? []);
   readonly moduleGrants = computed(() =>
     resolveStaffModuleGrants(this.data()?.moduleGrants ?? []),
+  );
+  /** Derivado del rol actual: Admin sin Cuenta; solo superadmin la incluye. */
+  readonly allowedModules = computed(() =>
+    resolveAllowedModules(this.data()?.role, this.moduleGrants()),
   );
   readonly companyId = computed(() => this.data()?.companyId ?? null);
   readonly companyName = computed(() => this.data()?.companyName ?? null);
   readonly companyTagline = computed(() => this.data()?.companyTagline ?? null);
+  readonly companyLogoDataUrl = computed(
+    () => this.data()?.companyLogoDataUrl?.trim() || null,
+  );
   readonly theme = computed(() => this.data()?.theme ?? 'light');
   readonly userId = computed(() => this.data()?.id ?? null);
   readonly username = computed(() => this.data()?.username ?? null);
@@ -246,10 +255,6 @@ export class SessionService {
     saveEncryptedSession(session);
   }
 
-  setSessionFromLoginResponse(response: LoginResponse): void {
-    this.setSession(response.access_token, response.refresh_token, response.user);
-  }
-
   updateTokens(accessToken: string, refreshToken: string, user?: AuthUser): void {
     const current = this.data();
     if (!current) {
@@ -282,6 +287,19 @@ export class SessionService {
     saveEncryptedSession(next);
   }
 
+  setCompanyLogo(companyLogoDataUrl: string | null | undefined): void {
+    const current = this.data();
+    if (!current) {
+      return;
+    }
+    const next = {
+      ...current,
+      companyLogoDataUrl: companyLogoDataUrl?.trim() || '',
+    };
+    this.data.set(next);
+    saveEncryptedSession(next);
+  }
+
   setSubscriptionPlan(planId: string | null | undefined): void {
     const current = this.data();
     if (!current) {
@@ -294,6 +312,53 @@ export class SessionService {
     const next = { ...current, subscriptionPlanId: normalized };
     this.data.set(next);
     saveEncryptedSession(next);
+  }
+
+  /**
+   * Aplica rol/grants/plan frescos desde el API.
+   * @returns true si cambió algo relevante para menú/autorización.
+   */
+  applyAccessSnapshot(snapshot: {
+    role: string;
+    companyId: string;
+    moduleGrants?: SessionData['moduleGrants'];
+    subscriptionPlan?: string | null;
+  }): boolean {
+    const current = this.data();
+    if (!current) {
+      return false;
+    }
+    const role = snapshot.role.trim().toLowerCase() || current.role;
+    const moduleGrants = resolveStaffModuleGrants(snapshot.moduleGrants ?? []);
+    const companyId = String(snapshot.companyId ?? current.companyId);
+    const subscriptionPlanId = normalizeSubscriptionPlanId(
+      snapshot.subscriptionPlan ?? current.subscriptionPlanId,
+    );
+    const allowedModules = resolveAllowedModules(role, moduleGrants);
+
+    const grantsChanged =
+      JSON.stringify(current.moduleGrants) !== JSON.stringify(moduleGrants);
+    const changed =
+      current.role !== role ||
+      current.companyId !== companyId ||
+      current.subscriptionPlanId !== subscriptionPlanId ||
+      grantsChanged;
+
+    if (!changed) {
+      return false;
+    }
+
+    const next: SessionData = {
+      ...current,
+      role,
+      companyId,
+      moduleGrants,
+      allowedModules,
+      subscriptionPlanId,
+    };
+    this.data.set(next);
+    saveEncryptedSession(next);
+    return true;
   }
 
   syncCompanyOperationalSettings(
@@ -474,15 +539,6 @@ export class SessionService {
     saveEncryptedSession(next);
   }
 
-  /** @deprecated Use syncCompanyOperationalSettings */
-  syncCompanyProfile(patch: {
-    companyName?: string;
-    operationalAnalysisEnabled?: boolean;
-    operationalAnalysisChangedAt?: string | null;
-  }): void {
-    this.syncCompanyOperationalSettings(patch);
-  }
-
   syncUserProfile(patch: {
     name?: string;
     username?: string;
@@ -579,19 +635,22 @@ export class SessionService {
       token,
       refreshToken,
       role: user.role ?? payload?.role ?? 'staff',
-      allowedModules:
-        user.allowedModules ??
-        payload?.allowedModules ??
-        resolveAllowedModules(
-          user.role ?? payload?.role,
-          user.moduleGrants ?? payload?.moduleGrants,
-        ),
+      // Siempre derivar del rol (no confiar en JWT/API stale).
+      // Admin ve todo excepto `account`; solo superadmin incluye Cuenta.
+      allowedModules: resolveAllowedModules(
+        user.role ?? payload?.role,
+        user.moduleGrants ?? payload?.moduleGrants,
+      ),
       moduleGrants: resolveStaffModuleGrants(
         user.moduleGrants ?? payload?.moduleGrants ?? [],
       ),
       companyId: String(user.companyId ?? payload?.companyId ?? ''),
       companyName: user.companyName ?? payload?.companyName,
       companyTagline: user.companyTagline ?? payload?.companyTagline ?? undefined,
+      companyLogoDataUrl:
+        user.companyLogoDataUrl?.trim() ||
+        payload?.companyLogoDataUrl?.trim() ||
+        '',
       theme: user.theme === 'dark' ? 'dark' : 'light',
       id: String(user.id ?? payload?.id ?? ''),
       username: user.username ?? payload?.username ?? '',
@@ -708,8 +767,9 @@ export class SessionService {
         user.operationalCenterLatitude ?? payload?.operationalCenterLatitude,
       operationalCenterLongitude:
         user.operationalCenterLongitude ?? payload?.operationalCenterLongitude,
+      // Si el API omite el plan, caer a basic — no conservar plan stale de sesión previa.
       subscriptionPlanId: normalizeSubscriptionPlanId(
-        user.subscriptionPlan ?? this.data()?.subscriptionPlanId,
+        user.subscriptionPlan ?? 'basic',
       ),
     };
   }

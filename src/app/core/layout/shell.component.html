@@ -19,14 +19,18 @@
     aria-label="Navegación principal"
   >
     <div class="shell-brand">
-      <img
-        class="shell-brand__logo"
-        src="/favicon.png"
-        width="44"
-        height="44"
-        alt=""
-        aria-hidden="true"
-      />
+      @if (companyLogoUrl(); as logoUrl) {
+        <img
+          class="shell-brand__logo"
+          [src]="logoUrl"
+          width="44"
+          height="44"
+          alt=""
+          aria-hidden="true"
+        />
+      } @else {
+        <span class="shell-brand__mark" aria-hidden="true">{{ companyInitials() }}</span>
+      }
       <div class="shell-brand__text">
         <span class="shell-brand__title">{{ companyTitle() }}</span>
         <span class="shell-brand__legend">{{ companyLegend() }}</span>
@@ -147,49 +151,66 @@
       }
       </div>
 
-      @if (bottomNav().length > 0) {
-        <div class="shell-nav__bottom">
-          @for (item of bottomNav(); track item.path) {
-            <a
-              class="shell-nav-link shell-nav-link--bottom"
-              [routerLink]="item.path"
-              routerLinkActive="shell-nav-link--active"
-            >
-              @switch (item.path) {
-                @case ("/account") {
-                  <svg
-                    width="20"
-                    height="20"
-                    class="h-5 w-5 shrink-0"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
-                    />
-                  </svg>
+      <div class="shell-nav__footer">
+        @if (bottomNav().length > 0) {
+          <div class="shell-nav__bottom">
+            @for (item of bottomNav(); track item.path) {
+              <a
+                class="shell-nav-link shell-nav-link--bottom"
+                [routerLink]="item.path"
+                routerLinkActive="shell-nav-link--active"
+              >
+                @switch (item.path) {
+                  @case ("/account") {
+                    <svg
+                      width="20"
+                      height="20"
+                      class="h-5 w-5 shrink-0"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
+                      />
+                    </svg>
+                  }
+                  @case ("/users") {
+                    <svg
+                      width="20"
+                      height="20"
+                      class="h-5 w-5 shrink-0"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                      />
+                    </svg>
+                  }
                 }
-                @case ("/users") {
-                  <svg
-                    width="20"
-                    height="20"
-                    class="h-5 w-5 shrink-0"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
-                    />
-                  </svg>
-                }
-              }
-              <span class="leading-tight">{{ item.label }}</span>
-            </a>
-          }
+                <span class="leading-tight">{{ item.label }}</span>
+              </a>
+            }
+          </div>
+        }
+
+        <div class="shell-powered">
+          <img
+            class="shell-powered__logo"
+            src="/favicon.png"
+            width="20"
+            height="20"
+            alt=""
+            aria-hidden="true"
+          />
+          <p class="shell-powered__text">
+            <span class="shell-powered__label">Powered by</span>
+            <span class="shell-powered__name">TerminalOps</span>
+          </p>
         </div>
-      }
+      </div>
     </nav>
   </aside>
 

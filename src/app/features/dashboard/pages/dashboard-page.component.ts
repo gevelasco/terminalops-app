@@ -13,18 +13,26 @@ import { finalize, map } from 'rxjs/operators';
 import { DashboardService } from '@services/api/dashboard';
 import { CompaniesService } from '@services/api/companies';
 import { ExpensesService } from '@services/api/expenses';
+import { TripsService } from '@services/api/trips';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { dashboardChartPrimary } from '@features/dashboard/utils/dashboard-chart-colors';
+import { buildDashboardCompletedToday } from '@features/dashboard/utils/dashboard-completed-today.util';
 import { buildDashboardOperationalFlowOption } from '@features/dashboard/utils/dashboard-operational-flow-option';
 import { buildDashboardTopDestinationsOption } from '@features/dashboard/utils/dashboard-top-destinations-option';
 import { buildDashboardTripActivityOption } from '@features/dashboard/utils/dashboard-trip-activity-option';
 import { buildReportsGeneralOperationMixPieOption } from '@features/reports/utils/charts/general/reports-general-operation-mix-pie-option';
 import {
+  buildDashboardUpcomingDepartures,
+  type DashboardUpcomingDepartureRow,
+} from '@features/dashboard/utils/dashboard-upcoming-departures.util';
+import {
   buildDashboardUpcomingPayments,
   dashboardUpcomingPaymentsRange,
+  operationalTodayYmd,
   type DashboardUpcomingPaymentRow,
 } from '@features/dashboard/utils/dashboard-upcoming-payments.util';
+import { buildDashboardWeekResult } from '@features/dashboard/utils/dashboard-week-result.util';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
@@ -45,7 +53,7 @@ function pluralEs(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
 }
 
-function formatWeekOverWeekPercent(value: number | null | undefined): string {
+function formatDeltaPercent(value: number | null | undefined): string {
   if (value == null) {
     return '—';
   }
@@ -73,25 +81,41 @@ export class DashboardPageComponent {
   private readonly dashboardApi = inject(DashboardService);
   private readonly companiesApi = inject(CompaniesService);
   private readonly expensesApi = inject(ExpensesService);
+  private readonly tripsApi = inject(TripsService);
   private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   private readonly currencyMx = inject(CurrencyMxPipe);
   private readonly toast = inject(ToastService);
 
   /**
-   * En mobile solo se muestran KPIs y próximos pagos; las gráficas quedan
-   * ocultas y el request de insights no se ejecuta para ahorrar recursos.
+   * En mobile solo se muestran KPIs y la lista lateral (pagos o salidas);
+   * las gráficas quedan ocultas. Insights se pide siempre por los KPIs.
    */
   readonly isMobileViewport = injectIsMobileViewport();
 
+  readonly showFinancialInsights = computed(() => {
+    const role = this.session.role();
+    if (isAdminRole(role)) {
+      return true;
+    }
+    return canAccessModule(this.session.allowedModules(), APP_MODULE_CODES.EXPENSES);
+  });
+
   private readonly pageResource = resource({
-    request: () => ({ mobile: this.isMobileViewport() }),
+    request: () => ({
+      financial: this.showFinancialInsights(),
+    }),
     loader: ({ request }) =>
       firstValueFrom(
         forkJoin({
           summary: this.dashboardApi.getSummary(),
-          insights: request.mobile ? of(null) : this.dashboardApi.getInsights(),
-          upcomingPayments: this.loadUpcomingPayments(),
+          insights: this.dashboardApi.getInsights(),
+          upcomingPayments: request.financial
+            ? this.loadUpcomingPayments()
+            : of([] as DashboardUpcomingPaymentRow[]),
+          upcomingDepartures: request.financial
+            ? of([] as DashboardUpcomingDepartureRow[])
+            : this.loadUpcomingDepartures(),
         }),
       ),
   });
@@ -109,8 +133,15 @@ export class DashboardPageComponent {
   readonly upcomingPayments = computed(
     () => this.pageResource.value()?.upcomingPayments ?? [],
   );
+  readonly upcomingDepartures = computed(
+    () => this.pageResource.value()?.upcomingDepartures ?? [],
+  );
   readonly showUpcomingPayments = computed(
     () => this.showFinancialInsights() && this.upcomingPayments().length > 0,
+  );
+  readonly showUpcomingDepartures = computed(() => !this.showFinancialInsights());
+  readonly showAsideList = computed(
+    () => this.showUpcomingPayments() || this.showUpcomingDepartures(),
   );
   readonly upcomingPaymentsSubtitle = computed(() => {
     const { to } = dashboardUpcomingPaymentsRange();
@@ -134,14 +165,6 @@ export class DashboardPageComponent {
   readonly chartShellColor = computed(() => {
     this.session.theme();
     return dashboardChartPrimary();
-  });
-
-  readonly showFinancialInsights = computed(() => {
-    const role = this.session.role();
-    if (isAdminRole(role)) {
-      return true;
-    }
-    return canAccessModule(this.session.allowedModules(), APP_MODULE_CODES.EXPENSES);
   });
 
   readonly canEditDiesel = computed(() => isAdminRole(this.session.role()));
@@ -211,7 +234,7 @@ export class DashboardPageComponent {
   });
 
   readonly scheduledWeekDelta = computed(() => {
-    const pct = formatWeekOverWeekPercent(
+    const pct = formatDeltaPercent(
       this.summary()?.tripsScheduledWeekOverWeekPercent,
     );
     return `${pct} vs la semana anterior`;
@@ -234,33 +257,28 @@ export class DashboardPageComponent {
     return `Próxima salida: ${formatted}`;
   });
 
-  readonly dailyResultMeta = computed(() => {
-    const r = this.summary()?.dailyResult;
-    if (!r) {
-      return '';
-    }
-    const mLabel = pluralEs(r.completedTripsCount, 'maniobra', 'maniobras');
-    const gLabel = pluralEs(r.expensesCount, 'gasto', 'gastos');
-    return `${r.completedTripsCount} ${mLabel} · ${r.expensesCount} ${gLabel}`;
+  private readonly weekResult = computed(() =>
+    buildDashboardWeekResult(this.insights()?.operationalFlow ?? []),
+  );
+
+  readonly weekResultValue = computed(() =>
+    this.currencyMx.transform(this.weekResult().currentMargin),
+  );
+
+  readonly weekResultLegend = computed(() => {
+    const pct = formatDeltaPercent(this.weekResult().weekOverWeekPercent);
+    return `${pct} vs la semana anterior`;
   });
 
-  readonly dailyResultValue = computed(() => {
-    const margin = this.summary()?.dailyResult.margin ?? 0;
-    return this.currencyMx.transform(margin);
-  });
-
-  readonly dailyResultLegend = computed(() => {
-    const r = this.summary()?.dailyResult;
-    if (!r) {
-      return '';
-    }
-    const ing = this.currencyMx.transform(r.revenue);
-    const gas = this.currencyMx.transform(r.expenses);
+  readonly weekResultMeta = computed(() => {
+    const r = this.weekResult();
+    const ing = this.currencyMx.transform(r.currentRevenue);
+    const gas = this.currencyMx.transform(r.currentExpenses);
     return `Ingresos ${ing} − gastos ${gas}`;
   });
 
-  readonly dailyResultTone = computed((): 'up' | 'down' | 'neutral' => {
-    const m = this.summary()?.dailyResult.margin ?? 0;
+  readonly weekResultTone = computed((): 'up' | 'down' | 'neutral' => {
+    const m = this.weekResult().currentMargin;
     if (m > 0) {
       return 'up';
     }
@@ -268,6 +286,34 @@ export class DashboardPageComponent {
       return 'down';
     }
     return 'neutral';
+  });
+
+  private readonly completedToday = computed(() => {
+    const today =
+      this.summary()?.operationalDate?.trim() || operationalTodayYmd();
+    return buildDashboardCompletedToday(
+      this.insights()?.tripActivity ?? [],
+      today,
+    );
+  });
+
+  readonly completedTodayValue = computed(() =>
+    String(this.completedToday().today),
+  );
+
+  readonly completedTodayValueUnit = computed(() => {
+    const n = this.completedToday().today;
+    return pluralEs(n, 'maniobra', 'maniobras');
+  });
+
+  readonly completedTodayLegend = computed(() => {
+    const pct = formatDeltaPercent(this.completedToday().vsYesterdayPercent);
+    return `${pct} vs ayer`;
+  });
+
+  readonly completedTodayMeta = computed(() => {
+    const n = this.completedToday().weekTotal;
+    return `${n} ${pluralEs(n, 'maniobra', 'maniobras')} en 7 días`;
   });
 
   readonly dieselChip = computed(() => {
@@ -356,9 +402,6 @@ export class DashboardPageComponent {
   }
 
   private loadUpcomingPayments() {
-    if (!this.showFinancialInsights()) {
-      return of([] as DashboardUpcomingPaymentRow[]);
-    }
     const range = dashboardUpcomingPaymentsRange();
     return this.expensesApi
       .getAllExpensesCalendarItems({
@@ -371,8 +414,15 @@ export class DashboardPageComponent {
       );
   }
 
-  openRecentTrip(tripId: number): void {
-    if (!tripId) {
+  private loadUpcomingDepartures() {
+    return this.tripsApi.getTripsPage({ status: 'scheduled', limit: 50 }).pipe(
+      map((res) => buildDashboardUpcomingDepartures(res.items)),
+      catchError(() => of([] as DashboardUpcomingDepartureRow[])),
+    );
+  }
+
+  openTrip(tripId: string | number): void {
+    if (tripId == null || tripId === '') {
       return;
     }
     void this.router.navigate(['/trips'], {

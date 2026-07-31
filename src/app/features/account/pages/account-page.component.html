@@ -26,6 +26,54 @@
       }
     </div>
 
+    <div class="account-card__logo-row">
+      <div class="account-card__logo-preview" aria-hidden="true">
+        @if (hasLogo()) {
+          <img
+            class="account-card__logo-img"
+            [src]="logoUrl()!"
+            width="72"
+            height="72"
+            alt=""
+          />
+        } @else {
+          <span class="account-card__logo-initials">{{ companyInitials() }}</span>
+        }
+      </div>
+      <div class="account-card__logo-meta">
+        <p class="account-card__logo-title">Logo de la empresa</p>
+        <div class="account-card__logo-actions">
+          <label
+            class="account-card__logo-upload"
+            [class.account-card__logo-upload--busy]="logoSaving()"
+            [attr.aria-busy]="logoSaving()"
+          >
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              class="account-card__file-input"
+              [disabled]="logoSaving() || saving()"
+              (change)="onLogoSelected($event)"
+            />
+            @if (!logoSaving()) {
+              <to-icon name="upload" [size]="14" />
+            }
+            {{ logoSaving() ? 'Guardando…' : hasLogo() ? 'Cambiar logo' : 'Subir logo' }}
+          </label>
+          @if (hasLogo()) {
+            <button
+              type="button"
+              class="account-card__logo-remove"
+              [disabled]="logoSaving() || saving()"
+              (click)="removeLogo()"
+            >
+              Quitar
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
     @if (!editing()) {
       <dl class="account-card__grid">
         <div class="account-card__field">
@@ -47,7 +95,10 @@
         </div>
         <div class="account-card__field">
           <dt>Plan</dt>
-          <dd>{{ planLabel() }}</dd>
+          <dd class="account-card__plan">
+            <span>{{ planLabel() }}</span>
+            <span class="account-card__badge account-card__badge--beta">Beta</span>
+          </dd>
         </div>
         <div class="account-card__field">
           <dt>Inicio</dt>
@@ -60,17 +111,19 @@
       </dl>
     } @else {
       <div class="account-card__edit-form">
-        <to-input
-          label="Nombre de la empresa"
-          [(value)]="editName"
-          [disabled]="saving()"
-        />
-        <to-input
-          label="Leyenda"
-          placeholder="Ej. Operaciones logísticas"
-          [(value)]="editTagline"
-          [disabled]="saving()"
-        />
+        <div class="account-card__grid account-card__grid--edit">
+          <to-input
+            label="Nombre de la empresa"
+            [(value)]="editName"
+            [disabled]="saving()"
+          />
+          <to-input
+            label="Leyenda"
+            placeholder="Ej. Operaciones logísticas"
+            [(value)]="editTagline"
+            [disabled]="saving()"
+          />
+        </div>
 
         <dl class="account-card__grid account-card__grid--readonly">
           <div class="account-card__field">
@@ -84,7 +137,10 @@
           </div>
           <div class="account-card__field">
             <dt>Plan</dt>
-            <dd>{{ planLabel() }}</dd>
+            <dd class="account-card__plan">
+              <span>{{ planLabel() }}</span>
+              <span class="account-card__badge account-card__badge--beta">Beta</span>
+            </dd>
           </div>
           <div class="account-card__field">
             <dt>Inicio</dt>
@@ -96,12 +152,41 @@
           </div>
         </dl>
 
+        @if (canActivatePro()) {
+          <div class="account-upgrade">
+            <p class="account-upgrade__hint">
+              Código de invitación de un solo uso: activa o renueva el plan
+              (Standard / Pro +) según la clave
+            </p>
+            <div class="account-upgrade__row">
+              <to-input
+                label="Código de invitación"
+                placeholder="clave de invitación"
+                inputName="proInvitationCode"
+                prefixIcon="lock"
+                [autocomplete]="'off'"
+                [disabled]="activatingPro() || saving()"
+                [(value)]="proInviteCode"
+              />
+              <to-button
+                type="button"
+                variant="primary"
+                [disabled]="!canSubmitProCode() || saving()"
+                [loading]="activatingPro()"
+                (click)="activateProPlan()"
+              >
+                Canjear código
+              </to-button>
+            </div>
+          </div>
+        }
+
         <div class="account-card__actions">
           <button
             type="button"
             class="account-card__cancel-btn"
             (click)="cancelEdit()"
-            [disabled]="saving()"
+            [disabled]="saving() || activatingPro()"
           >
             Cancelar
           </button>
@@ -109,16 +194,67 @@
             type="button"
             class="account-card__save-btn"
             (click)="saveEdit()"
-            [disabled]="saving()"
+            [disabled]="saving() || activatingPro()"
           >
+            @if (!saving()) {
+              <to-icon name="save" [size]="14" />
+            }
             {{ saving() ? 'Guardando…' : 'Guardar' }}
           </button>
         </div>
       </div>
     }
+  </section>
 
-    <p class="account-card__note">
-      La gestión de pagos y facturación estará disponible en próximas versiones.
-    </p>
+  <section
+    class="account-card account-card--billing"
+    aria-labelledby="account-billing-title"
+  >
+    <div class="account-card__header">
+      <div>
+        <h2 id="account-billing-title" class="account-card__section-title">
+          Historial de pagos
+        </h2>
+        <p class="account-card__section-subtitle">
+          Cargos de suscripción y periodos cubiertos
+        </p>
+      </div>
+    </div>
+
+    <div class="account-billing-table-wrap">
+      <table class="account-billing-table">
+        <thead>
+          <tr>
+            <th scope="col">Periodo</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Concepto</th>
+            <th scope="col" class="account-billing-table__num">Monto</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of billingHistory(); track row.id) {
+            <tr>
+              <td>{{ row.periodLabel }}</td>
+              <td>{{ row.paidAtLabel }}</td>
+              <td>{{ row.description }}</td>
+              <td class="account-billing-table__num">{{ row.amountLabel }}</td>
+              <td>
+                <span class="account-card__badge account-card__badge--{{ row.statusTone }}">
+                  <span class="account-card__dot" aria-hidden="true"></span>
+                  {{ row.statusLabel }}
+                </span>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="account-billing-table__empty">
+                Aún no hay pagos registrados.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   </section>
 }
