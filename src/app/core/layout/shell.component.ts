@@ -224,8 +224,12 @@ export class ShellComponent implements OnDestroy {
 
   onProfileSessionEnd(): void {
     this.closeProfileDrawer();
-    this.auth.logout();
-    void this.router.navigate(['/login']);
+    try {
+      this.auth.logout();
+    } catch {
+      /* clearClientState no debe impedir salir */
+    }
+    void this.router.navigateByUrl('/login', { replaceUrl: true });
   }
 
   ngOnDestroy(): void {

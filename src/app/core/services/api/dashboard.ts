@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { forkJoin, map, Observable } from 'rxjs';
+import { forkJoin, map, Observable, throwError } from 'rxjs';
 import {
   DashboardInsights,
   mapApiDashboardInsights,
@@ -10,7 +10,7 @@ import {
   mapApiDashboardSummary,
 } from '@shared/models/api/api-dashboard-summary.model';
 import { SessionService } from '../state/session';
-import { companyResourceUrl, requireCompanyId } from './api-url';
+import { companyResourceUrl } from './api-url';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
@@ -18,14 +18,20 @@ export class DashboardService {
   private readonly session = inject(SessionService);
 
   getSummary(): Observable<DashboardSummary> {
-    const companyId = requireCompanyId(this.session.companyId());
+    const companyId = this.session.companyId()?.trim();
+    if (!companyId) {
+      return throwError(() => new Error('No hay empresa en sesión'));
+    }
     return this.http
       .get<Record<string, unknown>>(companyResourceUrl(companyId, 'dashboard/summary'))
       .pipe(map((raw) => mapApiDashboardSummary(raw)));
   }
 
   getInsights(): Observable<DashboardInsights> {
-    const companyId = requireCompanyId(this.session.companyId());
+    const companyId = this.session.companyId()?.trim();
+    if (!companyId) {
+      return throwError(() => new Error('No hay empresa en sesión'));
+    }
     return this.http
       .get<Record<string, unknown>>(companyResourceUrl(companyId, 'dashboard/insights'))
       .pipe(map((raw) => mapApiDashboardInsights(raw)));

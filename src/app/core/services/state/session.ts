@@ -623,6 +623,12 @@ export class SessionService {
 
   clearSession(): void {
     this.data.set(null);
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      sessionStorage.removeItem('terminalops.session');
+    } catch {
+      /* ignore private mode / blocked storage */
+    }
   }
 
   private buildSessionData(

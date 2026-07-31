@@ -102,11 +102,23 @@ export class DashboardPageComponent {
   });
 
   private readonly pageResource = resource({
-    request: () => ({
-      financial: this.showFinancialInsights(),
-    }),
-    loader: ({ request }) =>
-      firstValueFrom(
+    // Incluir companyId: al logout el request queda undefined y no re-fetcha
+    // (evita throw síncrono "No hay empresa en sesión" que rompía cerrar sesión).
+    request: () => {
+      const companyId = this.session.companyId();
+      if (!companyId) {
+        return undefined;
+      }
+      return {
+        companyId,
+        financial: this.showFinancialInsights(),
+      };
+    },
+    loader: async ({ request }) => {
+      if (!request) {
+        return null;
+      }
+      return firstValueFrom(
         forkJoin({
           summary: this.dashboardApi.getSummary(),
           insights: this.dashboardApi.getInsights(),
@@ -117,7 +129,8 @@ export class DashboardPageComponent {
             ? of([] as DashboardUpcomingDepartureRow[])
             : this.loadUpcomingDepartures(),
         }),
-      ),
+      );
+    },
   });
 
   readonly dieselEditOpen = signal(false);

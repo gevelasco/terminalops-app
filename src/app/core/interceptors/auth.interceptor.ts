@@ -47,14 +47,22 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => error);
       }
       if (req.context.get(AUTH_ALREADY_REFRESHED)) {
-        logoutService.clearClientState();
-        void router.navigateByUrl('/login');
+        try {
+          logoutService.clearClientState();
+        } catch {
+          /* ignore */
+        }
+        void router.navigateByUrl('/login', { replaceUrl: true });
         return throwError(() => error);
       }
       const refresh = session.refreshToken();
       if (!refresh) {
-        logoutService.clearClientState();
-        void router.navigateByUrl('/login');
+        try {
+          logoutService.clearClientState();
+        } catch {
+          /* ignore */
+        }
+        void router.navigateByUrl('/login', { replaceUrl: true });
         return throwError(() => error);
       }
       return authService.refreshAccessToken().pipe(
@@ -67,8 +75,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           return next(retried);
         }),
         catchError((refreshErr) => {
-          logoutService.clearClientState();
-          void router.navigateByUrl('/login');
+          try {
+            logoutService.clearClientState();
+          } catch {
+            /* ignore */
+          }
+          void router.navigateByUrl('/login', { replaceUrl: true });
           return throwError(() => refreshErr);
         }),
       );

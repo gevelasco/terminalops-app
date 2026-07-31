@@ -29,16 +29,23 @@ export class LogoutService {
 
   clearClientState(): void {
     const notifLastSeen = snapshotNotifLastSeen();
+    // Cortar polls/fetch antes de anular la sesión (evita race con companyId null).
+    this.notificationsUnread.stop();
+    this.operationalTrips.clearOnLogout();
+    this.clientsApi.invalidateClientPickerCache();
+    this.planEntitlements.reset();
+
     this.session.clearSession();
     this.profiles.clear();
     this.preferences.clear();
     this.checklist.clear();
     this.theme.resetOnLogout();
-    this.operationalTrips.clearOnLogout();
-    this.planEntitlements.reset();
-    this.notificationsUnread.stop();
-    this.clientsApi.invalidateClientPickerCache();
-    clearAllBrowserStorage();
-    restoreNotifLastSeen(notifLastSeen);
+
+    try {
+      clearAllBrowserStorage();
+      restoreNotifLastSeen(notifLastSeen);
+    } catch {
+      /* ignore storage failures in private mode */
+    }
   }
 }
