@@ -187,6 +187,8 @@ export class FleetNewUnitDrawerComponent {
   readonly serviceModality = model('');
   readonly transmissionType = model('automatic');
   readonly transmissionSpeeds = model('10');
+  /** Rendimiento aproximado en km/L (opcional). */
+  readonly approximatePerformanceKmL = model('');
   readonly grossVehicleWeightLb = model('');
   readonly odometerKm = model('');
   readonly lastMaintenanceDate = model('');
@@ -504,6 +506,17 @@ export class FleetNewUnitDrawerComponent {
       }
     }
 
+    const perfRaw = this.approximatePerformanceKmL().trim().replace(/,/g, '.');
+    let approximatePerformanceKmL: number | undefined;
+    if (perfRaw) {
+      const perf = Number(perfRaw);
+      if (!Number.isFinite(perf) || perf <= 0) {
+        this.toast.show('El rendimiento aprox. debe ser un número mayor a 0 (km/L).', 'warning');
+        return;
+      }
+      approximatePerformanceKmL = perf;
+    }
+
     if (this.physMechApplies() && !this.physEmisExemptionActive() && !this.verificationPhysMechDate().trim()) {
       this.toast.show(
         'Si aplica verificación físico-mecánica, indica la fecha.',
@@ -648,6 +661,7 @@ export class FleetNewUnitDrawerComponent {
       trailerManagementOwnerPayout,
       transmissionType: transmissionLabel,
       transmissionSpeeds: speedsLabel,
+      approximatePerformanceKmL,
       grossVehicleWeightLb: lbRaw || undefined,
       odometerKm: this.odometerKm().trim() || undefined,
       maintenanceKmCounter: 0,

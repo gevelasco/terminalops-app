@@ -158,6 +158,9 @@ export class FleetFeatureService {
   selectUnit(unitId: string): void {
     this.equipmentFeature.clearSelection();
     this.unitsFeature.selectUnit(unitId);
+    // Overview / deep links: enganches viven en catálogo de equipos, no solo en GET unidad.
+    this.equipmentFeature.loadEquipment();
+    this.unitsFeature.loadUnits();
   }
 
   selectEquipment(equipmentId: string): void {

@@ -64,11 +64,11 @@
       Datos del equipo
     </h3>
     <div class="fleet-unit-sec__grid2">
-      <to-fleet-brand-combobox
-        label="Marca *"
-        placeholder="Escribe o selecciona"
-        [suggestionsSource]="equipmentBrandNames()"
-        [(brandName)]="brandName"
+      <to-select
+        label="Tipo de equipo *"
+        placeholder="Ej. Caja seca, plataforma…"
+        [options]="operationTypeOptions"
+        [(value)]="operationTypeCode"
       />
       <to-input
         label="Modelo (año) *"
@@ -80,11 +80,11 @@
       />
     </div>
     <div class="fleet-unit-sec__grid2">
-      <to-select
-        label="Tipo de equipo *"
-        placeholder="Ej. Caja seca, plataforma…"
-        [options]="operationTypeOptions"
-        [(value)]="operationTypeCode"
+      <to-fleet-brand-combobox
+        label="Marca *"
+        placeholder="Escribe o selecciona"
+        [suggestionsSource]="equipmentBrandNames()"
+        [(brandName)]="brandName"
       />
       <to-fleet-version-combobox
         label="Versión"

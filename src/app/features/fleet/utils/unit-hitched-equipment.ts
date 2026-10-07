@@ -5,13 +5,48 @@ import {
 import {
   equipmentAssignedToUnit,
   equipmentHitchPositionDisplayLabel,
+  sortEquipmentByHitchPosition,
 } from '@shared/utils/fleet/equipment-hitch-position';
+import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 import type { OperationConfigurationResolver } from '@shared/services/operation-configuration-resolver.types';
 import type { UnitConvoyDisplay, UnitConvoyKind } from '@shared/utils/operation-configuration-display.utils';
 import { operationConfigBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import { Equipment, TripOperationType } from '@shared/models/logistics.models';
 
 export { equipmentAssignedToUnit, equipmentHitchPositionDisplayLabel };
+
+/**
+ * Enganches visibles para una tractora: catálogo en memoria (si ya trae filas)
+ * y refs embebidas en GET /units/:id. Misma regla que la tabla de Flota → Unidades.
+ */
+export type ResolveHitchedEquipmentOptions = {
+  /** Catálogo GET /equipment ya cargado: fuente de verdad aunque no haya enganches. */
+  catalogAuthoritative?: boolean;
+};
+
+export function resolveHitchedEquipmentForUnit(
+  unitId: unknown,
+  catalog: readonly Equipment[],
+  embedded: readonly Equipment[] | undefined,
+  options?: ResolveHitchedEquipmentOptions,
+): Equipment[] {
+  const id = resourceIdKey(unitId);
+  if (!id) {
+    return [];
+  }
+  const fromDetail = sortEquipmentByHitchPosition(
+    (embedded ?? [])
+      .filter(
+        (e) => !e.unitId?.trim() || resourceIdsEqual(e.unitId, id),
+      )
+      .map((e) => (e.unitId?.trim() ? e : { ...e, unitId: id })),
+  );
+  const fromCatalog = equipmentAssignedToUnit(catalog, id);
+  if (fromCatalog.length > 0 || options?.catalogAuthoritative) {
+    return fromCatalog;
+  }
+  return fromDetail;
+}
 
 export type { UnitConvoyKind };
 export type UnitConvoySummary = UnitConvoyDisplay;
@@ -115,7 +150,7 @@ export function unitConvoyOperationCodeFromHitched(hitched: readonly Equipment[]
     return '';
   }
   if (n >= 2) {
-    return 'full';
+    return 'doble-articulado';
   }
   if (isPlanaEquipment(hitched[0]!)) {
     return 'plana';

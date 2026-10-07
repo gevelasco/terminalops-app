@@ -39,13 +39,11 @@ describe('planned-schedule-validation', () => {
     ).toBe(true);
   });
 
-  it('requires load date on the same calendar day as departure', () => {
+  it('requires load date on or before departure', () => {
     expect(loadDateDepartureIssue('', '2026-08-01T08:00')).toBeNull();
     expect(loadDateDepartureIssue('2026-08-01T06:00', '2026-08-01T08:00')).toBeNull();
     expect(loadDateDepartureIssue('2026-08-01T08:00', '2026-08-01T08:00')).toBeNull();
-    expect(loadDateDepartureIssue('2026-07-31T22:00', '2026-08-01T08:00')).toContain(
-      'anterior',
-    );
+    expect(loadDateDepartureIssue('2026-07-31T22:00', '2026-08-01T08:00')).toBeNull();
     expect(loadDateDepartureIssue('2026-08-02T06:00', '2026-08-01T08:00')).toContain(
       'posterior',
     );

@@ -14,6 +14,10 @@ export const TRIP_CONTAINER_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'na', label: 'No aplica' },
 ];
 
+/** Select de maniobra con tipo de carga contenedor (sin «No aplica»; vacío = opcional). */
+export const TRIP_CONTAINER_ISO_TYPE_OPTIONS: ToSelectOption[] =
+  TRIP_CONTAINER_TYPE_OPTIONS.filter((opt) => opt.value !== 'na');
+
 const LABELS: Record<string, string> = {
   '20dc': "20′ DC (estándar)",
   '20hc': "20′ HC (High Cube)",

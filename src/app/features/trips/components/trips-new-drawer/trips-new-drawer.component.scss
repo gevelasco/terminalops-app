@@ -391,10 +391,115 @@
   }
 }
 
+.maniobra-drawer__toggle--compact {
+  gap: 0.4rem;
+
+  .maniobra-drawer__toggle-wrap {
+    width: 2.125rem;
+    height: 1.125rem;
+  }
+
+  .maniobra-drawer__toggle-track::after {
+    top: 1.5px;
+    left: 1.5px;
+    width: 0.8125rem;
+    height: 0.8125rem;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.16);
+  }
+
+  .maniobra-drawer__toggle-input:checked + .maniobra-drawer__toggle-track::after {
+    transform: translateX(calc(2.125rem - 0.8125rem - 3px));
+  }
+}
+
+.maniobra-drawer__toggle-text--compact {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--to-color-text-muted);
+}
+
 .maniobra-drawer__client-fields {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+.maniobra-drawer__section--load {
+  gap: 0.7rem;
+}
+
+.maniobra-drawer__container-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.maniobra-drawer__container-block-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-drawer__grid2--pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.maniobra-drawer__load-field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--to-color-text-muted);
+}
+
+.maniobra-drawer__load-condition {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+
+  to-segment-control {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  /* Misma altura visual que `.to-field__control` / fila con prefijo Ton. */
+  ::ng-deep .to-segment-control-host {
+    display: flex;
+    flex: 1;
+    min-height: calc(0.5rem * 2 + 1.25rem + 2px);
+  }
+
+  ::ng-deep .to-segment-control {
+    flex: 1;
+    align-self: stretch;
+    box-sizing: border-box;
+    min-height: calc(0.5rem * 2 + 1.25rem + 2px);
+    padding: 0.2rem;
+    gap: 0.12rem;
+    border-radius: var(--to-radius-md);
+    background: var(--to-color-surface);
+  }
+
+  ::ng-deep .to-segment-control__btn {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: normal;
+    line-height: 1.25;
+  }
 }
 
 .maniobra-drawer__labeled-field {

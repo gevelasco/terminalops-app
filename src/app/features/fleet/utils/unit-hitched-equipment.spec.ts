@@ -7,6 +7,7 @@ import {
   fleetUnitConvoyTableBadges,
   fleetUnitConvoyTableLabel,
   unitConvoyFromEquipment,
+  resolveHitchedEquipmentForUnit,
 } from './unit-hitched-equipment';
 
 function eq(partial: Partial<Equipment> & Pick<Equipment, 'id' | 'unitId'>): Equipment {
@@ -134,6 +135,37 @@ describe('unit-hitched-equipment', () => {
   it('labels overview hitch slots by index', () => {
     expect(convoyOverviewHitchPositionLabel(0, 2)).toMatch(/1\.er equipo/);
     expect(convoyOverviewHitchPositionLabel(1, 2)).toMatch(/2\.do equipo/);
+  });
+
+  it('equipmentAssignedToUnit matches assignedUnit when unitId is empty', () => {
+    const catalog = [
+      eq({
+        id: 'ste-1',
+        unitId: '',
+        serialNumber: '23432',
+        assignedUnit: { id: 'u98', plate: 'X', capacityKg: 0, status: '' },
+      }),
+    ];
+    expect(equipmentAssignedToUnit(catalog, 'u98').length).toBe(1);
+  });
+
+  it('resolveHitchedEquipmentForUnit falls back to unit detail when catalog is empty', () => {
+    const embedded = [eq({ id: 'ste-1', unitId: 'u98', serialNumber: '23432' })];
+    expect(resolveHitchedEquipmentForUnit('u98', [], embedded)).toEqual(embedded);
+    expect(
+      resolveHitchedEquipmentForUnit(
+        'u98',
+        [eq({ id: 'ste-1', unitId: 'u98', name: 'From catalog' })],
+        embedded,
+      )[0]?.name,
+    ).toBe('From catalog');
+  });
+
+  it('resolveHitchedEquipmentForUnit prefers empty catalog when authoritative', () => {
+    const embedded = [eq({ id: 'ste-1', unitId: 'u98', serialNumber: '23432' })];
+    expect(
+      resolveHitchedEquipmentForUnit('u98', [], embedded, { catalogAuthoritative: true }),
+    ).toEqual([]);
   });
 
   it('derives fleet unit convoy table labels from hitch count', () => {

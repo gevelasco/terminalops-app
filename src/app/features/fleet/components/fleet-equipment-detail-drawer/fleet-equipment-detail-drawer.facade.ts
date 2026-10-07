@@ -182,7 +182,6 @@ const COB_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
 
 const TENURE_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
   ...COB_SECTION_PERSIST_OPTIONS,
-  refreshDetail: true,
 };
 
 @Injectable()
@@ -624,17 +623,7 @@ export class FleetEquipmentDetailDrawerFacade {
     this.saving.set(true);
     this.equipmentFeature
       .updateEquipment(equipmentToSend, effectiveDraft, { skipListRefresh: true })
-      .pipe(
-        switchMap((saved) => {
-          if (!options?.refreshDetail) {
-            return of(saved);
-          }
-          return this.equipmentFeature.fetchEquipmentDetail(saved.id).pipe(
-            map((detail) => detail ?? saved),
-          );
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (saved) => {
           this.saving.set(false);
@@ -1138,30 +1127,34 @@ export class FleetEquipmentDetailDrawerFacade {
     const hasMetaPatch = Object.keys(fleetMetaDraft).length > 0;
     this.saving.set(true);
     this.syncEquipmentDocuments('verification', kept, files, original)
-      .pipe(
-        switchMap(() =>
-          hasMetaPatch
-            ? of(null)
-            : this.equipmentFeature.fetchEquipmentDetail(this.effEquipment().id),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (detail) => {
+        next: (uploaded) => {
           this.editVerifNewFiles.set([]);
+          const syncedDocuments = {
+            kind: 'verification' as const,
+            kept,
+            uploaded,
+          };
           if (hasMetaPatch) {
             this.saving.set(false);
             this.persistCurrentEquipment(
               'Verificaciones actualizadas.',
               { fleetMeta: fleetMetaDraft },
-              COB_SECTION_PERSIST_OPTIONS,
+              {
+                ...COB_SECTION_PERSIST_OPTIONS,
+                syncedDocuments,
+              },
             );
             return;
           }
           this.saving.set(false);
-          if (detail) {
-            this.equipmentSource.set(detail);
-          }
+          const next = applySyncedFleetDocuments(
+            this.effEquipment(),
+            this.equipmentSource(),
+            syncedDocuments,
+          );
+          this.equipmentSource.set(next);
           this.metaOverride.set({});
           this.toast.show('Documentos de verificación actualizados.', 'success');
           this.editingSection.set(null);
@@ -1276,13 +1269,16 @@ export class FleetEquipmentDetailDrawerFacade {
     this.syncEquipmentDocuments('policy', kept, files, original)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (uploaded) => {
           this.editPolicyNewFiles.set([]);
           this.saving.set(false);
           this.persistCurrentEquipment(
             'Seguro actualizado.',
             { fleetMeta: fleetMetaDraft },
-            COB_SECTION_PERSIST_OPTIONS,
+            {
+              ...COB_SECTION_PERSIST_OPTIONS,
+              syncedDocuments: { kind: 'policy', kept, uploaded },
+            },
           );
         },
         error: () => {

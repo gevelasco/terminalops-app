@@ -35,7 +35,6 @@ import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
 import {
-  dateTimeLocalDay,
   isHistoricalManeuverAssignment,
   isPlannedScheduleValid,
   loadDateDepartureIssue,
@@ -91,6 +90,7 @@ import {
   Equipment,
   Operator,
   Trip,
+  TripCargoCategory,
   TripContainerType,
   TripLoadType,
   Unit,
@@ -145,8 +145,23 @@ import {
 } from '@shared/catalogs/trip-client-payment-options';
 import {
   normalizeTripContainerType,
-  TRIP_CONTAINER_TYPE_OPTIONS,
+  TRIP_CONTAINER_ISO_TYPE_OPTIONS,
 } from '@shared/catalogs/trip-container-type-options';
+import {
+  normalizeTripCargoCategory,
+  TRIP_CARGO_CATEGORY_OPTIONS,
+} from '@shared/catalogs/trip-cargo-category-options';
+import {
+  isDoubleArticulatedOperationCode,
+  normalizeManeuverOperationCode,
+  TRIP_DOUBLE_ARTICULATED_CONFIG_CODE,
+  TRIP_MANEUVER_CONFIGURATION_CODES,
+} from '@shared/catalogs/trip-maneuver-configuration';
+import { normalizeTripContainerNumberInput } from '@shared/utils/trip-container-number.util';
+import {
+  ToSegmentControlComponent,
+  type ToSegmentTab,
+} from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToClientInputComponent } from '@shared/ui/to-client-input/to-client-input.component';
 import { ToOperatorInputComponent } from '@shared/ui/to-operator-input/to-operator-input.component';
 import {
@@ -191,6 +206,7 @@ import type { TripDocumentKind } from '@shared/models/logistics.models';
     ToFleetBrandComboboxComponent,
     CargoDescriptionComboboxComponent,
     DestinationCpComboboxComponent,
+    ToSegmentControlComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trips-new-drawer.component.html',
@@ -394,7 +410,7 @@ export class TripsNewDrawerComponent {
     return units.filter((u) =>
       unitMatchesManeuverAssignment(u, {
         operationCode: this.operationType(),
-        containerType: this.containerType(),
+        containerType: this.assignmentContainerType(),
       }),
     );
   });
@@ -425,6 +441,15 @@ export class TripsNewDrawerComponent {
     return picked && resourceIdsEqual(picked.id, id) ? picked : undefined;
   });
 
+  /** Rendimiento aprox. (km/L) de la unidad asignada, si está capturado en flota. */
+  readonly selectedUnitPerformanceKmL = computed((): number | null => {
+    const perf = this.selectedUnit()?.fleetMeta?.approximatePerformanceKmL;
+    if (perf != null && Number.isFinite(perf) && perf > 0) {
+      return perf;
+    }
+    return null;
+  });
+
   readonly selectedUnitMatchesManeuverConfiguration = computed(() => {
     const uid = this.unitId().trim();
     if (!uid) {
@@ -442,7 +467,7 @@ export class TripsNewDrawerComponent {
     }
     return unitMatchesManeuverAssignment(unit, {
       operationCode: this.operationType(),
-      containerType: this.containerType(),
+      containerType: this.assignmentContainerType(),
     });
   });
   readonly pickerOperators = computed((): Operator[] =>
@@ -530,8 +555,14 @@ export class TripsNewDrawerComponent {
   readonly originGeocodeFailed = signal(false);
   readonly destinationGeocodeFailed = signal(false);
   readonly operationType = model('sencillo');
+  readonly cargoCategory = model<TripCargoCategory>('material');
   readonly loadType = model<TripLoadType>('vacio');
   readonly containerType = model<TripContainerType>('na');
+  readonly containerNumber = model('');
+  readonly containerTypeSecondary = model<TripContainerType>('na');
+  readonly containerNumberSecondary = model('');
+  /** Activa fecha/lugar de carga y campos de contenedor cuando aplica. */
+  readonly includeLoadDetails = model(false);
   /** `yyyy-mm-ddTHH:mm` — fecha y hora de carga (opcional). */
   readonly loadDate = model('');
   readonly loadPlace = model('');
@@ -557,16 +588,10 @@ export class TripsNewDrawerComponent {
   readonly plannedArrivalDateTime = model('');
   readonly plannedCompletionDateTime = model('');
 
-  readonly loadDateBoundDay = computed(() =>
-    dateTimeLocalDay(this.plannedDepartureDateTime()),
-  );
-  readonly loadDateMin = computed(() => {
-    const day = this.loadDateBoundDay();
-    return day ? `${day}T00:00` : undefined;
-  });
+  /** Cita de carga: tope = salida planificada (datetime-local). */
   readonly loadDateMax = computed(() => {
-    const day = this.loadDateBoundDay();
-    return day ? `${day}T23:59` : undefined;
+    const dep = this.plannedDepartureDateTime().trim();
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dep) ? dep : undefined;
   });
 
   readonly plannedScheduleValid = computed(() =>
@@ -591,15 +616,72 @@ export class TripsNewDrawerComponent {
   readonly filesOperationalCosts = signal<File[]>([]);
   readonly filesBilling = signal<File[]>([]);
 
-  /** Docs de carga solo si hay fecha y lugar de carga. */
-  readonly showLoadDocs = computed(
-    () => this.loadDate().trim().length > 0 && this.loadPlace().trim().length > 0,
+  readonly isContainerCargo = computed(
+    () => normalizeTripCargoCategory(this.cargoCategory()) === 'contenedor',
   );
+
+  readonly usesDoubleContainerSlots = computed(() =>
+    isDoubleArticulatedOperationCode(this.operationType()),
+  );
+
+  /** Contenedor ISO para filtrar unidades; `na` si la mercancía no es contenedor. */
+  readonly assignmentContainerType = computed((): TripContainerType => {
+    if (!this.isContainerCargo()) {
+      return 'na';
+    }
+    const candidates = this.usesDoubleContainerSlots()
+      ? [this.containerType(), this.containerTypeSecondary()]
+      : [this.containerType()];
+    const picked =
+      candidates
+        .map((t) => normalizeTripContainerType(t))
+        .find((t) => t !== 'na') ?? 'na';
+    return picked === 'na' ? '40dc' : picked;
+  });
+
+  readonly loadConditionTabs: readonly ToSegmentTab<TripLoadType>[] = [
+    { id: 'vacio', label: 'Vacío' },
+    { id: 'lleno', label: 'Lleno' },
+  ];
 
   private readonly clearHiddenLoadDocs = (() => {
     effect(() => {
-      if (!this.showLoadDocs()) {
+      if (!this.includeLoadDetails()) {
         this.filesLoad.set([]);
+      }
+    });
+    return true;
+  })();
+
+  private readonly syncCargoCategorySideEffects = (() => {
+    effect(() => {
+      const category = normalizeTripCargoCategory(this.cargoCategory());
+      if (category === 'contenedor') {
+        return;
+      }
+      this.containerType.set('na');
+      this.containerNumber.set('');
+      this.containerTypeSecondary.set('na');
+      this.containerNumberSecondary.set('');
+    });
+    return true;
+  })();
+
+  private readonly syncDoubleContainerSlots = (() => {
+    effect(() => {
+      if (!this.usesDoubleContainerSlots()) {
+        this.containerTypeSecondary.set('na');
+        this.containerNumberSecondary.set('');
+      }
+    });
+    return true;
+  })();
+
+  private readonly syncLoadDetailsVisibility = (() => {
+    effect(() => {
+      if (!this.includeLoadDetails()) {
+        this.loadDate.set('');
+        this.loadPlace.set('');
       }
     });
     return true;
@@ -629,19 +711,38 @@ export class TripsNewDrawerComponent {
     );
   });
 
-  readonly operationOptions = computed((): ToSelectOption[] =>
-    this.operationConfigsFeature.activeConfigurations().map((c) => ({
-      value: c.code,
-      label: c.name,
-    })),
-  );
+  readonly operationOptions = computed((): ToSelectOption[] => {
+    const allowed = new Set(
+      TRIP_MANEUVER_CONFIGURATION_CODES.map((c) => c.toLowerCase()),
+    );
+    allowed.add('full');
+    const configs = this.operationConfigsFeature
+      .activeConfigurations()
+      .filter((c) => {
+        const code = c.code.trim().toLowerCase();
+        return allowed.has(code) || isDoubleArticulatedOperationCode(code);
+      });
+    const source = configs.length > 0 ? configs : this.operationConfigsFeature.activeConfigurations();
+    return source.map((c) => {
+      const canonical = normalizeManeuverOperationCode(c.code);
+      const label = isDoubleArticulatedOperationCode(c.code)
+        ? 'Doble articulado'
+        : c.name;
+      return {
+        value: canonical,
+        label,
+      };
+    });
+  });
 
-  readonly loadTypeOptions: ToSelectOption[] = [
-    { value: 'vacio', label: 'Vacío' },
-    { value: 'lleno', label: 'Lleno' },
-  ];
+  readonly cargoCategoryOptions: ToSelectOption[] = TRIP_CARGO_CATEGORY_OPTIONS;
 
-  readonly containerTypeOptions: ToSelectOption[] = TRIP_CONTAINER_TYPE_OPTIONS;
+  readonly containerTypeSelectOptions: ToSelectOption[] =
+    TRIP_CONTAINER_ISO_TYPE_OPTIONS;
+
+  containerTypeSelectValue(type: TripContainerType): string {
+    return type === 'na' ? '' : type;
+  }
 
   readonly paymentMethodOptions: ToSelectOption[] = TRIP_CLIENT_PAYMENT_METHOD_OPTIONS;
 
@@ -882,10 +983,12 @@ export class TripsNewDrawerComponent {
       toObservable(this.operationType),
       toObservable(this.selectedOperationConfig),
       toObservable(this.loadType),
-      toObservable(this.containerType),
+      toObservable(this.assignmentContainerType),
       toObservable(this.approximateWeightTons),
       toObservable(this.originCoords),
       toObservable(this.destinationCoords),
+      toObservable(this.unitId),
+      toObservable(this.selectedUnitPerformanceKmL),
     ]).pipe(
       debounceTime(FUEL_ESTIMATE_DEBOUNCE_MS),
       map(
@@ -898,6 +1001,8 @@ export class TripsNewDrawerComponent {
           approximateWeightTons,
           originCoords,
           destinationCoords,
+          unitId,
+          unitPerformanceKmL,
         ]) =>
           buildFuelEstimateRequest({
             distanceKm,
@@ -912,6 +1017,8 @@ export class TripsNewDrawerComponent {
             approximateWeightTons,
             originCoords,
             destinationCoords,
+            unitId,
+            unitPerformanceKmL,
           }),
       ),
       distinctUntilChanged((a, b) => {
@@ -972,7 +1079,7 @@ export class TripsNewDrawerComponent {
 
     effect(() => {
       this.operationType();
-      this.containerType();
+      this.assignmentContainerType();
       const unitId = this.unitId().trim();
       if (!unitId || this.selectedUnitMatchesManeuverConfiguration()) {
         return;
@@ -985,9 +1092,15 @@ export class TripsNewDrawerComponent {
       if (configs.length === 0) {
         return;
       }
-      const current = this.operationType().trim();
-      if (!configs.some((c) => c.code === current)) {
-        this.operationType.set(configs[0].code);
+      const current = normalizeManeuverOperationCode(this.operationType());
+      if (current !== this.operationType().trim()) {
+        this.operationType.set(current || TRIP_DOUBLE_ARTICULATED_CONFIG_CODE);
+      }
+      const matches = configs.some(
+        (c) => normalizeManeuverOperationCode(c.code) === current,
+      );
+      if (!matches && configs[0]) {
+        this.operationType.set(normalizeManeuverOperationCode(configs[0].code));
       }
     });
 
@@ -1519,13 +1632,44 @@ export class TripsNewDrawerComponent {
     }
     this.cargoDescription.set(item.description);
     const op = item.operationType.trim();
-    const validOp = this.operationOptions().some((o) => String(o.value) === op);
+    const normalizedOp = normalizeManeuverOperationCode(op);
+    const validOp = this.operationOptions().some(
+      (o) => normalizeManeuverOperationCode(String(o.value)) === normalizedOp,
+    );
     if (validOp) {
-      this.operationType.set(op);
+      this.operationType.set(normalizedOp);
     }
+    this.cargoCategory.set(normalizeTripCargoCategory(item.cargoCategory));
     this.containerType.set(normalizeTripContainerType(item.containerType));
     this.loadType.set(item.loadType as TripLoadType);
     this.approximateWeightTons.set(item.approximateWeightTons);
+    this.onManeuverSpecChanged();
+  }
+
+  onLoadConditionSelect(value: TripLoadType): void {
+    this.loadType.set(value);
+  }
+
+  onCargoCategoryChange(value: string): void {
+    this.cargoCategory.set(normalizeTripCargoCategory(value));
+    this.onManeuverSpecChanged();
+  }
+
+  onContainerNumberBlur(): void {
+    this.containerNumber.set(normalizeTripContainerNumberInput(this.containerNumber()));
+  }
+
+  onContainerNumberSecondaryBlur(): void {
+    this.containerNumberSecondary.set(
+      normalizeTripContainerNumberInput(this.containerNumberSecondary()),
+    );
+  }
+
+  onContainerTypeSecondaryChange(value: string): void {
+    const trimmed = value.trim();
+    this.containerTypeSecondary.set(
+      trimmed ? normalizeTripContainerType(trimmed) : 'na',
+    );
     this.onManeuverSpecChanged();
   }
 
@@ -1831,12 +1975,15 @@ export class TripsNewDrawerComponent {
   }
 
   onOperationTypeChange(value: string): void {
-    this.operationType.set(value);
+    this.operationType.set(normalizeManeuverOperationCode(value));
     this.onManeuverSpecChanged();
   }
 
   onContainerTypeChange(value: string): void {
-    this.containerType.set(normalizeTripContainerType(value));
+    const trimmed = value.trim();
+    this.containerType.set(
+      trimmed ? normalizeTripContainerType(trimmed) : 'na',
+    );
     this.onManeuverSpecChanged();
   }
 
@@ -1853,7 +2000,7 @@ export class TripsNewDrawerComponent {
     }
     return {
       operationType: this.operationType(),
-      containerType: this.containerType(),
+      containerType: this.assignmentContainerType(),
     };
   }
 
@@ -1895,8 +2042,8 @@ export class TripsNewDrawerComponent {
 
   private unitConfigurationMismatchMessage(): string {
     return (
-      'La unidad seleccionada no está disponible para el tipo de carga (contenedor) ' +
-      'que se planea mover. Actualice el tipo de carga o la unidad.'
+      'La unidad seleccionada no es compatible con contenedor en esta configuración. ' +
+      'Ajusta el tipo de mercancía, la configuración o la unidad.'
     );
   }
 
@@ -2275,7 +2422,13 @@ export class TripsNewDrawerComponent {
       requiresInvoice: this.requiresInvoice(),
       paymentMethod: this.paymentMethod(),
       loadType: this.loadType(),
+      cargoCategory: this.cargoCategory(),
       containerType: this.containerType(),
+      containerNumber: this.containerNumber(),
+      containerTypeSecondary: this.containerTypeSecondary(),
+      containerNumberSecondary: this.containerNumberSecondary(),
+      usesDoubleContainerSlots: this.usesDoubleContainerSlots(),
+      includeLoadDetails: this.includeLoadDetails(),
       cargoDescription: this.cargoDescription(),
       approximateWeightTons: this.approximateWeightTons(),
       loadDate: this.loadDate(),
@@ -2314,7 +2467,7 @@ export class TripsNewDrawerComponent {
 
   private runCreateTrip(payload: CreateTripPayload): void {
     const pendingUploads: Array<{ kind: TripDocumentKind; file: File }> = [
-      ...(this.showLoadDocs()
+      ...(this.includeLoadDetails()
         ? this.filesLoad().map((file) => ({ kind: 'load' as const, file }))
         : []),
       ...this.filesOperationalCosts().map((file) => ({

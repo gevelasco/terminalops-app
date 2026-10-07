@@ -19,6 +19,7 @@ function tripFixture(
     status: 'in_transit',
     operationType: 'sencillo',
     loadType: 'lleno',
+    cargoCategory: 'contenedor',
     containerType: '40dc',
     cargoDescription: '',
     approximateWeightTons: '',

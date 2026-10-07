@@ -91,6 +91,7 @@ export class EquipmentFeatureService {
     this._selectedEquipmentId.set(null);
   }
 
+  /** PATCH devuelve detalle completo; el observable emite esa respuesta. */
   updateEquipment(
     equipment: Equipment,
     draft?: EquipmentPersistDraft,
@@ -100,21 +101,20 @@ export class EquipmentFeatureService {
     const requestId = this.requestGen.next();
     return this.equipmentApi.patchEquipment(equipment, draft).pipe(
       switchMap((saved) => {
+        const normalized = normalizeEquipmentFromApi(saved);
         if (options?.skipListRefresh) {
           if (this.canApplyResponse(requestId)) {
-            this.upsertEquipmentSummary(saved);
+            this.upsertEquipmentSummary(normalized);
           }
-          return of(saved);
+          return of(normalized);
         }
         return this.fetchList().pipe(
           map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              const fallbackId = keepId ?? equipment.id;
-              return this._equipment().find((e) => e.id === fallbackId) ?? equipment;
+            if (this.canApplyResponse(requestId)) {
+              this.applyList(list, keepId);
+              this.upsertEquipmentSummary(normalized);
             }
-            this.applyList(list, keepId);
-            const resolvedId = keepId ?? equipment.id;
-            return this._equipment().find((e) => e.id === resolvedId) ?? equipment;
+            return normalized;
           }),
         );
       }),

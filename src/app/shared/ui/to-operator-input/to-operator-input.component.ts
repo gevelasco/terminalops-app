@@ -156,8 +156,22 @@ export class ToOperatorInputComponent {
     });
   }
 
+  /** Selección válida cuyo nombre coincide con el texto del campo (no reabrir tras elegir). */
+  private selectionMatchesInput(): boolean {
+    const id = this.operatorId().trim();
+    if (!id) {
+      return false;
+    }
+    const op = this.availableOperators().find((o) => o.id === id);
+    return !!op && op.name.trim() === this.inputText().trim();
+  }
+
   /** Si el catálogo llegó mientras el campo tenía foco, abre la lista sin otro clic. */
   private maybeOpenIfFocused(): void {
+    if (this.selectionMatchesInput()) {
+      this.open.set(false);
+      return;
+    }
     const el = this.fieldInput()?.nativeElement;
     if (
       el &&
@@ -233,10 +247,10 @@ export class ToOperatorInputComponent {
     }
     ev.preventDefault();
     ev.stopPropagation();
+    this.open.set(false);
     queueMicrotask(() => {
       this.operatorId.set(op.id);
       this.inputText.set(op.name);
-      this.open.set(false);
       this.fieldInput()?.nativeElement.focus();
     });
   }

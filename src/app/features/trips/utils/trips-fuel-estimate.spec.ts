@@ -19,6 +19,22 @@ describe('buildFuelEstimateRequest', () => {
     expect(req?.approximateWeightTons).toBe(0);
   });
 
+  it('incluye rendimiento de unidad cuando es válido', () => {
+    const req = buildFuelEstimateRequest({
+      distanceKm: 120,
+      operationType: 'sencillo',
+      loadType: 'vacio',
+      containerType: 'na',
+      approximateWeightTons: '',
+      originCoords: coords,
+      destinationCoords: coords,
+      unitId: '42',
+      unitPerformanceKmL: 2.8,
+    });
+    expect(req?.unitId).toBe(42);
+    expect(req?.unitPerformanceKmL).toBe(2.8);
+  });
+
   it('no arma petición sin km de ida', () => {
     expect(
       buildFuelEstimateRequest({

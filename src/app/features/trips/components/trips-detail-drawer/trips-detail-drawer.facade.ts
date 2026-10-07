@@ -82,6 +82,7 @@ import {
   tripOperationalKm,
 } from '@features/trips/utils/trip-operational-km';
 import { tripManeuverPaymentMethodLabel } from '@shared/catalogs/trip-client-payment-options';
+import { tripCargoCategoryLabelMx } from '@shared/catalogs/trip-cargo-category-options';
 import { tripContainerTypeLabelMx } from '@shared/catalogs/trip-container-type-options';
 import {
   Expense,
@@ -190,13 +191,9 @@ export class TripsDetailDrawerFacade {
   private readonly emptyDeliveryOriginalAt = signal<string | null>(null);
   readonly loadDateDraft = signal('');
   readonly loadPlaceDraft = signal('');
-  readonly loadDateMin = computed(() => {
-    const day = dateTimeLocalDay(this.realDepartureDraft());
-    return day ? `${day}T00:00` : undefined;
-  });
   readonly loadDateMax = computed(() => {
-    const day = dateTimeLocalDay(this.realDepartureDraft());
-    return day ? `${day}T23:59` : undefined;
+    const dep = this.realDepartureDraft().trim();
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dep) ? dep : undefined;
   });
   readonly detailTab = signal<TripsDetailTab>('maneuver');
   // Lectura nullable: estos computed corren desde effects que pueden evaluarse
@@ -1114,8 +1111,71 @@ export class TripsDetailDrawerFacade {
     return load === 'vacio' ? 'Vacío' : 'Lleno';
   }
 
+  cargoCategoryLabel(category: string | undefined): string {
+    return tripCargoCategoryLabelMx(category);
+  }
+
   containerLabel(c: TripContainerType | string): string {
     return tripContainerTypeLabelMx(c);
+  }
+
+  containerNumberDisplay(): string {
+    const n = this.trip().containerNumber?.trim() ?? '';
+    return n.length > 0 ? n : '—';
+  }
+
+  tripContainersDisplay(): Array<{
+    slot: number;
+    typeLabel: string;
+    typeValue: string;
+    numberLabel: string;
+    numberValue: string;
+  }> {
+    const trip = this.trip();
+    const rows = trip.containers?.length
+      ? trip.containers
+      : trip.containerType && trip.containerType !== 'na'
+        ? [
+            {
+              slot: 1,
+              containerType: trip.containerType,
+              containerNumber: trip.containerNumber,
+            },
+          ]
+        : trip.containerNumber
+          ? [
+              {
+                slot: 1,
+                containerType: trip.containerType,
+                containerNumber: trip.containerNumber,
+              },
+            ]
+          : [];
+
+    if (rows.length === 0) {
+      return [
+        {
+          slot: 1,
+          typeLabel: 'Tipo de contenedor',
+          typeValue: this.containerLabel(trip.containerType),
+          numberLabel: 'Número de contenedor',
+          numberValue: this.containerNumberDisplay(),
+        },
+      ];
+    }
+
+    const multi = rows.length > 1;
+    return rows.map((row) => {
+      const prefix = multi ? `Contenedor ${row.slot}` : 'Contenedor';
+      const num = String(row.containerNumber ?? '').trim();
+      return {
+        slot: row.slot,
+        typeLabel: multi ? `${prefix} — tipo` : 'Tipo de contenedor',
+        typeValue: this.containerLabel(row.containerType),
+        numberLabel: multi ? `${prefix} — número` : 'Número de contenedor',
+        numberValue: num.length > 0 ? num : '—',
+      };
+    });
   }
 
   routeDistanceDisplay(): string {
@@ -1331,9 +1391,13 @@ export class TripsDetailDrawerFacade {
     push(cargo, 'Carga', this.plannedScheduleDisplay(trip.loadDate));
     push(cargo, 'Lugar de carga', this.loadPlaceDisplay());
     push(cargo, 'Configuración', this.operationLabel());
-    push(cargo, 'Tipo de carga', this.loadLabel(trip.loadType));
+    push(cargo, 'Tipo de carga', this.cargoCategoryLabel(trip.cargoCategory));
+    push(cargo, 'Condición', this.loadLabel(trip.loadType));
     push(cargo, 'Descripción', this.cargoDescriptionDisplay());
     push(cargo, 'Tipo de contenedor', this.containerLabel(trip.containerType));
+    push(cargo, 'Número de contenedor', this.containerNumberDisplay(), {
+      skipEmpty: true,
+    });
     push(cargo, 'Peso aproximado', this.weightDisplay());
     if (this.showEmptyDeliveryTimelineStep()) {
       push(

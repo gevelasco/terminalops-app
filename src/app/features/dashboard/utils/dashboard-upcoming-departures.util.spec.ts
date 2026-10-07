@@ -15,6 +15,7 @@ function trip(partial: Partial<Trip> & Pick<Trip, 'id' | 'plannedDepartureAt'>):
     plannedCompletionAt: partial.plannedDepartureAt,
     operationType: 'local',
     loadType: 'lleno',
+    cargoCategory: 'contenedor',
     containerType: '40hc',
     approximateWeightTons: '',
     equipment: [],

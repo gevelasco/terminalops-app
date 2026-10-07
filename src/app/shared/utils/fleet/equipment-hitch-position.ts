@@ -106,6 +106,9 @@ export function equipmentAssignedToUnit(
     return [];
   }
   return sortEquipmentByHitchPosition(
-    equipment.filter((e) => resourceIdsEqual(e.unitId, id)),
+    equipment.filter(
+      (e) =>
+        resourceIdsEqual(e.unitId, id) || resourceIdsEqual(e.assignedUnit?.id, id),
+    ),
   );
 }

@@ -11,14 +11,29 @@ export type TripClientPaymentMethod =
 /** Código de configuración operacional de la empresa (p. ej. sencillo, full, cama-baja). */
 export type TripOperationType = string;
 
-/** Carga del servicio (equipo vacío vs cargado). */
+/** Condición del servicio / equipo (vacío vs cargado). */
 export type TripLoadType = 'vacio' | 'lleno';
+
+/** Clasificación de la mercancía transportada. */
+export type TripCargoCategory =
+  | 'contenedor'
+  | 'material'
+  | 'mineral'
+  | 'liquido'
+  | 'maquinaria'
+  | 'rollos';
 
 /**
  * Contenedor ISO en arrastre portuario / carretera (México).
  * DC = Dry Container estándar (8′6″); HC = High Cube (9′6″).
  */
 export type TripContainerType = '20dc' | '20hc' | '40dc' | '40hc' | '45hc' | 'na';
+
+export interface TripContainerSlot {
+  slot: number;
+  containerType: TripContainerType | string;
+  containerNumber?: string | null;
+}
 
 /** Prioridad operativa del incidente (alertas; se infiere en FE, no se persiste). */
 export type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -90,7 +105,12 @@ export interface Trip {
   /** Cupo de equipos de esa configuración (detalle / listado). */
   operationConfigurationMaxEquipmentCount?: number | null;
   loadType: TripLoadType;
+  cargoCategory: TripCargoCategory;
   containerType: TripContainerType;
+  /** Número ISO del contenedor (ABCD1234567). Espejo del slot 1. */
+  containerNumber?: string | null;
+  /** Detalle: todos los contenedores (sin JOIN en listado). */
+  containers?: TripContainerSlot[];
   /** Qué transporta el contenedor (mercancía, producto, referencia del cliente). */
   cargoDescription?: string;
   /** Carga: fecha y hora (ISO 8601). */
@@ -393,6 +413,8 @@ export interface UnitFleetMeta {
   trailerManagementOwnerPayout?: number;
   transmissionType?: string;
   transmissionSpeeds?: string;
+  /** Rendimiento aproximado de combustible (km/L). */
+  approximatePerformanceKmL?: number;
   grossVehicleWeightLb?: string;
   /**
    * Kilometraje acumulado de la unidad (arranque + km de maniobras completadas).

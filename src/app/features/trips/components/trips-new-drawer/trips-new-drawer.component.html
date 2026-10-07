@@ -205,39 +205,59 @@
 
   <!-- Detalles de carga -->
   <section
-    class="maniobra-drawer__section maniobra-drawer__section--boxed"
+    class="maniobra-drawer__section maniobra-drawer__section--boxed maniobra-drawer__section--load"
     aria-labelledby="maniobra-sec-load"
   >
-    <h3 id="maniobra-sec-load" class="maniobra-drawer__section-title">
-      <svg
-        class="maniobra-drawer__section-icon"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          fill="currentColor"
-          d="M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2zm-5 12H9v-2h6v2zm5-7H4V4l16-.02V7z"
-        />
-      </svg>
-      Detalles de Carga
-    </h3>
+    <div class="maniobra-drawer__section-head">
+      <h3 id="maniobra-sec-load" class="maniobra-drawer__section-title">
+        <svg
+          class="maniobra-drawer__section-icon"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            fill="currentColor"
+            d="M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2zm-5 12H9v-2h6v2zm5-7H4V4l16-.02V7z"
+          />
+        </svg>
+        Detalles de Carga
+      </h3>
+      <label class="maniobra-drawer__toggle maniobra-drawer__toggle--compact">
+        <span class="maniobra-drawer__toggle-wrap">
+          <input
+            type="checkbox"
+            class="maniobra-drawer__toggle-input"
+            role="switch"
+            aria-labelledby="maniobra-sec-load maniobra-load-details-toggle-label"
+            [attr.aria-checked]="includeLoadDetails()"
+            [checked]="includeLoadDetails()"
+            (change)="includeLoadDetails.set($any($event.target).checked)"
+          />
+          <span class="maniobra-drawer__toggle-track" aria-hidden="true"></span>
+        </span>
+        <span
+          id="maniobra-load-details-toggle-label"
+          class="maniobra-drawer__toggle-text maniobra-drawer__toggle-text--compact"
+        >
+          Agregar Detalles
+        </span>
+      </label>
+    </div>
     <div class="maniobra-drawer__grid2">
-      <to-input
-        label="Carga"
-        type="datetime-local"
-        [min]="loadDateMin()"
-        [max]="loadDateMax()"
-        [(value)]="loadDate"
-        (blurNotify)="onLoadDateBlur()"
+      <to-select
+        label="Tipo de carga"
+        [options]="cargoCategoryOptions"
+        [value]="cargoCategory()"
+        (valueChange)="onCargoCategoryChange($event)"
       />
-      <to-fleet-brand-combobox
-        label="Lugar de carga"
-        placeholder="Ej. Patio Manzanillo, Bodega cliente…"
-        newEntryLabel="lugar nuevo"
-        [suggestionsSource]="loadPlacesCatalog.places()"
-        [(brandName)]="loadPlace"
+      <to-select
+        label="Configuración"
+        [options]="operationOptions()"
+        [value]="operationType()"
+        (valueChange)="onOperationTypeChange($event)"
+        (focusin)="onOperationConfigFocus()"
       />
     </div>
     <app-cargo-description-combobox
@@ -247,35 +267,107 @@
       [(description)]="cargoDescription"
       (picked)="onCargoHistoryPicked($event)"
     />
-    <div class="maniobra-drawer__grid2">
-      <to-select
-        label="Configuración"
-        [options]="operationOptions()"
-        [value]="operationType()"
-        (valueChange)="onOperationTypeChange($event)"
-        (focusin)="onOperationConfigFocus()"
-      />
-      <to-select
-        label="Tipo de contenedor"
-        [options]="containerTypeOptions"
-        [value]="containerType()"
-        (valueChange)="onContainerTypeChange($event)"
-      />
-    </div>
-    <div class="maniobra-drawer__grid2">
-      <to-select
-        label="Tipo de carga"
-        [options]="loadTypeOptions"
-        [(value)]="loadType"
-      />
+    <div class="maniobra-drawer__grid2 maniobra-drawer__grid2--pair">
       <to-input
         label="Peso aproximado"
         placeholder="Ej. 18,5"
         prefix="Ton"
         [(value)]="approximateWeightTons"
       />
+      <div class="maniobra-drawer__load-condition">
+        <span
+          class="maniobra-drawer__load-field-label"
+          id="maniobra-load-condition-label"
+        >
+          Condición
+        </span>
+        <to-segment-control
+          layout="fill"
+          ariaLabel="Condición de carga lleno o vacío"
+          [tabs]="loadConditionTabs"
+          [activeId]="loadType()"
+          (tabSelect)="onLoadConditionSelect($event)"
+        />
+      </div>
     </div>
-    @if (showLoadDocs()) {
+    @if (isContainerCargo()) {
+      @if (usesDoubleContainerSlots()) {
+        <div class="maniobra-drawer__container-block">
+          <p class="maniobra-drawer__container-block-title">Contenedor 1</p>
+          <div class="maniobra-drawer__grid2">
+            <to-select
+              label="Tipo de contenedor"
+              placeholder="Seleccionar tipo"
+              [options]="containerTypeSelectOptions"
+              [value]="containerTypeSelectValue(containerType())"
+              (valueChange)="onContainerTypeChange($event)"
+            />
+            <to-input
+              label="Número de contenedor"
+              placeholder="Ej. MSCU1234567"
+              [maxLength]="11"
+              [(value)]="containerNumber"
+              (blurNotify)="onContainerNumberBlur()"
+            />
+          </div>
+        </div>
+        <div class="maniobra-drawer__container-block">
+          <p class="maniobra-drawer__container-block-title">Contenedor 2</p>
+          <div class="maniobra-drawer__grid2">
+            <to-select
+              label="Tipo de contenedor"
+              placeholder="Seleccionar tipo"
+              [options]="containerTypeSelectOptions"
+              [value]="containerTypeSelectValue(containerTypeSecondary())"
+              (valueChange)="onContainerTypeSecondaryChange($event)"
+            />
+            <to-input
+              label="Número de contenedor"
+              placeholder="Ej. MSCU1234567"
+              [maxLength]="11"
+              [(value)]="containerNumberSecondary"
+              (blurNotify)="onContainerNumberSecondaryBlur()"
+            />
+          </div>
+        </div>
+      } @else {
+        <div class="maniobra-drawer__grid2">
+          <to-select
+            label="Tipo de contenedor"
+            placeholder="Seleccionar tipo"
+            [options]="containerTypeSelectOptions"
+            [value]="containerTypeSelectValue(containerType())"
+            (valueChange)="onContainerTypeChange($event)"
+          />
+          <to-input
+            label="Número de contenedor"
+            placeholder="Ej. MSCU1234567"
+            [maxLength]="11"
+            [(value)]="containerNumber"
+            (blurNotify)="onContainerNumberBlur()"
+          />
+        </div>
+      }
+    }
+    @if (includeLoadDetails()) {
+      <div class="maniobra-drawer__grid2">
+        <to-input
+          label="Cita de carga"
+          type="datetime-local"
+          [max]="loadDateMax()"
+          [(value)]="loadDate"
+          (blurNotify)="onLoadDateBlur()"
+        />
+        <to-fleet-brand-combobox
+          label="Lugar de carga"
+          placeholder="Ej. Patio Manzanillo, Bodega cliente…"
+          newEntryLabel="lugar nuevo"
+          [suggestionsSource]="loadPlacesCatalog.places()"
+          [(brandName)]="loadPlace"
+        />
+      </div>
+    }
+    @if (includeLoadDetails()) {
       <div class="fleet-unit-docs">
         <div class="fleet-unit-docs__head">
           <h4 class="fleet-unit-sec__subtitle">Documentos de carga</h4>
@@ -575,16 +667,6 @@
         <span class="maniobra-drawer__toggle-text">Añadir</span>
       </label>
     </div>
-    <p class="maniobra-drawer__client-hint">
-      @if (!includeClientBilling()) {
-        Activa «Añadir» para registrar cobro y condiciones de pago. El cliente
-        se elige arriba en «Detalle de ruta». Si la maniobra es interna, puedes
-        dejarlo apagado.
-      } @else {
-        Completa cobro y condiciones de pago. El cliente se elige en «Detalle de
-        ruta».
-      }
-    </p>
     <div class="maniobra-drawer__client-fields">
       <div class="maniobra-drawer__grid2">
         <div class="maniobra-drawer__labeled-field">

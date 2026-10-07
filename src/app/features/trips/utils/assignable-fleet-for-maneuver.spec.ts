@@ -65,7 +65,7 @@ describe('buildManeuverAssignableUnitRows', () => {
     expect(byId['u2']!.displayLabel).not.toMatch(/gondola|góndola/i);
     expect(byId['u2']!.operationType).toBe('sencillo');
     expect(byId['u3']!.displayLabel).toMatch(/ - Doble articulado$/);
-    expect(byId['u3']!.operationType).toBe('full');
+    expect(byId['u3']!.operationType).toBe('doble-articulado');
   });
 
   it('matches unit convoy code to maneuver configuration', () => {
@@ -82,7 +82,8 @@ describe('buildManeuverAssignableUnitRows', () => {
     });
 
     expect(unitMatchesManeuverOperationCode(sencillo, 'sencillo')).toBe(true);
-    expect(unitMatchesManeuverOperationCode(sencillo, 'full')).toBe(false);
+    expect(unitMatchesManeuverOperationCode(sencillo, 'doble-articulado')).toBe(false);
+    expect(unitMatchesManeuverOperationCode(full, 'doble-articulado')).toBe(true);
     expect(unitMatchesManeuverOperationCode(full, 'full')).toBe(true);
     expect(unitMatchesManeuverOperationCode(full, 'sencillo')).toBe(false);
   });

@@ -1,4 +1,5 @@
 import type {
+  TripCargoCategory,
   TripClientPaymentMethod,
   TripContainerType,
   TripLoadType,
@@ -18,7 +19,14 @@ import type {
 export interface CreateTripPayload {
   operationType: string;
   loadType: TripLoadType;
+  cargoCategory: TripCargoCategory;
   containerType: TripContainerType;
+  containerNumber?: string;
+  containers?: Array<{
+    slot: number;
+    containerType: TripContainerType;
+    containerNumber?: string;
+  }>;
   cargoDescription: string;
   approximateWeightTons: string;
   /** Fecha y hora de carga (ISO 8601). */

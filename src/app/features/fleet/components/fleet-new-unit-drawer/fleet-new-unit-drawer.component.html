@@ -32,7 +32,23 @@
     aria-labelledby="fleet-sec-id"
   >
     <h3 id="fleet-sec-id" class="fleet-unit-sec__title">Identificación</h3>
-    <div class="fleet-unit-sec__grid3">
+    <div class="fleet-unit-sec__grid2">
+      <to-select
+        label="Tipo de transporte"
+        placeholder="Selecciona tipo"
+        [options]="transportTypeOptions"
+        [(value)]="transportType"
+      />
+      <to-input
+        label="Modelo (año) *"
+        type="text"
+        placeholder="Ej. 2022"
+        [digitsOnly]="true"
+        [maxLength]="4"
+        [(value)]="modelYear"
+      />
+    </div>
+    <div class="fleet-unit-sec__grid2">
       <to-fleet-brand-combobox
         label="Marca *"
         placeholder="Escribe o selecciona"
@@ -45,14 +61,6 @@
         [disabled]="!brandName().trim()"
         [suggestionsSource]="unitVersionNames()"
         [(versionName)]="trailerVersion"
-      />
-      <to-input
-        label="Modelo (año) *"
-        type="text"
-        placeholder="Ej. 2022"
-        [digitsOnly]="true"
-        [maxLength]="4"
-        [(value)]="modelYear"
       />
     </div>
     <div class="fleet-unit-sec__grid2">
@@ -69,19 +77,13 @@
         [(value)]="motorNumber"
       />
     </div>
-    <div class="fleet-unit-sec__grid3 fleet-unit-sec__grid3--always-3">
+    <div class="fleet-unit-sec__grid2">
       <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [uppercase]="true" [(value)]="plate" />
       <to-select
         label="Modalidad"
         placeholder="Selecciona modalidad"
         [options]="serviceModalityOptions"
         [(value)]="serviceModality"
-      />
-      <to-select
-        label="Tipo de transporte"
-        placeholder="Selecciona tipo"
-        [options]="transportTypeOptions"
-        [(value)]="transportType"
       />
     </div>
     <div class="fleet-unit-sec__grid2">
@@ -204,7 +206,9 @@
     <h3 id="fleet-sec-drive-cap" class="fleet-unit-sec__title">
       Tren motriz y capacidad
     </h3>
-    <div class="fleet-unit-sec__grid2">
+    <div
+      class="fleet-unit-sec__grid3 fleet-unit-sec__grid3--row-3-sm"
+    >
       <to-select
         label="Transmisión"
         [options]="transmissionOptions"
@@ -215,6 +219,13 @@
         placeholder="Velocidades"
         [options]="speedOptions"
         [(value)]="transmissionSpeeds"
+      />
+      <to-input
+        label="Rendimiento aprox."
+        type="number"
+        placeholder="Ej. 2.8"
+        suffix="km/L"
+        [(value)]="approximatePerformanceKmL"
       />
     </div>
     <div class="fleet-unit-sec__grid3 fleet-unit-sec__grid3--always-3">

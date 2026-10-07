@@ -8,6 +8,7 @@ import {
 } from '@features/operators/utils/operator-payload-defaults';
 import type {
   Trip,
+  TripContainerSlot,
   TripIncident,
   TripStoredDocument,
   Unit,
@@ -15,6 +16,8 @@ import type {
   Equipment,
   EquipmentFleetMeta,
 } from '@shared/models/logistics.models';
+import { normalizeTripContainerType } from '@shared/catalogs/trip-container-type-options';
+import { normalizeTripCargoCategory } from '@shared/catalogs/trip-cargo-category-options';
 import { resourceIdKey } from '@shared/utils/resource-id';
 import { normalizeEquipmentHitchPosition } from '@shared/utils/fleet/equipment-hitch-position';
 import { normalizeTrailerTenureMode } from '@shared/utils/fleet/trailer-tenure-mode';
@@ -314,7 +317,7 @@ export function mapApiUnit(row: Record<string, unknown>): Unit {
   const fleetMeta = mapFleetMetaTenureMode(fleetMetaRaw ? { ...fleetMetaRaw } : undefined);
   const capacity = row['capacityKg'];
   const unitId = resourceIdKey(row['id']);
-  const rawHitched = row['equipment'];
+  const rawHitched = row['equipment'] ?? row['hitchedEquipment'];
   const hitchedEquipment = Array.isArray(rawHitched)
     ? rawHitched.map((item) => {
         const ref = item as Record<string, unknown>;
@@ -346,9 +349,12 @@ export function mapApiUnit(row: Record<string, unknown>): Unit {
 export function mapApiEquipment(row: Record<string, unknown>): Equipment {
   const metaRaw = (row['fleetMeta'] ?? row['fleetProfile']) as EquipmentFleetMeta | undefined;
   const fleetMeta = mapFleetMetaTenureMode(metaRaw ? { ...metaRaw } : undefined);
+  const assignedUnit = mapAssignedUnitSummary(row['assignedUnit']);
+  const unitId =
+    resourceIdKey(row['unitId']) || (assignedUnit?.id ? resourceIdKey(assignedUnit.id) : '');
   return {
     id: resourceIdKey(row['id']),
-    unitId: resourceIdKey(row['unitId']),
+    unitId,
     hitchPosition: normalizeEquipmentHitchPosition(
       row['hitchPosition'] as string | undefined,
     ),
@@ -362,7 +368,7 @@ export function mapApiEquipment(row: Record<string, unknown>): Equipment {
     trailerBrandAbbr: row['trailerBrandAbbr'] as string | undefined,
     trailerYear: row['trailerYear'] as string | undefined,
     fleetMeta,
-    assignedUnit: mapAssignedUnitSummary(row['assignedUnit']),
+    assignedUnit,
   };
 }
 
@@ -508,6 +514,27 @@ function mapTripUnitFields(row: Record<string, unknown>): {
   return { unitId, unitOperationalCode };
 }
 
+function mapApiTripContainers(raw: unknown): TripContainerSlot[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  const out: TripContainerSlot[] = [];
+  for (const row of raw) {
+    const o = row as Record<string, unknown>;
+    const slot = Number(o['slot']);
+    if (!Number.isFinite(slot) || slot < 1) {
+      continue;
+    }
+    out.push({
+      slot,
+      containerType: normalizeTripContainerType(String(o['containerType'] ?? 'na')),
+      containerNumber: String(o['containerNumber'] ?? '').trim() || null,
+    });
+  }
+  out.sort((a, b) => a.slot - b.slot);
+  return out.length > 0 ? out : undefined;
+}
+
 export function mapApiTrip(row: Record<string, unknown>): Trip {
   const trip = row as unknown as Trip;
   const rawEquipmentIds = row['equipmentIds'];
@@ -550,6 +577,12 @@ export function mapApiTrip(row: Record<string, unknown>): Trip {
     plannedDepartureAt: String(row['plannedDepartureAt'] ?? trip.plannedDepartureAt ?? ''),
     plannedArrivalAt: String(row['plannedArrivalAt'] ?? trip.plannedArrivalAt ?? ''),
     plannedCompletionAt: String(row['plannedCompletionAt'] ?? trip.plannedCompletionAt ?? ''),
+    cargoCategory: normalizeTripCargoCategory(
+      String(row['cargoCategory'] ?? trip.cargoCategory ?? 'material'),
+    ),
+    containerNumber:
+      String(row['containerNumber'] ?? trip.containerNumber ?? '').trim() || null,
+    containers: mapApiTripContainers(row['containers']),
     loadDate: String(row['loadDate'] ?? trip.loadDate ?? '').trim() || undefined,
     loadPlace: String(row['loadPlace'] ?? trip.loadPlace ?? '').trim() || undefined,
     emptyDeliveryAt:

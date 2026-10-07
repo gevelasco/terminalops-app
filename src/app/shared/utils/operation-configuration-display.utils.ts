@@ -55,7 +55,10 @@ export function operationConfigUserFacingLabel(
 
   if (
     codeNorm === 'full' ||
+    codeNorm === 'doble-articulado' ||
+    codeNorm === 'doble_articulado' ||
     labelLower === 'full' ||
+    labelLower.includes('doble articulado') ||
     (label && /\bfull\b/i.test(label))
   ) {
     return 'Doble articulado';
@@ -66,7 +69,7 @@ export function operationConfigUserFacingLabel(
   if (codeNorm === 'sencillo') {
     return 'Sencillo';
   }
-  if (codeNorm === 'full') {
+  if (codeNorm === 'full' || codeNorm === 'doble-articulado') {
     return 'Doble articulado';
   }
   return label || UNKNOWN_LABEL;
@@ -112,7 +115,16 @@ export function findCatalogEntryByCode(
   if (!normalized || !catalog?.length) {
     return null;
   }
-  return catalog.find((c) => c.code.trim().toLowerCase() === normalized) ?? null;
+  const direct =
+    catalog.find((c) => c.code.trim().toLowerCase() === normalized) ?? null;
+  if (direct) {
+    return direct;
+  }
+  if (normalized === 'full' || normalized === 'doble-articulado') {
+    const alt = normalized === 'full' ? 'doble-articulado' : 'full';
+    return catalog.find((c) => c.code.trim().toLowerCase() === alt) ?? null;
+  }
+  return null;
 }
 
 function catalogEntrySuggestsPlataforma(entry: OperationConfigCatalogEntry): boolean {

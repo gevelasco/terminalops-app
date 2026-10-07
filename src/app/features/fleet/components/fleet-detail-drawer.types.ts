@@ -12,13 +12,8 @@ export type FleetPersistOptions = {
   /** Evita overview + listados de flota; el drawer ya tiene el recurso actualizado. */
   skipFleetRefresh?: boolean;
   /**
-   * Tras el PATCH, recarga el detalle (GET by id) para hidratar `fleetDocuments`.
-   * El listado y a veces el PATCH no incluyen documentos subidos por multipart.
-   */
-  refreshDetail?: boolean;
-  /**
-   * Documentos del multipart de esta sección. Se mezclan en el recurso local
-   * porque PATCH/GET inmediato suele omitir el archivo recién subido.
+   * Documentos del multipart de esta sección. Se mezclan en el estado local junto
+   * con la respuesta del PATCH (no hace falta GET by id: el PATCH ya devuelve detalle).
    */
   syncedDocuments?: {
     kind: FleetDocumentKind;

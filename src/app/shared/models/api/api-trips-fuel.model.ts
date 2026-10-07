@@ -6,6 +6,8 @@ export interface FuelEstimateRequest {
   cargoType: string | null;
   containerType: string | null;
   unitId?: number | null;
+  /** Rendimiento aprox. de la unidad (km/L); prioriza sobre heurística. */
+  unitPerformanceKmL?: number | null;
   equipment1Id?: number | null;
   equipment2Id?: number | null;
   originLatitude?: number | null;

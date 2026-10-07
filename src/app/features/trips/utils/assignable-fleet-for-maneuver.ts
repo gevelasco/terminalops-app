@@ -6,6 +6,7 @@ import {
   unitConvoyOperationCodeFromHitched,
 } from '@app/features/fleet/utils/unit-hitched-equipment';
 import { normalizeTripContainerType } from '@shared/catalogs/trip-container-type-options';
+import { maneuverOperationCodesEquivalent } from '@shared/catalogs/trip-maneuver-configuration';
 import {
   equipmentAssignedToUnit,
   sortEquipmentByHitchPosition,
@@ -78,7 +79,7 @@ export function unitMatchesManeuverOperationCode(
   if (!unitCode || !maneuverCode) {
     return false;
   }
-  return unitCode === maneuverCode;
+  return maneuverOperationCodesEquivalent(unitCode, maneuverCode);
 }
 
 /**

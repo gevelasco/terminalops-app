@@ -137,6 +137,7 @@ import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-build
 import { resourceIdsEqual } from '@shared/utils/resource-id';
 import {
   equipmentAssignedToUnit,
+  resolveHitchedEquipmentForUnit,
   equipmentTypeDisplayLabel,
   equipmentHitchPositionDisplayLabel,
   unitConvoyFromEquipment,
@@ -195,10 +196,9 @@ const COB_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
   skipFleetRefresh: true,
 };
 
-/** Tenencia incluye documentos multipart; hay que rehidratar el detalle. */
+/** Tenencia: PATCH + `syncedDocuments` para archivos de propiedad (sin GET extra). */
 const TENURE_SECTION_PERSIST_OPTIONS: FleetPersistOptions = {
   ...COB_SECTION_PERSIST_OPTIONS,
-  refreshDetail: true,
 };
 
 @Injectable()
@@ -361,6 +361,7 @@ export class FleetUnitDetailDrawerFacade {
     const unitIdChanged = prevUnitId !== nextUnitId;
 
     if (unitIdChanged) {
+      this.equipmentFeature.loadEquipment();
       const listRow =
         this.unitsFeature.units().find((u) => u.id === nextUnitId) ?? unit;
       this.unitSource.set(listRow);
@@ -410,7 +411,7 @@ export class FleetUnitDetailDrawerFacade {
     }
     // Listado slim: no sobrescribir detalle ya hidratado.
     const current = this.unitSource();
-    if (current?.id === unitId && this.unitHasDetailHistory(current)) {
+    if (current?.id === unitId && this.unitHasRichDetailSnapshot(current)) {
       return;
     }
     const resolved = this.unitsFeature.units().find((u) => u.id === unitId);
@@ -420,9 +421,27 @@ export class FleetUnitDetailDrawerFacade {
     const resolvedMeta = JSON.stringify(resolved.fleetMeta ?? {});
     const currentMeta = JSON.stringify(current.fleetMeta ?? {});
     if (resolvedMeta !== currentMeta) {
-      this.unitSource.set(resolved);
+      const hitched = resolveHitchedEquipmentForUnit(
+        unitId,
+        this.equipmentFeature.equipment(),
+        current.hitchedEquipment?.length
+          ? current.hitchedEquipment
+          : resolved.hitchedEquipment,
+        { catalogAuthoritative: this.equipmentFeature.hydrated() },
+      );
+      this.unitSource.set({
+        ...resolved,
+        hitchedEquipment: hitched.length > 0 ? hitched : resolved.hitchedEquipment,
+      });
       this.metaOverride.set({});
     }
+  }
+
+  private unitHasRichDetailSnapshot(unit: Unit): boolean {
+    if ((unit.hitchedEquipment?.length ?? 0) > 0) {
+      return true;
+    }
+    return this.unitHasDetailHistory(unit);
   }
 
   private unitHasDetailHistory(unit: Unit): boolean {
@@ -445,13 +464,26 @@ export class FleetUnitDetailDrawerFacade {
       return;
     }
     const catalog = this.equipmentFeature.equipment();
+    const catalogAuthoritative = this.equipmentFeature.hydrated();
     this.equipmentCatalogSource.set([...catalog]);
     const source = this.unitSource() ?? unit;
-    if (this.equipmentFeature.hydrated()) {
-      this.hitchedEquipmentSource.set(equipmentAssignedToUnit(catalog, unit.id));
-      return;
+    const hitched = resolveHitchedEquipmentForUnit(
+      source.id || unit.id,
+      catalog,
+      source.hitchedEquipment,
+      { catalogAuthoritative },
+    );
+    this.hitchedEquipmentSource.set(hitched);
+    const current = this.unitSource();
+    if (current && catalogAuthoritative) {
+      const prevLen = current.hitchedEquipment?.length ?? 0;
+      if (prevLen !== hitched.length) {
+        this.unitSource.set({
+          ...current,
+          hitchedEquipment: hitched.length > 0 ? hitched : undefined,
+        });
+      }
     }
-    this.hitchedEquipmentSource.set([...(source.hitchedEquipment ?? [])]);
   }
 
   private applyHostUnitSnapshotWhenRicher(incoming: Unit): void {
@@ -626,17 +658,7 @@ export class FleetUnitDetailDrawerFacade {
     this.saving.set(true);
     this.unitsFeature
       .updateUnit(unitToSend, effectiveDraft, { skipListRefresh: options?.skipListRefresh })
-      .pipe(
-        switchMap((saved) => {
-          if (!options?.refreshDetail) {
-            return of(saved);
-          }
-          return this.unitsFeature.fetchUnitDetail(saved.id).pipe(
-            map((detail) => detail ?? saved),
-          );
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (saved) => {
           this.saving.set(false);
@@ -1117,31 +1139,35 @@ export class FleetUnitDetailDrawerFacade {
     const hasMetaPatch = Object.keys(fleetMeta).length > 0;
     this.saving.set(true);
     this.syncUnitDocuments('verification', kept, files, original)
-      .pipe(
-        switchMap(() =>
-          hasMetaPatch
-            ? of(null)
-            : this.unitsFeature.fetchUnitDetail(this.effUnit().id),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (detail) => {
+        next: (uploaded) => {
           this.editVerifNewFiles.set([]);
+          const syncedDocuments = {
+            kind: 'verification' as const,
+            kept,
+            uploaded,
+          };
           if (hasMetaPatch) {
             this.saving.set(false);
             this.persistCurrentUnit(
               'Verificaciones actualizadas.',
               { fleetMeta },
-              COB_SECTION_PERSIST_OPTIONS,
+              {
+                ...COB_SECTION_PERSIST_OPTIONS,
+                syncedDocuments,
+              },
             );
             return;
           }
           this.saving.set(false);
-          if (detail) {
-            this.unitSource.set(detail);
-            this.unitsFeature.upsertUnitSummary(detail);
-          }
+          const next = applySyncedFleetDocuments(
+            this.effUnit(),
+            this.unitSource(),
+            syncedDocuments,
+          );
+          this.unitSource.set(next);
+          this.unitsFeature.upsertUnitSummary(next);
           this.metaOverride.set({});
           this.toast.show('Documentos de verificación actualizados.', 'success');
           this.editingSection.set(null);
@@ -1239,13 +1265,16 @@ export class FleetUnitDetailDrawerFacade {
     this.syncUnitDocuments('policy', kept, files, original)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (uploaded) => {
           this.editPolicyNewFiles.set([]);
           this.saving.set(false);
           this.persistCurrentUnit(
             'Seguro actualizado.',
             { fleetMeta: fleetMetaDraft },
-            COB_SECTION_PERSIST_OPTIONS,
+            {
+              ...COB_SECTION_PERSIST_OPTIONS,
+              syncedDocuments: { kind: 'policy', kept, uploaded },
+            },
           );
         },
         error: () => {
@@ -1763,6 +1792,7 @@ export class FleetUnitDetailDrawerFacade {
   // -- Tren motriz y capacidad: form signals --
   readonly editTransmissionType = signal('');
   readonly editTransmissionSpeeds = signal('');
+  readonly editApproximatePerformanceKmL = signal('');
   readonly editGvwrLb = signal('');
   readonly editCapacityTons = signal('');
   readonly editOdometerKm = signal('');
@@ -1782,6 +1812,14 @@ export class FleetUnitDetailDrawerFacade {
     return '—';
   }
 
+  approximatePerformanceDisplay(): string {
+    const value = this.meta()?.approximatePerformanceKmL;
+    if (value != null && Number.isFinite(value) && value > 0) {
+      return `${value} km/L`;
+    }
+    return '—';
+  }
+
   startEditCap(): void {
     this.focusDetailTab('ficha');
     this.clearStagedDocUploads();
@@ -1797,6 +1835,10 @@ export class FleetUnitDetailDrawerFacade {
         '',
     );
     this.editGvwrLb.set(m.grossVehicleWeightLb?.trim() || '');
+    const perf = m.approximatePerformanceKmL;
+    this.editApproximatePerformanceKmL.set(
+      perf != null && Number.isFinite(perf) && perf > 0 ? String(perf) : '',
+    );
     const u = this.effUnit();
     this.editCapacityTons.set(
       u.capacityTons != null && Number.isFinite(u.capacityTons)
@@ -1838,9 +1880,20 @@ export class FleetUnitDetailDrawerFacade {
       this.speedOptions.find((o) => o.value === this.editTransmissionSpeeds())?.label ||
       this.editTransmissionSpeeds().trim() ||
       undefined;
+    const perfRaw = this.editApproximatePerformanceKmL().trim().replace(/,/g, '.');
+    let approximatePerformanceKmL: number | undefined;
+    if (perfRaw) {
+      const perf = Number(perfRaw);
+      if (!Number.isFinite(perf) || perf <= 0) {
+        this.toast.show('El rendimiento aprox. debe ser un número mayor a 0 (km/L).', 'warning');
+        return;
+      }
+      approximatePerformanceKmL = perf;
+    }
     const fleetMetaDraft: Partial<UnitFleetMeta> = {
       transmissionType: transLabel,
       transmissionSpeeds: speedsLabel,
+      approximatePerformanceKmL,
       grossVehicleWeightLb: lbRaw || undefined,
       odometerKm: this.editOdometerKm().trim() || undefined,
     };

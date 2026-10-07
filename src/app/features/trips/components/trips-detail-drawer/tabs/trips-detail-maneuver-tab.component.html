@@ -91,11 +91,19 @@
           <dt>Configuración</dt>
           <dd>{{ vm.operationLabel() }}</dd>
           <dt>Tipo de carga</dt>
+          <dd>{{ vm.cargoCategoryLabel(vm.trip().cargoCategory) }}</dd>
+          <dt>Condición</dt>
           <dd>{{ vm.loadLabel(vm.trip().loadType) }}</dd>
           <dt>Descripción</dt>
           <dd>{{ vm.cargoDescriptionDisplay() }}</dd>
-          <dt>Tipo de contenedor</dt>
-          <dd>{{ vm.containerLabel(vm.trip().containerType) }}</dd>
+          @for (row of vm.tripContainersDisplay(); track row.slot) {
+            <dt>{{ row.typeLabel }}</dt>
+            <dd>{{ row.typeValue }}</dd>
+            @if (row.numberValue !== '—') {
+              <dt>{{ row.numberLabel }}</dt>
+              <dd>{{ row.numberValue }}</dd>
+            }
+          }
           <dt>Peso aproximado</dt>
           <dd>{{ vm.weightDisplay() }}</dd>
         </dl>

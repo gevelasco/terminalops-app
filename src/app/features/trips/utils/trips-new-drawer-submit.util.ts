@@ -1,9 +1,16 @@
 import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import type {
+  TripCargoCategory,
   TripClientPaymentMethod,
   TripContainerType,
   TripLoadType,
 } from '@shared/models/logistics.models';
+import { normalizeTripCargoCategory } from '@shared/catalogs/trip-cargo-category-options';
+import {
+  buildTripContainersPayload,
+  validateTripContainerNumbers,
+} from '@shared/utils/trip-containers-payload.util';
+import { normalizeTripContainerNumberInput } from '@shared/utils/trip-container-number.util';
 import { isTripClientPaymentMethod } from '@shared/catalogs/trip-client-payment-options';
 import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
@@ -128,7 +135,13 @@ export type TripsNewDrawerSubmitSnapshot = {
   requiresInvoice: boolean;
   paymentMethod: string;
   loadType: TripLoadType;
+  cargoCategory: TripCargoCategory;
   containerType: TripContainerType;
+  containerNumber: string;
+  containerTypeSecondary: TripContainerType;
+  containerNumberSecondary: string;
+  usesDoubleContainerSlots: boolean;
+  includeLoadDetails: boolean;
   cargoDescription: string;
   approximateWeightTons: string;
   loadDate: string;
@@ -308,17 +321,80 @@ export function buildTripsNewDrawerSubmitResult(
     ? [eq1, eq2].map((id) => id.trim()).filter(Boolean)
     : [eq1.trim()].filter(Boolean);
 
-  const loadDateIso = dateTimeLocalValueToIso(snap.loadDate);
+  const cargoCategory = normalizeTripCargoCategory(snap.cargoCategory);
+  const includeLoadDetails = snap.includeLoadDetails;
+  const loadDateIso = includeLoadDetails
+    ? dateTimeLocalValueToIso(snap.loadDate)
+    : undefined;
+  const loadPlace = includeLoadDetails ? snap.loadPlace.trim() : '';
+  const containerSlots =
+    cargoCategory === 'contenedor'
+      ? buildTripContainersPayload(
+          snap.usesDoubleContainerSlots
+            ? [
+                {
+                  containerType: snap.containerType,
+                  containerNumber: snap.containerNumber,
+                },
+                {
+                  containerType: snap.containerTypeSecondary,
+                  containerNumber: snap.containerNumberSecondary,
+                },
+              ]
+            : [
+                {
+                  containerType: snap.containerType,
+                  containerNumber: snap.containerNumber,
+                },
+              ],
+        )
+      : [];
+
+  const containerValidation = validateTripContainerNumbers(
+    snap.usesDoubleContainerSlots
+      ? [
+          {
+            containerType: snap.containerType,
+            containerNumber: snap.containerNumber,
+          },
+          {
+            containerType: snap.containerTypeSecondary,
+            containerNumber: snap.containerNumberSecondary,
+          },
+        ]
+      : [
+          {
+            containerType: snap.containerType,
+            containerNumber: snap.containerNumber,
+          },
+        ],
+  );
+  if (containerValidation) {
+    return { ok: false, message: containerValidation };
+  }
+
+  const primaryType: TripContainerType =
+    cargoCategory === 'contenedor'
+      ? (containerSlots.find((s) => s.slot === 1)?.containerType ??
+        snap.containerType)
+      : 'na';
+  const primaryNumber =
+    containerSlots.find((s) => s.slot === 1)?.containerNumber ??
+    normalizeTripContainerNumberInput(snap.containerNumber);
+
   const centerId = snap.originOperationalCenterId.trim();
 
   const payload: CreateTripPayload = {
     operationType: op.trim(),
     loadType: snap.loadType,
-    containerType: snap.containerType,
+    cargoCategory,
+    containerType: primaryType,
+    ...(primaryNumber ? { containerNumber: primaryNumber } : {}),
+    ...(containerSlots.length > 0 ? { containers: containerSlots } : {}),
     cargoDescription: snap.cargoDescription.trim(),
     approximateWeightTons: snap.approximateWeightTons.trim(),
     ...(loadDateIso ? { loadDate: loadDateIso } : {}),
-    ...(snap.loadPlace.trim() ? { loadPlace: snap.loadPlace.trim() } : {}),
+    ...(loadPlace ? { loadPlace } : {}),
     dieselLiters: String(liters.value),
     dieselAmount: String(dieselAmt.value),
     casetasAmount: String(casetas.value),

@@ -130,7 +130,7 @@ export function dateTimeLocalDay(local: string): string | null {
 }
 
 /**
- * Carga (opcional) y salida: si hay fecha de carga, debe ser el mismo día.
+ * Cita de carga (opcional): si se captura, debe ser ≤ salida planificada.
  * Vacío no es error.
  */
 export function loadDateDepartureIssue(
@@ -140,16 +140,13 @@ export function loadDateDepartureIssue(
   if (!loadLocal.trim()) {
     return null;
   }
-  const loadDay = dateTimeLocalDay(loadLocal);
-  const departureDay = dateTimeLocalDay(departureLocal);
-  if (!loadDay || !departureDay) {
+  const loadIso = dateTimeLocalValueToIso(loadLocal);
+  const departureIso = dateTimeLocalValueToIso(departureLocal);
+  if (!loadIso || !departureIso) {
     return null;
   }
-  if (loadDay < departureDay) {
-    return 'La fecha de carga no puede ser anterior a la salida.';
-  }
-  if (loadDay > departureDay) {
-    return 'La fecha de carga no puede ser posterior a la salida.';
+  if (new Date(loadIso).getTime() > new Date(departureIso).getTime()) {
+    return 'La cita de carga no puede ser posterior a la salida.';
   }
   return null;
 }

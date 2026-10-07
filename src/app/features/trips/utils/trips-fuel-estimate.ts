@@ -27,12 +27,8 @@ export function formatFuelEstimateMoney(value: number): string {
 export const FUEL_ESTIMATE_DEBOUNCE_MS = 800;
 
 /**
- * Nota: la estimación del backend es heurística (distancia, configuración,
- * tipo de carga y peso); la unidad/equipos seleccionados no alteran el cálculo,
- * por eso no forman parte de la petición ni disparan re-estimaciones.
- *
- * Se dispara en cuanto hay km de ida (OSRM o override). Peso y carga afinan
- * el estimado si el usuario los captura después; sin peso se envía 0.
+ * Estimación en backend: distancia operativa (×2) y, si existe,
+ * rendimiento aprox. de la unidad (km/L); si no, heurística por configuración/carga/peso.
  */
 export function buildFuelEstimateRequest(params: {
   distanceKm: number | null;
@@ -43,6 +39,8 @@ export function buildFuelEstimateRequest(params: {
   approximateWeightTons: string;
   originCoords: LatLon | null;
   destinationCoords: LatLon | null;
+  unitId?: string;
+  unitPerformanceKmL?: number | null;
 }): FuelEstimateRequest | null {
   const km = params.distanceKm;
   if (km == null || !Number.isFinite(km) || km <= 0) {
@@ -50,6 +48,15 @@ export function buildFuelEstimateRequest(params: {
   }
 
   const weight = parseNonNegativeNumber(params.approximateWeightTons) ?? 0;
+  const unitIdRaw = params.unitId?.trim() ?? '';
+  const unitIdParsed = unitIdRaw ? Number(unitIdRaw) : NaN;
+  const unitId =
+    unitIdRaw && Number.isFinite(unitIdParsed) && unitIdParsed > 0
+      ? unitIdParsed
+      : null;
+  const perf = params.unitPerformanceKmL;
+  const unitPerformanceKmL =
+    perf != null && Number.isFinite(perf) && perf > 0 ? perf : null;
 
   return {
     distanceKm: km,
@@ -57,6 +64,8 @@ export function buildFuelEstimateRequest(params: {
     approximateWeightTons: weight,
     cargoType: params.loadType,
     containerType: params.containerType,
+    unitId,
+    unitPerformanceKmL,
     originLatitude: params.originCoords?.lat ?? null,
     originLongitude: params.originCoords?.lon ?? null,
     destinationLatitude: params.destinationCoords?.lat ?? null,

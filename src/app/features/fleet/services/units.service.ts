@@ -95,6 +95,9 @@ export class UnitsFeatureService {
     this._selectedUnitId.set(null);
   }
 
+  /**
+   * PATCH devuelve detalle completo; el observable emite esa respuesta (no la fila resumida del listado).
+   */
   updateUnit(
     unit: Unit,
     draft?: UnitPersistDraft,
@@ -104,8 +107,8 @@ export class UnitsFeatureService {
     const requestId = this.requestGen.next();
     return this.unitsApi.patchUnit(unit, draft).pipe(
       switchMap((saved) => {
+        const normalized = normalizeUnitFromApi(saved);
         if (options?.skipListRefresh) {
-          const normalized = normalizeUnitFromApi(saved);
           if (this.canApplyResponse(requestId)) {
             this.upsertUnitSummary(normalized);
           }
@@ -113,11 +116,12 @@ export class UnitsFeatureService {
         }
         return this.fetchList().pipe(
           map((list) => {
-            if (!this.canApplyResponse(requestId)) {
-              return this._units().find((u) => u.id === keepId) ?? unit;
+            if (this.canApplyResponse(requestId)) {
+              this.applyList(list, keepId);
+              // Mezcla campos recién guardados: GET lista es resumen y no refleja el PATCH.
+              this.upsertUnitSummary(normalized);
             }
-            this.applyList(list, keepId);
-            return this._units().find((u) => u.id === keepId) ?? unit;
+            return normalized;
           }),
         );
       }),

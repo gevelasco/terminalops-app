@@ -127,8 +127,21 @@ export class ToUnitInputComponent {
     });
   }
 
+  private selectionMatchesInput(): boolean {
+    const id = this.unitId().trim();
+    if (!id) {
+      return false;
+    }
+    const row = this.rows().find((r) => r.unit.id === id);
+    return !!row && row.displayLabel.trim() === this.inputText().trim();
+  }
+
   /** Si el catálogo llegó mientras el campo tenía foco, abre la lista (también vacía). */
   private maybeOpenIfFocused(): void {
+    if (this.selectionMatchesInput()) {
+      this.open.set(false);
+      return;
+    }
     const el = this.fieldInput()?.nativeElement;
     if (el && document.activeElement === el && !this.loading()) {
       this.open.set(true);
@@ -199,10 +212,10 @@ export class ToUnitInputComponent {
     }
     ev.preventDefault();
     ev.stopPropagation();
+    this.open.set(false);
     queueMicrotask(() => {
       this.unitId.set(row.unit.id);
       this.inputText.set(row.displayLabel);
-      this.open.set(false);
       this.unitPicked.emit({
         unitId: row.unit.id,
         unit: row.unit,

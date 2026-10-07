@@ -220,7 +220,6 @@
               <to-input
                 label="Carga"
                 type="datetime-local"
-                [min]="vm.loadDateMin()"
                 [max]="vm.loadDateMax()"
                 [value]="vm.loadDateDraft()"
                 (valueChange)="vm.loadDateDraft.set($event)"

@@ -516,6 +516,10 @@
         <dd>{{ vm.meta()?.transmissionSpeeds?.trim() || "—" }}</dd>
       </div>
       <div class="fleet-unit-detail__row">
+        <dt>Rendimiento aprox.</dt>
+        <dd>{{ vm.approximatePerformanceDisplay() }}</dd>
+      </div>
+      <div class="fleet-unit-detail__row">
         <dt>Ejes de tracción</dt>
         <dd>{{ vm.meta()?.grossVehicleWeightLb?.trim() || "—" }}</dd>
       </div>
@@ -530,7 +534,7 @@
     </dl>
   } @else {
     <div class="fleet-unit-sec__edit-form">
-      <div class="fleet-unit-sec__edit-grid">
+      <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
         <to-select
           label="Transmisión"
           placeholder="Selecciona"
@@ -542,6 +546,13 @@
           placeholder="Selecciona"
           [options]="vm.speedOptions"
           [(value)]="vm.editTransmissionSpeeds"
+        />
+        <to-input
+          label="Rendimiento aprox."
+          type="number"
+          placeholder="Ej. 2.8"
+          suffix="km/L"
+          [(value)]="vm.editApproximatePerformanceKmL"
         />
       </div>
       <div class="fleet-unit-sec__edit-grid fleet-unit-sec__edit-grid--3">
