@@ -282,7 +282,9 @@
 
     @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
       @let progress = tripProgress(trip);
-      <div class="fleet-overview__progress-wrap fleet-overview__progress-wrap--footer">
+      <div
+        class="fleet-overview__progress-wrap fleet-overview__progress-wrap--footer fleet-overview__progress-wrap--active"
+      >
         <div class="fleet-overview__progress-head">
           <span class="fleet-overview__progress-label">Avance</span>
           <span class="fleet-overview__progress-value">{{ progress.percent }}%</span>
@@ -302,7 +304,7 @@
       showIdleFooter() &&
       entry().panelMode === 'parked' &&
       entry().operational === 'available' &&
-      entry().kind === 'unit'
+      (entry().kind === 'unit' || entry().kind === 'standalone-equipment')
     ) {
       <div
         class="fleet-overview__progress-wrap fleet-overview__progress-wrap--footer fleet-overview__progress-wrap--idle"

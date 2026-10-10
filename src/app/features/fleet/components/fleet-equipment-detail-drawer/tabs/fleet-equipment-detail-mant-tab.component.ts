@@ -11,7 +11,7 @@ import { FleetDetailMaintSectionComponent } from '@features/fleet/components/fle
       [vm]="$any(vm)"
       sectionId="fleet-eq-maint"
       popoverIdPrefix="fleet-eq-maint"
-      odometerLabel="Kilómetro aprox. (tractora)"
+      [showOdometer]="false"
     />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -65,7 +65,7 @@ export function fleetEquipmentListExportRowFromTableRow(
     operationalStatus: fleetOperationalKeyLabel(
       row['fleetOperational'] as FleetOperationalKey,
     ),
-    maintenance: fleetComplianceExportCell(row['fleetMaint'], row['fleetMaintNext']),
+    maintenance: String(row['fleetLastMaintDate'] ?? '—'),
     verification: fleetComplianceExportCell(row['fleetVerif'], row['fleetVerifNext']),
     insurance: fleetComplianceExportCell(row['fleetIns'], row['fleetInsNext']),
   };

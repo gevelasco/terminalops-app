@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { catchError, finalize, of, Subscription } from 'rxjs';
+import { catchError, finalize, of, Subscription, type Observable } from 'rxjs';
+import { coalesceInFlightRequest } from '@shared/utils/coalesce-in-flight-request';
 import { ExpensesService } from '@core/services/api/expenses';
 import type { Expense } from '@shared/models/logistics.models';
 import { fleetInsuranceExpensesListParams } from '@features/fleet/utils/fleet-coverage-expenses.util';
@@ -22,6 +23,9 @@ export class FleetCoverageExpensesFeatureService {
   private initialLoadStarted = false;
   private disposed = false;
   private fetchSub: Subscription | null = null;
+  private readonly expensesFetchInFlight: { current: Observable<Expense[]> | null } = {
+    current: null,
+  };
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -51,9 +55,18 @@ export class FleetCoverageExpensesFeatureService {
     this.runFetch();
   }
 
+  private fetchExpenses(): Observable<Expense[]> {
+    return coalesceInFlightRequest(this.expensesFetchInFlight, () =>
+      this.expensesApi
+        .getAllExpenses(fleetInsuranceExpensesListParams())
+        .pipe(catchError(() => of([] as Expense[]))),
+    );
+  }
+
   dispose(): void {
     this.disposed = true;
     this.initialLoadStarted = false;
+    this.expensesFetchInFlight.current = null;
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._expenses.set([]);
@@ -69,10 +82,8 @@ export class FleetCoverageExpensesFeatureService {
     const requestId = this.requestGen.next();
     this.fetchSub?.unsubscribe();
     this._loading.set(true);
-    this.fetchSub = this.expensesApi
-      .getAllExpenses(fleetInsuranceExpensesListParams())
+    this.fetchSub = this.fetchExpenses()
       .pipe(
-        catchError(() => of([] as Expense[])),
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._loading.set(false);

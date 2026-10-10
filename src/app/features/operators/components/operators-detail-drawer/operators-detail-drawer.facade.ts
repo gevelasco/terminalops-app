@@ -956,10 +956,24 @@ export class OperatorsDetailDrawerFacade {
     const operatorId = this.operator().id;
     this.paymentConfirming.set(true);
     this.operatorsApi
-      .confirmOperatorTripPayment(operatorId, normalizedTripId)
+      .confirmOperatorTripPayment(
+        operatorId,
+        normalizedTripId,
+        this.periodFrom(),
+        this.periodTo(),
+      )
       .pipe(
-        catchError(() => {
-          this.toast.show('No se pudo confirmar el pago al operador.', 'error');
+        catchError((err: { error?: { message?: string | string[] } }) => {
+          const raw = err?.error?.message;
+          const msg = Array.isArray(raw)
+            ? raw.join(' ')
+            : typeof raw === 'string'
+              ? raw
+              : '';
+          this.toast.show(
+            msg.trim() || 'No se pudo confirmar el pago al operador.',
+            'error',
+          );
           return of(null);
         }),
         finalize(() => this.paymentConfirming.set(false)),
@@ -969,8 +983,10 @@ export class OperatorsDetailDrawerFacade {
         if (!summary) {
           return;
         }
+        this.operationalSync.notifyOperatorPaymentsMutation();
+        const epoch = this.operationalSync.operatorsMutationEpoch();
+        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}:${epoch}`;
         this.operationSummarySignal.set(summary);
-        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}`;
         this.syncOperatorListPaymentSummary(operatorId, summary);
         this.toast.show('Pago registrado en la tabla de gastos.', 'success');
       });
@@ -984,10 +1000,24 @@ export class OperatorsDetailDrawerFacade {
     const operatorId = this.operator().id;
     this.paymentConfirming.set(true);
     this.operatorsApi
-      .revertOperatorTripPayment(operatorId, normalizedTripId)
+      .revertOperatorTripPayment(
+        operatorId,
+        normalizedTripId,
+        this.periodFrom(),
+        this.periodTo(),
+      )
       .pipe(
-        catchError(() => {
-          this.toast.show('No se pudo revertir el pago al operador.', 'error');
+        catchError((err: { error?: { message?: string | string[] } }) => {
+          const raw = err?.error?.message;
+          const msg = Array.isArray(raw)
+            ? raw.join(' ')
+            : typeof raw === 'string'
+              ? raw
+              : '';
+          this.toast.show(
+            msg.trim() || 'No se pudo revertir el pago al operador.',
+            'error',
+          );
           return of(null);
         }),
         finalize(() => this.paymentConfirming.set(false)),
@@ -997,8 +1027,10 @@ export class OperatorsDetailDrawerFacade {
         if (!summary) {
           return;
         }
+        this.operationalSync.notifyOperatorPaymentsMutation();
+        const epoch = this.operationalSync.operatorsMutationEpoch();
+        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}:${epoch}`;
         this.operationSummarySignal.set(summary);
-        this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}`;
         this.syncOperatorListPaymentSummary(operatorId, summary);
         this.toast.show('Pago revertido correctamente.', 'success');
       });

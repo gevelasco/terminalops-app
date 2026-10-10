@@ -163,18 +163,18 @@ export function clientBalanceCollectionStatus(
   const overdue = balance.upcomingPayments.filter(
     (row) => row.badgeVariant === 'danger',
   );
+  const noun = pendingCount === 1 ? 'maniobra' : 'maniobras';
+  const pendingLabel = `${pendingCount} ${noun} por cobrar`;
   if (overdue.length > 0) {
-    const days = daysOverdue(overdue[0].dueYmd, localYmd(asOf));
     return {
-      label: days > 0 ? `Pago vencido (${days} días)` : 'Pago vencido',
+      label: pendingLabel,
       variant: 'danger',
       icon: 'cancelCircle',
     };
   }
 
-  const noun = pendingCount === 1 ? 'maniobra' : 'maniobras';
   return {
-    label: `${pendingCount} ${noun} por cobrar`,
+    label: pendingLabel,
     variant: 'warning',
     icon: 'warning',
   };
@@ -187,9 +187,15 @@ export interface ClientBalanceHighlightedPayment {
   overdue: boolean;
 }
 
+function overduePaymentSectionLabel(dueYmd: string, asOfYmd: string): string {
+  const days = daysOverdue(dueYmd, asOfYmd);
+  return days > 0 ? `Pago vencido ${days} días` : 'Pago vencido';
+}
+
 /** Próximo cobro o vencimiento más urgente (primer `upcomingPayments`). */
 export function clientBalanceHighlightedPayment(
   balance: ClientBalanceSummary,
+  asOf: Date = new Date(),
 ): ClientBalanceHighlightedPayment {
   const next = balance.upcomingPayments[0];
   if (!next) {
@@ -201,9 +207,12 @@ export function clientBalanceHighlightedPayment(
     };
   }
 
+  const asOfYmd = localYmd(asOf);
   const overdue = next.badgeVariant === 'danger';
   return {
-    sectionLabel: overdue ? 'Fecha vencimiento' : 'Próximo pago',
+    sectionLabel: overdue
+      ? overduePaymentSectionLabel(next.dueYmd, asOfYmd)
+      : 'Próximo pago',
     dueLabel: compactDateLabel(next.dueYmd),
     amountLabel: formatClientBalanceMoney(next.amount),
     overdue,

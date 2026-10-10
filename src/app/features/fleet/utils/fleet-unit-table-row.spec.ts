@@ -155,28 +155,6 @@ describe('fleet maintenance policy exclusivity', () => {
     expect(row['fleetMaintNext']).toBe('100,000 km');
   });
 
-  it('uses the assigned tractor km for equipment when policy is km', () => {
-    const row = buildFleetEquipmentTableRow(
-      {
-        id: 'e-1',
-        name: 'Caja 1',
-        serialNumber: 'SN-1',
-        lastServiceDate: '2026-03-13',
-        type: 'caja_seca',
-        status: 'available',
-        unitId: 'u-1',
-        fleetMeta: { lastMaintenanceDate: '2026-03-13' },
-      },
-      {
-        onRoute: false,
-        policy: kmPolicy,
-        maintenanceKmMeta: { maintenanceKmCounter: 0 },
-      },
-    );
-    expect(row['fleetMaint']).toBe('ok');
-    expect(row['fleetMaintNext']).toBe('100,000 km');
-  });
-
   it('shows remaining of interval after km have accumulated', () => {
     const unit: Unit = {
       id: 'u-1',

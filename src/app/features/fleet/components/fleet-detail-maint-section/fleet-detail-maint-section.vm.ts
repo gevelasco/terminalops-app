@@ -11,6 +11,8 @@ export interface FleetDetailMaintSectionVm {
   maintRenewalBucket(): FleetRenewalBucket;
   maintNext(): string;
   maintenanceUsesKm(): boolean;
+  /** Unidades: próximo por km o calendario. Equipos: solo historial, sin próximo. */
+  showsNextMaintenance(): boolean;
   maintKmRenewalBucket(): FleetRenewalBucket;
   maintenanceKmRemainingDisplay(): string;
   accumulatedOdometerKmLabel(): string;
@@ -22,6 +24,14 @@ export interface FleetDetailMaintSectionVm {
   startEditMaintenanceKmCounter(): void;
   cancelEditMaintenanceKmCounter(): void;
   saveEditMaintenanceKmCounter(): void;
+  tireConditionDisplayLabel(): string;
+  canEditTireCondition(): boolean;
+  editingTireCondition(): boolean;
+  readonly tireConditionOptions: ToSelectOption[];
+  readonly editTireCondition: WritableSignal<string>;
+  startEditTireCondition(): void;
+  cancelEditTireCondition(): void;
+  saveEditTireCondition(): void;
   addingMaint(): boolean;
   canWriteFleet(): boolean;
   openNewMaint(): void;

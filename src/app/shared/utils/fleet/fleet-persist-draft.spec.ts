@@ -38,7 +38,7 @@ describe('fleet-persist-draft', () => {
   it('marks equipment hitch drafts as sparse without meta', () => {
     const draft = resolveEquipmentPersistDraft(
       { equipment: { unitId: '2' } },
-      { id: '9', serialNumber: 'S', name: 'E' } as Equipment,
+      { id: 'eq-1', serialNumber: 'SN', name: 'T' } as Equipment,
       false,
     );
     expect(draft?.sparseFleetMeta).toBe(true);

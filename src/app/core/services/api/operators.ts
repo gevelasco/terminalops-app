@@ -108,11 +108,21 @@ export class OperatorsService {
   confirmOperatorTripPayment(
     operatorId: string,
     tripId: string,
+    periodFrom?: string,
+    periodTo?: string,
   ): Observable<OperatorOperationSummary> {
+    const params: Record<string, string> = {};
+    if (periodFrom?.trim()) {
+      params['from'] = periodFrom.trim();
+    }
+    if (periodTo?.trim()) {
+      params['to'] = periodTo.trim();
+    }
     return this.http
       .post<Record<string, unknown>>(
         resourceByIdUrl('operators', operatorId, `trips/${tripId}/confirm-payment`),
         {},
+        { params },
       )
       .pipe(map((r) => mapApiOperatorOperationSummary(r)));
   }
@@ -120,11 +130,21 @@ export class OperatorsService {
   revertOperatorTripPayment(
     operatorId: string,
     tripId: string,
+    periodFrom?: string,
+    periodTo?: string,
   ): Observable<OperatorOperationSummary> {
+    const params: Record<string, string> = {};
+    if (periodFrom?.trim()) {
+      params['from'] = periodFrom.trim();
+    }
+    if (periodTo?.trim()) {
+      params['to'] = periodTo.trim();
+    }
     return this.http
       .post<Record<string, unknown>>(
         resourceByIdUrl('operators', operatorId, `trips/${tripId}/revert-payment`),
         {},
+        { params },
       )
       .pipe(map((r) => mapApiOperatorOperationSummary(r)));
   }

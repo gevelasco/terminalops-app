@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { FleetOverviewResponseDto } from '@shared/models/api/fleet-overview.model';
 import type { FleetCatalogResponseDto } from '@shared/models/api/fleet-catalog.model';
+import type { FleetInsuranceTableComplianceResponseDto } from '@shared/models/api/fleet-insurance-table-compliance.model';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId } from './api-url';
 
@@ -31,6 +32,13 @@ export class FleetApiService {
     const companyId = requireCompanyId(this.session.companyId());
     return this.http.get<FleetCatalogResponseDto>(
       companyResourceUrl(companyId, 'fleet/catalog'),
+    );
+  }
+
+  getInsuranceTableCompliance(): Observable<FleetInsuranceTableComplianceResponseDto> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http.get<FleetInsuranceTableComplianceResponseDto>(
+      companyResourceUrl(companyId, 'fleet/insurance-table-compliance'),
     );
   }
 }

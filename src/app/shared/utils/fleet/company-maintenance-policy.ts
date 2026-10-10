@@ -2,12 +2,9 @@ import type {
   CompanyMaintenancePolicy,
   MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
-import type {
-  EquipmentFleetMeta,
-  UnitFleetMeta,
-} from '@shared/models/logistics.models';
+import type { UnitFleetMeta } from '@shared/models/logistics.models';
 
-export type FleetMaintenanceMeta = UnitFleetMeta | EquipmentFleetMeta | undefined;
+export type FleetMaintenanceMeta = UnitFleetMeta | undefined;
 
 const DEFAULT_MANUAL_SCHEDULE_MONTHS = 6;
 

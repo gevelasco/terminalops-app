@@ -104,6 +104,8 @@ export interface FleetOverviewEquipmentRowDto {
   equipmentType: string;
   operationalStatus: FleetOverviewOperationalStatus;
   maintenance?: FleetOverviewMaintenanceDto;
+  /** Días sin maniobra (equipo en patio sin tractora). */
+  daysWithoutManeuver?: number;
 }
 
 export interface FleetOverviewResponseDto {

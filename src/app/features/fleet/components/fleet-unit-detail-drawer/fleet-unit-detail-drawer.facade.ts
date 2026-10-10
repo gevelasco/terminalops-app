@@ -21,6 +21,11 @@ import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
+import {
+  fleetRefreshAfterDelete,
+  fleetRefreshAfterHitchMutation,
+  fleetRefreshAfterListUpsert,
+} from '@features/fleet/utils/fleet-module-refresh.util';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import {
   companyMaintenancePolicyFromSession,
@@ -168,6 +173,7 @@ import {
   FLEET_TRANSMISSION_TYPE_OPTIONS,
   FLEET_RESOURCE_VISIBILITY_OPTIONS,
   FLEET_MAINTENANCE_TYPE_OPTIONS,
+  FLEET_TIRE_CONDITION_OPTIONS,
 } from '@shared/catalogs/fleet-form-options';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import { expensePaymentMethodLabel } from '@features/expenses/utils/expense-row-labels';
@@ -178,6 +184,11 @@ import {
   fleetMaintenanceAction,
   fleetMaintenanceActionLabel,
 } from '@features/fleet/utils/fleet-maintenance-toggle';
+import {
+  fleetTireConditionDisplayLabel,
+  fleetTireConditionLabelForValue,
+  fleetTireConditionValueFromStored,
+} from '@features/fleet/utils/fleet-tire-condition.util';
 import { fleetResourceActiveLabel } from '@shared/utils/fleet-resource-active';
 import { FleetUnitDetailDomain } from '@features/fleet/services/domain/fleet-unit-detail.domain';
 import { FLEET_OPERATION_RESOLVER } from '@features/fleet/utils/fleet-operation-resolver';
@@ -368,7 +379,6 @@ export class FleetUnitDetailDrawerFacade {
     const unitIdChanged = prevUnitId !== nextUnitId;
 
     if (unitIdChanged) {
-      this.equipmentFeature.loadEquipment();
       const listRow =
         this.unitsFeature.units().find((u) => u.id === nextUnitId) ?? unit;
       this.unitSource.set(listRow);
@@ -581,7 +591,7 @@ export class FleetUnitDetailDrawerFacade {
         next: () => {
           this.deleteSubmitting.set(false);
           this.deleteConfirmOpen.set(false);
-          this.fleetFeature.refreshFleetModule();
+          this.fleetFeature.refreshFleetModule(fleetRefreshAfterDelete('unit'));
           this.toast.show(`Unidad ${label} dada de baja.`, 'success');
           this.requestDismiss();
         },
@@ -615,7 +625,7 @@ export class FleetUnitDetailDrawerFacade {
           this.maintenanceSubmitting.set(false);
           this.unitSource.set(saved);
           this.unitOverride.set({});
-          this.fleetFeature.refreshFleetModule();
+          this.fleetFeature.refreshFleetModule(fleetRefreshAfterListUpsert('unit'));
           this.toast.show(
             action === 'start'
               ? `Unidad ${label} en mantenimiento; no estará disponible para maniobras.`
@@ -677,9 +687,7 @@ export class FleetUnitDetailDrawerFacade {
           this.localMaintEntries.set([]);
           this.syncCatalogFromFeature();
           if (!options?.skipFleetRefresh) {
-            this.fleetFeature.refreshFleetModule({
-              skipUnits: options?.skipListRefresh !== true,
-            });
+            this.fleetFeature.refreshFleetModule(fleetRefreshAfterListUpsert('unit'));
           }
           this.toast.show(successMessage, 'success');
           this.editingSection.set(null);
@@ -701,7 +709,7 @@ export class FleetUnitDetailDrawerFacade {
     if (this.saving()) {
       return;
     }
-    const effectiveDraft = resolveEquipmentPersistDraft(draft, equipment, false);
+    const effectiveDraft = resolveEquipmentPersistDraft(draft);
     this.saving.set(true);
     this.equipmentFeature
       .updateEquipment(equipment, effectiveDraft, { skipListRefresh: true })
@@ -710,7 +718,8 @@ export class FleetUnitDetailDrawerFacade {
         next: (saved) => {
           this.saving.set(false);
           this.syncCatalogFromFeature();
-          this.fleetFeature.refreshFleetModule();
+          this.invalidateUnitDetailCacheAfterHitchChange();
+          this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
           this.toast.show(successMessage, 'success');
           onSuccess?.();
         },
@@ -814,11 +823,23 @@ export class FleetUnitDetailDrawerFacade {
     this.hitchAddIsSecondTrailer.set(false);
   }
 
+  /** Catálogo GET /equipment solo para enganche / convoy en ficha (no al abrir drawer en Mant). */
+  private ensureHitchEquipmentCatalogLoaded(): void {
+    this.equipmentFeature.loadEquipment();
+  }
+
+  private invalidateUnitDetailCacheAfterHitchChange(): void {
+    const id = this.unitSource()?.id?.trim();
+    if (id) {
+      this.unitsFeature.invalidateUnitDetail(id);
+    }
+  }
+
   startEditHitchAdd(): void {
     if (!this.canWriteFleet() || this.hitchBlocked()) {
       return;
     }
-    this.equipmentFeature.loadEquipment();
+    this.ensureHitchEquipmentCatalogLoaded();
     this.hitchAddEquipmentId.set('');
     this.detailTab.set('ficha');
     this.editingSection.set('hitch');
@@ -917,12 +938,8 @@ export class FleetUnitDetailDrawerFacade {
     const promoteDraft: EquipmentPersistDraft = {
       equipment: equipmentPromoteToLeadPersistDraft(),
     };
-    const effectiveUnhitch = resolveEquipmentPersistDraft(unhitchDraft, equipment, false);
-    const effectivePromote = resolveEquipmentPersistDraft(
-      promoteDraft,
-      rearToPromote,
-      false,
-    );
+    const effectiveUnhitch = resolveEquipmentPersistDraft(unhitchDraft);
+    const effectivePromote = resolveEquipmentPersistDraft(promoteDraft);
     // Primero desenganchar el 1.er; si se promueve el 2.do antes, el backend rechaza otro lead.
     this.saving.set(true);
     this.equipmentFeature
@@ -939,7 +956,8 @@ export class FleetUnitDetailDrawerFacade {
         next: () => {
           this.saving.set(false);
           this.syncCatalogFromFeature();
-          this.fleetFeature.refreshFleetModule();
+          this.invalidateUnitDetailCacheAfterHitchChange();
+          this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
           this.toast.show('Equipo desenganchado.', 'success');
         },
         error: () => {
@@ -1393,6 +1411,10 @@ export class FleetUnitDetailDrawerFacade {
   readonly editingMaintenanceKmCounter = signal(false);
   readonly editMaintenanceKmCounter = signal('');
 
+  readonly tireConditionOptions = FLEET_TIRE_CONDITION_OPTIONS;
+  readonly editingTireCondition = signal(false);
+  readonly editTireCondition = signal('');
+
   canEditMaintenanceKmCounter(): boolean {
     return this.canWriteFleet() && this.maintenanceUsesKm();
   }
@@ -1450,6 +1472,53 @@ export class FleetUnitDetailDrawerFacade {
     this.persistCurrentUnit('Km acumulados de mantenimiento actualizados.', {
       fleetMeta: metaPatch,
     });
+  }
+
+  tireConditionDisplayLabel(): string {
+    return fleetTireConditionDisplayLabel(
+      this.meta()?.tireCondition,
+      this.tireConditionOptions,
+    );
+  }
+
+  canEditTireCondition(): boolean {
+    return this.canWriteFleet();
+  }
+
+  startEditTireCondition(): void {
+    if (!this.canEditTireCondition()) {
+      return;
+    }
+    this.requestFocusDetailTab('mant');
+    this.editTireCondition.set(
+      fleetTireConditionValueFromStored(
+        this.meta()?.tireCondition,
+        this.tireConditionOptions,
+      ),
+    );
+    this.editingTireCondition.set(true);
+  }
+
+  cancelEditTireCondition(): void {
+    this.editingTireCondition.set(false);
+    this.editTireCondition.set('');
+  }
+
+  saveEditTireCondition(): void {
+    if (!this.canEditTireCondition() || this.saving()) {
+      return;
+    }
+    const value = this.editTireCondition().trim();
+    if (!value) {
+      this.toast.show('Selecciona una condición de llantas.', 'warning');
+      return;
+    }
+    const label = fleetTireConditionLabelForValue(value, this.tireConditionOptions);
+    const metaPatch: Partial<UnitFleetMeta> = { tireCondition: label };
+    this.metaOverride.update((prev) => ({ ...prev, ...metaPatch }));
+    this.editingTireCondition.set(false);
+    this.editTireCondition.set('');
+    this.persistCurrentUnit('Estado de llantas actualizado.', { fleetMeta: metaPatch });
   }
 
   private maintTypeLabel(value: string): string {
@@ -2041,8 +2110,12 @@ export class FleetUnitDetailDrawerFacade {
     );
   }
 
-  usesGlobalMaintenancePolicy(): boolean {
+  showsNextMaintenance(): boolean {
     return this.maintenanceUsesKm() || this.maintenanceUsesDate();
+  }
+
+  usesGlobalMaintenancePolicy(): boolean {
+    return this.showsNextMaintenance();
   }
 
   statusBanner(): { label: string; sub?: string; mod: string } {
@@ -2198,7 +2271,7 @@ export class FleetUnitDetailDrawerFacade {
       setSaving: (saving) => this.saving.set(saving),
       onSuccess: () => {
         this.reloadInsurancePaymentExpenses();
-        this.fleetFeature.refreshCoverageExpenses();
+        this.fleetFeature.refreshInsuranceTableCompliance();
       },
     });
   }
@@ -2329,7 +2402,11 @@ export class FleetUnitDetailDrawerFacade {
     const unit = this.unitSource();
     const unitId = unit?.id;
     const meta = unit?.fleetMeta;
-    if (!unitId || !showTenurePaymentSchedule(meta)) {
+    if (
+      this.detailTab() !== 'ficha' ||
+      !unitId ||
+      !showTenurePaymentSchedule(meta)
+    ) {
       this.tenurePaymentExpenses.set([]);
       return null;
     }
@@ -2552,6 +2629,15 @@ export class FleetUnitDetailDrawerFacade {
       this.syncCatalogFromFeature();
     });
 
+    effect(() => {
+      if (this.detailTab() !== 'ficha' || !this.unitSource()) {
+        return;
+      }
+      if (this.unitAllowsHitch() || this.hitchedEquipment().length > 0) {
+        this.ensureHitchEquipmentCatalogLoaded();
+      }
+    });
+
     effect((onCleanup) => {
       this.detailTab();
       this.unitSource();
@@ -2571,6 +2657,7 @@ export class FleetUnitDetailDrawerFacade {
     });
 
     effect((onCleanup) => {
+      this.detailTab();
       this.unitSource();
       const sub = this.subscribeTenurePaymentExpensesLoad();
       if (sub) {

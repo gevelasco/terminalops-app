@@ -8,14 +8,12 @@ import type {
   FleetOverviewEquipmentRowDto,
   FleetOverviewHitchedEquipmentDto,
   FleetOverviewItemDto,
+  FleetOverviewMaintenanceDto,
   FleetOverviewOperationalStatus,
   FleetOverviewRenewalStatus,
 } from '@shared/models/api/fleet-overview.model';
-import type { Equipment, Expense, Unit } from '@shared/models/logistics.models';
-import {
-  insuranceExpensesForEquipment,
-  insuranceExpensesForUnit,
-} from '@features/fleet/utils/fleet-coverage-expenses.util';
+import type { Equipment, Unit } from '@shared/models/logistics.models';
+import type { FleetInsuranceTableComplianceResponseDto } from '@shared/models/api/fleet-insurance-table-compliance.model';
 import {
   overviewOperationalKey,
   operationalKeyIsEnCurso,
@@ -60,7 +58,7 @@ export type FleetOverviewCardEntry = {
   statusPill: { className: string; label: string };
   convoy: { label: string; badgeClass: string; code: string };
   trip: FleetOverviewItemDto['trip'];
-  maintenance: FleetOverviewItemDto['maintenance'];
+  maintenance?: FleetOverviewItemDto['maintenance'];
   hitched: FleetOverviewItemDto['hitchedEquipment'];
   isFullConvoy: boolean;
   usesPlataforma: boolean;
@@ -103,6 +101,68 @@ export function renewalBucketFromOverview(
   return 'na';
 }
 
+function renewalStatusFromBucket(
+  bucket: FleetRenewalBucket,
+): FleetOverviewRenewalStatus {
+  if (bucket === 'ok' || bucket === 'soon' || bucket === 'due') {
+    return bucket;
+  }
+  return 'na';
+}
+
+function formatOverviewMaintenanceDate(raw: string | undefined): string | undefined {
+  const t = raw?.trim();
+  if (!t) {
+    return undefined;
+  }
+  const d = new Date(`${t}T12:00:00`);
+  if (Number.isNaN(d.getTime())) {
+    return t;
+  }
+  return new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
+}
+
+function mergeInsuranceTableCompliance(
+  base: FleetComplianceSummary,
+  ins?: { renewal: FleetComplianceSummary['insBucket']; nextLabel: string | null },
+): FleetComplianceSummary {
+  if (!ins) {
+    return base;
+  }
+  return {
+    ...base,
+    insBucket: ins.renewal,
+    insLabel: fleetRenewalBucketLabel(ins.renewal),
+    insNext: ins.nextLabel ?? '—',
+  };
+}
+
+/** Panel lateral de overview para remolques en patio (sin próximo mant. por km). */
+export function overviewMaintenanceFromEquipment(
+  equipment: Equipment,
+  insuranceTable?: FleetInsuranceTableComplianceResponseDto | null,
+  today?: Date,
+): FleetOverviewMaintenanceDto {
+  const meta = equipment.fleetMeta;
+  const compliance = mergeInsuranceTableCompliance(
+    fleetComplianceFromEquipment(equipment, undefined, today),
+    insuranceTable?.equipment[equipment.id],
+  );
+  return {
+    lastMaintenanceDate: formatOverviewMaintenanceDate(meta?.lastMaintenanceDate),
+    tireStatus: meta?.tireCondition?.trim() || undefined,
+    insuranceStatus: compliance.insLabel,
+    inspectionStatus: compliance.verifLabel,
+    insuranceRenewal: renewalStatusFromBucket(compliance.insBucket),
+    inspectionRenewal: renewalStatusFromBucket(compliance.verifBucket),
+    maintenanceRenewal: 'na',
+  };
+}
+
 /** Cumplimiento desde GET /fleet/overview cuando aún no hay listados de unidades/equipo. */
 export function complianceFromOverviewMaintenance(
   maintenance: FleetOverviewItemDto['maintenance'],
@@ -137,7 +197,7 @@ export function attachOverviewCompliance(
   entry: FleetOverviewCardEntry,
   units: readonly Unit[],
   equipment: readonly Equipment[],
-  expenses: readonly Expense[] = [],
+  insuranceTable?: FleetInsuranceTableComplianceResponseDto | null,
   today?: Date,
 ): FleetOverviewCardEntry {
   if (entry.kind === 'standalone-equipment') {
@@ -145,13 +205,15 @@ export function attachOverviewCompliance(
     if (equipmentId != null) {
       const e = equipment.find((row) => row.id === String(equipmentId));
       if (e) {
+        const compliance = mergeInsuranceTableCompliance(
+          fleetComplianceFromEquipment(e, undefined, today),
+          insuranceTable?.equipment[e.id],
+        );
         return {
           ...entry,
-          compliance: fleetComplianceFromEquipment(
-            e,
-            insuranceExpensesForEquipment(expenses, e.id),
-            today,
-          ),
+          maintenance:
+            entry.maintenance ?? overviewMaintenanceFromEquipment(e, insuranceTable, today),
+          compliance,
         };
       }
     }
@@ -162,11 +224,9 @@ export function attachOverviewCompliance(
   if (unit) {
     return {
       ...entry,
-      compliance: fleetComplianceFromUnitMeta(
-        unit.fleetMeta,
-        unit.trailerYear,
-        insuranceExpensesForUnit(expenses, unit.id),
-        today,
+      compliance: mergeInsuranceTableCompliance(
+        fleetComplianceFromUnitMeta(unit.fleetMeta, unit.trailerYear, undefined, today),
+        insuranceTable?.units[unit.id],
       ),
     };
   }
@@ -291,6 +351,7 @@ export function overviewCardEntryFromEquipmentRow(
     },
     trip: undefined,
     maintenance: row.maintenance,
+    daysWithoutManeuver: row.daysWithoutManeuver,
     hitched,
     isFullConvoy: false,
     usesPlataforma,

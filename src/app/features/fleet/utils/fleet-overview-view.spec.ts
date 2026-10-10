@@ -1,5 +1,5 @@
 import type { FleetOverviewItemDto } from '@shared/models/api/fleet-overview.model';
-import type { Expense, Unit } from '@shared/models/logistics.models';
+import type { Unit } from '@shared/models/logistics.models';
 import {
   attachOverviewCompliance,
   overviewCardEntryFromDto,
@@ -144,35 +144,44 @@ describe('attachOverviewCompliance', () => {
         insuranceCost: 6824.41,
       },
     };
-    const expenses: Expense[] = [
-      {
-        id: 'e8',
-        tripId: '',
-        category: 'Qualitas',
-        amount: 6824.41,
-        currency: 'MXN',
-        incurredAt: '2026-08-24T12:00:00.000Z',
-        kind: 'insurance',
-        description: 'Pago de póliza · 0005323322 (Mensualidad 8/12)',
-        relatedUnitId: '98',
-        paidAt: '2026-08-28T18:00:00.000Z',
+    const withCompliance = attachOverviewCompliance(entry, [unit], [], {
+      units: {
+        '98': { renewal: 'ok', nextLabel: null },
       },
-      {
-        id: 'e9',
-        tripId: '',
-        category: 'Qualitas',
-        amount: 6824.41,
-        currency: 'MXN',
-        incurredAt: '2099-01-24T12:00:00.000Z',
-        kind: 'insurance',
-        description: 'Pago de póliza · 0005323322 (Mensualidad 9/12)',
-        relatedUnitId: '98',
-        paidAt: null,
-      },
-    ];
-    const withCompliance = attachOverviewCompliance(entry, [unit], [], expenses);
+      equipment: {},
+    });
     expect(withCompliance.compliance?.insBucket).toBe('ok');
     expect(withCompliance.compliance?.insLabel).toBe('Al día');
+  });
+
+  it('builds maintenance panel for standalone equipment from fleet catalog', () => {
+    const entry = overviewCardEntryFromEquipmentRow({
+      equipmentId: 9,
+      unitId: null,
+      unitName: null,
+      operationalCode: 'STE-23432-SD',
+      brand: 'STE',
+      model: '23432',
+      plate: 'SD',
+      equipmentType: 'cama_baja',
+      operationalStatus: 'available',
+    })!;
+    const equipment = {
+      id: '9',
+      name: 'Lowboy',
+      serialNumber: 'SN',
+      plate: 'SD',
+      fleetMeta: {
+        lastMaintenanceDate: '2026-09-01',
+        tireCondition: 'Buena (4–6 mm, uso normal)',
+        insurancePolicyNumber: 'POL-1',
+        verificationPhysMechDate: '2026-08-01',
+      },
+    } as import('@shared/models/logistics.models').Equipment;
+    const withPanel = attachOverviewCompliance(entry, [], [equipment], null);
+    expect(withPanel.maintenance?.lastMaintenanceDate).toMatch(/sep/i);
+    expect(withPanel.maintenance?.tireStatus).toContain('Buena');
+    expect(withPanel.compliance?.verifBucket).toBeDefined();
   });
 });
 

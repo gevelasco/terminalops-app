@@ -24,6 +24,8 @@ export class FleetDetailMaintSectionComponent {
   readonly sectionId = input.required<string>();
   readonly popoverIdPrefix = input.required<string>();
   readonly odometerLabel = input('Kilómetro aprox.');
+  /** Remolques: sin odómetro ni km acumulados del tracto. */
+  readonly showOdometer = input(true);
 
   /** Descarga todos los comprobantes de la fila (sin popover nativo). */
   downloadMaintDocs(names: readonly string[]): void {

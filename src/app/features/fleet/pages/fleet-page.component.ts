@@ -25,7 +25,7 @@ import { FleetNewUnitDrawerComponent } from '@features/fleet/components/fleet-ne
 import { FleetUnitDetailDrawerComponent } from '@features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer.component';
 import { FleetFeatureService } from '@features/fleet/services/fleet.service';
 import { FleetCatalogFeatureService } from '@features/fleet/services/fleet-catalog.service';
-import { FleetCoverageExpensesFeatureService } from '@features/fleet/services/fleet-coverage-expenses.service';
+import { FleetInsuranceTableComplianceFeatureService } from '@features/fleet/services/fleet-insurance-table-compliance.service';
 import { FleetOverviewFeatureService } from '@features/fleet/services/fleet-overview.service';
 import { UnitsFeatureService } from '@features/fleet/services/units.service';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
@@ -45,10 +45,6 @@ import {
   equipmentAssignedToUnit,
   fleetUnitConvoyTableLabel,
 } from '@features/fleet/utils/unit-hitched-equipment';
-import {
-  insuranceExpensesForEquipment,
-  insuranceExpensesForUnit,
-} from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import { labelForUnitId } from '@shared/utils/fleet/unit-label';
 import { injectIsMobileViewport } from '@shared/utils/viewport';
@@ -106,7 +102,7 @@ export type FleetOverviewStatusFilter = Exclude<
   providers: [
     FleetOverviewFeatureService,
     FleetCatalogFeatureService,
-    FleetCoverageExpensesFeatureService,
+    FleetInsuranceTableComplianceFeatureService,
     UnitsFeatureService,
     EquipmentFeatureService,
     FleetFeatureService,
@@ -153,7 +149,10 @@ export class FleetPageComponent implements OnInit {
         return;
       }
       fleetEpochBaseline = epoch;
-      this.fleet.refreshFleetModule();
+      const tab = this.tab();
+      this.fleet.refreshFleetModule({
+        skipExpenses: tab !== 'units' && tab !== 'equipment',
+      });
     });
 
     effect(() => {
@@ -310,7 +309,7 @@ export class FleetPageComponent implements OnInit {
     const unit = unitId?.trim();
     const equipment = equipmentId?.trim();
     const tab = fleetTab?.trim();
-    if (tab === 'cob' || tab === 'ficha' || tab === 'mant') {
+    if (tab === 'cob' || tab === 'ficha') {
       this.fleet.requestDetailTab(tab as FleetDetailDrawerTab);
     }
     if (unit) {
@@ -377,7 +376,7 @@ export class FleetPageComponent implements OnInit {
     const q = this.searchQuery().trim().toLowerCase();
     const list = this.unitList();
     const equipment = this.equipmentList();
-    const coverageExpenses = this.fleet.coverageExpenses();
+    const insuranceTable = this.fleet.insuranceTableCompliance();
     const rowOpts = (u: Unit) => {
       const hitched = u.hitchedEquipment ?? equipmentAssignedToUnit(equipment, u.id);
       const operational = this.unitOperationalKey(u);
@@ -385,7 +384,7 @@ export class FleetPageComponent implements OnInit {
         onRoute: operational === 'on_route',
         operationalOverride: operational,
         hitchedEquipment: hitched,
-        insuranceExpenses: insuranceExpensesForUnit(coverageExpenses, u.id),
+        insuranceCompliance: insuranceTable.units[u.id],
         policy: this.companyMaintPolicy(),
       };
     };
@@ -417,7 +416,7 @@ export class FleetPageComponent implements OnInit {
     const q = this.searchQuery().trim().toLowerCase();
     const list = this.equipmentList();
     const units = this.unitList();
-    const coverageExpenses = this.fleet.coverageExpenses();
+    const insuranceTable = this.fleet.insuranceTableCompliance();
     return list
       .map((e) => {
         const operational = this.equipmentOperationalKey(e);
@@ -427,9 +426,8 @@ export class FleetPageComponent implements OnInit {
           row: buildFleetEquipmentTableRow(e, {
             onRoute: operational === 'on_route',
             operationalOverride: operational,
-            insuranceExpenses: insuranceExpensesForEquipment(coverageExpenses, e.id),
+            insuranceCompliance: insuranceTable.equipment[e.id],
             policy: this.companyMaintPolicy(),
-            maintenanceKmMeta: tractor?.fleetMeta,
           }),
         };
       })
@@ -445,7 +443,6 @@ export class FleetPageComponent implements OnInit {
           row['fleetPlate'],
           row['id'],
           row['fleetVerifNext'],
-          row['fleetMaintNext'],
           formatEquipmentOperationalId(e),
           e.unitId,
           labelForUnitId(e.unitId, units),
@@ -480,7 +477,7 @@ export class FleetPageComponent implements OnInit {
           entry,
           this.unitList(),
           this.equipmentList(),
-          this.fleet.coverageExpenses(),
+          this.fleet.insuranceTableCompliance(),
         ),
       );
     const standaloneEntries = this.fleet
@@ -492,7 +489,7 @@ export class FleetPageComponent implements OnInit {
           entry,
           this.unitList(),
           this.equipmentList(),
-          this.fleet.coverageExpenses(),
+          this.fleet.insuranceTableCompliance(),
         ),
       );
 
@@ -581,11 +578,6 @@ export class FleetPageComponent implements OnInit {
       key: 'fleetOperational',
       label: 'Estado operativo',
       cell: 'fleet-op-pill',
-    },
-    {
-      key: 'fleetMaint',
-      label: 'Mantenimiento',
-      cell: 'fleet-maintenance-icon',
     },
     {
       key: 'fleetVerif',
@@ -720,7 +712,10 @@ export class FleetPageComponent implements OnInit {
   }
 
   onFleetDataChanged(): void {
-    this.fleet.refreshFleetModule();
+    const tab = this.tab();
+    this.fleet.refreshFleetModule({
+      skipExpenses: tab !== 'units' && tab !== 'equipment',
+    });
   }
 
   exportCurrentTable(): void {

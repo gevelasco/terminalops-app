@@ -34,7 +34,7 @@
                     ></span>
                     Kms restantes: {{ vm().maintenanceKmRemainingDisplay() }}
                   </span>
-                } @else {
+                } @else if (vm().showsNextMaintenance()) {
                   <span [class]="vm().badgeRenewalClass(vm().maintRenewalBucket())">
                     <span
                       class="fleet-unit-detail__dot"
@@ -48,10 +48,12 @@
             <dl
               class="fleet-unit-detail__dl fleet-unit-detail__dl--maint-tight"
             >
-              <div class="fleet-unit-detail__row">
-                <dt>{{ odometerLabel() }}</dt>
-                <dd>{{ vm().accumulatedOdometerKmLabel() }}</dd>
-              </div>
+              @if (showOdometer()) {
+                <div class="fleet-unit-detail__row">
+                  <dt>{{ odometerLabel() }}</dt>
+                  <dd>{{ vm().accumulatedOdometerKmLabel() }}</dd>
+                </div>
+              }
               @if (vm().maintenanceUsesKm()) {
                 <div class="fleet-unit-detail__row fleet-unit-detail__row--maint-km">
                   <dt>Km acumulados (mant.)</dt>
@@ -105,7 +107,47 @@
               }
               <div class="fleet-unit-detail__row">
                 <dt>Estado de llantas</dt>
-                <dd>{{ vm().meta()?.tireCondition?.trim() || "—" }}</dd>
+                @if (vm().editingTireCondition()) {
+                  <dd class="fleet-unit-detail__maint-km-edit">
+                    <to-select
+                      label="Condición de banda"
+                      [options]="vm().tireConditionOptions"
+                      [(value)]="vm().editTireCondition"
+                    />
+                    <div class="fleet-unit-detail__maint-km-edit-actions">
+                      <to-button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        (click)="vm().cancelEditTireCondition()"
+                      >
+                        Cancelar
+                      </to-button>
+                      <to-button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        (click)="vm().saveEditTireCondition()"
+                      >
+                        Guardar
+                      </to-button>
+                    </div>
+                  </dd>
+                } @else {
+                  <dd class="fleet-unit-detail__maint-km-display">
+                    <span>{{ vm().tireConditionDisplayLabel() }}</span>
+                    @if (vm().canEditTireCondition()) {
+                      <button
+                        type="button"
+                        class="fleet-unit-sec__edit-btn"
+                        aria-label="Editar estado de llantas"
+                        (click)="vm().startEditTireCondition()"
+                      >
+                        <to-icon name="edit" [size]="14" />
+                      </button>
+                    }
+                  </dd>
+                }
               </div>
             </dl>
             <div class="fleet-unit-detail__maint-history-block">

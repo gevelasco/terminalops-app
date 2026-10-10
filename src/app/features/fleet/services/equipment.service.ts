@@ -13,6 +13,8 @@ import type { CreateEquipmentPayload } from '@shared/models/api/api-fleet.model'
 import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
 import type { Equipment } from '@shared/models/logistics.models';
 import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-payload';
+import { FleetEntityDetailCache } from '@features/fleet/utils/fleet-entity-detail-cache';
+import { coalesceInFlightRequest } from '@shared/utils/coalesce-in-flight-request';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 import { normalizeEquipmentFromApi } from '@shared/utils/fleet/normalize-fleet-entities';
 
@@ -35,6 +37,14 @@ export class EquipmentFeatureService {
   private initialLoadStarted = false;
   private disposed = false;
   private fetchSub: Subscription | null = null;
+  private readonly listFetchInFlight: { current: Observable<Equipment[]> | null } = {
+    current: null,
+  };
+  private readonly equipmentDetailCache = new FleetEntityDetailCache<Equipment>();
+  private readonly equipmentDetailFetchInFlight = new Map<
+    string,
+    { current: Observable<Equipment | null> | null }
+  >();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -105,6 +115,7 @@ export class EquipmentFeatureService {
         if (options?.skipListRefresh) {
           if (this.canApplyResponse(requestId)) {
             this.upsertEquipmentSummary(normalized);
+            this.rememberEquipmentDetail(normalized);
           }
           return of(normalized);
         }
@@ -113,6 +124,7 @@ export class EquipmentFeatureService {
             if (this.canApplyResponse(requestId)) {
               this.applyList(list, keepId);
               this.upsertEquipmentSummary(normalized);
+              this.rememberEquipmentDetail(normalized);
             }
             return normalized;
           }),
@@ -128,6 +140,7 @@ export class EquipmentFeatureService {
       map((list) => {
         if (this.canApplyResponse(requestId)) {
           this.applyList(list, null);
+          this.equipmentDetailCache.invalidate(equipmentId);
         }
       }),
       map(() => void 0),
@@ -141,16 +154,14 @@ export class EquipmentFeatureService {
     const keepId = equipmentId.trim();
     const requestId = this.requestGen.next();
     return this.equipmentApi.postEquipmentMaintenance(keepId, action).pipe(
-      switchMap((saved) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (this.canApplyResponse(requestId)) {
-              this.applyList(list, keepId);
-            }
-            return saved;
-          }),
-        ),
-      ),
+      map((saved) => {
+        const equipment = normalizeEquipmentFromApi(saved);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertEquipmentSummary(equipment);
+          this.rememberEquipmentDetail(equipment);
+        }
+        return equipment;
+      }),
     );
   }
 
@@ -162,6 +173,7 @@ export class EquipmentFeatureService {
         const equipment = normalizeEquipmentFromApi(saved);
         if (this.canApplyResponse(requestId)) {
           this.upsertEquipmentInList(equipment, keepId);
+          this.rememberEquipmentDetail(equipment);
         }
         return equipment;
       }),
@@ -175,6 +187,7 @@ export class EquipmentFeatureService {
         const equipment = normalizeEquipmentFromApi(created);
         if (this.canApplyResponse(requestId)) {
           this.upsertEquipmentInList(equipment, null);
+          this.rememberEquipmentDetail(equipment);
         }
         return equipment;
       }),
@@ -218,12 +231,12 @@ export class EquipmentFeatureService {
   }
 
   private fetchList(): Observable<Equipment[]> {
-    return this.equipmentApi
-      .getEquipmentList()
-      .pipe(
+    return coalesceInFlightRequest(this.listFetchInFlight, () =>
+      this.equipmentApi.getEquipmentList().pipe(
         map((rows) => rows.map(normalizeEquipmentFromApi)),
         catchError(() => of([] as Equipment[])),
-      );
+      ),
+    );
   }
 
   fetchEquipmentDetail(equipmentId: string): Observable<Equipment | null> {
@@ -231,10 +244,36 @@ export class EquipmentFeatureService {
     if (!id) {
       return of(null);
     }
-    return this.equipmentApi.getEquipmentById(id).pipe(
-      map((row) => normalizeEquipmentFromApi(row)),
-      catchError(() => of(null)),
+    const cached = this.equipmentDetailCache.get(id);
+    if (cached) {
+      return of(cached);
+    }
+    const slot = this.equipmentDetailInFlightSlot(id);
+    return coalesceInFlightRequest(slot, () =>
+      this.equipmentApi.getEquipmentById(id).pipe(
+        map((row) => {
+          const equipment = normalizeEquipmentFromApi(row);
+          this.rememberEquipmentDetail(equipment);
+          return equipment;
+        }),
+        catchError(() => of(null)),
+      ),
     );
+  }
+
+  private rememberEquipmentDetail(equipment: Equipment): void {
+    this.equipmentDetailCache.set(equipment.id, equipment);
+  }
+
+  private equipmentDetailInFlightSlot(id: string): {
+    current: Observable<Equipment | null> | null;
+  } {
+    let slot = this.equipmentDetailFetchInFlight.get(id);
+    if (!slot) {
+      slot = { current: null };
+      this.equipmentDetailFetchInFlight.set(id, slot);
+    }
+    return slot;
   }
 
   upsertEquipmentSummary(saved: Equipment): void {
@@ -293,6 +332,9 @@ export class EquipmentFeatureService {
     }
     this.disposed = true;
     this.requestGen.invalidate();
+    this.listFetchInFlight.current = null;
+    this.equipmentDetailCache.clear();
+    this.equipmentDetailFetchInFlight.clear();
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._equipment.set([]);

@@ -582,7 +582,8 @@ export type EquipmentContainerSlotConfigKey =
 
 /**
  * Metadatos de equipo (semirremolque / remolque): tenencia, técnico, seguro,
- * mantenimiento; documentos de propiedad en `documentOwnershipNames`.
+ * mantenimiento/reparaciones (historial), verificaciones; documentos en `fleetDocuments`.
+ * El control por km aplica solo a unidades (tracto), no a remolques.
  */
 export interface EquipmentFleetMeta {
   trailerBrandName?: string;
@@ -609,21 +610,7 @@ export interface EquipmentFleetMeta {
   lastMaintenanceNotes?: string;
   maintenanceEntries?: MaintenanceEntry[];
   tireCondition?: string;
-  /**
-   * Si es `true`, la alerta de próximo mantenimiento se basa en km recorridos.
-   * Si es `false` o ausente, por tiempo / calendario.
-   * En producción suelen leerse y persistirse vía API en el `fleetMeta` del equipo.
-   */
-  maintenanceAlertByKm?: boolean;
-  /**
-   * @deprecated No se persiste desde el FE; el próximo mantenimiento se calcula en vivo
-   * con la política de empresa (fecha o km).
-   */
-  maintenanceNextDateOverride?: string;
   verificationEntries?: VerificationEntry[];
-  maintenanceKmInterval?: number | null;
-  maintenanceTripKmAtLastService?: number | null;
-  maintenanceKmRemaining?: number | null;
   /** Última verificación físico-mecánica del remolque (ISO `YYYY-MM-DD`). */
   verificationPhysMechDate?: string;
   verificationPhysMechCost?: number;

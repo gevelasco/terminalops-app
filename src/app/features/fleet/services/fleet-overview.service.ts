@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, finalize, of, Subscription } from 'rxjs';
+import { catchError, finalize, of, Subscription, type Observable } from 'rxjs';
+import { coalesceInFlightRequest } from '@shared/utils/coalesce-in-flight-request';
 import { FleetApiService } from '@services/api/fleet';
 import type {
   FleetOverviewEquipmentRowDto,
@@ -23,6 +24,9 @@ export class FleetOverviewFeatureService {
   private moduleLoadStarted = false;
   private disposed = false;
   private fetchSub: Subscription | null = null;
+  private readonly overviewFetchInFlight: {
+    current: Observable<FleetOverviewResponseDto> | null;
+  } = { current: null };
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -92,10 +96,8 @@ export class FleetOverviewFeatureService {
     const requestId = this.requestGen.next();
     this.fetchSub?.unsubscribe();
     this._loading.set(true);
-    this.fetchSub = this.fleetApi
-      .getFleetOverview()
+    this.fetchSub = this.fetchOverview()
       .pipe(
-        catchError(() => of(EMPTY_OVERVIEW)),
         finalize(() => {
           if (this.requestGen.isCurrent(requestId)) {
             this._loading.set(false);
@@ -116,6 +118,12 @@ export class FleetOverviewFeatureService {
       });
   }
 
+  private fetchOverview(): Observable<FleetOverviewResponseDto> {
+    return coalesceInFlightRequest(this.overviewFetchInFlight, () =>
+      this.fleetApi.getFleetOverview().pipe(catchError(() => of(EMPTY_OVERVIEW))),
+    );
+  }
+
   private canApplyResponse(requestId: number): boolean {
     return !this.disposed && this.requestGen.isCurrent(requestId);
   }
@@ -126,6 +134,7 @@ export class FleetOverviewFeatureService {
     }
     this.disposed = true;
     this.requestGen.invalidate();
+    this.overviewFetchInFlight.current = null;
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._overview.set(EMPTY_OVERVIEW);

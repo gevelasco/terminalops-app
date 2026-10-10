@@ -30,13 +30,13 @@ export function resolveUnitPersistDraft(
   return draft;
 }
 
-/** Igual que {@link resolveUnitPersistDraft} para equipo. */
+/** Igual que unidades: borradores parciales con `sparseFleetMeta`. */
 export function resolveEquipmentPersistDraft(
   draft: EquipmentPersistDraft | undefined,
-  equipmentForPersist: Equipment,
-  hasLocalMaintEntries: boolean,
+  equipmentForPersist?: Equipment,
+  hasLocalMaintEntries = false,
 ): EquipmentPersistDraft | undefined {
-  if (hasLocalMaintEntries) {
+  if (hasLocalMaintEntries && equipmentForPersist) {
     return {
       ...draft,
       sparseFleetMeta: true,

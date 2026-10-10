@@ -147,7 +147,11 @@ function mapPaymentRow(
     (statusHint === 'Vencido' || (dueYmd && dueYmd < asOfYmd))
       ? 'overdue'
       : status;
-  const canConfirm = balance > 0 && inferredStatus !== 'paid';
+  const apiCanConfirm = p['canConfirm'];
+  const canConfirm =
+    apiCanConfirm === false
+      ? false
+      : balance > 0 && inferredStatus !== 'paid';
 
   return {
     tripId: String(p['tripId'] ?? ''),

@@ -275,7 +275,7 @@ export function operationalKey(u: Unit, onRoute: boolean): FleetOperationalKey {
 }
 
 function maintenanceKmRemainingFromMeta(
-  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): number | null {
   if (policy?.kmControlEnabled) {
@@ -297,7 +297,7 @@ function maintenanceKmRemainingFromMeta(
 
 /** Km restantes hasta el próximo servicio (contador de unidad o valor legado). */
 export function fleetMaintenanceKmRemaining(
-  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): number | null {
   if (policy?.kmControlEnabled) {
@@ -313,7 +313,7 @@ export function fleetMaintenanceKmRemaining(
 }
 
 function maintenanceBucket(
-  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): FleetRenewalBucket {
   if (!policy) {
@@ -436,7 +436,7 @@ export function fleetComplianceFromEquipment(
 }
 
 export function fleetMaintenanceRenewal(
-  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): FleetRenewalBucket {
   return maintenanceBucket(meta, policy);
@@ -575,7 +575,7 @@ export function nextMaintenanceTableDate(
 
 /** Texto bajo el icono: km restantes, o próxima fecha. Nunca ambas. */
 export function nextMaintenanceTableLabel(
-  meta: (UnitFleetMeta | EquipmentFleetMeta) | undefined,
+  meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): string | null {
   if (policy?.kmControlEnabled) {
@@ -710,6 +710,7 @@ export function buildFleetUnitTableRow(
     operationalOverride?: FleetOperationalKey;
     hitchedEquipment?: Equipment[];
     insuranceExpenses?: readonly Expense[];
+    insuranceCompliance?: { renewal: FleetRenewalBucket; nextLabel: string | null };
     today?: Date;
     policy?: CompanyMaintenancePolicy;
   },
@@ -717,6 +718,7 @@ export function buildFleetUnitTableRow(
   const meta = u.fleetMeta;
   const hitched = options.hitchedEquipment ?? [];
   const insuranceExpenses = options.insuranceExpenses;
+  const insFromApi = options.insuranceCompliance;
   const policy = options.policy;
   return {
     id: u.id,
@@ -728,10 +730,13 @@ export function buildFleetUnitTableRow(
       options.operationalOverride ?? operationalKey(u, options.onRoute),
     fleetMaint: maintenanceBucket(meta, policy),
     fleetVerif: verificationBucket(meta, u.trailerYear),
-    fleetIns: insuranceBucket(meta, insuranceExpenses, options.today),
+    fleetIns: insFromApi?.renewal ?? insuranceBucket(meta, insuranceExpenses, options.today),
     fleetMaintNext: nextMaintenanceTableLabel(meta, policy),
     fleetVerifNext: nextVerificationTableDate(meta),
-    fleetInsNext: nextInsuranceTableDate(meta, insuranceExpenses),
+    fleetInsNext:
+      insFromApi?.nextLabel ??
+      nextInsuranceTableDate(meta, insuranceExpenses) ??
+      '—',
   };
 }
 
@@ -785,24 +790,19 @@ export function operationalKeyEquipment(
   });
 }
 
-/** Fila de tabla Flota «Equipos»: mismas celdas de mantenimiento y seguro que la tabla de unidades. */
+/** Fila de tabla Flota «Equipos»: verificaciones y seguro (mant. = solo última fecha). */
 export function buildFleetEquipmentTableRow(
   e: Equipment,
   options: {
     onRoute: boolean;
     operationalOverride?: FleetOperationalKey;
     insuranceExpenses?: readonly Expense[];
+    insuranceCompliance?: { renewal: FleetRenewalBucket; nextLabel: string | null };
     today?: Date;
     policy?: CompanyMaintenancePolicy;
-    /** Meta del tracto asignado: el km de mantenimiento se cuenta ahí, no en el equipo. */
-    maintenanceKmMeta?: UnitFleetMeta;
   },
 ): Record<string, unknown> {
   const meta = e.fleetMeta;
-  const policy = options.policy;
-  const maintCalcMeta = policy?.kmControlEnabled
-    ? (options.maintenanceKmMeta ?? meta)
-    : meta;
   const insMeta: FleetInsuranceRenewalMeta | undefined = meta
     ? {
         insurancePolicyNumber: meta.insurancePolicyNumber,
@@ -813,6 +813,7 @@ export function buildFleetEquipmentTableRow(
       }
     : undefined;
   const insuranceExpenses = options.insuranceExpenses;
+  const insFromApi = options.insuranceCompliance;
 
   return {
     id: e.id,
@@ -823,11 +824,15 @@ export function buildFleetEquipmentTableRow(
     fleetOperational:
       options.operationalOverride ??
       operationalKeyEquipment(e, options.onRoute),
-    fleetMaint: maintenanceBucket(maintCalcMeta, policy),
+    fleetLastMaintDate: meta?.lastMaintenanceDate?.trim()
+      ? fmtMx(parseYmd(meta.lastMaintenanceDate.trim())!)
+      : '—',
     fleetVerif: equipmentPhysMechVerificationBucket(e, meta),
-    fleetIns: insuranceBucket(insMeta, insuranceExpenses, options.today),
-    fleetMaintNext: nextMaintenanceTableLabel(maintCalcMeta, policy),
+    fleetIns: insFromApi?.renewal ?? insuranceBucket(insMeta, insuranceExpenses, options.today),
     fleetVerifNext: nextEquipmentPhysMechTableDate(e, meta),
-    fleetInsNext: nextInsuranceTableDate(insMeta, insuranceExpenses),
+    fleetInsNext:
+      insFromApi?.nextLabel ??
+      nextInsuranceTableDate(insMeta, insuranceExpenses) ??
+      '—',
   };
 }

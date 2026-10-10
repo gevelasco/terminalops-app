@@ -2,12 +2,21 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import type { FleetDetailDrawerTab } from '@features/fleet/components/fleet-detail-drawer.types';
 import { EquipmentFeatureService } from './equipment.service';
 import { FleetCatalogFeatureService } from './fleet-catalog.service';
-import { FleetCoverageExpensesFeatureService } from './fleet-coverage-expenses.service';
+import { FleetInsuranceTableComplianceFeatureService } from './fleet-insurance-table-compliance.service';
 import { FleetOverviewFeatureService } from './fleet-overview.service';
 import { UnitsFeatureService } from './units.service';
 import type { FleetBrandType } from '@shared/models/api/fleet-catalog.model';
 
 export type FleetModuleTab = 'overview' | 'units' | 'equipment';
+
+/** Refresco post-mutación: omitir recursos ya actualizados en memoria o no relevantes. */
+export type FleetModuleRefreshOptions = {
+  skipUnits?: boolean;
+  skipEquipment?: boolean;
+  skipOverview?: boolean;
+  /** Omite refrescar GET /fleet/insurance-table-compliance. */
+  skipExpenses?: boolean;
+};
 
 /**
  * Orquestador del módulo Flota: cada tab carga su recurso
@@ -21,7 +30,9 @@ export class FleetFeatureService {
   private readonly catalogFeature = inject(FleetCatalogFeatureService);
   private readonly unitsFeature = inject(UnitsFeatureService);
   private readonly equipmentFeature = inject(EquipmentFeatureService);
-  private readonly coverageExpensesFeature = inject(FleetCoverageExpensesFeatureService);
+  private readonly insuranceTableComplianceFeature = inject(
+    FleetInsuranceTableComplianceFeatureService,
+  );
 
   private disposed = false;
   private readonly _pendingDetailTab = signal<FleetDetailDrawerTab | null>(null);
@@ -57,32 +68,29 @@ export class FleetFeatureService {
 
   readonly units = this.unitsFeature.units;
   readonly equipment = this.equipmentFeature.equipment;
-  readonly coverageExpenses = this.coverageExpensesFeature.expenses;
+  readonly insuranceTableCompliance = this.insuranceTableComplianceFeature.data;
   readonly selectedUnit = this.unitsFeature.selectedUnit;
   readonly selectedEquipment = this.equipmentFeature.selectedEquipment;
   readonly pendingDetailTab = this._pendingDetailTab.asReadonly();
 
   /**
    * Carga solo el recurso de la tab activa.
-   * Overview = GET /fleet/overview. Unidades/equipo = su listado.
-   * Gastos de seguro: solo tablas Unidades/Equipo (icono de póliza desde el ledger).
-   * El drawer de cobertura pide gastos por activo; no hace falta el listado global al entrar.
+   * Iconos de seguro en tablas/overview: GET /fleet/insurance-table-compliance (servidor).
    */
   ensureTabLoaded(tab: FleetModuleTab): void {
     if (this.disposed) {
       return;
     }
+    this.insuranceTableComplianceFeature.load();
     if (tab === 'overview') {
       this.overviewFeature.loadOverview();
       return;
     }
     if (tab === 'units') {
       this.unitsFeature.loadUnits();
-      this.coverageExpensesFeature.loadExpenses();
       return;
     }
     this.equipmentFeature.loadEquipment();
-    this.coverageExpensesFeature.loadExpenses();
   }
 
   ensureUnitsLoaded(): void {
@@ -122,7 +130,7 @@ export class FleetFeatureService {
     this.catalogFeature.registerLocalCatalogEntry(type, brandName, versionName);
   }
 
-  refreshFleetModule(options?: { skipUnits?: boolean; skipEquipment?: boolean }): void {
+  refreshFleetModule(options?: FleetModuleRefreshOptions): void {
     if (this.disposed) {
       return;
     }
@@ -132,19 +140,22 @@ export class FleetFeatureService {
     if (!options?.skipEquipment && this.equipmentFeature.hasLoadedOnce()) {
       this.equipmentFeature.refreshEquipment();
     }
-    if (this.overviewFeature.hasLoadedOnce()) {
+    if (!options?.skipOverview && this.overviewFeature.hasLoadedOnce()) {
       this.overviewFeature.refreshOverview();
     }
-    if (this.coverageExpensesFeature.hasLoadedOnce()) {
-      this.coverageExpensesFeature.refreshExpenses();
+    if (!options?.skipExpenses && this.insuranceTableComplianceFeature.hasLoadedOnce()) {
+      this.insuranceTableComplianceFeature.refresh();
     }
   }
 
-  refreshCoverageExpenses(): void {
+  refreshInsuranceTableCompliance(): void {
     if (this.disposed) {
       return;
     }
-    this.coverageExpensesFeature.refreshExpenses();
+    if (!this.insuranceTableComplianceFeature.hasLoadedOnce()) {
+      return;
+    }
+    this.insuranceTableComplianceFeature.refresh();
   }
 
   requestDetailTab(tab: FleetDetailDrawerTab): void {
@@ -158,8 +169,7 @@ export class FleetFeatureService {
   selectUnit(unitId: string): void {
     this.equipmentFeature.clearSelection();
     this.unitsFeature.selectUnit(unitId);
-    // Overview / deep links: enganches viven en catálogo de equipos, no solo en GET unidad.
-    this.equipmentFeature.loadEquipment();
+    // Overview / deep links: fila en listado antes de hidratar GET /units/:id (convoy usa detalle + catálogo bajo demanda).
     this.unitsFeature.loadUnits();
   }
 
@@ -185,6 +195,6 @@ export class FleetFeatureService {
     this.catalogFeature.dispose();
     this.unitsFeature.dispose();
     this.equipmentFeature.dispose();
-    this.coverageExpensesFeature.dispose();
+    this.insuranceTableComplianceFeature.dispose();
   }
 }

@@ -13,6 +13,8 @@ import type { CreateUnitPayload } from '@shared/models/api/api-fleet.model';
 import type { FleetMaintenanceAction } from '@shared/models/api/api-fleet-operational-status.model';
 import type { Unit } from '@shared/models/logistics.models';
 import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
+import { FleetEntityDetailCache } from '@features/fleet/utils/fleet-entity-detail-cache';
+import { coalesceInFlightRequest } from '@shared/utils/coalesce-in-flight-request';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 import { normalizeUnitFromApi } from '@shared/utils/fleet/normalize-fleet-entities';
 
@@ -39,6 +41,14 @@ export class UnitsFeatureService {
   private initialLoadStarted = false;
   private disposed = false;
   private fetchSub: Subscription | null = null;
+  private readonly listFetchInFlight: { current: Observable<Unit[]> | null } = {
+    current: null,
+  };
+  private readonly unitDetailCache = new FleetEntityDetailCache<Unit>();
+  private readonly unitDetailFetchInFlight = new Map<
+    string,
+    { current: Observable<Unit | null> | null }
+  >();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.dispose());
@@ -111,6 +121,7 @@ export class UnitsFeatureService {
         if (options?.skipListRefresh) {
           if (this.canApplyResponse(requestId)) {
             this.upsertUnitSummary(normalized);
+            this.rememberUnitDetail(normalized);
           }
           return of(normalized);
         }
@@ -120,6 +131,7 @@ export class UnitsFeatureService {
               this.applyList(list, keepId);
               // Mezcla campos recién guardados: GET lista es resumen y no refleja el PATCH.
               this.upsertUnitSummary(normalized);
+              this.rememberUnitDetail(normalized);
             }
             return normalized;
           }),
@@ -135,6 +147,7 @@ export class UnitsFeatureService {
       map((list) => {
         if (this.canApplyResponse(requestId)) {
           this.applyList(list, null);
+          this.unitDetailCache.invalidate(unitId);
         }
       }),
       map(() => void 0),
@@ -145,16 +158,14 @@ export class UnitsFeatureService {
     const keepId = unitId.trim();
     const requestId = this.requestGen.next();
     return this.unitsApi.postUnitMaintenance(keepId, action).pipe(
-      switchMap((saved) =>
-        this.fetchList().pipe(
-          map((list) => {
-            if (this.canApplyResponse(requestId)) {
-              this.applyList(list, keepId);
-            }
-            return saved;
-          }),
-        ),
-      ),
+      map((saved) => {
+        const unit = normalizeUnitFromApi(saved);
+        if (this.canApplyResponse(requestId)) {
+          this.upsertUnitSummary(unit);
+          this.rememberUnitDetail(unit);
+        }
+        return unit;
+      }),
     );
   }
 
@@ -166,6 +177,7 @@ export class UnitsFeatureService {
         const unit = normalizeUnitFromApi(saved);
         if (this.canApplyResponse(requestId)) {
           this.upsertUnitInList(unit, keepId);
+          this.rememberUnitDetail(unit);
         }
         return unit;
       }),
@@ -179,6 +191,7 @@ export class UnitsFeatureService {
         const unit = normalizeUnitFromApi(created);
         if (this.canApplyResponse(requestId)) {
           this.upsertUnitInList(unit, null);
+          this.rememberUnitDetail(unit);
         }
         return unit;
       }),
@@ -222,12 +235,17 @@ export class UnitsFeatureService {
   }
 
   private fetchList(): Observable<Unit[]> {
-    return this.unitsApi
-      .getUnitsList()
-      .pipe(
+    return coalesceInFlightRequest(this.listFetchInFlight, () =>
+      this.unitsApi.getUnitsList().pipe(
         map((rows) => rows.map(normalizeUnitFromApi)),
         catchError(() => of([] as Unit[])),
-      );
+      ),
+    );
+  }
+
+  /** Tras enganche/desenganche u otro cambio que invalida GET /units/:id en caché. */
+  invalidateUnitDetail(unitId: string): void {
+    this.unitDetailCache.invalidate(unitId);
   }
 
   /** Detalle completo (historial + tenure) para el drawer. */
@@ -236,10 +254,36 @@ export class UnitsFeatureService {
     if (!id) {
       return of(null);
     }
-    return this.unitsApi.getUnitById(id).pipe(
-      map((row) => normalizeUnitFromApi(row)),
-      catchError(() => of(null)),
+    const cached = this.unitDetailCache.get(id);
+    if (cached) {
+      return of(cached);
+    }
+    const slot = this.unitDetailInFlightSlot(id);
+    return coalesceInFlightRequest(slot, () =>
+      this.unitsApi.getUnitById(id).pipe(
+        map((row) => {
+          const unit = normalizeUnitFromApi(row);
+          this.rememberUnitDetail(unit);
+          return unit;
+        }),
+        catchError(() => of(null)),
+      ),
     );
+  }
+
+  private rememberUnitDetail(unit: Unit): void {
+    this.unitDetailCache.set(unit.id, unit);
+  }
+
+  private unitDetailInFlightSlot(id: string): {
+    current: Observable<Unit | null> | null;
+  } {
+    let slot = this.unitDetailFetchInFlight.get(id);
+    if (!slot) {
+      slot = { current: null };
+      this.unitDetailFetchInFlight.set(id, slot);
+    }
+    return slot;
   }
 
   /** Actualiza fila del listado con un resumen (tras save del drawer). */
@@ -297,6 +341,9 @@ export class UnitsFeatureService {
     }
     this.disposed = true;
     this.requestGen.invalidate();
+    this.listFetchInFlight.current = null;
+    this.unitDetailCache.clear();
+    this.unitDetailFetchInFlight.clear();
     this.fetchSub?.unsubscribe();
     this.fetchSub = null;
     this._units.set([]);
