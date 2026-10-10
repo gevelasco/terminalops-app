@@ -436,10 +436,9 @@ export class FleetUnitDetailDrawerFacade {
           : resolved.hitchedEquipment,
         { catalogAuthoritative: this.equipmentFeature.hydrated() },
       );
-      this.unitSource.set({
-        ...resolved,
-        hitchedEquipment: hitched.length > 0 ? hitched : resolved.hitchedEquipment,
-      });
+      this.unitSource.set(
+        this.domain.mergeUnitListRowIntoDetail(current, resolved, hitched),
+      );
       this.metaOverride.set({});
     }
   }
@@ -678,7 +677,9 @@ export class FleetUnitDetailDrawerFacade {
           this.localMaintEntries.set([]);
           this.syncCatalogFromFeature();
           if (!options?.skipFleetRefresh) {
-            this.fleetFeature.refreshFleetModule();
+            this.fleetFeature.refreshFleetModule({
+              skipUnits: options?.skipListRefresh !== true,
+            });
           }
           this.toast.show(successMessage, 'success');
           this.editingSection.set(null);

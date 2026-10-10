@@ -122,14 +122,14 @@ export class FleetFeatureService {
     this.catalogFeature.registerLocalCatalogEntry(type, brandName, versionName);
   }
 
-  refreshFleetModule(): void {
+  refreshFleetModule(options?: { skipUnits?: boolean; skipEquipment?: boolean }): void {
     if (this.disposed) {
       return;
     }
-    if (this.unitsFeature.hasLoadedOnce()) {
+    if (!options?.skipUnits && this.unitsFeature.hasLoadedOnce()) {
       this.unitsFeature.refreshUnits();
     }
-    if (this.equipmentFeature.hasLoadedOnce()) {
+    if (!options?.skipEquipment && this.equipmentFeature.hasLoadedOnce()) {
       this.equipmentFeature.refreshEquipment();
     }
     if (this.overviewFeature.hasLoadedOnce()) {

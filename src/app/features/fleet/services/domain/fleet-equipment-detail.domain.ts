@@ -22,6 +22,17 @@ export class FleetEquipmentDetailDomain {
     );
   }
 
+  mergeEquipmentListRowIntoDetail(detail: Equipment, listRow: Equipment): Equipment {
+    return {
+      ...detail,
+      ...listRow,
+      fleetMeta: {
+        ...(listRow.fleetMeta ?? {}),
+        ...(detail.fleetMeta ?? {}),
+      },
+    };
+  }
+
   applyHostEquipmentSnapshotWhenRicher(current: Equipment, incoming: Equipment): Equipment | null {
     if (current.id !== incoming.id) {
       return null;

@@ -1,6 +1,11 @@
 import { fleetTenureMetaEquals } from '@features/fleet/utils/fleet-tenure-meta-equals';
 import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
-import type { MaintenanceEntry, Unit, UnitFleetMeta } from '@shared/models/logistics.models';
+import type {
+  Equipment,
+  MaintenanceEntry,
+  Unit,
+  UnitFleetMeta,
+} from '@shared/models/logistics.models';
 import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
 
 import { Injectable } from '@angular/core';
@@ -20,6 +25,30 @@ export class FleetUnitDetailDomain {
       meta.trailerRecurringInstallmentCount !== undefined ||
       meta.trailerManagementOwnerPayout !== undefined
     );
+  }
+
+  /**
+   * Mezcla fila de listado en el detalle del drawer: campos operativos del listado,
+   * `fleetMeta` del detalle (evita pisar color/modalidad tras un PATCH con listado stale).
+   */
+  mergeUnitListRowIntoDetail(
+    detail: Unit,
+    listRow: Unit,
+    hitchedEquipment?: Equipment[],
+  ): Unit {
+    const hitched =
+      hitchedEquipment && hitchedEquipment.length > 0
+        ? hitchedEquipment
+        : listRow.hitchedEquipment ?? detail.hitchedEquipment;
+    return {
+      ...detail,
+      ...listRow,
+      fleetMeta: {
+        ...(listRow.fleetMeta ?? {}),
+        ...(detail.fleetMeta ?? {}),
+      },
+      hitchedEquipment: hitched,
+    };
   }
 
   applyHostUnitSnapshotWhenRicher(current: Unit, incoming: Unit): Unit | null {

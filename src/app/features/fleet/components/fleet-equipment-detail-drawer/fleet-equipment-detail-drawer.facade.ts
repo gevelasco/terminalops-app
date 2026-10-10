@@ -382,7 +382,9 @@ export class FleetEquipmentDetailDrawerFacade {
     const resolvedMeta = JSON.stringify(resolved.fleetMeta ?? {});
     const currentMeta = JSON.stringify(current.fleetMeta ?? {});
     if (resolvedMeta !== currentMeta) {
-      this.equipmentSource.set(resolved);
+      this.equipmentSource.set(
+        this.domain.mergeEquipmentListRowIntoDetail(current, resolved),
+      );
       this.metaOverride.set({});
     }
   }
