@@ -2,37 +2,6 @@
   <section class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__operations">
     <article
       class="profile-drawer__setting-row"
-      aria-labelledby="profile-setting-prefill"
-    >
-      <div class="profile-drawer__setting-head">
-        <div class="profile-drawer__setting-copy">
-          <h4 id="profile-setting-prefill" class="profile-drawer__setting-title">
-            Asistencia en maniobras
-          </h4>
-          <p class="profile-drawer__setting-meta">{{ prefillStatusLabel() }}</p>
-        </div>
-        <button
-          type="button"
-          class="fleet-unit-toggle"
-          [class.fleet-unit-toggle--on]="draftTripAssistPrefillEnabled()"
-          role="switch"
-          [attr.aria-checked]="draftTripAssistPrefillEnabled()"
-          [disabled]="saving()"
-          aria-labelledby="profile-setting-prefill"
-          (click)="toggleDraftTripAssistPrefill()"
-        >
-          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-        </button>
-      </div>
-      @if (!draftTripAssistPrefillEnabled()) {
-        <p class="profile-drawer__setting-desc">
-          Autocompleta rutas, tarifas y datos al registrar una nueva maniobra.
-        </p>
-      }
-    </article>
-
-    <article
-      class="profile-drawer__setting-row"
       aria-labelledby="profile-setting-intelligent"
     >
       <div class="profile-drawer__setting-head">
@@ -281,9 +250,6 @@
           @case ("diesel") {
             ¿Desactivar diesel automático?
           }
-          @case ("prefill") {
-            ¿Desactivar asistencia en maniobras?
-          }
         }
       </h2>
     </div>
@@ -318,14 +284,6 @@
       <p class="profile-drawer__confirm-note">
         Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar
         la configuración para que quede registrado.
-      </p>
-    } @else if (pendingDisableKind() === "prefill") {
-      <p class="profile-drawer__confirm-text">
-        Al desactivar la asistencia en maniobras, las rutas y tarifas ya no se
-        autocompletarán al registrar una nueva maniobra.
-      </p>
-      <p class="profile-drawer__confirm-note">
-        Debes guardar la configuración para que el cambio quede registrado.
       </p>
     } @else if (pendingDisableKind() === "maintenance") {
       <p class="profile-drawer__confirm-text">

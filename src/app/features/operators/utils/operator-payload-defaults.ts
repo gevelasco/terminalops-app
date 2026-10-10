@@ -89,6 +89,7 @@ export function defaultOperatorShell(
     companyHireDate: '',
     employmentContractType: '',
     paymentSchedule: 'maneuver',
+    weeklyPayDay: undefined,
     paymentMethod: '',
     insuranceKind: 'none',
     photoDataUrl: '',

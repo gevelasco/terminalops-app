@@ -329,6 +329,31 @@
   }
 }
 
+.fleet-unit-detail__maint-km-reset-hint {
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.fleet-unit-detail__maint-km-display {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.fleet-unit-detail__maint-km-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: min(100%, 16rem);
+}
+
+.fleet-unit-detail__maint-km-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 .fleet-unit-detail__maint-upload {
   display: flex;
   align-items: center;

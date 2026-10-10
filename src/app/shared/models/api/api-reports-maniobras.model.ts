@@ -21,13 +21,6 @@ export type ReportsManiobrasContainerTypeRow = {
   tripCount: number;
 };
 
-export type ReportsManiobrasCargoWeightRow = {
-  containerType: string;
-  label: string;
-  tripCount: number;
-  avgWeightTons: number;
-};
-
 export type ReportsManiobrasOperatorRow = {
   operatorName: string;
   completed: number;
@@ -36,11 +29,6 @@ export type ReportsManiobrasOperatorRow = {
 
 export type ReportsManiobrasClientRow = {
   clientName: string;
-  tripCount: number;
-};
-
-export type ReportsManiobrasDestinationRow = {
-  destination: string;
   tripCount: number;
 };
 
@@ -62,44 +50,19 @@ export type ReportsManiobrasRecurringIncidentRoute = {
   lastIncidentAt: string | null;
 };
 
-export type ReportsManiobrasRalentiLeg = 'salida_cliente' | 'cliente_regreso';
-
-export type ReportsManiobrasRalentiByClient = {
-  clientName: string;
-  salidaClienteHours: number;
-  clienteRegresoHours: number;
-  totalHours: number;
-};
-
-export type ReportsManiobrasRalentiEvent = {
-  tripId: number;
-  maneuverCode: string;
-  clientName: string;
-  destination: string;
-  leg: ReportsManiobrasRalentiLeg;
-  plannedHours: number;
-  actualHours: number;
-  baselineHours: number;
-  baselineSource: 'rate' | 'planned';
-  ralentiHours: number;
-};
-
+/** Resumen de ralenti para KPI (sin detalle por cliente/tramo). */
 export type ReportsManiobrasRalenti = {
   salidaClienteHours: number;
   clienteRegresoHours: number;
   tripsEvaluated: number;
   tripsWithRalenti: number;
-  byClient: ReportsManiobrasRalentiByClient[];
-  events: ReportsManiobrasRalentiEvent[];
 };
 
 export type ReportsManiobrasInsights = {
   recurringIncidentRoutes: ReportsManiobrasRecurringIncidentRoute[];
   topOperators: ReportsManiobrasOperatorRow[];
   topClients: ReportsManiobrasClientRow[];
-  topDestinations: ReportsManiobrasDestinationRow[];
   containerTypeMix: ReportsManiobrasContainerTypeRow[];
-  cargoWeightByContainer: ReportsManiobrasCargoWeightRow[];
   geoMapTrips: ReportsManiobrasGeoMapTrip[];
   ralenti: ReportsManiobrasRalenti;
 };
@@ -125,10 +88,6 @@ function parseTripStatus(raw: unknown): TripStatus {
   }
 }
 
-function parseRalentiLeg(raw: unknown): ReportsManiobrasRalentiLeg {
-  return raw === 'cliente_regreso' ? 'cliente_regreso' : 'salida_cliente';
-}
-
 function mapSummary(raw: Record<string, unknown>): ReportsManiobrasSummary {
   const prior = raw['completedTripsPriorPeriodPercent'];
   return {
@@ -149,35 +108,11 @@ function mapSummary(raw: Record<string, unknown>): ReportsManiobrasSummary {
 
 function mapRalenti(raw: Record<string, unknown> | undefined): ReportsManiobrasRalenti {
   const source = raw ?? {};
-  const byClient = ((source['byClient'] ?? []) as Record<string, unknown>[]).map(
-    (row) => ({
-      clientName: String(row['clientName'] ?? 'Sin cliente'),
-      salidaClienteHours: num(row['salidaClienteHours']),
-      clienteRegresoHours: num(row['clienteRegresoHours']),
-      totalHours: num(row['totalHours']),
-    }),
-  );
-  const events = ((source['events'] ?? []) as Record<string, unknown>[]).map(
-    (row) => ({
-      tripId: num(row['tripId']),
-      maneuverCode: String(row['maneuverCode'] ?? ''),
-      clientName: String(row['clientName'] ?? 'Sin cliente'),
-      destination: String(row['destination'] ?? 'Sin destino'),
-      leg: parseRalentiLeg(row['leg']),
-      plannedHours: num(row['plannedHours']),
-      actualHours: num(row['actualHours']),
-      baselineHours: num(row['baselineHours']),
-      baselineSource: row['baselineSource'] === 'rate' ? ('rate' as const) : ('planned' as const),
-      ralentiHours: num(row['ralentiHours']),
-    }),
-  );
   return {
     salidaClienteHours: num(source['salidaClienteHours']),
     clienteRegresoHours: num(source['clienteRegresoHours']),
     tripsEvaluated: num(source['tripsEvaluated']),
     tripsWithRalenti: num(source['tripsWithRalenti']),
-    byClient,
-    events,
   };
 }
 
@@ -208,28 +143,12 @@ export function mapApiReportsManiobras(raw: Record<string, unknown>): ReportsMan
     }),
   );
 
-  const topDestinations = (
-    (insightsRaw['topDestinations'] ?? []) as Record<string, unknown>[]
-  ).map((row) => ({
-    destination: String(row['destination'] ?? 'Sin destino'),
-    tripCount: num(row['tripCount']),
-  }));
-
   const containerTypeMix = (
     (insightsRaw['containerTypeMix'] ?? []) as Record<string, unknown>[]
   ).map((row) => ({
     containerType: String(row['containerType'] ?? 'na'),
     label: String(row['label'] ?? ''),
     tripCount: num(row['tripCount']),
-  }));
-
-  const cargoWeightByContainer = (
-    (insightsRaw['cargoWeightByContainer'] ?? []) as Record<string, unknown>[]
-  ).map((row) => ({
-    containerType: String(row['containerType'] ?? 'na'),
-    label: String(row['label'] ?? ''),
-    tripCount: num(row['tripCount']),
-    avgWeightTons: num(row['avgWeightTons']),
   }));
 
   const geoMapTrips = ((insightsRaw['geoMapTrips'] ?? []) as Record<string, unknown>[]).map(
@@ -256,9 +175,7 @@ export function mapApiReportsManiobras(raw: Record<string, unknown>): ReportsMan
       recurringIncidentRoutes,
       topOperators,
       topClients,
-      topDestinations,
       containerTypeMix,
-      cargoWeightByContainer,
       geoMapTrips,
       ralenti: mapRalenti(insightsRaw['ralenti'] as Record<string, unknown> | undefined),
     },

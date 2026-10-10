@@ -97,6 +97,38 @@
   overflow: auto;
 }
 
+/** Cuentas por pagar: ~10 filas visibles, resto con scroll (thead/tfoot sticky). */
+.reports-balance-panel__table-wrap--payables {
+  --reports-payable-row-h: 2.35rem;
+  --reports-payable-head-h: 2.1rem;
+  --reports-payable-foot-h: 2.35rem;
+  --reports-payable-visible-rows: 10;
+  max-height: calc(
+    var(--reports-payable-head-h) + var(--reports-payable-visible-rows) *
+      var(--reports-payable-row-h) + var(--reports-payable-foot-h)
+  );
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.reports-balance-panel__table-wrap--payables .reports-balance-panel__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--to-color-surface);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--to-color-border) 70%, transparent);
+}
+
+.reports-balance-panel__table-wrap--payables .reports-balance-panel__table tfoot th,
+.reports-balance-panel__table-wrap--payables .reports-balance-panel__table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--to-color-surface);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--to-color-border) 55%, transparent);
+}
+
 .reports-balance-panel__table {
   width: 100%;
   border-collapse: collapse;

@@ -240,7 +240,6 @@ export class TripsNewDrawerComponent {
     this.planEntitlements.effectiveDieselControlEnabled(),
   );
   /** Preferencia empresa: autollenado en Nueva Maniobra. */
-  readonly autoRecognitionEnabled = computed(() => this.session.tripAssistPrefillEnabled());
   readonly dieselLitersPlaceholder = computed(() =>
     this.dieselControlEnabled()
       ? 'Se estima al tener la distancia'
@@ -1171,16 +1170,14 @@ export class TripsNewDrawerComponent {
         return;
       }
       this.destinationPrefillForClientId.set(id);
-      if (this.autoRecognitionEnabled()) {
-        if (client.payment?.hasCredit && client.payment.creditDays != null) {
-          this.creditDays.set(String(client.payment.creditDays));
-        } else {
-          this.creditDays.set('');
-        }
-        const preferred = client.payment?.defaultPaymentMethod?.trim();
-        if (preferred && isTripClientPaymentMethod(preferred)) {
-          this.paymentMethod.set(preferred);
-        }
+      if (client.payment?.hasCredit && client.payment.creditDays != null) {
+        this.creditDays.set(String(client.payment.creditDays));
+      } else {
+        this.creditDays.set('');
+      }
+      const preferred = client.payment?.defaultPaymentMethod?.trim();
+      if (preferred && isTripClientPaymentMethod(preferred)) {
+        this.paymentMethod.set(preferred);
       }
       const prefill = destinationPrefillFromClient(client);
       if (prefill) {
@@ -1412,13 +1409,6 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
-      if (!this.autoRecognitionEnabled()) {
-        this.destinationRateMatched.set(false);
-        this.destinationRateChargeRecognized.set(false);
-        this.matchedDestinationRateId.set(null);
-        this.clearDestinationRateSuggestionUi();
-        return;
-      }
       const originId = this.originOperationalCenterId().trim();
       const clientId = this.clientId().trim();
       const cp = normalizeMxPostalCodeDigits(this.destinationCp());
@@ -1596,20 +1586,17 @@ export class TripsNewDrawerComponent {
     combineLatest([
       toObservable(this.includeClientBilling),
       toObservable(this.clientId),
-      toObservable(this.autoRecognitionEnabled),
     ])
       .pipe(
-        map(([billing, id, autoOn]) => ({
+        map(([billing, id]) => ({
           billing,
           id: id.trim(),
-          autoOn,
         })),
         distinctUntilChanged(
-          (a, b) =>
-            a.billing === b.billing && a.id === b.id && a.autoOn === b.autoOn,
+          (a, b) => a.billing === b.billing && a.id === b.id,
         ),
-        switchMap(({ billing, id, autoOn }) => {
-          if (!autoOn || !billing || !id) {
+        switchMap(({ billing, id }) => {
+          if (!billing || !id) {
             this.cargoHistoryItems.set([]);
             return EMPTY;
           }
@@ -1627,9 +1614,6 @@ export class TripsNewDrawerComponent {
   }
 
   onCargoHistoryPicked(item: ClientCargoHistoryItem): void {
-    if (!this.autoRecognitionEnabled()) {
-      return;
-    }
     this.cargoDescription.set(item.description);
     const op = item.operationType.trim();
     const normalizedOp = normalizeManeuverOperationCode(op);
@@ -2551,9 +2535,6 @@ export class TripsNewDrawerComponent {
     operationType: string,
     includeBilling: boolean,
   ): void {
-    if (!this.autoRecognitionEnabled()) {
-      return;
-    }
     const fields = computeDestinationRateSuggestionFields(
       rate,
       operationType,
@@ -2662,9 +2643,6 @@ export class TripsNewDrawerComponent {
   }
 
   private tryApplyPlannedScheduleFromMatchedRate(rate?: DestinationRate): void {
-    if (!this.autoRecognitionEnabled()) {
-      return;
-    }
     if (this.plannedScheduleSuggestionUi() === 'manual') {
       return;
     }

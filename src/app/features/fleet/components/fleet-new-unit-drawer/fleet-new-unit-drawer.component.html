@@ -277,6 +277,18 @@
       [options]="maintenanceTypeOptions"
       [(value)]="lastMaintenanceType"
     />
+    @if (maintenanceKmPolicyActive()) {
+      <to-input
+        label="Km acumulados desde último servicio completo"
+        type="text"
+        [groupThousands]="true"
+        placeholder="0 si acabas de hacer servicio completo"
+        [(value)]="maintenanceKmCounter"
+      />
+      @if (maintenanceKmCounterHint(); as kmHint) {
+        <p class="fleet-unit-sec__hint">{{ kmHint }}</p>
+      }
+    }
     <to-select
       label="Estado de llantas"
       [options]="tireOptions"

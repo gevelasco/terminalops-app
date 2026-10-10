@@ -79,6 +79,9 @@ export function buildOperatorWritePayload(
     companyHireDate: operator.companyHireDate,
     employmentContractType: operator.employmentContractType,
     paymentSchedule: operator.paymentSchedule,
+    ...(operator.paymentSchedule === 'weekly'
+      ? { weeklyPayDay: operator.weeklyPayDay?.trim() || 'fri' }
+      : { weeklyPayDay: null }),
     paymentMethod: operator.paymentMethod,
     insuranceKind: operator.insuranceKind,
     emergencyContact: pickEmergencyContact(operator.emergencyContact),

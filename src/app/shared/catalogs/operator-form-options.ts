@@ -4,6 +4,7 @@ import type {
   OperatorLicenseType,
   OperatorOperationalStatus,
   OperatorPaymentSchedule,
+  OperatorWeeklyPayDay,
 } from '@shared/models/logistics.models';
 
 /** Catálogo de labels/filtros de estado operativo del operador. */
@@ -75,6 +76,16 @@ export const OPERATOR_PAYMENT_SCHEDULE_OPTIONS: ToSelectOption[] = [
   { value: 'monthly', label: 'Mensual' },
 ];
 
+export const OPERATOR_WEEKLY_PAY_DAY_OPTIONS: ToSelectOption[] = [
+  { value: 'mon', label: 'Lunes' },
+  { value: 'tue', label: 'Martes' },
+  { value: 'wed', label: 'Miércoles' },
+  { value: 'thu', label: 'Jueves' },
+  { value: 'fri', label: 'Viernes' },
+  { value: 'sat', label: 'Sábado' },
+  { value: 'sun', label: 'Domingo' },
+];
+
 export function operatorOperationalStatusLabel(
   s: OperatorOperationalStatus,
 ): string {
@@ -132,5 +143,15 @@ export function operatorPaymentScheduleLabel(
   schedule: OperatorPaymentSchedule | string,
 ): string {
   const row = OPERATOR_PAYMENT_SCHEDULE_OPTIONS.find((o) => o.value === schedule);
+  return row?.label ?? '—';
+}
+
+export function operatorWeeklyPayDayLabel(
+  day: OperatorWeeklyPayDay | string | null | undefined,
+): string {
+  if (!day?.trim()) {
+    return '—';
+  }
+  const row = OPERATOR_WEEKLY_PAY_DAY_OPTIONS.find((o) => o.value === day);
   return row?.label ?? '—';
 }

@@ -156,7 +156,9 @@
       />
     }
   } @else if (viewMode() === "list") {
-    @if (initialListLoading()) {
+    @if (resolvingDefaultView()) {
+      <to-skeleton [lines]="6" />
+    } @else if (initialListLoading()) {
       <to-skeleton [lines]="5" />
     } @else if (showListEmptyNoTrips()) {
       <p class="to-feature-empty-hint" role="status">

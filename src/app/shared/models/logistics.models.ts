@@ -217,6 +217,16 @@ export type OperatorOperationalStatus =
 /** Periodicidad de pago al operador. */
 export type OperatorPaymentSchedule = 'maneuver' | 'weekly' | 'biweekly' | 'monthly';
 
+/** Día de pago para cobro semanal al operador. */
+export type OperatorWeeklyPayDay =
+  | 'mon'
+  | 'tue'
+  | 'wed'
+  | 'thu'
+  | 'fri'
+  | 'sat'
+  | 'sun';
+
 /** Tipo de licencia de conducir (referencia normativa). */
 export type OperatorLicenseType =
   | 'federal'
@@ -325,6 +335,8 @@ export interface Operator {
   employmentContractType: string;
   /** Periodicidad de pago al operador. */
   paymentSchedule: OperatorPaymentSchedule;
+  /** Día de pago cuando `paymentSchedule` es semanal. */
+  weeklyPayDay?: OperatorWeeklyPayDay | null;
   /** Método de pago al operador (catálogo de gastos). */
   paymentMethod?: string;
   status: OperatorOperationalStatus;

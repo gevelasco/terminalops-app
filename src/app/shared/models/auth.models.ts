@@ -30,8 +30,6 @@ export interface AuthUser {
   employeeId?: string;
   operationalAnalysisEnabled?: boolean;
   operationalAnalysisChangedAt?: string;
-  tripAssistPrefillEnabled?: boolean;
-  tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent?: number;
   tripAutoFuelPaymentMethod?: string;
   tripAutoTollsPaymentMethod?: string;
@@ -40,8 +38,6 @@ export interface AuthUser {
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore?: number;
-  controlAutomaticRecognition?: boolean;
-  controlAutomaticRecognitionChangedAt?: string;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;
@@ -117,8 +113,6 @@ export interface SessionData {
   employeeId?: string;
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
-  tripAssistPrefillEnabled: boolean;
-  tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent: number;
   tripAutoFuelPaymentMethod: string;
   tripAutoTollsPaymentMethod: string;
@@ -127,8 +121,6 @@ export interface SessionData {
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore: number;
-  controlAutomaticRecognition: boolean;
-  controlAutomaticRecognitionChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled: boolean;

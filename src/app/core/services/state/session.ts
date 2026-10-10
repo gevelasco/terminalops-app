@@ -170,18 +170,6 @@ export class SessionService {
   readonly operationalAnalysisChangedAt = computed(
     () => this.data()?.operationalAnalysisChangedAt ?? null,
   );
-  readonly tripAssistPrefillEnabled = computed(
-    () =>
-      this.data()?.tripAssistPrefillEnabled ??
-      this.data()?.controlAutomaticRecognition ??
-      false,
-  );
-  readonly tripAssistPrefillChangedAt = computed(
-    () =>
-      this.data()?.tripAssistPrefillChangedAt ??
-      this.data()?.controlAutomaticRecognitionChangedAt ??
-      null,
-  );
   readonly tripAutoMaintenanceProvisionPercent = computed(() => {
     const raw = this.data()?.tripAutoMaintenanceProvisionPercent;
     if (raw == null || !Number.isFinite(raw)) {
@@ -209,12 +197,6 @@ export class SessionService {
   );
   readonly paymentReminderDaysBefore = computed(() =>
     normalizePaymentReminderDays(this.data()?.paymentReminderDaysBefore),
-  );
-  readonly controlAutomaticRecognition = computed(
-    () => this.tripAssistPrefillEnabled(),
-  );
-  readonly controlAutomaticRecognitionChangedAt = computed(
-    () => this.tripAssistPrefillChangedAt(),
   );
   readonly maintenanceKmControlEnabled = computed(
     () => this.data()?.maintenanceKmControlEnabled ?? false,
@@ -427,7 +409,6 @@ export class SessionService {
       Pick<
         CompanyOperationalSettings,
         | 'operationalAnalysisEnabled'
-        | 'tripAssistPrefillEnabled'
         | 'tripAutoMaintenanceProvisionPercent'
         | 'tripAutoFuelPaymentMethod'
         | 'tripAutoTollsPaymentMethod'
@@ -452,7 +433,6 @@ export class SessionService {
     > & {
       companyName?: string;
       operationalAnalysisChangedAt?: string | null;
-      tripAssistPrefillChangedAt?: string | null;
       dieselControlChangedAt?: string | null;
       maintenanceKmIntervalDefault?: number | null;
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
@@ -479,10 +459,6 @@ export class SessionService {
     if (patch.operationalAnalysisEnabled !== undefined) {
       next.operationalAnalysisEnabled = patch.operationalAnalysisEnabled;
     }
-    if (patch.tripAssistPrefillEnabled !== undefined) {
-      next.tripAssistPrefillEnabled = patch.tripAssistPrefillEnabled;
-      next.controlAutomaticRecognition = patch.tripAssistPrefillEnabled;
-    }
     if (patch.tripAutoMaintenanceProvisionPercent !== undefined) {
       next.tripAutoMaintenanceProvisionPercent = patch.tripAutoMaintenanceProvisionPercent;
     }
@@ -497,14 +473,6 @@ export class SessionService {
     }
     if (patch.tripAutoControlPaymentMethod !== undefined) {
       next.tripAutoControlPaymentMethod = patch.tripAutoControlPaymentMethod;
-    }
-    const prefillChangedAt = normalizeApiIsoDate(patch.tripAssistPrefillChangedAt);
-    if (prefillChangedAt) {
-      next.tripAssistPrefillChangedAt = prefillChangedAt;
-      next.controlAutomaticRecognitionChangedAt = prefillChangedAt;
-    } else if (patch.tripAssistPrefillChangedAt === null) {
-      next.tripAssistPrefillChangedAt = undefined;
-      next.controlAutomaticRecognitionChangedAt = undefined;
     }
     if (patch.dieselControlEnabled !== undefined) {
       next.dieselControlEnabled = patch.dieselControlEnabled;
@@ -636,28 +604,6 @@ export class SessionService {
     }
     if (patch.photoDataUrl !== undefined) {
       next.photoDataUrl = patch.photoDataUrl.trim();
-    }
-    this.data.set(next);
-    saveEncryptedSession(next);
-  }
-
-  syncUserPreferenceSettings(patch: {
-    controlAutomaticRecognition?: boolean;
-    controlAutomaticRecognitionChangedAt?: string | null;
-  }): void {
-    const current = this.data();
-    if (!current) {
-      return;
-    }
-    const next: SessionData = { ...current };
-    if (patch.controlAutomaticRecognition !== undefined) {
-      next.controlAutomaticRecognition = patch.controlAutomaticRecognition;
-    }
-    const changedAt = normalizeApiIsoDate(patch.controlAutomaticRecognitionChangedAt);
-    if (changedAt) {
-      next.controlAutomaticRecognitionChangedAt = changedAt;
-    } else if (patch.controlAutomaticRecognitionChangedAt === null) {
-      next.controlAutomaticRecognitionChangedAt = undefined;
     }
     this.data.set(next);
     saveEncryptedSession(next);
@@ -849,18 +795,6 @@ export class SessionService {
         normalizeApiIsoDate(user.operationalAnalysisChangedAt) ??
         normalizeApiIsoDate(payload?.operationalAnalysisChangedAt) ??
         undefined,
-      tripAssistPrefillEnabled:
-        user.tripAssistPrefillEnabled ??
-        user.controlAutomaticRecognition ??
-        payload?.tripAssistPrefillEnabled ??
-        payload?.controlAutomaticRecognition ??
-        false,
-      tripAssistPrefillChangedAt:
-        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
-        normalizeApiIsoDate(payload?.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(payload?.controlAutomaticRecognitionChangedAt) ??
-        undefined,
       tripAutoMaintenanceProvisionPercent: (() => {
         const raw =
           user.tripAutoMaintenanceProvisionPercent ??
@@ -896,18 +830,6 @@ export class SessionService {
       paymentReminderDaysBefore: normalizePaymentReminderDays(
         user.paymentReminderDaysBefore ?? payload?.paymentReminderDaysBefore,
       ),
-      controlAutomaticRecognition:
-        user.tripAssistPrefillEnabled ??
-        user.controlAutomaticRecognition ??
-        payload?.tripAssistPrefillEnabled ??
-        payload?.controlAutomaticRecognition ??
-        false,
-      controlAutomaticRecognitionChangedAt:
-        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
-        normalizeApiIsoDate(payload?.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(payload?.controlAutomaticRecognitionChangedAt) ??
-        undefined,
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ??
         payload?.maintenanceKmControlEnabled ??

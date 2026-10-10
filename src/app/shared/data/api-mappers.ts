@@ -204,6 +204,10 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
     employmentContractType: (row['employmentContractType'] as string) ?? '',
     paymentSchedule:
       (row['paymentSchedule'] as Operator['paymentSchedule']) ?? 'maneuver',
+    weeklyPayDay:
+      typeof row['weeklyPayDay'] === 'string' && row['weeklyPayDay'].trim()
+        ? (row['weeklyPayDay'] as Operator['weeklyPayDay'])
+        : undefined,
     paymentMethod:
       typeof row['paymentMethod'] === 'string'
         ? row['paymentMethod']

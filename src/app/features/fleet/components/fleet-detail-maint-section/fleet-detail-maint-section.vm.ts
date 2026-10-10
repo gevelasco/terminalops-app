@@ -15,6 +15,13 @@ export interface FleetDetailMaintSectionVm {
   maintenanceKmRemainingDisplay(): string;
   accumulatedOdometerKmLabel(): string;
   maintenanceKmCounterLabel(): string;
+  canEditMaintenanceKmCounter(): boolean;
+  editingMaintenanceKmCounter(): boolean;
+  readonly editMaintenanceKmCounter: WritableSignal<string>;
+  maintenanceKmCounterEditHint(): string | null;
+  startEditMaintenanceKmCounter(): void;
+  cancelEditMaintenanceKmCounter(): void;
+  saveEditMaintenanceKmCounter(): void;
   addingMaint(): boolean;
   canWriteFleet(): boolean;
   openNewMaint(): void;
@@ -28,6 +35,8 @@ export interface FleetDetailMaintSectionVm {
   readonly newMaintNotes: WritableSignal<string>;
   readonly newMaintFiles: Signal<readonly File[]>;
   newMaintMaxDate(): string | undefined;
+  /** Aviso al elegir servicio completo con política por km (unidad vs equipo). */
+  newMaintKmCounterResetHint(): string | null;
   onNewMaintFiles(event: Event): void;
   removeNewMaintFile(index: number): void;
   cancelNewMaint(): void;

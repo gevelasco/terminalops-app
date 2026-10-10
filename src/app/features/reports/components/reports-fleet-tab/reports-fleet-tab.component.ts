@@ -12,7 +12,6 @@ import { SessionService } from '@core/services/state/session';
 import { ReportsTabDataService } from '@features/reports/services/reports-tab-data.service';
 import { buildReportsFleetStatusDonutOption } from '@features/reports/utils/charts/fleet/reports-fleet-status-donut-option';
 import { buildReportsFleetUnitsHorizontalBarOption } from '@features/reports/utils/charts/fleet/reports-fleet-units-horizontal-bar-option';
-import { buildReportsFleetUnitProfitabilityStackedBarOption } from '@features/reports/utils/charts/fleet/reports-fleet-unit-profitability-stacked-bar-option';
 import {
   REPORTS_FLEET_CHART_COLOR_OFFSET,
   reportsChartPrimary,
@@ -159,13 +158,6 @@ export class ReportsFleetTabComponent {
   readonly topUnitsOption = computed(() =>
     buildReportsFleetUnitsHorizontalBarOption(
       this.insights()?.topUnitsByKm ?? [],
-    ),
-  );
-
-  readonly unitProfitabilityOption = computed(() =>
-    buildReportsFleetUnitProfitabilityStackedBarOption(
-      this.insights()?.unitProfitability ?? [],
-      { primaryColor: this.chartShellColor() },
     ),
   );
 

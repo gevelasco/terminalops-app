@@ -20,14 +20,18 @@ export function buildReportsBalanceClientPerformanceOption(
   const ordered = [...rows]
     .filter((r) => r.revenue > 0 || r.cost > 0 || r.margin !== 0)
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 8);
-  const labels = ordered.map((r) => r.clientName);
+    .slice(0, 3);
+  const labels = ordered.map((r) => {
+    const pct =
+      r.marginPercent == null ? '—' : `${r.marginPercent.toFixed(1)}%`;
+    return `${r.clientName} · ${pct}`;
+  });
   const colors = reportsChartFinancialColors(options?.primaryColor);
   const valueAxis = reportsChartValueAxis();
 
   return {
     animationDuration: 460,
-    grid: { left: 4, right: 12, top: 26, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 12, top: 36, bottom: 4, containLabel: true },
     legend: reportsChartLegend(),
     tooltip: {
       trigger: 'axis',
@@ -40,8 +44,9 @@ export function buildReportsBalanceClientPerformanceOption(
         if (!row) {
           return '';
         }
-        const pct = row.marginPercent == null ? '—' : `${row.marginPercent.toFixed(1)}%`;
-        return `${row.clientName}<br/>Inversión: ${formatReportsMoneyMx(row.cost)}<br/>Ingreso: ${formatReportsMoneyMx(row.revenue)}<br/>Margen: ${formatReportsMoneyMx(row.margin)} · ${pct}`;
+        const pct =
+          row.marginPercent == null ? '—' : `${row.marginPercent.toFixed(1)}%`;
+        return `${row.clientName}<br/>Inversión: ${formatReportsMoneyMx(row.cost)}<br/>Ingreso: ${formatReportsMoneyMx(row.revenue)}<br/>Margen: ${formatReportsMoneyMx(row.margin)}<br/>Rendimiento: ${pct} del ingreso`;
       },
     },
     xAxis: {
@@ -58,7 +63,7 @@ export function buildReportsBalanceClientPerformanceOption(
       axisLabel: {
         color: valueAxis.axisLabel.color,
         fontSize: 10,
-        width: 96,
+        width: 148,
         overflow: 'truncate',
       },
     },

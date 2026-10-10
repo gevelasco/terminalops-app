@@ -8,12 +8,12 @@ export type ReportsBalanceSummary = {
   expensesCount: number;
   realExpenses: number;
   provisions: number;
-  accountsPayable: number;
   cashMargin: number;
   accruedMargin: number;
   marginPercent: number | null;
   tollsSpendInPeriod: number;
   operatorSpendInPeriod: number;
+  maintenanceSpendInPeriod: number;
 };
 
 export type ReportsBalanceCompositionSlice = {
@@ -116,12 +116,12 @@ function mapSummary(raw: Record<string, unknown>): ReportsBalanceSummary {
     expensesCount: num(raw['expensesCount']),
     realExpenses: num(raw['realExpenses']),
     provisions: num(raw['provisions']),
-    accountsPayable: num(raw['accountsPayable']),
     cashMargin: num(raw['cashMargin']),
     accruedMargin: num(raw['accruedMargin']),
     marginPercent: marginPercent == null ? null : num(marginPercent),
     tollsSpendInPeriod: num(raw['tollsSpendInPeriod']),
     operatorSpendInPeriod: num(raw['operatorSpendInPeriod']),
+    maintenanceSpendInPeriod: num(raw['maintenanceSpendInPeriod']),
   };
 }
 

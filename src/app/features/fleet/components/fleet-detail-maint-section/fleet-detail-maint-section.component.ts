@@ -12,7 +12,10 @@ import type { FleetDetailMaintSectionVm } from './fleet-detail-maint-section.vm'
   standalone: true,
   imports: [...FLEET_DETAIL_DRAWER_TAB_IMPORTS],
   templateUrl: './fleet-detail-maint-section.component.html',
-  styleUrls: [...FLEET_DETAIL_DRAWER_TAB_STYLES_DEPTH_1],
+  styleUrls: [
+    ...FLEET_DETAIL_DRAWER_TAB_STYLES_DEPTH_1,
+    '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FleetDetailMaintSectionComponent {

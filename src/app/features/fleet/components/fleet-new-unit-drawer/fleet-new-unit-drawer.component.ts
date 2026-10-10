@@ -32,6 +32,13 @@ import {
 } from '@features/fleet/utils/fleet-verification-exemption.util';
 import { formatFleetYmdMx } from '@features/fleet/utils/fleet-unit-table-row';
 import {
+  fleetMaintenanceKmRemainingFromCounterInput,
+  formatMaintenanceKmRemainingLabel,
+  parseMaintenanceKmCounterInput,
+} from '@features/fleet/utils/fleet-maintenance-km.util';
+import { companyMaintenancePolicyFromSession } from '@shared/models/company-operational-settings.models';
+import { SessionService } from '@core/services/state/session';
+import {
   MaintenanceEntry,
   TrailerTenureMode,
   UnitFleetMeta,
@@ -172,6 +179,7 @@ export class FleetNewUnitDrawerComponent {
   private readonly unitsApi = inject(UnitsApiService);
   private readonly expensesApi = inject(ExpensesService);
   private readonly planEntitlements = inject(PlanEntitlementService);
+  private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -191,6 +199,8 @@ export class FleetNewUnitDrawerComponent {
   readonly approximatePerformanceKmL = model('');
   readonly grossVehicleWeightLb = model('');
   readonly odometerKm = model('');
+  /** Km desde el último servicio completo (política por km). Vacío = 0. */
+  readonly maintenanceKmCounter = model('');
   readonly lastMaintenanceDate = model('');
   readonly lastMaintenanceType = model('servicio_completo');
   readonly lastMaintenanceCost = model('');
@@ -266,6 +276,33 @@ export class FleetNewUnitDrawerComponent {
   readonly showMaintenanceDocs = computed(() =>
     hasValidDateAndCost(this.lastMaintenanceDate(), this.lastMaintenanceCost()),
   );
+
+  readonly maintenanceKmPolicyActive = computed(() =>
+    this.planEntitlements.effectiveMaintenanceKmEnabled(),
+  );
+
+  readonly companyMaintPolicy = computed(() =>
+    companyMaintenancePolicyFromSession({
+      maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
+      maintenanceKmIntervalDefault: this.session.maintenanceKmIntervalDefault(),
+      maintenanceDateControlEnabled: this.session.maintenanceDateControlEnabled(),
+      maintenanceDatePeriodDefault: this.session.maintenanceDatePeriodDefault(),
+    }),
+  );
+
+  readonly maintenanceKmCounterHint = computed(() => {
+    if (!this.maintenanceKmPolicyActive()) {
+      return null;
+    }
+    const remaining = fleetMaintenanceKmRemainingFromCounterInput(
+      this.maintenanceKmCounter(),
+      this.companyMaintPolicy(),
+    );
+    if (remaining == null) {
+      return 'Km recorridos desde el último servicio completo en la vida real de la unidad (antes o después de registrarla aquí).';
+    }
+    return `Km desde el último servicio completo. Faltarían ${formatMaintenanceKmRemainingLabel(remaining)} para el próximo servicio según el intervalo de la empresa.`;
+  });
 
   readonly showVerificationDocs = computed(() => {
     const physOk =
@@ -576,6 +613,19 @@ export class FleetNewUnitDrawerComponent {
       return;
     }
 
+    let maintenanceKmCounterValue = 0;
+    if (this.maintenanceKmPolicyActive()) {
+      const kmParsed = parseMaintenanceKmCounterInput(this.maintenanceKmCounter());
+      if (kmParsed === 'invalid') {
+        this.toast.show(
+          'Los km acumulados desde el último servicio completo deben ser un número válido (≥ 0).',
+          'warning',
+        );
+        return;
+      }
+      maintenanceKmCounterValue = kmParsed;
+    }
+
     const maintCost = parseOptionalAmount(this.lastMaintenanceCost());
     if (maintCost === 'invalid') {
       this.toast.show(
@@ -664,7 +714,7 @@ export class FleetNewUnitDrawerComponent {
       approximatePerformanceKmL,
       grossVehicleWeightLb: lbRaw || undefined,
       odometerKm: this.odometerKm().trim() || undefined,
-      maintenanceKmCounter: 0,
+      maintenanceKmCounter: maintenanceKmCounterValue,
       lastMaintenanceDate: this.lastMaintenanceDate().trim() || undefined,
       lastMaintenanceType: maintTypeLabel,
       lastMaintenanceCost: maintCost === undefined ? undefined : maintCost,

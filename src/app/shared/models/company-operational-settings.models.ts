@@ -24,8 +24,6 @@ export interface CompanyOperationalCenter {
 export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   operationalAnalysisEnabled: boolean;
   operationalAnalysisChangedAt?: string;
-  tripAssistPrefillEnabled: boolean;
-  tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent: number;
   tripAutoFuelPaymentMethod: string;
   tripAutoTollsPaymentMethod: string;

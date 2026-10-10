@@ -60,25 +60,12 @@ export type ReportsFleetTireWearRow = {
   tireLifeUsedPercent: number;
 };
 
-export type ReportsFleetUnitProfitabilityRow = {
-  unitLabel: string;
-  revenue: number;
-  diesel: number;
-  operator: number;
-  tolls: number;
-  maintenance: number;
-  tires: number;
-  netMargin: number;
-  marginPercent: number | null;
-};
-
 export type ReportsFleetInsights = {
   statusMix: ReportsFleetStatusMixRow[];
   topUnitsByKm: ReportsFleetUnitActivityRow[];
   maintenanceEvents: ReportsFleetMaintenanceEventRow[];
   complianceUnits: ReportsFleetComplianceUnitRow[];
   tireWearByUnit: ReportsFleetTireWearRow[];
-  unitProfitability: ReportsFleetUnitProfitabilityRow[];
 };
 
 export type ReportsFleetData = {
@@ -176,20 +163,6 @@ export function mapApiReportsFleet(raw: Record<string, unknown>): ReportsFleetDa
     tireLifeUsedPercent: num(row['tireLifeUsedPercent']),
   }));
 
-  const unitProfitability = (
-    (insightsRaw['unitProfitability'] ?? []) as Record<string, unknown>[]
-  ).map((row) => ({
-    unitLabel: String(row['unitLabel'] ?? '—'),
-    revenue: num(row['revenue']),
-    diesel: num(row['diesel']),
-    operator: num(row['operator']),
-    tolls: num(row['tolls']),
-    maintenance: num(row['maintenance']),
-    tires: num(row['tires']),
-    netMargin: num(row['netMargin']),
-    marginPercent: row['marginPercent'] == null ? null : num(row['marginPercent']),
-  }));
-
   return {
     summary: {
       from: String(summaryRaw['from'] ?? ''),
@@ -209,7 +182,6 @@ export function mapApiReportsFleet(raw: Record<string, unknown>): ReportsFleetDa
       maintenanceEvents,
       complianceUnits,
       tireWearByUnit,
-      unitProfitability,
     },
   };
 }

@@ -23,6 +23,7 @@ import {
   OPERATOR_INSURANCE_KIND_OPTIONS,
   OPERATOR_LICENSE_TYPE_OPTIONS,
   OPERATOR_PAYMENT_SCHEDULE_OPTIONS,
+  OPERATOR_WEEKLY_PAY_DAY_OPTIONS,
   OPERATOR_PREMIUM_PERIOD_OPTIONS,
   OPERATOR_RELATIONSHIP_OPTIONS,
 } from '@shared/catalogs/operator-form-options';
@@ -32,6 +33,7 @@ import type {
   OperatorInsuranceKind,
   OperatorLicenseType,
   OperatorPaymentSchedule,
+  OperatorWeeklyPayDay,
 } from '@shared/models/logistics.models';
 import { beginInFlight } from '@shared/utils/in-flight-guard';
 import { OperatorCoverageFieldsComponent } from '../operator-coverage-fields/operator-coverage-fields.component';
@@ -96,6 +98,7 @@ export class OperatorsNewDrawerComponent {
   readonly companyHireDate = model(todayYmd());
   readonly employmentContractType = model('');
   readonly paymentSchedule = model<OperatorPaymentSchedule>('maneuver');
+  readonly weeklyPayDay = model<OperatorWeeklyPayDay>('fri');
   readonly paymentMethod = model('');
 
   readonly ecName = model('');
@@ -134,6 +137,7 @@ export class OperatorsNewDrawerComponent {
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
   readonly paymentScheduleOptions = OPERATOR_PAYMENT_SCHEDULE_OPTIONS;
+  readonly weeklyPayDayOptions = OPERATOR_WEEKLY_PAY_DAY_OPTIONS;
   readonly paymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
   constructor() {
@@ -237,6 +241,8 @@ export class OperatorsNewDrawerComponent {
       companyHireDate,
       employmentContractType: this.employmentContractType().trim(),
       paymentSchedule: this.paymentSchedule(),
+      weeklyPayDay:
+        this.paymentSchedule() === 'weekly' ? this.weeklyPayDay() : undefined,
       paymentMethod: this.paymentMethod().trim() || undefined,
       emergencyContact: {
         name: this.ecName().trim(),

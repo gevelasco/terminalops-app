@@ -61,20 +61,6 @@
     <section class="reports-fleet-panel reports-fleet-panel--wide">
       <header class="reports-fleet-panel__head">
         <div>
-          <h2 class="reports-fleet-panel__title">Rentabilidad por unidad</h2>
-          <p class="reports-fleet-panel__subtitle">
-            Ingreso − diésel, operador, casetas, mantenimiento y llantas · {{ periodSubtitle() }}
-          </p>
-        </div>
-      </header>
-      <div class="reports-fleet-panel__chart reports-fleet-panel__chart--tall">
-        <to-echarts-host [option]="unitProfitabilityOption()" />
-      </div>
-    </section>
-
-    <section class="reports-fleet-panel reports-fleet-panel--wide">
-      <header class="reports-fleet-panel__head">
-        <div>
           <h2 class="reports-fleet-panel__title">Desgaste de llantas</h2>
           <p class="reports-fleet-panel__subtitle">
             Estimación por km y peso — no es un gasto registrado · {{ periodSubtitle() }}

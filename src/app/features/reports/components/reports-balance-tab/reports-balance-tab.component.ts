@@ -181,15 +181,19 @@ export class ReportsBalanceTabComponent {
   );
   readonly operatorSpendLegend = computed(() => 'Pagos a operadores en el periodo');
 
-  readonly payableValue = computed(() =>
-    this.currencyMx.transform(this.summary()?.accountsPayable ?? 0),
+  readonly maintenanceSpendValue = computed(() =>
+    this.currencyMx.transform(this.summary()?.maintenanceSpendInPeriod ?? 0),
   );
-  readonly payableLegend = computed(() => 'Deudas con proveedores pendientes');
+  readonly maintenanceSpendLegend = computed(
+    () => 'Mantenimiento, reparación y llantas en el periodo',
+  );
 
   readonly provisionsValue = computed(() =>
     this.currencyMx.transform(this.summary()?.provisions ?? 0),
   );
-  readonly provisionsLegend = computed(() => 'Reservas operativas estimadas');
+  readonly provisionsLegend = computed(
+    () => 'Apartado automático registrado en cada maniobra',
+  );
 
   formatMoney(value: number, currency = 'MXN'): string {
     return this.currencyMx.transform(value, currency);

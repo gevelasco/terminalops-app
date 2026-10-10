@@ -12,7 +12,10 @@ function isPublicAuthUrl(url: string): boolean {
   return (
     url.includes('/auth/login') ||
     url.includes('/auth/refresh') ||
-    url.includes('/auth/logout')
+    url.includes('/auth/logout') ||
+    url.includes('/auth/sign-up') ||
+    url.includes('/auth/forgot-password') ||
+    url.includes('/auth/reset-password')
   );
 }
 

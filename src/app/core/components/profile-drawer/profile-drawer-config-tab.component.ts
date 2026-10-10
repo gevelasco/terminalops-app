@@ -39,11 +39,7 @@ import {
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 
-type DisableConfirmKind =
-  | 'maintenance'
-  | 'intelligent'
-  | 'diesel'
-  | 'prefill';
+type DisableConfirmKind = 'maintenance' | 'intelligent' | 'diesel';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
@@ -104,7 +100,6 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftPerDiemPaymentMethod = model('cash');
   readonly draftControlPaymentMethod = model('cash');
   readonly draftDieselControlEnabled = model(true);
-  readonly draftTripAssistPrefillEnabled = model(false);
   readonly draftPaymentReminderDays = model(String(PAYMENT_REMINDER_DAYS_DEFAULT));
 
   readonly pendingDisableKind = signal<DisableConfirmKind | null>(null);
@@ -150,13 +145,6 @@ export class ProfileDrawerConfigTabComponent {
     return this.controlStatusLabel(
       this.session.dieselControlEnabled(),
       this.session.dieselControlChangedAt(),
-    );
-  }
-
-  prefillStatusLabel(): string {
-    return this.controlStatusLabel(
-      this.session.tripAssistPrefillEnabled(),
-      this.session.tripAssistPrefillChangedAt(),
     );
   }
 
@@ -209,16 +197,6 @@ export class ProfileDrawerConfigTabComponent {
     this.draftDieselControlEnabled.set(next);
   }
 
-  toggleDraftTripAssistPrefill(): void {
-    const next = !this.draftTripAssistPrefillEnabled();
-    if (!next && this.draftTripAssistPrefillEnabled()) {
-      this.pendingDisableKind.set('prefill');
-      queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
-      return;
-    }
-    this.draftTripAssistPrefillEnabled.set(next);
-  }
-
   closeDisableConfirm(): void {
     this.pendingDisableKind.set(null);
     this.pendingMaintenanceMode.set(null);
@@ -236,8 +214,6 @@ export class ProfileDrawerConfigTabComponent {
       this.draftIntelligentEnabled.set(false);
     } else if (kind === 'diesel') {
       this.draftDieselControlEnabled.set(false);
-    } else if (kind === 'prefill') {
-      this.draftTripAssistPrefillEnabled.set(false);
     }
     this.closeDisableConfirm();
   }
@@ -364,9 +340,6 @@ export class ProfileDrawerConfigTabComponent {
   private buildConfigPatch(): PatchCompanyOperationalSettings | null {
     const patch: PatchCompanyOperationalSettings = {};
 
-    if (this.draftTripAssistPrefillEnabled() !== this.session.tripAssistPrefillEnabled()) {
-      patch.tripAssistPrefillEnabled = this.draftTripAssistPrefillEnabled();
-    }
     if (this.draftIntelligentEnabled() !== this.session.operationalAnalysisEnabled()) {
       patch.operationalAnalysisEnabled = this.draftIntelligentEnabled();
     }
@@ -482,7 +455,6 @@ export class ProfileDrawerConfigTabComponent {
     this.draftDieselControlEnabled.set(
       this.canUseDieselAutomatic() && this.session.dieselControlEnabled(),
     );
-    this.draftTripAssistPrefillEnabled.set(this.session.tripAssistPrefillEnabled());
     this.draftPaymentReminderDays.set(
       String(this.session.paymentReminderDaysBefore()),
     );

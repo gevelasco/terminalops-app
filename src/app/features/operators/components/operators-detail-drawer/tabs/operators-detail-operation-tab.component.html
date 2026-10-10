@@ -51,6 +51,12 @@
         <dt>Método de cobro</dt>
         <dd>{{ vm.paymentScheduleLabel() }}</dd>
       </div>
+      @if (vm.operator().paymentSchedule === "weekly") {
+        <div class="fleet-unit-detail__row">
+          <dt>Día de pago</dt>
+          <dd>{{ vm.weeklyPayDayLabel() }}</dd>
+        </div>
+      }
       <div class="fleet-unit-detail__row">
         <dt>Método de pago</dt>
         <dd>{{ vm.paymentMethodLabel() }}</dd>
@@ -93,6 +99,7 @@
         layout="edit"
         [employmentContractOptions]="vm.employmentContractOptions"
         [paymentScheduleOptions]="vm.paymentScheduleOptions"
+        [weeklyPayDayOptions]="vm.weeklyPayDayOptions"
         [paymentMethodOptions]="vm.paymentMethodOptions"
         [visibilityOptions]="vm.visibilityOptions"
         [operationalStatusOptions]="vm.manualOperationalStatusOptions()"
@@ -100,6 +107,7 @@
         [(companyHireDate)]="vm.editCompanyHireDate"
         [(employmentContractType)]="vm.editEmploymentContractType"
         [(paymentSchedule)]="vm.editPaymentSchedule"
+        [(weeklyPayDay)]="vm.editWeeklyPayDay"
         [(paymentMethod)]="vm.editPaymentMethod"
         [(visibility)]="vm.editVisibility"
         [(operationalStatus)]="vm.editOperationalStatus"

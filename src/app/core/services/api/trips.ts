@@ -27,6 +27,9 @@ import { buildFleetLinkOptionsQuery } from './fleet-link-options-query';
 import { SessionService } from '../state/session';
 import { companyResourceUrl, requireCompanyId, resourceByIdUrl } from './api-url';
 
+/** Filtro API para programadas + en curso (una sola petición). */
+export const TRIPS_OPERATIONAL_STATUS_FILTER = 'scheduled,in_transit';
+
 export interface TripsListParams {
   page?: number;
   limit?: number;
@@ -136,6 +139,14 @@ export class TripsService {
           ? (raw['items'] as Record<string, unknown>[]).map(mapApiTripLinkOption)
           : [],
       })),
+    );
+  }
+
+  /** Solo `{ total }` — sin joins de listado ni geo del mapa. */
+  getTripsOperationalSummary(): Observable<{ total: number }> {
+    const companyId = requireCompanyId(this.session.companyId());
+    return this.http.get<{ total: number }>(
+      companyResourceUrl(companyId, 'trips/operational-summary'),
     );
   }
 

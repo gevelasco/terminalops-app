@@ -160,10 +160,7 @@ export const REPORTS_BALANCE_CHART_COLOR_OFFSET = {
 export const REPORTS_MANIOBRAS_CHART_COLOR_OFFSET = {
   topOperators: 0,
   topClients: 0,
-  topDestinations: 0,
   containerTypeMix: 0,
-  cargoWeightByContainer: 0,
-  ralentiByClient: 0,
 } as const;
 
 /** Rotación categórica en tab Flota — todas las gráficas inician en color 1. */

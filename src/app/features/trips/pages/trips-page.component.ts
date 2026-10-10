@@ -24,6 +24,12 @@ import {
   type TripsListParams,
   type TripsListResponse,
 } from '@services/api/trips';
+import { isOperationalTripStatus } from '@core/services/state/operational-fleet-sync.service';
+import {
+  readTripsOperationalSummaryCache,
+  writeTripsOperationalSummaryCache,
+  invalidateTripsOperationalSummaryCache,
+} from '@features/trips/utils/trips-operational-summary-cache';
 import { maniobraListRowFromTrip } from '@features/trips/utils/maniobra-list-row';
 import { maniobraListExportRowFromTableRow } from '@features/trips/utils/maniobra-list-export.util';
 import {
@@ -129,6 +135,11 @@ export class TripsPageComponent implements OnInit {
   private listWasLoading = false;
   /** Evita un segundo GET de lista en el primer tick de `listEpoch`. */
   private listEpochSeen = false;
+  /**
+   * Hasta resolver tab inicial: 1 GET liviano (limit=1) o caché operativa en memoria.
+   * Evita cargar la lista completa si abriremos Ruta.
+   */
+  protected readonly resolvingDefaultView = signal(true);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -179,6 +190,9 @@ export class TripsPageComponent implements OnInit {
     });
 
     effect(() => {
+      if (this.resolvingDefaultView()) {
+        return;
+      }
       if (this.viewMode() !== 'list') {
         return;
       }
@@ -365,15 +379,60 @@ export class TripsPageComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.openTripFromQuery(this.route.snapshot.queryParamMap.get('tripId'));
+    const tripId = this.route.snapshot.queryParamMap.get('tripId');
+    if (tripId?.trim()) {
+      this.resolvingDefaultView.set(false);
+      this.openTripFromQuery(tripId);
+    } else {
+      this.bootstrapDefaultView();
+    }
     this.route.queryParamMap
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
-        const tripId = params.get('tripId');
-        if (tripId) {
-          this.openTripFromQuery(tripId);
+        const id = params.get('tripId');
+        if (id?.trim()) {
+          this.resolvingDefaultView.set(false);
+          this.openTripFromQuery(id);
         }
       });
+  }
+
+  /**
+   * Tab inicial: Lista salvo maniobras programadas/en curso → Ruta.
+   * GET /trips/operational-summary (solo COUNT en API).
+   */
+  private bootstrapDefaultView(): void {
+    if (
+      this.tripsFeature.trips().some((t) => isOperationalTripStatus(t.status))
+    ) {
+      this.viewMode.set('route');
+      this.resolvingDefaultView.set(false);
+      return;
+    }
+    const companyId = this.session.companyId() ?? '';
+    const cached = readTripsOperationalSummaryCache(companyId);
+    if (cached != null) {
+      this.applyDefaultViewFromOperationalTotal(cached);
+      this.resolvingDefaultView.set(false);
+      return;
+    }
+    this.tripsApi
+      .getTripsOperationalSummary()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          writeTripsOperationalSummaryCache(companyId, res.total);
+          this.applyDefaultViewFromOperationalTotal(res.total);
+          this.resolvingDefaultView.set(false);
+        },
+        error: () => this.resolvingDefaultView.set(false),
+      });
+  }
+
+  private applyDefaultViewFromOperationalTotal(total: number): void {
+    if (total > 0) {
+      this.viewMode.set('route');
+    }
   }
 
   onSearchFocusIn(): void {
@@ -500,6 +559,7 @@ export class TripsPageComponent implements OnInit {
   onTripCreated(_trip: Trip): void {
     this.toast.show('Maniobra programada.', 'success');
     this.newTripOpen.set(false);
+    invalidateTripsOperationalSummaryCache(this.session.companyId() ?? '');
     void this.listResource.reload();
     if (this.tripsMap.loaded()) {
       this.tripsMap.refresh({ silent: true });

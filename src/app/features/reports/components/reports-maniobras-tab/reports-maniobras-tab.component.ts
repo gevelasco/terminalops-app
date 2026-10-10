@@ -10,12 +10,9 @@ import { catchError, map, of, startWith, switchMap } from 'rxjs';
 import { SessionService } from '@core/services/state/session';
 import { ReportsTabDataService } from '@features/reports/services/reports-tab-data.service';
 import { ReportsManiobrasGeoChartComponent } from '@features/reports/components/reports-maniobras-tab/reports-maniobras-geo-chart.component';
-import { buildReportsGeneralDestinationsBarOption } from '@features/reports/utils/charts/general/reports-general-destinations-bar-option';
 import { buildReportsManiobrasClientsHorizontalBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-clients-horizontal-bar-option';
 import { buildReportsManiobrasContainerTypeDonutOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-container-type-donut-option';
-import { buildReportsManiobrasCargoWeightBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-cargo-weight-bar-option';
 import { buildReportsManiobrasOperatorsHorizontalBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-operators-horizontal-bar-option';
-import { buildReportsManiobrasRalentiStackedBarOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-ralenti-stacked-bar-option';
 import {
   REPORTS_MANIOBRAS_CHART_COLOR_OFFSET,
   reportsChartPrimary,
@@ -26,11 +23,7 @@ import {
   countManiobrasWithIncidents,
   maniobrasIncidentRatePercent,
 } from '@features/reports/utils/reports-maniobras-quality.util';
-import type {
-  ReportsManiobrasData,
-  ReportsManiobrasRalentiEvent,
-  ReportsManiobrasRalentiLeg,
-} from '@shared/models/api/api-reports-maniobras.model';
+import type { ReportsManiobrasData } from '@shared/models/api/api-reports-maniobras.model';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { maneuverStatusPillClass } from '@shared/utils/maneuver-status-pill';
 import { tripStatusUiLabel } from '@shared/utils/trip-status-ui';
@@ -101,14 +94,6 @@ function formatIncidentDate(iso: string | null | undefined): string {
   }).format(date);
 }
 
-function ralentiLegLabel(leg: ReportsManiobrasRalentiLeg): string {
-  return leg === 'cliente_regreso' ? 'Cliente → regreso' : 'Salida → cliente';
-}
-
-function ralentiBaselineLabel(source: ReportsManiobrasRalentiEvent['baselineSource']): string {
-  return source === 'rate' ? 'Tarifa' : 'Plan';
-}
-
 @Component({
   selector: 'app-reports-maniobras-tab',
   standalone: true,
@@ -176,14 +161,6 @@ export class ReportsManiobrasTabComponent {
     ),
   );
 
-  readonly destinationsOption = computed(() => {
-    const rows = (this.insights()?.topDestinations ?? []).map((row) => ({
-      destination: row.destination,
-      tripCount: row.tripCount,
-    }));
-    return buildReportsGeneralDestinationsBarOption(rows);
-  });
-
   readonly containerTypeOption = computed(() =>
     buildReportsManiobrasContainerTypeDonutOption(
       this.insights()?.containerTypeMix ?? [],
@@ -192,37 +169,11 @@ export class ReportsManiobrasTabComponent {
     ),
   );
 
-  readonly cargoWeightOption = computed(() =>
-    buildReportsManiobrasCargoWeightBarOption(
-      this.insights()?.cargoWeightByContainer ?? [],
-    ),
-  );
-
   readonly hasContainerTypeMix = computed(
     () => (this.insights()?.containerTypeMix?.length ?? 0) > 0,
   );
 
-  readonly hasCargoWeight = computed(
-    () => (this.insights()?.cargoWeightByContainer?.length ?? 0) > 0,
-  );
-
   readonly ralenti = computed(() => this.insights()?.ralenti);
-
-  readonly ralentiByClientOption = computed(() =>
-    buildReportsManiobrasRalentiStackedBarOption(
-      this.ralenti()?.byClient ?? [],
-      REPORTS_MANIOBRAS_CHART_COLOR_OFFSET.ralentiByClient,
-      { primaryColor: this.chartShellColor() },
-    ),
-  );
-
-  readonly hasRalentiByClient = computed(
-    () => (this.ralenti()?.byClient?.length ?? 0) > 0,
-  );
-
-  readonly ralentiEvents = computed(() => this.ralenti()?.events ?? []);
-
-  readonly hasRalentiEvents = computed(() => this.ralentiEvents().length > 0);
 
   readonly geoMapTrips = computed(() => this.insights()?.geoMapTrips ?? []);
 
@@ -230,10 +181,6 @@ export class ReportsManiobrasTabComponent {
 
   readonly displayedGeoMapTrips = computed(() =>
     cappedListView(this.geoMapTrips(), REPORTS_DENSE_LIST_CAP),
-  );
-
-  readonly displayedRalentiEvents = computed(() =>
-    cappedListView(this.ralentiEvents(), REPORTS_DENSE_LIST_CAP),
   );
 
   readonly displayedRecurringIncidentRoutes = computed(() =>
@@ -245,10 +192,6 @@ export class ReportsManiobrasTabComponent {
   formatTripDurationDays = formatTripDurationDays;
   formatManeuverCodesLabel = formatManeuverCodesLabel;
   formatIncidentDate = formatIncidentDate;
-  formatHours = formatHours;
-  ralentiLegLabel = ralentiLegLabel;
-  ralentiBaselineLabel = ralentiBaselineLabel;
-
   readonly maneuverStatusPillClass = maneuverStatusPillClass;
 
   formatTripStatusLabel(status: TripStatus): string {

@@ -26,6 +26,8 @@ export class OperatorOperationFieldsComponent {
   readonly companyHireDate = model('');
   readonly employmentContractType = model('');
   readonly paymentSchedule = model('maneuver');
+  readonly weeklyPayDayOptions = input<ToSelectOption[]>([]);
+  readonly weeklyPayDay = model('fri');
   readonly paymentMethod = model('');
   readonly visibility = model('');
   readonly operationalStatus = model('');

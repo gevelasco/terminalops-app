@@ -30,6 +30,7 @@ import {
   OPERATOR_LICENSE_TYPE_OPTIONS,
   OPERATOR_MANUAL_STATUS_OPTIONS,
   OPERATOR_PAYMENT_SCHEDULE_OPTIONS,
+  OPERATOR_WEEKLY_PAY_DAY_OPTIONS,
   OPERATOR_PREMIUM_PERIOD_OPTIONS,
   OPERATOR_RELATIONSHIP_OPTIONS,
   operatorEmploymentContractLabel,
@@ -37,6 +38,7 @@ import {
   operatorLicenseTypeLabel,
   operatorOperationalStatusLabel,
   operatorPaymentScheduleLabel,
+  operatorWeeklyPayDayLabel,
   operatorRelationshipLabel,
 } from '@shared/catalogs/operator-form-options';
 import { FLEET_RESOURCE_VISIBILITY_OPTIONS } from '@shared/catalogs/fleet-form-options';
@@ -53,6 +55,7 @@ import type {
   OperatorLicenseType,
   OperatorOperationalStatus,
   OperatorPaymentSchedule,
+  OperatorWeeklyPayDay,
 } from '@shared/models/logistics.models';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
@@ -126,6 +129,7 @@ export class OperatorsDetailDrawerFacade {
   readonly editCompanyHireDate = signal('');
   readonly editEmploymentContractType = signal('');
   readonly editPaymentSchedule = signal<OperatorPaymentSchedule>('maneuver');
+  readonly editWeeklyPayDay = signal<OperatorWeeklyPayDay>('fri');
   readonly editPaymentMethod = signal('');
   readonly editVisibility = signal<'active' | 'inactive'>('active');
   readonly editOperationalStatus = signal('available');
@@ -185,6 +189,7 @@ export class OperatorsDetailDrawerFacade {
   readonly premiumPeriodOptions = OPERATOR_PREMIUM_PERIOD_OPTIONS;
   readonly employmentContractOptions = OPERATOR_EMPLOYMENT_CONTRACT_OPTIONS;
   readonly paymentScheduleOptions = OPERATOR_PAYMENT_SCHEDULE_OPTIONS;
+  readonly weeklyPayDayOptions = OPERATOR_WEEKLY_PAY_DAY_OPTIONS;
   readonly paymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
   readonly operationSummary = computed(
@@ -398,6 +403,10 @@ export class OperatorsDetailDrawerFacade {
 
   paymentScheduleLabel(): string {
     return operatorPaymentScheduleLabel(this.operator().paymentSchedule);
+  }
+
+  weeklyPayDayLabel(): string {
+    return operatorWeeklyPayDayLabel(this.operator().weeklyPayDay);
   }
 
   paymentMethodLabel(): string {
@@ -674,6 +683,10 @@ export class OperatorsDetailDrawerFacade {
       companyHireDate,
       employmentContractType: this.editEmploymentContractType().trim(),
       paymentSchedule: this.editPaymentSchedule(),
+      weeklyPayDay:
+        this.editPaymentSchedule() === 'weekly'
+          ? this.editWeeklyPayDay()
+          : undefined,
       paymentMethod: this.editPaymentMethod().trim() || undefined,
     }) as Operator;
 
@@ -905,6 +918,7 @@ export class OperatorsDetailDrawerFacade {
     this.editCompanyHireDate.set(o.companyHireDate);
     this.editEmploymentContractType.set(o.employmentContractType);
     this.editPaymentSchedule.set(o.paymentSchedule ?? 'maneuver');
+    this.editWeeklyPayDay.set(o.weeklyPayDay ?? 'fri');
     this.editPaymentMethod.set(o.paymentMethod ?? '');
     this.editVisibility.set(o.isActive === false ? 'inactive' : 'active');
     this.editOperationalStatus.set(this.editStatusFromOperator(o));

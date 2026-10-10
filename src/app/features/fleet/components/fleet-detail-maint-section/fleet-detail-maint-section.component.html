@@ -53,9 +53,54 @@
                 <dd>{{ vm().accumulatedOdometerKmLabel() }}</dd>
               </div>
               @if (vm().maintenanceUsesKm()) {
-                <div class="fleet-unit-detail__row">
+                <div class="fleet-unit-detail__row fleet-unit-detail__row--maint-km">
                   <dt>Km acumulados (mant.)</dt>
-                  <dd>{{ vm().maintenanceKmCounterLabel() }}</dd>
+                  @if (vm().editingMaintenanceKmCounter()) {
+                    <dd class="fleet-unit-detail__maint-km-edit">
+                      <to-input
+                        label="Km desde último servicio completo"
+                        type="text"
+                        [groupThousands]="true"
+                        placeholder="Ej. 13,000"
+                        [(value)]="vm().editMaintenanceKmCounter"
+                      />
+                      @if (vm().maintenanceKmCounterEditHint(); as kmHint) {
+                        <p class="fleet-unit-sec__hint">{{ kmHint }}</p>
+                      }
+                      <div class="fleet-unit-detail__maint-km-edit-actions">
+                        <to-button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          (click)="vm().cancelEditMaintenanceKmCounter()"
+                        >
+                          Cancelar
+                        </to-button>
+                        <to-button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          (click)="vm().saveEditMaintenanceKmCounter()"
+                        >
+                          Guardar
+                        </to-button>
+                      </div>
+                    </dd>
+                  } @else {
+                    <dd class="fleet-unit-detail__maint-km-display">
+                      <span>{{ vm().maintenanceKmCounterLabel() }}</span>
+                      @if (vm().canEditMaintenanceKmCounter()) {
+                        <button
+                          type="button"
+                          class="fleet-unit-sec__edit-btn"
+                          aria-label="Editar km acumulados de mantenimiento"
+                          (click)="vm().startEditMaintenanceKmCounter()"
+                        >
+                          <to-icon name="edit" [size]="14" />
+                        </button>
+                      }
+                    </dd>
+                  }
                 </div>
               }
               <div class="fleet-unit-detail__row">
@@ -102,6 +147,11 @@
                       [options]="vm().newMaintTypeOptions"
                       [(value)]="vm().newMaintType"
                     />
+                    @if (vm().newMaintKmCounterResetHint(); as kmResetHint) {
+                      <p class="fleet-unit-sec__hint fleet-unit-detail__maint-km-reset-hint">
+                        {{ kmResetHint }}
+                      </p>
+                    }
                     <to-input
                       label="Fecha del servicio *"
                       type="date"

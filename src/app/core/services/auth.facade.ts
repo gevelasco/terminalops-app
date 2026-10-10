@@ -83,18 +83,6 @@ export class AuthFacade {
         normalizeApiIsoDate(user.operationalAnalysisChangedAt) ??
         normalizeApiIsoDate(payload.operationalAnalysisChangedAt) ??
         user.operationalAnalysisChangedAt,
-      tripAssistPrefillEnabled:
-        user.tripAssistPrefillEnabled ??
-        user.controlAutomaticRecognition ??
-        payload.tripAssistPrefillEnabled ??
-        payload.controlAutomaticRecognition ??
-        false,
-      tripAssistPrefillChangedAt:
-        normalizeApiIsoDate(user.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(user.controlAutomaticRecognitionChangedAt) ??
-        normalizeApiIsoDate(payload.tripAssistPrefillChangedAt) ??
-        normalizeApiIsoDate(payload.controlAutomaticRecognitionChangedAt) ??
-        user.tripAssistPrefillChangedAt,
       tripAutoMaintenanceProvisionPercent: (() => {
         const raw =
           user.tripAutoMaintenanceProvisionPercent ??

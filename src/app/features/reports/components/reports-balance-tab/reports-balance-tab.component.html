@@ -40,13 +40,13 @@
       [legend]="operatorSpendLegend()"
     />
     <to-kpi-card
-      title="Resumen de Cuentas por pagar en el periodo"
-      titleIcon="credit"
-      [value]="payableValue()"
-      [legend]="payableLegend()"
+      title="Reparaciones / mantenimiento"
+      titleIcon="maintenance"
+      [value]="maintenanceSpendValue()"
+      [legend]="maintenanceSpendLegend()"
     />
     <to-kpi-card
-      title="Provisiones"
+      title="Reserva por maniobra"
       titleIcon="alert"
       [value]="provisionsValue()"
       [legend]="provisionsLegend()"
@@ -59,7 +59,7 @@
         <div>
           <h2 class="reports-balance-panel__title">Movimiento del periodo</h2>
           <p class="reports-balance-panel__subtitle">
-            Cobrado, gastos, por cobrar y provisiones · {{ periodSubtitle() }}
+            Cobrado, gastos, por cobrar y reserva por maniobra · {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -157,7 +157,8 @@
         <div>
           <h2 class="reports-balance-panel__title">Rendimiento por cliente</h2>
           <p class="reports-balance-panel__subtitle">
-            Inversión, ingreso y margen por cliente · {{ periodSubtitle() }}
+            Top 3 clientes por venta · inversión, ingreso, margen y rendimiento (%) ·
+            {{ periodSubtitle() }}
           </p>
         </div>
       </header>
@@ -205,7 +206,9 @@
           </p>
         </div>
       </header>
-      <div class="reports-balance-panel__table-wrap">
+      <div
+        class="reports-balance-panel__table-wrap reports-balance-panel__table-wrap--payables"
+      >
         @if (hasPayableItems()) {
           <table class="reports-balance-panel__table">
             <thead>

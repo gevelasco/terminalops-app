@@ -76,7 +76,14 @@ import {
   buildFleetMaintenanceExpensePayload,
   FLEET_MAINTENANCE_LEDGER_ERROR,
 } from '@features/fleet/utils/fleet-maintenance-expense.util';
-import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
+import {
+  fleetMaintenanceKmRemainingFromCounterInput,
+  fleetMaintenanceResetsKmCounter,
+  formatMaintenanceKmCounterLabel,
+  formatMaintenanceKmRemainingLabel,
+  parseMaintenanceKmCounter,
+  parseMaintenanceKmCounterInput,
+} from '@features/fleet/utils/fleet-maintenance-km.util';
 import { applySyncedFleetDocuments } from '@features/fleet/utils/fleet-synced-documents.util';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import { deriveFleetBrandAbbr } from '@shared/utils/fleet/derive-fleet-brand-abbr';
@@ -1381,6 +1388,69 @@ export class FleetUnitDetailDrawerFacade {
   readonly newMaintPaymentMethodOptions = EXPENSE_PAYMENT_METHOD_OPTIONS;
 
   readonly newMaintMaxDate = computed(() => this.today);
+
+  readonly editingMaintenanceKmCounter = signal(false);
+  readonly editMaintenanceKmCounter = signal('');
+
+  canEditMaintenanceKmCounter(): boolean {
+    return this.canWriteFleet() && this.maintenanceUsesKm();
+  }
+
+  startEditMaintenanceKmCounter(): void {
+    if (!this.canEditMaintenanceKmCounter()) {
+      return;
+    }
+    this.requestFocusDetailTab('mant');
+    const n = parseMaintenanceKmCounter(this.meta()?.maintenanceKmCounter);
+    this.editMaintenanceKmCounter.set(
+      n > 0
+        ? new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(n)
+        : '',
+    );
+    this.editingMaintenanceKmCounter.set(true);
+  }
+
+  cancelEditMaintenanceKmCounter(): void {
+    this.editingMaintenanceKmCounter.set(false);
+    this.editMaintenanceKmCounter.set('');
+  }
+
+  maintenanceKmCounterEditHint(): string | null {
+    const interval = this.companyMaintPolicy().kmIntervalDefault;
+    if (interval == null || !Number.isFinite(interval)) {
+      return null;
+    }
+    const remaining = fleetMaintenanceKmRemainingFromCounterInput(
+      this.editMaintenanceKmCounter(),
+      this.companyMaintPolicy(),
+    );
+    if (remaining == null) {
+      return null;
+    }
+    const intervalLabel = new Intl.NumberFormat('es-MX', {
+      maximumFractionDigits: 0,
+    }).format(interval);
+    return `Intervalo de la empresa: ${intervalLabel} km. Faltarían ${formatMaintenanceKmRemainingLabel(remaining)} para el próximo servicio completo.`;
+  }
+
+  saveEditMaintenanceKmCounter(): void {
+    if (!this.canEditMaintenanceKmCounter() || this.saving()) {
+      return;
+    }
+    const parsed = parseMaintenanceKmCounterInput(this.editMaintenanceKmCounter());
+    if (parsed === 'invalid') {
+      this.toast.show('Indica km acumulados válidos (cero o mayor).', 'warning');
+      return;
+    }
+    const metaPatch: Partial<UnitFleetMeta> = { maintenanceKmCounter: parsed };
+    this.metaOverride.update((prev) => ({ ...prev, ...metaPatch }));
+    this.editingMaintenanceKmCounter.set(false);
+    this.editMaintenanceKmCounter.set('');
+    this.persistCurrentUnit('Km acumulados de mantenimiento actualizados.', {
+      fleetMeta: metaPatch,
+    });
+  }
+
   private maintTypeLabel(value: string): string {
     return (
       this.newMaintTypeOptions.find((o) => o.value === value)?.label ?? value
@@ -1456,7 +1526,10 @@ export class FleetUnitDetailDrawerFacade {
       lastMaintenanceCost: cost,
       lastMaintenanceNotes: notes,
     };
-    if (this.companyKmMaintControlActive()) {
+    if (
+      this.companyKmMaintControlActive() &&
+      fleetMaintenanceResetsKmCounter(typeValue)
+    ) {
       metaPatch.maintenanceKmCounter = 0;
     }
 
@@ -1945,6 +2018,16 @@ export class FleetUnitDetailDrawerFacade {
 
   maintenanceKmCounterLabel(): string {
     return formatMaintenanceKmCounterLabel(this.meta());
+  }
+
+  newMaintKmCounterResetHint(): string | null {
+    if (!this.maintenanceUsesKm()) {
+      return null;
+    }
+    if (!fleetMaintenanceResetsKmCounter(this.newMaintType())) {
+      return null;
+    }
+    return 'Al guardar, el contador de km desde el último servicio completo se reiniciará a cero.';
   }
 
   maintenanceUsesKm(): boolean {

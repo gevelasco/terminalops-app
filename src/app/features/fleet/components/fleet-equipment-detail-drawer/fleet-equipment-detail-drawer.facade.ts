@@ -27,7 +27,6 @@ import {
 } from '@shared/models/company-operational-settings.models';
 import type { EquipmentPersistDraft } from '@shared/utils/fleet/equipment-api-payload';
 import { resolveEquipmentPersistDraft } from '@shared/utils/fleet/fleet-persist-draft';
-import type { UnitPersistDraft } from '@shared/utils/fleet/unit-api-payload';
 import {
   trackFileEntry,
   trackMaintenanceEntry,
@@ -60,7 +59,10 @@ import {
   buildFleetMaintenanceExpensePayload,
   FLEET_MAINTENANCE_LEDGER_ERROR,
 } from '@features/fleet/utils/fleet-maintenance-expense.util';
-import { formatMaintenanceKmCounterLabel } from '@features/fleet/utils/fleet-maintenance-km.util';
+import {
+  fleetMaintenanceResetsKmCounter,
+  formatMaintenanceKmCounterLabel,
+} from '@features/fleet/utils/fleet-maintenance-km.util';
 import { applySyncedFleetDocuments } from '@features/fleet/utils/fleet-synced-documents.util';
 import { FLEET_UNIT_DETAIL_TAB_SYMBOLS } from '@app/features/fleet/utils/fleet-unit-detail-tab-symbols';
 import {
@@ -582,6 +584,23 @@ export class FleetEquipmentDetailDrawerFacade {
   maintenanceKmCounterLabel(): string {
     return formatMaintenanceKmCounterLabel(this.assignedTractor()?.fleetMeta);
   }
+
+  readonly editingMaintenanceKmCounter = signal(false);
+  readonly editMaintenanceKmCounter = signal('');
+
+  canEditMaintenanceKmCounter(): boolean {
+    return false;
+  }
+
+  startEditMaintenanceKmCounter(): void {}
+
+  cancelEditMaintenanceKmCounter(): void {}
+
+  maintenanceKmCounterEditHint(): string | null {
+    return null;
+  }
+
+  saveEditMaintenanceKmCounter(): void {}
 
   maintenanceUsesKm(): boolean {
     return this.companyKmMaintControlActive();
@@ -1366,8 +1385,6 @@ export class FleetEquipmentDetailDrawerFacade {
       return;
     }
 
-    const resetTractorKmCounter = this.companyKmMaintControlActive();
-    const tractor = this.assignedTractor();
     const typeLabel = this.maintTypeLabel(this.newMaintType());
     const typeValue = this.newMaintType();
     const notes = this.newMaintNotes().trim() || undefined;
@@ -1412,12 +1429,7 @@ export class FleetEquipmentDetailDrawerFacade {
           this.resetNewMaintForm();
           this.saving.set(false);
           this.persistCurrentEquipment('Mantenimiento agregado.', { fleetMeta: metaPatch }, {
-            onSuccess: () => {
-              this.postMaintenanceLedgerExpense(ledgerPayload);
-              if (resetTractorKmCounter && tractor) {
-                this.resetTractorMaintenanceKmCounter(tractor);
-              }
-            },
+            onSuccess: () => this.postMaintenanceLedgerExpense(ledgerPayload),
           });
         },
         error: () => {
@@ -1427,27 +1439,14 @@ export class FleetEquipmentDetailDrawerFacade {
       });
   }
 
-  private resetTractorMaintenanceKmCounter(tractor: Unit): void {
-    const draft: UnitPersistDraft = {
-      sparseFleetMeta: true,
-      fleetMeta: { maintenanceKmCounter: 0 },
-    };
-    const unitToSend: Unit = {
-      ...tractor,
-      fleetMeta: { ...(tractor.fleetMeta ?? {}), maintenanceKmCounter: 0 },
-    };
-    this.unitsFeature
-      .updateUnit(unitToSend, draft)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.fleetFeature.refreshFleetModule(),
-        error: () => {
-          this.toast.show(
-            'El mantenimiento se guardó, pero no se pudo reiniciar el contador de km de la tractora.',
-            'warning',
-          );
-        },
-      });
+  newMaintKmCounterResetHint(): string | null {
+    if (!this.maintenanceUsesKm()) {
+      return null;
+    }
+    if (!fleetMaintenanceResetsKmCounter(this.newMaintType())) {
+      return null;
+    }
+    return 'El contador de km de la tractora asignada (servicio completo de motor) no se modifica desde el equipo; regístralo en la ficha de la unidad tractora.';
   }
 
   private postMaintenanceLedgerExpense(payload: ExpenseWritePayload | null): void {

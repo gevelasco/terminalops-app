@@ -22,6 +22,14 @@
       [options]="paymentScheduleOptions()"
       [(value)]="paymentSchedule"
     />
+    @if (paymentSchedule() === "weekly") {
+      <to-select
+        label="Día de pago semanal"
+        placeholder="Selecciona"
+        [options]="weeklyPayDayOptions()"
+        [(value)]="weeklyPayDay"
+      />
+    }
     <to-select
       label="Método de pago"
       placeholder="Selecciona"
@@ -52,6 +60,13 @@
       [options]="paymentScheduleOptions()"
       [(value)]="paymentSchedule"
     />
+    @if (paymentSchedule() === "weekly") {
+      <to-select
+        label="Día de pago semanal"
+        [options]="weeklyPayDayOptions()"
+        [(value)]="weeklyPayDay"
+      />
+    }
     <to-select
       label="Método de pago"
       [options]="paymentMethodOptions()"
