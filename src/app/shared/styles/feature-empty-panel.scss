@@ -52,17 +52,19 @@
 
 .to-feature-empty__title {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: var(--to-text-lg);
+  font-weight: var(--to-weight-bold);
+  letter-spacing: var(--to-tracking-tight);
+  line-height: var(--to-leading-snug);
   color: var(--to-color-text);
 }
 
 .to-feature-empty__copy {
   margin: 0;
   max-width: 22rem;
-  font-size: 0.875rem;
-  line-height: 1.45;
+  font-size: var(--to-text-base);
+  font-weight: var(--to-weight-medium);
+  line-height: var(--to-leading-normal);
   color: var(--to-color-text-muted);
 }
 
@@ -80,7 +82,8 @@
   margin: 0;
   padding: 0.65rem 0.85rem;
   border-radius: var(--to-radius-md);
-  font-size: 0.8125rem;
+  font-size: var(--to-text-sm);
+  line-height: var(--to-leading-normal);
   color: var(--to-color-text-muted);
   background: var(--to-color-surface-muted);
   border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);

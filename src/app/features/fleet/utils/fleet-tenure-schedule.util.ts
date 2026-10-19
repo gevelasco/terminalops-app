@@ -5,7 +5,10 @@ import {
   insuranceScheduleStatusLabel,
   type InsuranceScheduleRow,
 } from './fleet-insurance-schedule.util';
-import { buildLedgerCoverageSchedule } from './fleet-ledger-coverage-schedule.util';
+import {
+  buildLedgerCoverageSchedule,
+  type LedgerCoverageScheduleRow,
+} from './fleet-ledger-coverage-schedule.util';
 
 export type TenureScheduleRow = InsuranceScheduleRow;
 
@@ -83,6 +86,31 @@ export function tenurePaymentBounds(
   return { from: formatYmd(from), to: formatYmd(end) };
 }
 
+function tenureScheduleLabel(index: number, cadenceMonths: number): string {
+  if (cadenceMonths === 1) {
+    return `Mes ${index}`;
+  }
+  if (cadenceMonths === 3) {
+    return `T${index}`;
+  }
+  return `Pago ${index}`;
+}
+
+/** Re-etiqueta por orden de vencimiento (1…N), no por “Mensualidad k/12” del seguro. */
+function relabelTenureScheduleRows(
+  rows: readonly LedgerCoverageScheduleRow[],
+  cadenceMonths: number,
+): TenureScheduleRow[] {
+  return rows.map((row, i) => {
+    const index = i + 1;
+    return {
+      ...row,
+      index,
+      label: tenureScheduleLabel(index, cadenceMonths),
+    };
+  });
+}
+
 export function buildTenurePaymentSchedule(params: {
   meta: FleetTenurePaymentMeta | undefined;
   expenses: readonly Expense[];
@@ -91,11 +119,13 @@ export function buildTenurePaymentSchedule(params: {
   if (!showTenurePaymentSchedule(params.meta)) {
     return [];
   }
-  return buildLedgerCoverageSchedule({
+  const cadenceMonths = cadenceToMonths(params.meta?.trailerRecurringPaymentCadence);
+  const rows = buildLedgerCoverageSchedule({
     expenses: params.expenses,
     isMatch: (expense) => expense.kind === 'tenure_payment',
-    cadenceMonths: cadenceToMonths(params.meta?.trailerRecurringPaymentCadence),
+    cadenceMonths,
     confirmWindowDays: TENURE_PAYMENT_CONFIRM_WINDOW_DAYS,
     today: params.today,
   });
+  return relabelTenureScheduleRows(rows, cadenceMonths);
 }

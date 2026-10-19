@@ -149,8 +149,8 @@ function mapPaymentRow(
       : status;
   const apiCanConfirm = p['canConfirm'];
   const canConfirm =
-    apiCanConfirm === false
-      ? false
+    typeof apiCanConfirm === 'boolean'
+      ? apiCanConfirm
       : balance > 0 && inferredStatus !== 'paid';
 
   return {

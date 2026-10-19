@@ -1,20 +1,24 @@
 .to-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--to-gap-field);
 }
 
 .to-field__label {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--to-text-base);
+  font-weight: var(--to-weight-semibold);
+  letter-spacing: var(--to-tracking-normal);
+  line-height: var(--to-leading-snug);
   color: var(--to-color-text-muted);
 }
 
 .to-field__control {
   border: 1px solid var(--to-color-border);
   border-radius: var(--to-radius-md);
-  padding: 0.5rem 0.75rem;
+  padding: var(--to-control-padding-y) var(--to-control-padding-x);
   font: inherit;
+  font-size: var(--to-text-md);
+  line-height: var(--to-leading-normal);
   background: var(--to-color-surface);
   resize: vertical;
   min-height: 5rem;
@@ -32,6 +36,7 @@
 
 .to-field__error {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--to-text-sm);
+  line-height: var(--to-leading-snug);
   color: var(--to-color-danger);
 }

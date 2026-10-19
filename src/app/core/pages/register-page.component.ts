@@ -11,13 +11,14 @@ import {
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { LoginPageBackgroundComponent } from '@core/components/login-page-background/login-page-background.component';
 
 type RegisterView = 'plans' | 'checkout';
 
 @Component({
   selector: 'app-register-page',
   standalone: true,
-  imports: [ToButtonComponent, ToInputComponent, RouterLink],
+  imports: [ToButtonComponent, ToInputComponent, RouterLink, LoginPageBackgroundComponent],
   templateUrl: './register-page.component.html',
   styleUrl: './register-page.component.scss',
 })

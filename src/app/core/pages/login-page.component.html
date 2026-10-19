@@ -1,5 +1,5 @@
 <div class="login-page">
-  <div class="login-page__photo" aria-hidden="true"></div>
+  <app-login-page-background aria-hidden="true" />
 
   <div class="login-page__frame">
     <header class="login-page__brand">
@@ -26,8 +26,7 @@
     <section class="login-page__card" aria-labelledby="login-heading">
       <h1 id="login-heading" class="login-page__title">Iniciar sesión</h1>
       <p class="login-page__subtitle">
-        Acceso seguro. La sesión se comparte entre pestañas de TerminalOps.
-        Si no usas la app en 45 minutos, se cierra.
+        Acceso seguro. Ingresa para administrar tu flota y ver el status de tus maniobras.
       </p>
 
       <form class="login-page__form" (submit)="onSubmit($event)" novalidate>

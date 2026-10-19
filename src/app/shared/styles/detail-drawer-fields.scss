@@ -3,33 +3,31 @@
  * Misma tipografía y alineación en columna izquierda (etiqueta) y derecha (valor).
  */
 
-$detail-drawer-field-font-size: 0.8125rem;
-$detail-drawer-field-line-height: 1.45;
 $detail-drawer-field-label-width: 10.75rem;
 
 @mixin detail-drawer-field-row-grid {
   display: grid;
   grid-template-columns: minmax(0, $detail-drawer-field-label-width) minmax(0, 1fr);
-  gap: 0.35rem 0.85rem;
+  gap: 0.4rem 0.875rem;
   align-items: start;
-  font-size: $detail-drawer-field-font-size;
-  line-height: $detail-drawer-field-line-height;
+  font-size: var(--to-text-sm);
+  line-height: var(--to-leading-normal);
 }
 
 @mixin detail-drawer-field-label {
   margin: 0;
   padding-top: 0.02rem;
   color: color-mix(in srgb, var(--to-color-text-muted) 88%, var(--to-color-text));
-  font-weight: 700;
+  font-weight: var(--to-weight-semibold);
   font-size: inherit;
   line-height: inherit;
-  letter-spacing: 0.01em;
+  letter-spacing: var(--to-tracking-normal);
 }
 
 @mixin detail-drawer-field-value {
   margin: 0;
   color: var(--to-color-text);
-  font-weight: 400;
+  font-weight: var(--to-weight-regular);
   font-size: inherit;
   line-height: inherit;
   word-break: break-word;
@@ -40,7 +38,7 @@ $detail-drawer-field-label-width: 10.75rem;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .fleet-unit-detail__row {

@@ -38,9 +38,9 @@
 
 .register-page__eyebrow {
   margin: 0 0 0.55rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--to-text-xs);
+  font-weight: var(--to-weight-bold);
+  letter-spacing: var(--to-tracking-caps);
   text-transform: uppercase;
   color: color-mix(in srgb, #93c5fd 70%, #e5edf8);
 }
@@ -48,16 +48,17 @@
 .register-page__heading {
   margin: 0 0 0.65rem;
   font-size: clamp(1.55rem, 3.2vw, 2.15rem);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.15;
+  font-weight: var(--to-weight-bold);
+  letter-spacing: var(--to-tracking-tighter);
+  line-height: var(--to-leading-snug);
   color: #f1f5f9;
 }
 
 .register-page__lede {
   margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  font-size: var(--to-text-md);
+  font-weight: var(--to-weight-medium);
+  line-height: var(--to-leading-relaxed);
   color: rgba(229, 237, 248, 0.72);
 
   strong {
@@ -197,7 +198,7 @@
   padding: 0.4rem 0.7rem;
   border-radius: 999px;
   font-size: 0.6875rem;
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #fff;
@@ -243,7 +244,7 @@
 
 .register-page__plan-name {
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   letter-spacing: -0.025em;
   color: var(--to-color-text);
 }
@@ -300,7 +301,7 @@
 
 .register-page__plan-amount {
   font-size: clamp(1.7rem, 2.4vw, 2rem);
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--to-color-text);
@@ -378,7 +379,7 @@
   margin-top: 0.05rem;
   border-radius: 999px;
   font-size: 0.65rem;
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   color: color-mix(in srgb, var(--to-color-primary) 85%, #0f172a);
   background: color-mix(in srgb, var(--to-color-primary) 14%, transparent);
 }
@@ -557,7 +558,7 @@
 
 .register-page__checkout-price {
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   letter-spacing: -0.02em;
   color: #f8fafc;
 }

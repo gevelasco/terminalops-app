@@ -17,6 +17,42 @@
     --to-radius-md: 0.25rem;
     --to-radius-lg: 0.5rem;
 
+    /* Tipografía y espaciado (Inter 400–700) */
+    --to-font-sans:
+      Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans',
+      sans-serif;
+    --to-font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    --to-text-2xs: 0.6875rem;
+    --to-text-xs: 0.75rem;
+    --to-text-sm: 0.8125rem;
+    --to-text-base: 0.875rem;
+    --to-text-md: 0.9375rem;
+    --to-text-lg: 1.0625rem;
+    --to-text-xl: 1.25rem;
+    --to-text-display-sm: 1.375rem;
+    --to-leading-tight: 1.2;
+    --to-leading-snug: 1.35;
+    --to-leading-normal: 1.45;
+    --to-leading-relaxed: 1.55;
+    --to-weight-regular: 400;
+    --to-weight-medium: 500;
+    --to-weight-semibold: 600;
+    --to-weight-bold: 700;
+    --to-tracking-tighter: -0.035em;
+    --to-tracking-tight: -0.02em;
+    --to-tracking-normal: -0.01em;
+    --to-tracking-wide: 0.04em;
+    --to-tracking-caps: 0.06em;
+    --to-tracking-label: 0.07em;
+    --to-gap-field: 0.375rem;
+    --to-gap-stack-sm: 0.75rem;
+    --to-gap-stack-md: 1rem;
+    --to-gap-stack-lg: 1.25rem;
+    --to-gap-section: 1.5rem;
+    --to-control-padding-y: 0.5625rem;
+    --to-control-padding-x: 0.75rem;
+    --to-control-min-height: 2.625rem;
+
     --to-color-bg: #f9f9f9;
     --to-color-surface: #ffffff;
     --to-color-surface-muted: #f3f3f3;
@@ -144,16 +180,14 @@
     min-height: 100dvh;
     overflow-x: hidden;
     @apply bg-app-bg font-sans text-app-fg antialiased;
-    font-family:
-      Inter,
-      system-ui,
-      -apple-system,
-      Segoe UI,
-      Roboto,
-      Ubuntu,
-      Cantarell,
-      Noto Sans,
-      sans-serif;
+    font-family: var(--to-font-sans);
+    font-size: var(--to-text-base);
+    font-weight: var(--to-weight-regular);
+    line-height: var(--to-leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1, 'liga' 1;
   }
 
   app-root {
@@ -183,9 +217,9 @@
   max-width: 100%;
   padding: 0.22rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.25;
+  font-size: var(--to-text-sm);
+  font-weight: var(--to-weight-medium);
+  line-height: var(--to-leading-tight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

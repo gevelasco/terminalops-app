@@ -116,14 +116,14 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.875rem;
-  line-height: 1.45;
+  font-size: var(--to-text-base);
+  line-height: var(--to-leading-normal);
 }
 
 .to-table th,
 .to-table td {
   border-bottom: 1px solid color-mix(in srgb, var(--to-color-border) 92%, transparent);
-  padding: 0.75rem 1rem;
+  padding: 0.6875rem 1rem;
   text-align: left;
   vertical-align: middle;
 }
@@ -132,10 +132,11 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  font-weight: 600;
-  font-size: 0.6875rem;
+  font-weight: var(--to-weight-semibold);
+  font-size: var(--to-text-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--to-tracking-label);
+  line-height: var(--to-leading-snug);
   color: var(--to-color-text-muted);
   background: linear-gradient(
     180deg,

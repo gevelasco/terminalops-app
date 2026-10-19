@@ -84,18 +84,18 @@
 
 .shell-brand__title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-size: var(--to-text-base);
+  font-weight: var(--to-weight-bold);
+  letter-spacing: var(--to-tracking-tight);
+  line-height: var(--to-leading-snug);
   color: var(--shell-fg, #ffffff);
 }
 
 .shell-brand__legend {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: var(--to-text-xs);
+  font-weight: var(--to-weight-medium);
+  line-height: var(--to-leading-snug);
   color: var(--shell-fg-muted, #9ca3af);
 }
 
@@ -309,8 +309,9 @@
   padding: 0.5rem 0.85rem;
   border-radius: 9999px;
   border-left: none;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--to-text-base);
+  font-weight: var(--to-weight-medium);
+  letter-spacing: var(--to-tracking-normal);
   text-decoration: none;
   color: var(--shell-fg-muted, #9ca3af);
   transition:
@@ -325,7 +326,7 @@
   &.shell-nav-link--active {
     background: var(--shell-nav-active-bg, rgba(255, 255, 255, 0.1));
     color: var(--shell-nav-active-fg, #ffffff);
-    font-weight: 600;
+    font-weight: var(--to-weight-semibold);
   }
 }
 

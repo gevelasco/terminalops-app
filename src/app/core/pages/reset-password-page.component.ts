@@ -4,11 +4,12 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '@core/services/api/auth';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { LoginPageBackgroundComponent } from '@core/components/login-page-background/login-page-background.component';
 
 @Component({
   selector: 'app-reset-password-page',
   standalone: true,
-  imports: [ToButtonComponent, ToInputComponent, RouterLink],
+  imports: [ToButtonComponent, ToInputComponent, RouterLink, LoginPageBackgroundComponent],
   templateUrl: './reset-password-page.component.html',
   styleUrl: './login-page.component.scss',
 })

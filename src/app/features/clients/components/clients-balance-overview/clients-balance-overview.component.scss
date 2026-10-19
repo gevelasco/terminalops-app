@@ -126,7 +126,7 @@
 .clients-balance-overview__balance-amount {
   margin: 0;
   font-size: 1.75rem;
-  font-weight: 800;
+  font-weight: var(--to-weight-bold);
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--to-color-text);

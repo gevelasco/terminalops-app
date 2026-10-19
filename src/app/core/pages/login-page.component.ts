@@ -4,11 +4,12 @@ import { firstValueFrom } from 'rxjs';
 import { AuthFacade } from '@core/services/auth.facade';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
+import { LoginPageBackgroundComponent } from '@core/components/login-page-background/login-page-background.component';
 
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ToButtonComponent, ToInputComponent, RouterLink],
+  imports: [ToButtonComponent, ToInputComponent, RouterLink, LoginPageBackgroundComponent],
   templateUrl: './login-page.component.html',
   styleUrl: './login-page.component.scss',
 })
