@@ -988,6 +988,17 @@ export class OperatorsDetailDrawerFacade {
         this.operationSummaryCacheKey = `${operatorId}:${this.periodFrom()}:${this.periodTo()}:${epoch}`;
         this.operationSummarySignal.set(summary);
         this.syncOperatorListPaymentSummary(operatorId, summary);
+        const stillPending = summary.pendingPaymentRows.some(
+          (row) => row.tripId === normalizedTripId && row.canConfirm,
+        );
+        if (stillPending) {
+          this.invalidateOperationSummary();
+          this.toast.show(
+            'El servidor registró el pago, pero el resumen no reflejó el cambio. Vuelve a abrir el operador o recarga.',
+            'error',
+          );
+          return;
+        }
         this.toast.show('Pago registrado en la tabla de gastos.', 'success');
       });
   }
