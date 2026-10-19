@@ -7,13 +7,25 @@ import {
   viewChild,
 } from '@angular/core';
 
+type TruckRoute = 'main' | 'scenic';
+
 type RoadTruck = {
   x: number;
   speed: number;
   scale: number;
   seed: number;
   kind: 'container' | 'lowboy';
+  /** 2 = full doble (tándem de contenedores). */
+  containerCount?: 1 | 2;
+  /** Carril en la vía principal (px sobre el firme). */
+  lane: number;
 };
+
+/** Progreso 0–1; al reiniciar el ciclo los camiones entran por la izquierda sin quedar fuera de pantalla. */
+const TRUCK_CYCLE = 1;
+
+const SCENIC_BRANCH_START = 0.33;
+const SCENIC_BRANCH_END = 0.84;
 
 /** Carretera de montaña de noche: sierras, firme y tractocamiones (contenedor / carga pesada). */
 @Component({
@@ -67,9 +79,17 @@ export class LoginLogisticsVizComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.trucks = [
-      { x: 0.18, speed: 0.016, scale: 2.05, seed: 0.8, kind: 'container' },
-      { x: 0.52, speed: 0.012, scale: 1.35, seed: 2.1, kind: 'container' },
-      { x: 0.72, speed: 0.01, scale: 1.65, seed: 1.4, kind: 'lowboy' },
+      {
+        x: 0.08,
+        speed: 0.0145,
+        scale: 2.05,
+        seed: 0.8,
+        kind: 'container',
+        containerCount: 2,
+        lane: 0,
+      },
+      { x: 0.42, speed: 0.0145, scale: 1.35, seed: 2.1, kind: 'container', lane: 5 },
+      { x: 0.68, speed: 0.012, scale: 1.65, seed: 1.4, kind: 'lowboy', lane: 0 },
     ];
     this.resize();
     window.addEventListener('pointermove', this.onPointerMove, { passive: true });
@@ -147,15 +167,26 @@ export class LoginLogisticsVizComponent implements AfterViewInit, OnDestroy {
 
     const roadBaseY = height * 0.82 - py * 8;
     this.drawRoadCut(ctx, width, height, roadBaseY, nearAmp, time, 2, px * 22);
+    this.drawScenicBranchRoad(ctx, width, height, roadBaseY, nearAmp, time, 2, px * 22);
 
-    for (const truck of this.trucks) {
-      const progress = this.reduceMotion ? truck.x : (truck.x + time * truck.speed) % 1.1;
-      const x = (progress - 0.05) * width + px * 24;
-      const roadY = this.ridgeY(x, width, roadBaseY, nearAmp * 0.35, time, 2) + 2;
+    const truckProgress = this.trucks.map((truck) => ({
+      truck,
+      progress: this.truckProgress(truck, time),
+    }));
+    const routes = this.resolveTruckRoutes(truckProgress, width, px);
+    const placements = truckProgress.map(({ truck, progress }) =>
+      this.truckPlacement(truck, progress, routes, width, roadBaseY, nearAmp, time, px),
+    );
+    placements.sort((a, b) => a.y - b.y || a.x - b.x);
+
+    for (const place of placements) {
+      const { truck, x, y } = place;
       if (truck.kind === 'lowboy') {
-        this.drawTractorLowboy(ctx, x, roadY, truck.scale, 1, time + truck.seed);
+        this.drawTractorLowboy(ctx, x, y, truck.scale, 1, time + truck.seed);
+      } else if (truck.containerCount === 2) {
+        this.drawTractorDoubleContainer(ctx, x, y, truck.scale, 1, time + truck.seed);
       } else {
-        this.drawTractorContainer(ctx, x, roadY, truck.scale, 1, time + truck.seed);
+        this.drawTractorContainer(ctx, x, y, truck.scale, 1, time + truck.seed);
       }
     }
 
@@ -207,6 +238,173 @@ export class LoginLogisticsVizComponent implements AfterViewInit, OnDestroy {
     ctx.fillStyle = 'rgba(229, 237, 248, 0.72)';
     ctx.arc(x, y, 14, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  private truckProgress(truck: RoadTruck, time: number): number {
+    if (this.reduceMotion) {
+      return truck.x;
+    }
+    const raw = truck.x + time * truck.speed;
+    const cycle = Math.floor(raw / TRUCK_CYCLE) * TRUCK_CYCLE;
+    return raw - cycle;
+  }
+
+  private truckMainScreenX(progress: number, width: number, px: number): number {
+    return (progress - 0.05) * width + px * 24;
+  }
+
+  private inScenicBranch(progress: number): boolean {
+    return progress >= SCENIC_BRANCH_START && progress <= SCENIC_BRANCH_END;
+  }
+
+  /** Dos pasos sin recursión (evita stack overflow cuando dos contenedores comparten el ramal). */
+  private resolveTruckRoutes(
+    all: Array<{ truck: RoadTruck; progress: number }>,
+    width: number,
+    px: number,
+  ): Map<RoadTruck, TruckRoute> {
+    const routes = new Map<RoadTruck, TruckRoute>();
+    for (const { truck, progress } of all) {
+      if (!this.inScenicBranch(progress)) {
+        routes.set(truck, 'main');
+      } else if (truck.kind === 'lowboy') {
+        routes.set(truck, 'scenic');
+      } else {
+        routes.set(truck, 'main');
+      }
+    }
+
+    const minGapPx = width * 0.1;
+    for (const { truck, progress } of all) {
+      if (routes.get(truck) !== 'main' || !this.inScenicBranch(progress)) {
+        continue;
+      }
+      const myX = this.truckMainScreenX(progress, width, px);
+      for (const other of all) {
+        if (other.truck === truck || routes.get(other.truck) !== 'main') {
+          continue;
+        }
+        const gapPx = myX - this.truckMainScreenX(other.progress, width, px);
+        if (gapPx > 0 && gapPx < minGapPx && truck.speed > other.truck.speed + 0.0005) {
+          routes.set(truck, 'scenic');
+          break;
+        }
+      }
+    }
+
+    return routes;
+  }
+
+  private truckPlacement(
+    truck: RoadTruck,
+    progress: number,
+    routes: Map<RoadTruck, TruckRoute>,
+    width: number,
+    roadBaseY: number,
+    nearAmp: number,
+    time: number,
+    px: number,
+  ): { truck: RoadTruck; x: number; y: number; route: TruckRoute } {
+    const route = routes.get(truck) ?? 'main';
+    const screenProgress = progress - 0.05;
+    let x = screenProgress * width + px * 24;
+
+    if (route === 'main') {
+      const y =
+        this.ridgeY(x, width, roadBaseY, nearAmp * 0.35, time, 2) + 2 + truck.lane;
+      return { truck, x, y, route };
+    }
+
+    const u = (progress - SCENIC_BRANCH_START) / (SCENIC_BRANCH_END - SCENIC_BRANCH_START);
+    const lift = Math.sin(u * Math.PI) * 42;
+    const cutIn = Math.min(1, u / 0.14);
+    const cutOut = Math.min(1, (1 - u) / 0.16);
+    const branchBlend = Math.min(cutIn, cutOut);
+    const lateral = Math.sin(u * Math.PI) * -18 * branchBlend;
+    x += lateral;
+    const mainY = this.ridgeY(x, width, roadBaseY, nearAmp * 0.35, time, 2) + 2;
+    const y = mainY - lift * branchBlend;
+    return { truck, x, y, route };
+  }
+
+  /** Ramal elevado (curva de montaña) donde desvía el lowboy o quien iba a alcanzar al de adelante. */
+  private scenicBranchPoints(
+    width: number,
+    roadBaseY: number,
+    amp: number,
+    time: number,
+    seed: number,
+    shift: number,
+  ): Array<{ x: number; y: number }> {
+    const steps = 32;
+    const points: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps;
+      const progress = SCENIC_BRANCH_START + u * (SCENIC_BRANCH_END - SCENIC_BRANCH_START);
+      const x = (progress - 0.05) * width + shift;
+      const lift = Math.sin(u * Math.PI) * 42;
+      const cutIn = Math.min(1, u / 0.14);
+      const cutOut = Math.min(1, (1 - u) / 0.16);
+      const branchBlend = Math.min(cutIn, cutOut);
+      const lateral = Math.sin(u * Math.PI) * -18 * branchBlend;
+      const mainY = this.ridgeY(x + lateral, width, roadBaseY, amp * 0.35, time, seed) + 2;
+      points.push({ x: x + lateral, y: mainY - lift * branchBlend });
+    }
+    return points;
+  }
+
+  private strokePath(
+    ctx: CanvasRenderingContext2D,
+    points: Array<{ x: number; y: number }>,
+    offsetY: number,
+  ): void {
+    ctx.beginPath();
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (i === 0) {
+        ctx.moveTo(p.x, p.y + offsetY);
+      } else {
+        ctx.lineTo(p.x, p.y + offsetY);
+      }
+    }
+    ctx.stroke();
+  }
+
+  /** Ramal elevado: solo trazo sobre el paisaje (sin relleno vertical que cortaba el firme). */
+  private drawScenicBranchRoad(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    _height: number,
+    roadBaseY: number,
+    amp: number,
+    time: number,
+    seed: number,
+    shift: number,
+  ): void {
+    const points = this.scenicBranchPoints(width, roadBaseY, amp, time, seed, shift);
+    if (points.length < 2) {
+      return;
+    }
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.strokeStyle = 'rgba(26, 34, 46, 0.85)';
+    ctx.lineWidth = 22;
+    this.strokePath(ctx, points, 10);
+
+    ctx.strokeStyle = 'rgba(229, 237, 248, 0.08)';
+    ctx.lineWidth = 2;
+    this.strokePath(ctx, points, 6);
+
+    ctx.strokeStyle = 'rgba(240, 192, 64, 0.42)';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([10, 14]);
+    ctx.lineDashOffset = this.reduceMotion ? 0 : -(time * 28);
+    this.strokePath(ctx, points, 10);
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   private ridgeY(x: number, width: number, baseY: number, amp: number, time: number, seed: number): number {
@@ -412,6 +610,50 @@ export class LoginLogisticsVizComponent implements AfterViewInit, OnDestroy {
     ctx.restore();
   }
 
+  /** Tracto con tándem de dos contenedores (20+20). */
+  private drawTractorDoubleContainer(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    ground: number,
+    scale: number,
+    dir: number,
+    time: number,
+  ): void {
+    const s = 14 * scale;
+    const bounce = this.reduceMotion ? 0 : Math.sin(time * 3.5) * 0.4;
+    ctx.save();
+    ctx.translate(x, ground + bounce);
+    ctx.scale(dir, 1);
+
+    const cw = s * 2.28;
+    const ch = s * 1.38;
+    const gap = s * 0.14;
+    const hitch = s * 0.42;
+    const rearX = -(cw * 2 + gap + hitch);
+    const frontX = rearX + cw + gap;
+
+    this.drawContainerBox(ctx, rearX, -s * 0.12, cw, ch, '#2f4560');
+    this.drawContainerBox(ctx, frontX, -s * 0.12, cw, ch, '#355070');
+
+    ctx.fillStyle = '#1a222c';
+    ctx.fillRect(frontX - gap - s * 0.06, -s * 0.28, gap + s * 0.1, s * 0.14);
+    ctx.fillStyle = 'rgba(229, 237, 248, 0.14)';
+    ctx.fillRect(frontX - gap * 0.5 - s * 0.04, -s * 0.22, s * 0.08, s * 0.06);
+
+    this.drawTractorCab(ctx, s);
+    this.drawTruckTaillights(ctx, rearX - s * 0.04, s);
+    this.drawTruckWheels(ctx, s, time, [
+      -s * 3.95,
+      -s * 3.05,
+      -s * 2.15,
+      -s * 1.35,
+      -s * 0.58,
+      s * 0.48,
+    ]);
+
+    ctx.restore();
+  }
+
   private drawTractorLowboy(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -552,9 +794,10 @@ export class LoginLogisticsVizComponent implements AfterViewInit, OnDestroy {
     bottomY: number,
     w: number,
     h: number,
+    fill = '#355070',
   ): void {
     const top = bottomY - h;
-    ctx.fillStyle = '#355070';
+    ctx.fillStyle = fill;
     ctx.fillRect(x, top, w, h);
     ctx.fillStyle = 'rgba(255,255,255,0.09)';
     ctx.fillRect(x, top, w, 3);
