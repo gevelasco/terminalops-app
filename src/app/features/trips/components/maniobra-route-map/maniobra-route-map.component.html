@@ -1,4 +1,8 @@
-<section class="maniobra-route-map" aria-label="Mapa operativo de maniobras">
+<section
+  class="maniobra-route-map"
+  [class.maniobra-route-map--state-open]="stateFleet.hasSelection()"
+  aria-label="Mapa operativo de maniobras"
+>
   <div class="maniobra-route-map__canvas-wrap">
     @if (loading() || !geoReady()) {
       <div class="maniobra-route-map__overlay">
@@ -47,8 +51,21 @@
     <div class="maniobra-route-map__fleet-panel">
       @if (stateFleet.selectedState(); as stateName) {
         <header class="maniobra-route-map__fleet-header">
-          <h3 class="maniobra-route-map__fleet-title">{{ stateName }}</h3>
-          <p class="maniobra-route-map__fleet-subtitle">Flota en destino</p>
+          <div class="maniobra-route-map__fleet-heading">
+            <h3 class="maniobra-route-map__fleet-title">{{ stateName }}</h3>
+            <p class="maniobra-route-map__fleet-subtitle">Flota en destino</p>
+          </div>
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="maniobra-route-map__fleet-close"
+            ariaLabel="Cerrar flota y ver el mapa completo"
+            (click)="stateFleet.clear()"
+          >
+            <to-icon name="mapSearch" [size]="16" />
+            Ver mapa
+          </to-button>
         </header>
 
         @if (stateFleet.loading()) {

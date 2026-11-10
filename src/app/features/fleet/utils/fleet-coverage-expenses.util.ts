@@ -2,26 +2,27 @@ import type { ExpensesListParams } from '@core/services/api/expenses';
 import type { Expense } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
-/** Tope por consulta filtrada (p. ej. 12 mensualidades + margen). */
-export const FLEET_COVERAGE_EXPENSES_PAGE_LIMIT = 48;
-
 export type FleetCoverageExpenseKind = 'insurance' | 'gps' | 'tenure_payment';
 
 export type FleetCoverageExpenseScope =
   | { resource: 'unit'; unitId: string }
   | { resource: 'equipment'; equipmentId: string };
 
-export function buildFleetCoverageExpensesPageParams(
+export type FleetCoverageExpensesListParams = Omit<ExpensesListParams, 'page' | 'limit'>;
+
+/**
+ * Filtros del ledger de un activo. Sin `page`/`limit`: el calendario necesita todas las
+ * cuotas (el API sólo acepta límites fijos y cae a 15 con cualquier otro valor).
+ */
+export function buildFleetCoverageExpensesListParams(
   scope: FleetCoverageExpenseScope,
   kind: FleetCoverageExpenseKind,
   bounds: { from: string; to: string },
-): ExpensesListParams {
-  const base: ExpensesListParams = {
+): FleetCoverageExpensesListParams {
+  const base: FleetCoverageExpensesListParams = {
     from: bounds.from,
     to: bounds.to,
     kind,
-    page: 1,
-    limit: FLEET_COVERAGE_EXPENSES_PAGE_LIMIT,
   };
   if (scope.resource === 'unit') {
     return { ...base, relatedUnitId: scope.unitId };

@@ -1,3 +1,6 @@
+import { of } from 'rxjs';
+import type { ExpensesService } from '@core/services/api/expenses';
+import type { Expense } from '@shared/models/logistics.models';
 import {
   confirmFleetCoverageSchedulePayment,
   resolveFleetCoverageConfirmDueDate,
@@ -57,5 +60,31 @@ describe('fleet-coverage-payment.util', () => {
   it('confirmFleetCoverageSchedulePayment is exported for facades', () => {
     expect(typeof confirmFleetCoverageSchedulePayment).toBe('function');
     expect(typeof subscribeFleetCoverageExpensesPage).toBe('function');
+  });
+
+  it('loads every ledger page so early installments are not dropped', () => {
+    const items = [{ id: '1' }, { id: '2' }] as Expense[];
+    const getAllExpenses = jasmine
+      .createSpy('getAllExpenses')
+      .and.returnValue(of(items));
+    const setItems = jasmine.createSpy('setItems');
+
+    subscribeFleetCoverageExpensesPage({
+      expensesApi: { getAllExpenses } as unknown as ExpensesService,
+      scope: { resource: 'equipment', equipmentId: '7' },
+      kind: 'tenure_payment',
+      bounds: { from: '2026-08-26', to: '2028-06-26' },
+      requestId: 1,
+      isCurrentRequest: () => true,
+      setItems,
+    });
+
+    expect(getAllExpenses).toHaveBeenCalledWith({
+      from: '2026-08-26',
+      to: '2028-06-26',
+      kind: 'tenure_payment',
+      relatedEquipmentId: '7',
+    });
+    expect(setItems).toHaveBeenCalledWith(items);
   });
 });

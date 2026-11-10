@@ -229,7 +229,7 @@
           </dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Fecha de pago (referencia)</dt>
+          <dt>Fecha del primer pago</dt>
           <dd>{{ vm.formatYmd(vm.meta()?.trailerRecurringPaymentDate) }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
@@ -355,7 +355,7 @@
             [(value)]="vm.editRecurringAmount"
           />
           <to-input
-            label="Fecha de pago de referencia"
+            label="Fecha del primer pago"
             type="date"
             [(value)]="vm.editRecurringDate"
           />

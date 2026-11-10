@@ -20,6 +20,8 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import type { ECElementEvent, EChartsType } from 'echarts/core';
 import type { TripMapItem, TripsMapMeta } from '@shared/models/api/api-trips-map.model';
 import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-overview-card/fleet-overview-card.component';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
 import { TripsMapStateFleetService } from '@features/trips/services/trips-map-state-fleet.service';
@@ -52,7 +54,13 @@ import {
   selector: 'app-maniobra-route-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToSkeletonComponent, ToKpiCardComponent, FleetOverviewCardComponent],
+  imports: [
+    ToSkeletonComponent,
+    ToKpiCardComponent,
+    ToButtonComponent,
+    ToIconComponent,
+    FleetOverviewCardComponent,
+  ],
   templateUrl: './maniobra-route-map.component.html',
   styleUrl: './maniobra-route-map.component.scss',
 })

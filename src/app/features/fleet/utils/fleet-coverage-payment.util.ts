@@ -5,7 +5,7 @@ import type { ExpensesService } from '@core/services/api/expenses';
 import type { ToastService } from '@core/notifications/toast.service';
 import type { Expense } from '@shared/models/logistics.models';
 import {
-  buildFleetCoverageExpensesPageParams,
+  buildFleetCoverageExpensesListParams,
   type FleetCoverageExpenseKind,
   type FleetCoverageExpenseScope,
 } from '@features/fleet/utils/fleet-coverage-expenses.util';
@@ -125,7 +125,7 @@ export type LoadFleetCoverageExpensesParams = {
   setItems: (items: Expense[]) => void;
 };
 
-/** Carga paginada de gastos de cobertura; ignora respuestas stale por `requestId`. */
+/** Carga todas las páginas de gastos de cobertura; ignora respuestas stale por `requestId`. */
 export function subscribeFleetCoverageExpensesPage(
   params: LoadFleetCoverageExpensesParams,
 ): Subscription | null {
@@ -134,19 +134,15 @@ export function subscribeFleetCoverageExpensesPage(
     return null;
   }
   return params.expensesApi
-    .getExpensesPage(
-      buildFleetCoverageExpensesPageParams(params.scope, params.kind, params.bounds),
+    .getAllExpenses(
+      buildFleetCoverageExpensesListParams(params.scope, params.kind, params.bounds),
     )
-    .pipe(
-      catchError(() =>
-        of({ items: [] as Expense[], total: 0, page: 1, limit: 0, totalAmount: 0 }),
-      ),
-    )
-    .subscribe((res) => {
+    .pipe(catchError(() => of([] as Expense[])))
+    .subscribe((items) => {
       if (!params.isCurrentRequest(params.requestId)) {
         return;
       }
-      params.setItems(res.items);
+      params.setItems(items);
     });
 }
 

@@ -6,7 +6,7 @@ import { ExpensesService } from '@services/api/expenses';
 import type { Client } from '@shared/models/client.models';
 import type { Expense, Operator, Unit } from '@shared/models/logistics.models';
 import {
-  buildFleetCoverageExpensesPageParams,
+  buildFleetCoverageExpensesListParams,
   fleetCoverageExpensesQueryRange,
 } from '@features/fleet/utils/fleet-coverage-expenses.util';
 import { createRequestGeneration } from '@shared/utils/request-generation';
@@ -233,32 +233,32 @@ export class TripsFormCatalogService {
     if (uid) {
       requests.push(
         this.expensesApi
-          .getExpensesPage(
-            buildFleetCoverageExpensesPageParams(
+          .getAllExpenses(
+            buildFleetCoverageExpensesListParams(
               { resource: 'unit', unitId: uid },
               'insurance',
               range,
             ),
           )
-          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+          .pipe(catchError(() => of([] as Expense[]))),
         this.expensesApi
-          .getExpensesPage(
-            buildFleetCoverageExpensesPageParams({ resource: 'unit', unitId: uid }, 'gps', range),
+          .getAllExpenses(
+            buildFleetCoverageExpensesListParams({ resource: 'unit', unitId: uid }, 'gps', range),
           )
-          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+          .pipe(catchError(() => of([] as Expense[]))),
       );
     }
     for (const equipmentId of eqIds) {
       requests.push(
         this.expensesApi
-          .getExpensesPage(
-            buildFleetCoverageExpensesPageParams(
+          .getAllExpenses(
+            buildFleetCoverageExpensesListParams(
               { resource: 'equipment', equipmentId },
               'insurance',
               range,
             ),
           )
-          .pipe(map((r) => r.items), catchError(() => of([] as Expense[]))),
+          .pipe(catchError(() => of([] as Expense[]))),
       );
     }
     if (requests.length === 0) {

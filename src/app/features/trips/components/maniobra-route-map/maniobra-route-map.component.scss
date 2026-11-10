@@ -97,6 +97,19 @@
 .maniobra-route-map__fleet-header {
   flex: 0 0 auto;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.maniobra-route-map__fleet-heading {
+  min-width: 0;
+}
+
+.maniobra-route-map__fleet-close {
+  display: none;
+  flex-shrink: 0;
 }
 
 .maniobra-route-map__fleet-title {
@@ -207,5 +220,19 @@
   .maniobra-route-map__sidebar {
     grid-row: 2;
     grid-column: 1;
+  }
+
+  /* Estado seleccionado: el mapa se compacta a una altura fija (sigue siendo tocable)
+     y las tarjetas ocupan el resto con scroll propio. */
+  .maniobra-route-map--state-open {
+    grid-template-rows: 12rem minmax(0, 1fr) auto;
+
+    .maniobra-route-map__kpis {
+      display: none;
+    }
+
+    .maniobra-route-map__fleet-close {
+      display: inline-flex;
+    }
   }
 }
