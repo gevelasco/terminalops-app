@@ -6,6 +6,16 @@
             Mantenimiento y llantas
           </h3>
           <div class="fleet-unit-detail__maint-stack">
+            @if (showOdometer()) {
+              <dl
+                class="fleet-unit-detail__dl fleet-unit-detail__dl--maint-tight fleet-unit-detail__dl--odometer"
+              >
+                <div class="fleet-unit-detail__row">
+                  <dt>{{ odometerLabel() }}</dt>
+                  <dd>{{ vm().accumulatedOdometerKmLabel() }}</dd>
+                </div>
+              </dl>
+            }
             <div
               class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--maint"
             >
@@ -48,15 +58,9 @@
             <dl
               class="fleet-unit-detail__dl fleet-unit-detail__dl--maint-tight"
             >
-              @if (showOdometer()) {
-                <div class="fleet-unit-detail__row">
-                  <dt>{{ odometerLabel() }}</dt>
-                  <dd>{{ vm().accumulatedOdometerKmLabel() }}</dd>
-                </div>
-              }
               @if (vm().maintenanceUsesKm()) {
                 <div class="fleet-unit-detail__row fleet-unit-detail__row--maint-km">
-                  <dt>Km acumulados (mant.)</dt>
+                  <dt>Kilómetros acumulados (mant).</dt>
                   @if (vm().editingMaintenanceKmCounter()) {
                     <dd class="fleet-unit-detail__maint-km-edit">
                       <to-input
@@ -189,11 +193,6 @@
                       [options]="vm().newMaintTypeOptions"
                       [(value)]="vm().newMaintType"
                     />
-                    @if (vm().newMaintKmCounterResetHint(); as kmResetHint) {
-                      <p class="fleet-unit-sec__hint fleet-unit-detail__maint-km-reset-hint">
-                        {{ kmResetHint }}
-                      </p>
-                    }
                     <to-input
                       label="Fecha del servicio *"
                       type="date"
@@ -213,6 +212,11 @@
                       [(value)]="vm().newMaintPaymentMethod"
                     />
                   </div>
+                  @if (vm().newMaintKmCounterResetHint(); as kmResetHint) {
+                    <p class="fleet-unit-sec__hint fleet-unit-detail__maint-km-reset-hint">
+                      {{ kmResetHint }}
+                    </p>
+                  }
                   <to-textarea
                     label="Notas"
                     placeholder="Refacciones, taller, diagnóstico…"
@@ -288,7 +292,7 @@
                 <div
                   class="fleet-unit-detail__maint-scroll"
                   [class.fleet-unit-detail__maint-scroll--limited]="
-                    vm().maintenanceEntries().length > 3
+                    vm().maintenanceEntries().length > 10
                   "
                 >
                   <div class="fleet-unit-detail__maint-scroll-inner">
@@ -307,73 +311,45 @@
                           scope="col"
                           class="fleet-unit-detail__maint-cell--center"
                         >
-                          Notas
-                        </th>
-                        <th
-                          scope="col"
-                          class="fleet-unit-detail__maint-cell--center"
-                        >
                           Docs
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       @for (entry of vm().maintenanceEntries(); track vm().trackMaintenanceEntry($index, entry)) {
-                        <tr>
+                        <tr
+                          class="fleet-unit-detail__maint-row"
+                          [class.fleet-unit-detail__maint-row--alt]="$index % 2 === 1"
+                          [class.fleet-unit-detail__maint-row--open]="
+                            isMaintRowExpanded($index, entry)
+                          "
+                          tabindex="0"
+                          [attr.aria-expanded]="isMaintRowExpanded($index, entry)"
+                          [attr.aria-controls]="popoverIdPrefix() + '-detail-' + $index"
+                          (click)="toggleMaintRow($index, entry)"
+                          (keydown)="onMaintRowKeydown($event, $index, entry)"
+                        >
                           <td class="fleet-unit-detail__maint-cell--type">
-                            <span class="fleet-unit-detail__maint-type-text">{{
-                              entry.type?.trim() || "—"
-                            }}</span>
+                            <span class="fleet-unit-detail__maint-type">
+                              <span
+                                class="fleet-unit-detail__maint-chevron"
+                                [class.fleet-unit-detail__maint-chevron--open]="
+                                  isMaintRowExpanded($index, entry)
+                                "
+                                aria-hidden="true"
+                              >
+                                <to-icon name="chevronDown" [size]="14" />
+                              </span>
+                              <span class="fleet-unit-detail__maint-type-text">{{
+                                entry.type?.trim() || "—"
+                              }}</span>
+                            </span>
                           </td>
                           <td class="fleet-unit-detail__maint-cell--right">
                             {{ vm().formatTrackingAmount(entry.cost) }}
                           </td>
                           <td class="fleet-unit-detail__maint-cell--date">
                             {{ vm().formatMaintDateShort(entry.date) }}
-                          </td>
-                          <td class="fleet-unit-detail__maint-cell--center">
-                            @if (entry.notes?.trim()) {
-                              <button
-                                type="button"
-                                class="fleet-unit-detail__maint-info"
-                                [attr.popovertarget]="popoverIdPrefix() + '-notes-' + $index"
-                                aria-label="Ver notas"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  aria-hidden="true"
-                                >
-                                  <path
-                                    fill="currentColor"
-                                    d="M11,17h2v-6h-2V17z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8S16.41,20,12,20z M11,9h2V7h-2V9z"
-                                  />
-                                </svg>
-                              </button>
-                              <div
-                                class="fleet-unit-detail__maint-popover"
-                                [id]="popoverIdPrefix() + '-notes-' + $index"
-                                popover="auto"
-                                role="dialog"
-                                aria-label="Notas del mantenimiento"
-                              >
-                                <span
-                                  class="fleet-unit-detail__maint-popover-title"
-                                  >Notas</span
-                                >
-                                <span
-                                  class="fleet-unit-detail__maint-popover-body"
-                                  >{{ entry.notes }}</span
-                                >
-                              </div>
-                            } @else {
-                              <span
-                                class="fleet-unit-detail__maint-na"
-                                aria-hidden="true"
-                                >—</span
-                              >
-                            }
                           </td>
                           <td class="fleet-unit-detail__maint-cell--center">
                             @if ((entry.documentNames?.length ?? 0) > 0) {
@@ -392,7 +368,7 @@
                                       (entry.documentNames?.length ?? 0) +
                                       ' documentos'
                                 "
-                                (click)="downloadMaintDocs(entry.documentNames ?? [])"
+                                (click)="onMaintDocsClick($event, entry.documentNames ?? [])"
                               >
                                 <svg
                                   width="16"
@@ -419,9 +395,33 @@
                             }
                           </td>
                         </tr>
+                        @if (isMaintRowExpanded($index, entry)) {
+                          <tr class="fleet-unit-detail__maint-detail">
+                            <td
+                              [id]="popoverIdPrefix() + '-detail-' + $index"
+                              colspan="4"
+                            >
+                              <span class="fleet-unit-detail__maint-notes-label"
+                                >Notas</span
+                              >
+                              <p class="fleet-unit-detail__maint-notes-body">
+                                {{
+                                  entry.notes?.trim() ||
+                                    "Sin notas en este registro."
+                                }}
+                              </p>
+                            </td>
+                          </tr>
+                        }
                       }
                     </tbody>
                   </table>
+                  </div>
+                  <div class="fleet-unit-detail__maint-summary">
+                    <span>{{ maintCountLabel() }}</span>
+                    <span class="fleet-unit-detail__maint-summary-total">
+                      Total {{ vm().formatTrackingAmount(maintCostTotal()) }}
+                    </span>
                   </div>
                 </div>
               } @else {

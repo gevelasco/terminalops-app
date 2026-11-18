@@ -6,8 +6,9 @@ import { reportsFilterCacheKey } from '@features/reports/utils/reports-filter-ca
 import type { ReportsBalanceData } from '@shared/models/api/api-reports-balance.model';
 import type { ReportsFleetData } from '@shared/models/api/api-reports-fleet.model';
 import type { ReportsManiobrasData } from '@shared/models/api/api-reports-maniobras.model';
-import { defer, Observable, shareReplay, throwError } from 'rxjs';
+import { catchError, defer, Observable, shareReplay, throwError } from 'rxjs';
 import { SessionService } from '@core/services/state/session';
+import { API_SHARE_REPLAY_CACHE } from '@shared/utils/share-replay-api-cache';
 
 type CachedStream<T> = {
   filterKey: string;
@@ -69,9 +70,28 @@ export class ReportsTabDataService {
         return throwError(() => new Error('No hay empresa en sesión'));
       }
       return factory();
-    }).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+    }).pipe(
+      shareReplay(API_SHARE_REPLAY_CACHE),
+      catchError((err) => {
+        this.dropCacheEntryIfMatches(tab, filterKey);
+        return throwError(() => err);
+      }),
+    );
     const entry = { filterKey, stream };
     setCache(entry);
     return stream;
+  }
+
+  /** Evita servir un stream que terminó en error al volver al tab / cambiar filtro. */
+  private dropCacheEntryIfMatches(tab: ReportsTabId, filterKey: string): void {
+    const drop = (current: CachedStream<unknown> | null): boolean =>
+      current?.filterKey === filterKey;
+    if (tab === 'balance' && drop(this.balanceCache)) {
+      this.balanceCache = null;
+    } else if (tab === 'maniobras' && drop(this.maniobrasCache)) {
+      this.maniobrasCache = null;
+    } else if (tab === 'fleet' && drop(this.fleetCache)) {
+      this.fleetCache = null;
+    }
   }
 }

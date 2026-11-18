@@ -4,7 +4,6 @@ import {
   expensesCalendarWeekdayLabels,
   type ExpensesCalendarWeekRow,
 } from '@features/expenses/utils/expenses-calendar.util';
-import { APP_CHART_SEMANTIC } from '@shared/charts/app-chart-palette';
 import type {
   ReportsBalanceDailyActivityDay,
   ReportsBalanceDailyActivityEvent,
@@ -278,17 +277,23 @@ export function formatReportsBalanceActivityTooltip(
   return lines.join('\n');
 }
 
-/** Ingresos cobrados. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = APP_CHART_SEMANTIC.revenue;
+/**
+ * Actividad diaria — familias de color separadas (evita varios azules parecidos).
+ * Alineado semánticamente: entrada (verde), pendiente cliente (azul), obligación (ámbar).
+ */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_INCOME = '#15803D';
 
 /** Cobros por cobrar. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE = APP_CHART_SEMANTIC.inTransit;
+export const REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE = '#1D4ED8';
 
 /** Cuentas por pagar. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE = APP_CHART_SEMANTIC.warning;
+export const REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE = '#C2410C';
 
 /** Gastos confirmados. */
-export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = APP_CHART_SEMANTIC.expense;
+export const REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE = '#475569';
+
+/** Tono base de la escala en la leyenda (celda vacía). */
+export const REPORTS_BALANCE_ACTIVITY_HEAT_BASE = '#E8EEF5';
 
 export interface ReportsBalanceActivityHeatIntensityBounds {
   maxIncome: number;
@@ -334,25 +339,25 @@ function reportsBalanceActivityHeatColorStrength(intensity: number): number {
 
 export function reportsBalanceActivityIncomeColor(intensity: number): string {
   const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
-  const whiteMix = 1 - colorStrength * 0.68;
+  const whiteMix = 1 - colorStrength * 0.58;
   return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_INCOME, whiteMix);
 }
 
 export function reportsBalanceActivityExpenseColor(intensity: number): string {
   const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
-  const whiteMix = 1 - colorStrength * 0.68;
+  const whiteMix = 1 - colorStrength * 0.58;
   return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE, whiteMix);
 }
 
 export function reportsBalanceActivityReceivableColor(intensity: number): string {
   const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
-  const whiteMix = 1 - colorStrength * 0.68;
+  const whiteMix = 1 - colorStrength * 0.58;
   return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE, whiteMix);
 }
 
 export function reportsBalanceActivityPayableColor(intensity: number): string {
   const colorStrength = reportsBalanceActivityHeatColorStrength(intensity);
-  const whiteMix = 1 - colorStrength * 0.68;
+  const whiteMix = 1 - colorStrength * 0.58;
   return mixHexWithWhite(REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE, whiteMix);
 }
 

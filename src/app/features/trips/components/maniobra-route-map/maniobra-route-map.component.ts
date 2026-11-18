@@ -23,7 +23,7 @@ import { FleetOverviewCardComponent } from '@features/fleet/components/fleet-ove
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import { TripsMapStateFleetService } from '@features/trips/services/trips-map-state-fleet.service';
 import { OsrmDrivingRouteService } from '@shared/services/osrm-driving-route.service';
 import { ensureTripsMapEchartsModules } from '@features/trips/utils/trips-map-chart-modules';
@@ -55,7 +55,7 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToKpiCardComponent,
     ToButtonComponent,
     ToIconComponent,

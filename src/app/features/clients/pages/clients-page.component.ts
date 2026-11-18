@@ -54,7 +54,7 @@ import {
   ToSegmentControlComponent,
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 
 export type ClientsPageTab = 'clients' | 'destination-rates';
 
@@ -85,7 +85,7 @@ const CLIENTS_SEARCH_DEBOUNCE_MS = 1000;
   imports: [
     ToPageHeaderComponent,
     ToInputComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToButtonComponent,
     ToIconComponent,
     ToSegmentControlComponent,

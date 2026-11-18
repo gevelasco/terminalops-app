@@ -31,12 +31,14 @@ export type ReportsFleetUnitActivityRow = {
 };
 
 export type ReportsFleetMaintenanceEventRow = {
+  entryId: number;
   assetLabel: string;
   assetKind: 'unit' | 'equipment';
   entryDate: string | null;
   entryType: string;
   status: string;
   cost: number;
+  notes: string | null;
 };
 
 export type ReportsFleetComplianceUnitRow = {
@@ -128,14 +130,20 @@ export function mapApiReportsFleet(raw: Record<string, unknown>): ReportsFleetDa
 
   const maintenanceEvents = (
     (insightsRaw['maintenanceEvents'] ?? []) as Record<string, unknown>[]
-  ).map((row) => ({
-    assetLabel: String(row['assetLabel'] ?? ''),
-    assetKind: parseAssetKind(row['assetKind']),
-    entryDate: row['entryDate'] != null ? String(row['entryDate']) : null,
-    entryType: String(row['entryType'] ?? ''),
-    status: String(row['status'] ?? 'Registrado'),
-    cost: num(row['cost']),
-  }));
+  ).map((row) => {
+    const notesRaw =
+      row['notes'] != null ? String(row['notes']).trim() : '';
+    return {
+      entryId: num(row['entryId']),
+      assetLabel: String(row['assetLabel'] ?? ''),
+      assetKind: parseAssetKind(row['assetKind']),
+      entryDate: row['entryDate'] != null ? String(row['entryDate']) : null,
+      entryType: String(row['entryType'] ?? ''),
+      status: String(row['status'] ?? 'Registrado'),
+      cost: num(row['cost']),
+      notes: notesRaw.length > 0 ? notesRaw : null,
+    };
+  });
 
   const complianceUnits = (
     (insightsRaw['complianceUnits'] ?? []) as Record<string, unknown>[]

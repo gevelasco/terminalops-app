@@ -239,15 +239,55 @@
 }
 
 .fleet-unit-detail__badge-block--maint {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.95rem;
+
+  .fleet-unit-detail__badge-label--sentence {
+    margin-bottom: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--to-color-text-muted);
+  }
 }
 
 .fleet-unit-detail__dl--maint-tight {
-  gap: 0.2rem;
+  gap: 0.85rem;
+
+  .fleet-unit-detail__row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    align-items: stretch;
+  }
+
+  dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+    color: var(--to-color-text-muted);
+  }
+
+  dd {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--to-color-text);
+  }
+}
+
+.fleet-unit-detail__dl--odometer {
+  margin: 0 0 0.95rem;
+
+  dd {
+    font-size: 1.125rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.015em;
+  }
 }
 
 .fleet-unit-detail__maint-history-block {
-  margin-top: 0.15rem;
+  margin-top: 1rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -291,8 +331,8 @@
   margin: 0;
   font-size: 0.8125rem;
   font-weight: 600;
-  line-height: 1.4;
-  color: var(--to-color-text-muted);
+  line-height: 1.35;
+  color: var(--to-color-text);
 }
 
 .fleet-unit-detail__maint-add-label {
@@ -331,7 +371,6 @@
 
 .fleet-unit-detail__maint-km-reset-hint {
   margin: 0;
-  grid-column: 1 / -1;
 }
 
 .fleet-unit-detail__maint-km-display {

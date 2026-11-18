@@ -22,6 +22,22 @@ import { resourceIdKey } from '@shared/utils/resource-id';
 import { normalizeEquipmentHitchPosition } from '@shared/utils/fleet/equipment-hitch-position';
 import { normalizeTrailerTenureMode } from '@shared/utils/fleet/trailer-tenure-mode';
 
+function mapImssSalaryType(value: unknown): '' | 'fixed' | 'variable' | 'mixed' {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (raw === 'fixed' || raw === 'variable' || raw === 'mixed') {
+    return raw;
+  }
+  return '';
+}
+
+function mapOptionalAmount(value: unknown): number | null {
+  if (value == null || value === '') {
+    return null;
+  }
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapFleetMetaTenureMode<T extends { trailerTenureMode?: string }>(
   meta: T | undefined,
 ): T | undefined {
@@ -230,6 +246,8 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
       ...(pub && {
         nss: String(pub['nss'] ?? ''),
         imssAltaDate: (pub['imssAltaDate'] as string) ?? '',
+        dailyInsuredAmount: mapOptionalAmount(pub['dailyInsuredAmount']),
+        salaryType: mapImssSalaryType(pub['salaryType']),
         infonavit: Boolean(pub['infonavit']),
         infonavitCreditNumber: String(pub['infonavitCreditNumber'] ?? ''),
         fonacot: Boolean(pub['fonacot']),

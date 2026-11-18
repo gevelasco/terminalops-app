@@ -34,7 +34,7 @@ import {
 } from '@shared/utils/list-display-cap';
 import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 
 function pluralEs(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
@@ -101,7 +101,7 @@ function formatIncidentDate(iso: string | null | undefined): string {
   imports: [
     ToKpiCardComponent,
     ToEchartsHostComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ReportsManiobrasGeoChartComponent,
   ],
   templateUrl: './reports-maniobras-tab.component.html',

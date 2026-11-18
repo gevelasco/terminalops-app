@@ -16,10 +16,10 @@ import {
   REPORTS_BALANCE_ACTIVITY_HEAT_INCOME,
   REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE,
   REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE,
+  REPORTS_BALANCE_ACTIVITY_HEAT_BASE,
   type ReportsBalanceActivityHeatmapCell,
   type ReportsBalanceActivityHeatmapMonthCell,
 } from '@features/reports/utils/reports-balance-activity-heatmap.util';
-import { APP_CHART_PALETTE } from '@shared/charts/app-chart-palette';
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
 import type { ReportsBalanceDailyActivityDay } from '@shared/models/api/api-reports-balance.model';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
@@ -52,7 +52,7 @@ export class ReportsBalanceActivityHeatmapComponent {
   protected readonly heatReceivable = REPORTS_BALANCE_ACTIVITY_HEAT_RECEIVABLE;
   protected readonly heatPayable = REPORTS_BALANCE_ACTIVITY_HEAT_PAYABLE;
   protected readonly heatExpense = REPORTS_BALANCE_ACTIVITY_HEAT_EXPENSE;
-  protected readonly heatBase = APP_CHART_PALETTE[4];
+  protected readonly heatBase = REPORTS_BALANCE_ACTIVITY_HEAT_BASE;
 
   readonly dailyActivity = input<readonly ReportsBalanceDailyActivityDay[]>([]);
   readonly filter = input.required<ReportsFilter>();

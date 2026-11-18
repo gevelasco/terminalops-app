@@ -1,5 +1,19 @@
-<div class="to-skeleton" role="presentation">
-  @for (i of lineIndexes(); track i) {
-    <div class="to-skeleton__line"></div>
+<div
+  class="to-skeleton"
+  [class.to-skeleton--block]="useBlock()"
+  role="presentation"
+  [style.--to-skeleton-block-height]="height()"
+>
+  @if (useBlock()) {
+    <div class="to-skeleton__block" aria-hidden="true"></div>
+  } @else {
+    @for (i of lineIndexes(); track i) {
+      <div
+        class="to-skeleton__line"
+        [class.to-skeleton__line--delay-1]="i % 3 === 1"
+        [class.to-skeleton__line--delay-2]="i % 3 === 2"
+        [style.animation-delay.ms]="i * 40"
+      ></div>
+    }
   }
 </div>

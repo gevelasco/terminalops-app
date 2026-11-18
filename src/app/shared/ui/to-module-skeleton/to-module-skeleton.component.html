@@ -1,0 +1,170 @@
+<div
+  class="to-module-skeleton"
+  [class]="'to-module-skeleton--' + layout()"
+  role="status"
+  aria-busy="true"
+  aria-label="Cargando contenido"
+>
+  @switch (layout()) {
+    @case ('table') {
+      <div class="to-module-skeleton__toolbar" aria-hidden="true">
+        <span class="to-module-skeleton__pill"></span>
+        <span class="to-module-skeleton__pill to-module-skeleton__pill--wide"></span>
+        <span class="to-module-skeleton__pill to-module-skeleton__pill--short"></span>
+      </div>
+      <div class="to-module-skeleton__table" aria-hidden="true">
+        <div class="to-module-skeleton__thead">
+          @for (c of [0, 1, 2, 3, 4]; track c) {
+            <span class="to-module-skeleton__th"></span>
+          }
+        </div>
+        @for (r of tableRowIndexes(); track r) {
+          <div class="to-module-skeleton__tr" [style.animation-delay.ms]="r * 45">
+            @for (c of [0, 1, 2, 3, 4]; track c) {
+              <span
+                class="to-module-skeleton__td"
+                [class.to-module-skeleton__td--accent]="c === 0"
+              ></span>
+            }
+          </div>
+        }
+      </div>
+    }
+    @case ('cards') {
+      <div class="to-module-skeleton__hint" aria-hidden="true"></div>
+      <div class="to-module-skeleton__cards" aria-hidden="true">
+        @for (i of cardIndexes(); track i) {
+          <article class="to-module-skeleton__card" [style.animation-delay.ms]="i * 55">
+            <div class="to-module-skeleton__card-head">
+              <span class="to-module-skeleton__avatar"></span>
+              <div class="to-module-skeleton__card-titles">
+                <span class="to-module-skeleton__line to-module-skeleton__line--md"></span>
+                <span class="to-module-skeleton__line to-module-skeleton__line--sm"></span>
+              </div>
+            </div>
+            <div class="to-module-skeleton__card-body">
+              <span class="to-module-skeleton__metric"></span>
+              <span class="to-module-skeleton__line"></span>
+              <span class="to-module-skeleton__line to-module-skeleton__line--short"></span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+    @case ('overview-grid') {
+      <div class="to-module-skeleton__hint to-module-skeleton__hint--wide" aria-hidden="true"></div>
+      <div class="to-module-skeleton__overview" aria-hidden="true">
+        @for (i of cardIndexes(); track i) {
+          <article class="to-module-skeleton__overview-card" [style.animation-delay.ms]="i * 50">
+            <div class="to-module-skeleton__overview-top">
+              <span class="to-module-skeleton__chip"></span>
+              <span class="to-module-skeleton__line to-module-skeleton__line--xs"></span>
+            </div>
+            <span class="to-module-skeleton__line to-module-skeleton__line--lg"></span>
+            <div class="to-module-skeleton__overview-footer">
+              <span class="to-module-skeleton__badge"></span>
+              <span class="to-module-skeleton__badge"></span>
+              <span class="to-module-skeleton__badge to-module-skeleton__badge--wide"></span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+    @case ('dashboard') {
+      <div class="to-module-skeleton__kpis" aria-hidden="true">
+        @for (i of [0, 1, 2, 3]; track i) {
+          <div class="to-module-skeleton__kpi" [style.animation-delay.ms]="i * 40">
+            <span class="to-module-skeleton__kpi-icon"></span>
+            <span class="to-module-skeleton__line to-module-skeleton__line--xs"></span>
+            <span class="to-module-skeleton__kpi-value"></span>
+            <span class="to-module-skeleton__line to-module-skeleton__line--sm"></span>
+          </div>
+        }
+      </div>
+      <div class="to-module-skeleton__dashboard-body" aria-hidden="true">
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--chart"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--chart-secondary"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--list"></div>
+      </div>
+    }
+    @case ('reports') {
+      <div class="to-module-skeleton__kpis" aria-hidden="true">
+        @for (i of [0, 1, 2, 3]; track i) {
+          <div class="to-module-skeleton__kpi" [style.animation-delay.ms]="i * 40">
+            <span class="to-module-skeleton__kpi-icon"></span>
+            <span class="to-module-skeleton__line to-module-skeleton__line--xs"></span>
+            <span class="to-module-skeleton__kpi-value"></span>
+            <span class="to-module-skeleton__line to-module-skeleton__line--sm"></span>
+          </div>
+        }
+      </div>
+      <div class="to-module-skeleton__reports-grid" aria-hidden="true">
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--chart"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--chart"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--table"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--half"></div>
+        <div class="to-module-skeleton__panel to-module-skeleton__panel--half"></div>
+      </div>
+    }
+    @case ('calendar') {
+      <div class="to-module-skeleton__calendar-head" aria-hidden="true">
+        <span class="to-module-skeleton__pill to-module-skeleton__pill--wide"></span>
+        <span class="to-module-skeleton__pill"></span>
+      </div>
+      <div class="to-module-skeleton__calendar" aria-hidden="true">
+        <div class="to-module-skeleton__cal-weekdays">
+          @for (d of calendarDayIndexes(); track d) {
+            <span class="to-module-skeleton__cal-wd"></span>
+          }
+        </div>
+        @for (w of calendarWeekIndexes(); track w) {
+          <div class="to-module-skeleton__cal-week">
+            @for (d of calendarDayIndexes(); track d) {
+              <span class="to-module-skeleton__cal-cell"></span>
+            }
+          </div>
+        }
+      </div>
+    }
+    @case ('map') {
+      <div class="to-module-skeleton__map" aria-hidden="true">
+        <div class="to-module-skeleton__map-canvas"></div>
+        <div class="to-module-skeleton__map-aside">
+          @for (i of [0, 1, 2]; track i) {
+            <div class="to-module-skeleton__map-card" [style.animation-delay.ms]="i * 60">
+              <span class="to-module-skeleton__line to-module-skeleton__line--md"></span>
+              <span class="to-module-skeleton__line to-module-skeleton__line--sm"></span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+    @case ('form') {
+      <section class="to-module-skeleton__form-card" aria-hidden="true">
+        <span class="to-module-skeleton__line to-module-skeleton__line--md"></span>
+        <div class="to-module-skeleton__form-logo-row">
+          <span class="to-module-skeleton__avatar to-module-skeleton__avatar--lg"></span>
+          <span class="to-module-skeleton__line to-module-skeleton__line--lg"></span>
+        </div>
+        @for (i of [0, 1, 2, 3, 4]; track i) {
+          <div class="to-module-skeleton__field" [style.animation-delay.ms]="i * 35">
+            <span class="to-module-skeleton__line to-module-skeleton__line--xs"></span>
+            <span class="to-module-skeleton__field-input"></span>
+          </div>
+        }
+      </section>
+    }
+    @case ('chart') {
+      <div class="to-module-skeleton__panel to-module-skeleton__panel--chart-embed" aria-hidden="true">
+        <span class="to-module-skeleton__line to-module-skeleton__line--md"></span>
+        <span class="to-module-skeleton__line to-module-skeleton__line--sm"></span>
+        <span class="to-module-skeleton__chart-area"></span>
+      </div>
+    }
+    @default {
+      <div class="to-module-skeleton__toolbar" aria-hidden="true">
+        <span class="to-module-skeleton__pill"></span>
+      </div>
+    }
+  }
+</div>

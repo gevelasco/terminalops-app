@@ -129,7 +129,7 @@
 
   @if (pageTab() === "clients") {
     @if (loading()) {
-      <to-skeleton [lines]="4" />
+      <to-module-skeleton layout="cards" [rows]="6" />
     } @else if (!hasBalanceCards() && !searchQuery().trim()) {
       <div class="to-feature-empty" role="status">
         <div class="to-feature-empty__visual" aria-hidden="true">
@@ -173,7 +173,7 @@
     }
   } @else {
     @if (ratesFeature.loading()) {
-      <to-skeleton [lines]="4" />
+      <to-module-skeleton layout="table" [rows]="6" />
     } @else if (ratesFeature.rates().length === 0) {
       <div class="to-feature-empty" role="status">
         <div class="to-feature-empty__visual" aria-hidden="true">

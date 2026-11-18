@@ -31,84 +31,23 @@
       type="date"
       [(value)]="pubImssAlta"
     />
+    <to-input
+      label="Cantidad diaria"
+      type="text"
+      [groupThousands]="true"
+      [placeholder]="isNew ? 'Ej. 350' : ''"
+      [(value)]="pubDailyAmount"
+    />
+    <to-select
+      label="Tipo de salario"
+      [placeholder]="isNew ? 'Selecciona' : ''"
+      [options]="salaryTypeOptions"
+      [(value)]="pubSalaryType"
+    />
   </div>
-  <div class="fleet-unit-toggle-row">
-    <span
-      class="fleet-unit-toggle-row__label"
-      [attr.id]="infonavitToggleLabelId()"
-      >{{
-        isNew ? "Tiene crédito o esquema Infonavit" : "Infonavit"
-      }}</span
-    >
-    <button
-      type="button"
-      class="fleet-unit-toggle"
-      [class.fleet-unit-toggle--on]="pubInfonavit()"
-      role="switch"
-      [attr.aria-checked]="pubInfonavit()"
-      [attr.aria-labelledby]="infonavitToggleLabelId()"
-      (click)="toggleInfonavit()"
-    >
-      <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-    </button>
-  </div>
-  @if (pubInfonavit()) {
-    @if (!isNew) {
-      <p class="fleet-unit-sec__docs-hint">
-        Número de crédito Infonavit.
-      </p>
-    }
-    <div
-      class="operator-coverage-fields__row"
-      [class.operator-coverage-fields__row--new]="isNew"
-      [class.operator-coverage-fields__row--edit]="!isNew"
-    >
-      <to-input
-        label="Número de crédito Infonavit"
-        [placeholder]="isNew ? 'Opcional' : ''"
-        [(value)]="pubInfonavitCredit"
-      />
-    </div>
-  }
-  <div class="fleet-unit-toggle-row">
-    <span
-      class="fleet-unit-toggle-row__label"
-      [attr.id]="fonacotToggleLabelId()"
-      >{{ isNew ? "FONACOT (crédito / descuento)" : "FONACOT" }}</span
-    >
-    <button
-      type="button"
-      class="fleet-unit-toggle"
-      [class.fleet-unit-toggle--on]="pubFonacot()"
-      role="switch"
-      [attr.aria-checked]="pubFonacot()"
-      [attr.aria-labelledby]="fonacotToggleLabelId()"
-      (click)="toggleFonacot()"
-    >
-      <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-    </button>
-  </div>
-  @if (pubFonacot()) {
-    @if (!isNew) {
-      <p class="fleet-unit-sec__docs-hint">
-        Número de crédito o folio FONACOT.
-      </p>
-    }
-    <div
-      class="operator-coverage-fields__row"
-      [class.operator-coverage-fields__row--new]="isNew"
-      [class.operator-coverage-fields__row--edit]="!isNew"
-    >
-      <to-input
-        label="Crédito / folio FONACOT"
-        [placeholder]="isNew ? 'Opcional' : ''"
-        [(value)]="pubFonacotCredit"
-      />
-    </div>
-  }
   <to-textarea
-    [label]="isNew ? 'Notas (IMSS / prestaciones)' : 'Notas IMSS'"
-    [placeholder]="isNew ? 'Ej. descuentos, régimen…' : ''"
+    label="Notas"
+    [placeholder]="isNew ? 'Opcional' : ''"
     [(value)]="pubNotes"
   />
 }

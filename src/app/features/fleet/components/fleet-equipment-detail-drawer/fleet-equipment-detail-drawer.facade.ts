@@ -1444,9 +1444,9 @@ export class FleetEquipmentDetailDrawerFacade {
       return;
     }
     const cost = parseFleetOptionalAmount(this.newMaintCost());
-    if (cost === 'invalid' || cost === undefined || cost <= 0) {
+    if (cost === 'invalid' || cost === undefined) {
       this.toast.show(
-        'El costo es obligatorio y debe ser mayor a cero.',
+        'El costo es obligatorio y debe ser un número válido (≥ 0).',
         'warning',
       );
       return;

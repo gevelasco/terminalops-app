@@ -30,8 +30,28 @@
 }
 
 .fleet-unit-detail__maint-scroll--limited .fleet-unit-detail__maint-scroll-inner {
-  max-height: 9.75rem;
+  /* Cabecera (~1.9rem) + 10 filas. 2.42rem cubre la fila con botón de notas/docs. */
+  max-height: calc(1.9rem + 10 * 2.42rem);
   overflow-y: auto;
+}
+
+.fleet-unit-detail__maint-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  background: color-mix(in srgb, var(--to-color-surface-muted) 92%, var(--to-color-surface));
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--to-color-text);
+}
+
+.fleet-unit-detail__maint-summary-total {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .fleet-unit-detail__maint-table {
@@ -63,17 +83,70 @@
     box-shadow: 0 1px 0 color-mix(in srgb, var(--to-color-border) 45%, transparent);
   }
 
-  tbody tr:nth-child(even) td {
+  tbody tr.fleet-unit-detail__maint-row--alt td {
     background: color-mix(in srgb, var(--to-color-surface-muted) 45%, transparent);
   }
 
-  tbody tr:hover td {
+  tbody tr.fleet-unit-detail__maint-row:hover td,
+  tbody tr.fleet-unit-detail__maint-row--open td {
     background: color-mix(in srgb, var(--to-color-primary) 7%, var(--to-color-surface));
   }
 
   tbody tr:last-child td {
     border-bottom: 0;
   }
+}
+
+.fleet-unit-detail__maint-row {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: -2px;
+  }
+}
+
+.fleet-unit-detail__maint-type {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.28rem;
+}
+
+.fleet-unit-detail__maint-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: var(--to-color-text-muted);
+  transition: transform 0.15s ease;
+
+  &--open {
+    transform: rotate(180deg);
+  }
+}
+
+.fleet-unit-detail__maint-detail td {
+  background: color-mix(in srgb, var(--to-color-surface-muted) 72%, var(--to-color-surface));
+  padding: 0.5rem 0.7rem 0.65rem 1.7rem;
+}
+
+.fleet-unit-detail__maint-notes-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.fleet-unit-detail__maint-notes-body {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .fleet-unit-detail__maint-cell--type {

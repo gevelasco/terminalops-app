@@ -34,7 +34,7 @@ import { calendarItemRubroLabel } from '@features/expenses/utils/expenses-calend
 import type { Expense } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
@@ -65,7 +65,7 @@ const EMPTY_CALENDAR: ExpensesCalendarResponse = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [CurrencyMxPipe],
-  imports: [ToButtonComponent, ToSkeletonComponent, ToTableComponent],
+  imports: [ToButtonComponent, ToModuleSkeletonComponent, ToTableComponent],
   templateUrl: './expenses-calendar-tab.component.html',
   styleUrl: './expenses-calendar-tab.component.scss',
 })

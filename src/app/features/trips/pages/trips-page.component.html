@@ -113,7 +113,7 @@
       </p>
     }
     @if (routeViewLoading()) {
-      <to-skeleton [lines]="6" />
+      <to-module-skeleton layout="map" />
     } @else if (routeViewEmpty()) {
       <div class="to-feature-empty" role="status">
         <div class="to-feature-empty__visual" aria-hidden="true">
@@ -157,9 +157,9 @@
     }
   } @else if (viewMode() === "list") {
     @if (resolvingDefaultView()) {
-      <to-skeleton [lines]="6" />
+      <to-module-skeleton layout="table" [rows]="4" />
     } @else if (initialListLoading()) {
-      <to-skeleton [lines]="5" />
+      <to-module-skeleton layout="table" [rows]="8" />
     } @else if (showListEmptyNoTrips()) {
       <p class="to-feature-empty-hint" role="status">
         No hay maniobras registradas aún.

@@ -242,6 +242,10 @@ export interface OperatorPublicInsurance {
   nss: string;
   /** Alta o referencia IMSS (ISO `YYYY-MM-DD`, opcional). */
   imssAltaDate: string;
+  /** Cantidad diaria con la que se asegura al operador ante el IMSS. */
+  dailyInsuredAmount?: number | null;
+  /** Tipo de salario ante el IMSS: `fixed`, `variable` o `mixed`. */
+  salaryType?: '' | 'fixed' | 'variable' | 'mixed';
   infonavit: boolean;
   /**
    * Número de crédito / cuenta Infonavit (opcional; conviene registrarlo si

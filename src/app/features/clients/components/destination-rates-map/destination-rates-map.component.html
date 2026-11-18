@@ -7,7 +7,7 @@
     aria-label="Catálogo de tarifas"
   >
     @if (loading() || !geoReady()) {
-      <to-skeleton [lines]="6" />
+      <to-module-skeleton layout="map" />
     } @else if (tableRows().length === 0) {
       <p class="destination-rates-map__panel-hint" role="status">
         @if (hasActiveFilter() || selectedState()) {
@@ -105,7 +105,7 @@
   <div class="destination-rates-map__canvas-wrap">
     @if (loading() || !geoReady()) {
       <div class="destination-rates-map__overlay">
-        <to-skeleton [lines]="4" />
+        <to-module-skeleton layout="chart" />
       </div>
     }
 

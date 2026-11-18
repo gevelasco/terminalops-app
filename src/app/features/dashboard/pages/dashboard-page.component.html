@@ -57,7 +57,7 @@
 </to-page-header>
 
 @if (loading()) {
-  <to-skeleton [lines]="6" />
+  <to-module-skeleton layout="dashboard" />
 } @else if (summary()) {
   <div class="dashboard-kpis">
     <to-kpi-card

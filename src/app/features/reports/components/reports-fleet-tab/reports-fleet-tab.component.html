@@ -1,5 +1,5 @@
 @if (loading()) {
-  <to-skeleton [lines]="6" />
+  <to-module-skeleton layout="reports" />
 } @else if (summary() && insights()) {
   <div class="reports-fleet-kpis">
     <to-kpi-card
@@ -104,7 +104,7 @@
       </div>
     </section>
 
-    <section class="reports-fleet-panel">
+    <section class="reports-fleet-panel reports-fleet-panel--compliance">
       <header class="reports-fleet-panel__head">
         <div>
           <h2 class="reports-fleet-panel__title">Cumplimiento y renovaciones</h2>
@@ -129,7 +129,7 @@
       </div>
     </section>
 
-    <section class="reports-fleet-panel">
+    <section class="reports-fleet-panel reports-fleet-panel--maintenance">
       <header class="reports-fleet-panel__head">
         <div>
           <h2 class="reports-fleet-panel__title">Mantenimientos del periodo</h2>
@@ -151,11 +151,30 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of displayedMaintenanceEvents().items; track `${row.assetLabel}-${row.entryDate}-${row.entryType}`) {
-                <tr>
+              @for (row of displayedMaintenanceEvents().items; track maintRowKey($index, row)) {
+                <tr
+                  class="reports-fleet-maint-row"
+                  [class.reports-fleet-maint-row--open]="isMaintRowExpanded($index, row)"
+                  tabindex="0"
+                  [attr.aria-expanded]="isMaintRowExpanded($index, row)"
+                  [attr.aria-controls]="'reports-fleet-maint-detail-' + $index"
+                  (click)="toggleMaintRow($index, row)"
+                  (keydown)="onMaintRowKeydown($event, $index, row)"
+                >
                   <td>{{ row.assetLabel }}</td>
                   <td>{{ formatEntryDate(row.entryDate) }}</td>
-                  <td>{{ row.entryType }}</td>
+                  <td class="reports-fleet-maint-row__type">
+                    <span class="reports-fleet-maint-row__type-inner">
+                      <span
+                        class="reports-fleet-maint-row__chevron"
+                        [class.reports-fleet-maint-row__chevron--open]="isMaintRowExpanded($index, row)"
+                        aria-hidden="true"
+                      >
+                        <to-icon name="chevronDown" [size]="14" />
+                      </span>
+                      <span>{{ row.entryType }}</span>
+                    </span>
+                  </td>
                   <td>{{ maintenanceStatusLabel(row.status) }}</td>
                   <td>
                     @if (row.cost > 0) {
@@ -165,6 +184,19 @@
                     }
                   </td>
                 </tr>
+                @if (isMaintRowExpanded($index, row)) {
+                  <tr class="reports-fleet-maint-detail">
+                    <td
+                      [id]="'reports-fleet-maint-detail-' + $index"
+                      colspan="5"
+                    >
+                      <span class="reports-fleet-maint-detail__label">Notas</span>
+                      <p class="reports-fleet-maint-detail__body">
+                        {{ row.notes?.trim() || 'Sin notas en este registro.' }}
+                      </p>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
           </table>

@@ -37,7 +37,7 @@
 }
 
 @if (loading()) {
-  <to-skeleton [lines]="4" />
+  <to-module-skeleton layout="overview-grid" [rows]="6" />
 } @else {
   <div class="operators-toolbar">
     <to-segment-control

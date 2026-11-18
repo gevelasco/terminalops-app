@@ -295,35 +295,21 @@
                 </dd>
               </div>
               <div class="fleet-unit-detail__row">
-                <dt>Infonavit</dt>
-                <dd>{{ vm.operator().publicInsurance.infonavit ? "Sí" : "No" }}</dd>
+                <dt>Cantidad diaria</dt>
+                <dd>
+                  {{
+                    vm.displayDailyInsuredAmount(
+                      vm.operator().publicInsurance.dailyInsuredAmount
+                    )
+                  }}
+                </dd>
               </div>
-              @if (vm.operator().publicInsurance.infonavit) {
-                <div class="fleet-unit-detail__row">
-                  <dt>Núm. crédito Infonavit</dt>
-                  <dd class="fleet-unit-detail__mono">
-                    {{
-                      vm.operator().publicInsurance.infonavitCreditNumber.trim() ||
-                        "—"
-                    }}
-                  </dd>
-                </div>
-              }
               <div class="fleet-unit-detail__row">
-                <dt>FONACOT</dt>
-                <dd>{{ vm.operator().publicInsurance.fonacot ? "Sí" : "No" }}</dd>
+                <dt>Tipo de salario</dt>
+                <dd>
+                  {{ vm.imssSalaryTypeLabel(vm.operator().publicInsurance.salaryType) }}
+                </dd>
               </div>
-              @if (vm.operator().publicInsurance.fonacot) {
-                <div class="fleet-unit-detail__row">
-                  <dt>Crédito / folio FONACOT</dt>
-                  <dd class="fleet-unit-detail__mono">
-                    {{
-                      vm.operator().publicInsurance.fonacotCreditNumber.trim() ||
-                        "—"
-                    }}
-                  </dd>
-                </div>
-              }
               <div class="fleet-unit-detail__row">
                 <dt>Notas</dt>
                 <dd>{{ vm.operator().publicInsurance.notes.trim() || "—" }}</dd>
@@ -414,6 +400,8 @@
               [(insuranceKind)]="vm.editInsuranceKind"
               [(pubNss)]="vm.editPubNss"
               [(pubImssAlta)]="vm.editPubImssAlta"
+              [(pubDailyAmount)]="vm.editPubDailyAmount"
+              [(pubSalaryType)]="vm.editPubSalaryType"
               [(pubInfonavit)]="vm.editPubInfonavit"
               [(pubInfonavitCredit)]="vm.editPubInfonavitCredit"
               [(pubFonacot)]="vm.editPubFonacot"

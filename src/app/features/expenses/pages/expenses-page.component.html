@@ -143,7 +143,7 @@
     [attr.aria-hidden]="pageTab() !== 'list'"
   >
     @if (initialLoading()) {
-      <to-skeleton [lines]="5" />
+      <to-module-skeleton layout="table" [rows]="8" />
     } @else if (showListEmptyNoExpenses()) {
       <p class="to-feature-empty-hint" role="status">
         No hay gastos registrados aún.

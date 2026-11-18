@@ -19,18 +19,21 @@ import { ensureTripsMapEchartsModules } from '@features/trips/utils/trips-map-ch
 import { TRIPS_MAP_GEO_NAME } from '@features/trips/utils/trips-map-echarts-option';
 import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
 import type { ReportsManiobrasGeoMapTrip } from '@shared/models/api/api-reports-maniobras.model';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import { buildReportsManiobrasGeoMapOption } from '@features/reports/utils/charts/maniobras/reports-maniobras-geo-map-option';
 
 @Component({
   selector: 'app-reports-maniobras-geo-chart',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToSkeletonComponent],
+  imports: [ToModuleSkeletonComponent],
   template: `
     <div class="reports-maniobras-geo-chart">
       @if (geoLoading()) {
-        <to-skeleton class="reports-maniobras-geo-chart__skeleton" [lines]="4" />
+        <to-module-skeleton
+          class="reports-maniobras-geo-chart__skeleton"
+          layout="chart"
+        />
       } @else if (geoFailed()) {
         <p class="reports-maniobras-geo-chart__empty">No se pudo cargar el mapa.</p>
       }

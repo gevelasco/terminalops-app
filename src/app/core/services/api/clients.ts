@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable, shareReplay, tap } from 'rxjs';
+import { catchError, map, Observable, shareReplay, tap, throwError } from 'rxjs';
+import { API_SHARE_REPLAY_CACHE } from '@shared/utils/share-replay-api-cache';
 import type { ClientBalanceSummary } from '@features/clients/utils/client-balance-summary';
 import type {
   Client,
@@ -97,7 +98,11 @@ export class ClientsService {
               name: String(row.name ?? '').trim() || 'Sin nombre',
             })),
           ),
-          shareReplay(1),
+          catchError((err) => {
+            this.pickerOptionsCache = null;
+            return throwError(() => err);
+          }),
+          shareReplay(API_SHARE_REPLAY_CACHE),
         );
     }
     return this.pickerOptionsCache;

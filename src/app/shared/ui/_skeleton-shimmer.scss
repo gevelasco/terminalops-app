@@ -1,0 +1,21 @@
+@keyframes to-skeleton-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+
+@mixin to-skeleton-shimmer {
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--to-color-border) 62%, transparent) 0%,
+    color-mix(in srgb, var(--to-color-surface-muted) 92%, var(--to-color-surface)) 42%,
+    color-mix(in srgb, var(--to-color-primary) 9%, var(--to-color-surface-muted)) 50%,
+    color-mix(in srgb, var(--to-color-surface-muted) 92%, var(--to-color-surface)) 58%,
+    color-mix(in srgb, var(--to-color-border) 62%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  animation: to-skeleton-shimmer 1.35s ease-in-out infinite;
+}

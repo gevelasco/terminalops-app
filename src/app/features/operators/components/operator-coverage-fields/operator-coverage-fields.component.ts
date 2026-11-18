@@ -1,5 +1,6 @@
 import { Component, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { OPERATOR_IMSS_SALARY_TYPE_OPTIONS } from '@shared/catalogs/operator-form-options';
 import type { OperatorInsuranceKind } from '@shared/models/logistics.models';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import {
@@ -24,6 +25,9 @@ export class OperatorCoverageFieldsComponent {
 
   readonly pubNss = model('');
   readonly pubImssAlta = model('');
+  readonly pubDailyAmount = model('');
+  readonly pubSalaryType = model('');
+  readonly salaryTypeOptions = OPERATOR_IMSS_SALARY_TYPE_OPTIONS;
   readonly pubInfonavit = model(false);
   readonly pubInfonavitCredit = model('');
   readonly pubFonacot = model(false);

@@ -28,7 +28,7 @@ import { clientCommercialPillClass } from '@shared/utils/client-commercial-pill'
 import { ReportsBalanceActivityHeatmapComponent } from '@features/reports/components/reports-balance-activity-heatmap/reports-balance-activity-heatmap.component';
 import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 
 function pluralEs(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
@@ -42,7 +42,7 @@ function pluralEs(count: number, singular: string, plural: string): string {
   imports: [
     ToKpiCardComponent,
     ToEchartsHostComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ReportsBalanceActivityHeatmapComponent,
   ],
   templateUrl: './reports-balance-tab.component.html',

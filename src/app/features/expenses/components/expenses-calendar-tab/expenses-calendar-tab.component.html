@@ -123,7 +123,7 @@
         Selecciona la fecha final del rango en el calendario.
       </p>
     } @else if (listLoading()) {
-      <to-skeleton [lines]="6" />
+      <to-module-skeleton layout="calendar" />
     } @else if (!hasEntries()) {
       <p class="expenses-calendar-main__empty" role="status">
         No hay gastos ni obligaciones en este periodo.

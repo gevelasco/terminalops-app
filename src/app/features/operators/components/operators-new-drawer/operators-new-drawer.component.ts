@@ -15,7 +15,11 @@ import { catchError, forkJoin, of, switchMap, throwError } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { OperatorsService as OperatorsApiService } from '@core/services/api/operators';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
-import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
+import {
+  mergeOperatorNested,
+  normalizeOperatorImssSalaryType,
+  parseOperatorDailyInsuredAmount,
+} from '@features/operators/utils/operator-payload-defaults';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import {
@@ -110,6 +114,8 @@ export class OperatorsNewDrawerComponent {
   readonly insuranceKind = model<OperatorInsuranceKind>('none');
   readonly pubNss = model('');
   readonly pubImssAlta = model('');
+  readonly pubDailyAmount = model('');
+  readonly pubSalaryType = model('');
   readonly pubInfonavit = model(false);
   readonly pubInfonavitCredit = model('');
   readonly pubFonacot = model(false);
@@ -213,6 +219,14 @@ export class OperatorsNewDrawerComponent {
       this.toast.show('La vigencia de licencia debe ser AAAA-MM-DD.', 'warning');
       return;
     }
+    const dailyInsuredAmount = parseOperatorDailyInsuredAmount(this.pubDailyAmount());
+    if (this.insuranceKind() === 'public' && dailyInsuredAmount === 'invalid') {
+      this.toast.show(
+        'La cantidad diaria debe ser un número válido (≥ 0).',
+        'warning',
+      );
+      return;
+    }
 
     const pendingUploads: Array<{ slot: OperatorDocumentSlot; file: File }> = [
       ...this.filesOperation().map((file) => ({
@@ -255,6 +269,9 @@ export class OperatorsNewDrawerComponent {
       publicInsurance: {
         nss: this.pubNss().trim(),
         imssAltaDate: this.pubImssAlta().trim(),
+        dailyInsuredAmount:
+          dailyInsuredAmount === 'invalid' ? null : dailyInsuredAmount,
+        salaryType: normalizeOperatorImssSalaryType(this.pubSalaryType()),
         infonavit: this.pubInfonavit(),
         infonavitCreditNumber: this.pubInfonavitCredit().trim(),
         fonacot: this.pubFonacot(),

@@ -83,7 +83,7 @@ import { ToFilterTabsComponent } from '@shared/ui/to-filter-tabs/to-filter-tabs.
 import type { ToFilterTab } from '@shared/ui/to-filter-tabs/to-filter-tabs.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
@@ -114,7 +114,7 @@ export type FleetOverviewStatusFilter = Exclude<
     ToIconComponent,
     ToInputComponent,
     ToTableComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToFilterTabsComponent,
     ToSegmentControlComponent,
     FleetNewUnitDrawerComponent,

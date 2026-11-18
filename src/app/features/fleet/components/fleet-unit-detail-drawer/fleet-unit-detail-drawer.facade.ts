@@ -1396,6 +1396,7 @@ export class FleetUnitDetailDrawerFacade {
 
   /** Formulario inline de mantenimiento concluido (historial + gasto). */
   readonly addingMaint = signal(false);
+  readonly maintKmResetConfirmOpen = signal(false);
   readonly newMaintType = signal('servicio_completo');
   readonly newMaintCost = signal('');
   readonly newMaintPaymentMethod = signal('');
@@ -1537,6 +1538,7 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   cancelNewMaint(): void {
+    this.maintKmResetConfirmOpen.set(false);
     this.addingMaint.set(false);
     this.resetNewMaintForm();
   }
@@ -1565,24 +1567,69 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   saveNewMaint(): void {
+    if (!this.newMaintFormReady()) {
+      return;
+    }
+    if (this.shouldResetMaintenanceKmCounter()) {
+      this.maintKmResetConfirmOpen.set(true);
+      return;
+    }
+    this.commitNewMaint();
+  }
+
+  cancelMaintKmResetConfirm(): void {
+    this.maintKmResetConfirmOpen.set(false);
+  }
+
+  confirmMaintKmReset(): void {
+    this.maintKmResetConfirmOpen.set(false);
+    this.commitNewMaint();
+  }
+
+  /** Intervalo de km definido por el admin. Null si la política no tiene uno. */
+  maintKmResetIntervalLabel(): string | null {
+    const interval = this.companyMaintPolicy().kmIntervalDefault;
+    if (interval == null || !Number.isFinite(interval)) {
+      return null;
+    }
+    return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(interval);
+  }
+
+  private shouldResetMaintenanceKmCounter(): boolean {
+    return (
+      this.companyKmMaintControlActive() &&
+      fleetMaintenanceResetsKmCounter(this.newMaintType())
+    );
+  }
+
+  private newMaintFormReady(): boolean {
     const date = this.newMaintDate().trim();
     if (!date) {
       this.toast.show('La fecha es obligatoria.', 'warning');
-      return;
+      return false;
     }
     if (date > this.today) {
       this.toast.show(
         'La fecha del servicio no puede ser futura.',
         'warning',
       );
-      return;
+      return false;
     }
     const cost = parseFleetOptionalAmount(this.newMaintCost());
-    if (cost === 'invalid' || cost === undefined || cost <= 0) {
+    if (cost === 'invalid' || cost === undefined) {
       this.toast.show(
-        'El costo es obligatorio y debe ser mayor a cero.',
+        'El costo es obligatorio y debe ser un número válido (≥ 0).',
         'warning',
       );
+      return false;
+    }
+    return true;
+  }
+
+  private commitNewMaint(): void {
+    const date = this.newMaintDate().trim();
+    const cost = parseFleetOptionalAmount(this.newMaintCost());
+    if (!date || cost === 'invalid' || cost === undefined) {
       return;
     }
 
@@ -1596,10 +1643,7 @@ export class FleetUnitDetailDrawerFacade {
       lastMaintenanceCost: cost,
       lastMaintenanceNotes: notes,
     };
-    if (
-      this.companyKmMaintControlActive() &&
-      fleetMaintenanceResetsKmCounter(typeValue)
-    ) {
+    if (this.shouldResetMaintenanceKmCounter()) {
       metaPatch.maintenanceKmCounter = 0;
     }
 

@@ -4,6 +4,31 @@ import type {
   OperatorPrivateInsurance,
   OperatorPublicInsurance,
 } from '@shared/models/logistics.models';
+import { parseGroupedNumber } from '@shared/utils/format-grouped-number';
+
+export function normalizeOperatorImssSalaryType(
+  raw: string,
+): '' | 'fixed' | 'variable' | 'mixed' {
+  const value = raw.trim();
+  if (value === 'fixed' || value === 'variable' || value === 'mixed') {
+    return value;
+  }
+  return '';
+}
+
+/** Vacío = sin monto. Texto no numérico o negativo = inválido. */
+export function parseOperatorDailyInsuredAmount(
+  raw: string,
+): number | null | 'invalid' {
+  if (raw.trim() === '') {
+    return null;
+  }
+  const parsed = parseGroupedNumber(raw);
+  if (parsed == null || parsed < 0) {
+    return 'invalid';
+  }
+  return parsed;
+}
 
 export const EMPTY_EMERGENCY: OperatorEmergencyContact = {
   name: '',
@@ -16,6 +41,8 @@ export const EMPTY_EMERGENCY: OperatorEmergencyContact = {
 export const EMPTY_PUBLIC: OperatorPublicInsurance = {
   nss: '',
   imssAltaDate: '',
+  dailyInsuredAmount: null,
+  salaryType: '',
   infonavit: false,
   infonavitCreditNumber: '',
   fonacot: false,

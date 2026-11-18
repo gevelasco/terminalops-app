@@ -23,7 +23,7 @@ import { planDisplayName } from '@shared/billing/subscription-plans';
 import { canViewAccount } from '@shared/utils/access-control';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -34,7 +34,7 @@ import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToInputComponent,
     ToIconComponent,
     ToButtonComponent,

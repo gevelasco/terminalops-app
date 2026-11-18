@@ -46,6 +46,11 @@
   grid-column: 1 / -1;
 }
 
+.reports-fleet-panel--compliance,
+.reports-fleet-panel--maintenance {
+  min-height: 260px;
+}
+
 .reports-fleet-panel__head {
   flex-shrink: 0;
   margin-bottom: 0.35rem;
@@ -78,11 +83,58 @@
 .reports-fleet-panel__table-wrap {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+:host ::ng-deep .reports-fleet-panel__table-wrap to-table {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+:host ::ng-deep .reports-fleet-panel__table-wrap to-table .to-table-wrap {
+  overflow-x: hidden;
 }
 
 :host ::ng-deep .reports-fleet-panel__table-wrap to-table .to-table {
   font-size: 0.6875rem;
+  table-layout: fixed;
+  width: 100%;
+}
+
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table-wrap {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table th,
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table td {
+  padding: 0.4rem 0.35rem;
+}
+
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table th:first-child,
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table td:first-child {
+  width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table-fleet-icon-stack {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+}
+
+:host ::ng-deep .reports-fleet-panel--compliance to-table .to-table-fleet-icon-stack__next {
+  max-width: 100%;
+  font-size: 0.6rem;
+  line-height: 1.15;
+  text-align: center;
+  word-break: break-word;
 }
 
 .reports-fleet-panel__table {
@@ -107,6 +159,67 @@
 
 .reports-fleet-panel__table td {
   color: var(--to-color-text);
+}
+
+.reports-fleet-maint-row {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--to-focus-ring);
+    outline-offset: -2px;
+  }
+
+  &:hover td,
+  &--open td {
+    background: color-mix(in srgb, var(--to-color-primary) 7%, var(--to-color-surface));
+  }
+}
+
+.reports-fleet-maint-row__type {
+  font-weight: 600;
+}
+
+.reports-fleet-maint-row__type-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.28rem;
+}
+
+.reports-fleet-maint-row__chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: var(--to-color-text-muted);
+  transition: transform 0.15s ease;
+
+  &--open {
+    transform: rotate(180deg);
+  }
+}
+
+.reports-fleet-maint-detail td {
+  background: color-mix(in srgb, var(--to-color-surface-muted) 72%, var(--to-color-surface));
+  padding: 0.5rem 0.7rem 0.65rem 1.35rem;
+}
+
+.reports-fleet-maint-detail__label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted);
+}
+
+.reports-fleet-maint-detail__body {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--to-color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .reports-fleet-panel__empty {

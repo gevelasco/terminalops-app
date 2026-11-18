@@ -37,7 +37,7 @@
 }
 
 @if (loading()) {
-  <to-skeleton [lines]="5" />
+  <to-module-skeleton layout="table" [rows]="8" />
 } @else {
   <div class="users-table-block">
     <to-table

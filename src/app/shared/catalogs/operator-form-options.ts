@@ -35,6 +35,17 @@ export const OPERATOR_LICENSE_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'both', label: 'Federal y estatal' },
 ];
 
+export const OPERATOR_IMSS_SALARY_TYPE_OPTIONS: ToSelectOption[] = [
+  { value: 'fixed', label: 'Fijo' },
+  { value: 'variable', label: 'Variable' },
+  { value: 'mixed', label: 'Mixto' },
+];
+
+export function operatorImssSalaryTypeLabel(value: string | null | undefined): string {
+  const raw = value?.trim() ?? '';
+  return OPERATOR_IMSS_SALARY_TYPE_OPTIONS.find((option) => option.value === raw)?.label ?? '—';
+}
+
 export const OPERATOR_INSURANCE_KIND_OPTIONS: ToSelectOption[] = [
   { value: 'none', label: 'Ninguno' },
   { value: 'public', label: 'Público (IMSS / seguridad social)' },

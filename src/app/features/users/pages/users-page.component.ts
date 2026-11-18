@@ -19,7 +19,7 @@ import { UsersDetailDrawerComponent } from '@features/users/components/users-det
 import { UsersNewDrawerComponent } from '@features/users/components/users-new-drawer/users-new-drawer.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
@@ -31,7 +31,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToPageHeaderComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToTableComponent,
     ToButtonComponent,
     UsersNewDrawerComponent,

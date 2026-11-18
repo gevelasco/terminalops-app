@@ -1,6 +1,7 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, finalize, map, shareReplay, tap, throwError } from 'rxjs';
+import { API_SHARE_REPLAY_CACHE } from '@shared/utils/share-replay-api-cache';
 import { environment } from '../../../../environments/environment';
 import type {
   LoginRequest,
@@ -66,7 +67,7 @@ export class AuthService {
           this.profiles.hydrateFromSession();
         }),
         map(() => void 0),
-        shareReplay({ bufferSize: 1, refCount: true }),
+        shareReplay(API_SHARE_REPLAY_CACHE),
         finalize(() => {
           this.refreshInFlight$ = undefined;
         }),

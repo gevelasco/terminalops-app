@@ -111,7 +111,7 @@
 
 @if (tab() === 'overview') {
   @if (overviewViewLoading()) {
-    <to-skeleton [lines]="4" />
+    <to-module-skeleton layout="overview-grid" [rows]="6" />
   } @else if (overviewViewEmpty()) {
     <div class="to-feature-empty" role="status">
       <div class="to-feature-empty__visual" aria-hidden="true">
@@ -185,7 +185,7 @@
   }
 } @else if (tab() === 'units') {
   @if (loadingUnits()) {
-    <to-skeleton [lines]="4" />
+    <to-module-skeleton layout="table" [rows]="8" />
   } @else {
     <div class="fleet-table-block">
       <to-table
@@ -211,7 +211,7 @@
   }
 } @else {
   @if (loadingEquipment()) {
-    <to-skeleton [lines]="4" />
+    <to-module-skeleton layout="table" [rows]="8" />
   } @else {
     <div class="fleet-table-block">
       <to-table

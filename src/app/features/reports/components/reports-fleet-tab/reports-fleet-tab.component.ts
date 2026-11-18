@@ -5,6 +5,7 @@ import {
   inject,
   input,
   model,
+  signal,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
@@ -19,7 +20,10 @@ import {
 import type { ReportsFilter } from '@features/reports/models/reports-view.models';
 import { reportsPeriodSubtitle } from '@features/reports/utils/reports-period-subtitle.util';
 import { formatReportsMoneyMx } from '@features/reports/utils/charts/reports-chart-axis.util';
-import type { ReportsFleetData } from '@shared/models/api/api-reports-fleet.model';
+import type {
+  ReportsFleetData,
+  ReportsFleetMaintenanceEventRow,
+} from '@shared/models/api/api-reports-fleet.model';
 import { renewalBucketFromOverview } from '@features/fleet/utils/fleet-overview-view';
 import {
   cappedListHint,
@@ -28,7 +32,8 @@ import {
 } from '@shared/utils/list-display-cap';
 import { ToEchartsHostComponent } from '@shared/ui/to-echarts-host/to-echarts-host.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableComponent,
   type ToTableColumn,
@@ -94,9 +99,10 @@ function maintenanceStatusLabel(status: string): string {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ToIconComponent,
     ToKpiCardComponent,
     ToEchartsHostComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToTableComponent,
   ],
   templateUrl: './reports-fleet-tab.component.html',
@@ -105,6 +111,8 @@ function maintenanceStatusLabel(status: string): string {
 export class ReportsFleetTabComponent {
   private readonly tabData = inject(ReportsTabDataService);
   private readonly session = inject(SessionService);
+
+  private readonly expandedMaintKey = signal<string | null>(null);
 
   readonly filter = input.required<ReportsFilter>();
 
@@ -199,6 +207,32 @@ export class ReportsFleetTabComponent {
   formatWeightTons = formatWeightTons;
   formatPercent = formatPercent;
   maintenanceStatusLabel = maintenanceStatusLabel;
+
+  maintRowKey(index: number, row: ReportsFleetMaintenanceEventRow): string {
+    const idPart = row.entryId > 0 ? String(row.entryId) : '0';
+    return `${index}:${idPart}:${row.entryDate ?? ''}:${row.entryType}`;
+  }
+
+  isMaintRowExpanded(index: number, row: ReportsFleetMaintenanceEventRow): boolean {
+    return this.expandedMaintKey() === this.maintRowKey(index, row);
+  }
+
+  toggleMaintRow(index: number, row: ReportsFleetMaintenanceEventRow): void {
+    const key = this.maintRowKey(index, row);
+    this.expandedMaintKey.update((current) => (current === key ? null : key));
+  }
+
+  onMaintRowKeydown(
+    event: KeyboardEvent,
+    index: number,
+    row: ReportsFleetMaintenanceEventRow,
+  ): void {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    this.toggleMaintRow(index, row);
+  }
 
   readonly operationalKmValue = computed(() =>
     formatKm(this.summary()?.totalOperationalKm ?? 0),

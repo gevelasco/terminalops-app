@@ -18,7 +18,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { ECElementEvent, EChartsType } from 'echarts/core';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import { ensureTripsMapEchartsModules } from '@features/trips/utils/trips-map-chart-modules';
 import { TRIPS_MAP_GEO_NAME } from '@features/trips/utils/trips-map-echarts-option';
 import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
@@ -40,7 +40,7 @@ import {
   selector: 'app-destination-rates-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToSkeletonComponent],
+  imports: [ToModuleSkeletonComponent],
   templateUrl: './destination-rates-map.component.html',
   styleUrls: [
     '../../../../shared/ui/to-table/to-table.component.scss',

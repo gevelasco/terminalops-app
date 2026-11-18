@@ -6,7 +6,7 @@
   <div class="maniobra-route-map__canvas-wrap">
     @if (loading() || !geoReady()) {
       <div class="maniobra-route-map__overlay">
-        <to-skeleton [lines]="4" />
+        <to-module-skeleton layout="map" />
       </div>
     }
 
@@ -69,7 +69,7 @@
         </header>
 
         @if (stateFleet.loading()) {
-          <to-skeleton [lines]="3" />
+          <to-module-skeleton layout="chart" />
         } @else if (stateFleet.error()) {
           <p class="maniobra-route-map__fleet-hint maniobra-route-map__fleet-hint--error">
             No se pudo cargar la flota para este estado.

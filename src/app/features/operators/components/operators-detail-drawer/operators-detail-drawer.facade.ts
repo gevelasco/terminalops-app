@@ -17,7 +17,13 @@ import {
   EMPTY_OPERATOR_OPERATION_SUMMARY,
   type OperatorOperationSummary,
 } from '@features/operators/utils/operator-operation-summary';
-import { mergeOperatorNested } from '@features/operators/utils/operator-payload-defaults';
+import {
+  mergeOperatorNested,
+  normalizeOperatorImssSalaryType,
+  parseOperatorDailyInsuredAmount,
+} from '@features/operators/utils/operator-payload-defaults';
+import { formatGroupedNumber, formatMoneyInputValue } from '@shared/utils/format-grouped-number';
+import { operatorImssSalaryTypeLabel } from '@shared/catalogs/operator-form-options';
 import { companyTenureLabelEs } from '@features/operators/utils/operator-company-tenure';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import {
@@ -143,6 +149,8 @@ export class OperatorsDetailDrawerFacade {
   readonly editInsuranceKind = signal<OperatorInsuranceKind>('none');
   readonly editPubNss = signal('');
   readonly editPubImssAlta = signal('');
+  readonly editPubDailyAmount = signal('');
+  readonly editPubSalaryType = signal('');
   readonly editPubInfonavit = signal(false);
   readonly editPubInfonavitCredit = signal('');
   readonly editPubFonacot = signal(false);
@@ -453,6 +461,17 @@ export class OperatorsDetailDrawerFacade {
 
   payDueBadgeVariant(v: ClientPaymentDueBadgeVariant): ToBadgeVariant {
     return v;
+  }
+
+  imssSalaryTypeLabel(value: string | null | undefined): string {
+    return operatorImssSalaryTypeLabel(value);
+  }
+
+  displayDailyInsuredAmount(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
+      return '—';
+    }
+    return formatGroupedNumber(value);
   }
 
   displayIsoDate(iso: string): string {
@@ -825,6 +844,14 @@ export class OperatorsDetailDrawerFacade {
     if (this.saving()) {
       return;
     }
+    const dailyInsuredAmount = parseOperatorDailyInsuredAmount(this.editPubDailyAmount());
+    if (this.editInsuranceKind() === 'public' && dailyInsuredAmount === 'invalid') {
+      this.toast.show(
+        'La cantidad diaria debe ser un número válido (≥ 0).',
+        'warning',
+      );
+      return;
+    }
     const previous = this.operator();
     const updated = mergeOperatorNested({
       ...previous,
@@ -832,6 +859,9 @@ export class OperatorsDetailDrawerFacade {
       publicInsurance: {
         nss: this.editPubNss().trim(),
         imssAltaDate: this.editPubImssAlta().trim(),
+        dailyInsuredAmount:
+          dailyInsuredAmount === 'invalid' ? null : dailyInsuredAmount,
+        salaryType: normalizeOperatorImssSalaryType(this.editPubSalaryType()),
         infonavit: this.editPubInfonavit(),
         infonavitCreditNumber: this.editPubInfonavitCredit().trim(),
         fonacot: this.editPubFonacot(),
@@ -930,6 +960,10 @@ export class OperatorsDetailDrawerFacade {
     this.editInsuranceKind.set(o.insuranceKind);
     this.editPubNss.set(o.publicInsurance.nss);
     this.editPubImssAlta.set(o.publicInsurance.imssAltaDate);
+    this.editPubDailyAmount.set(
+      formatMoneyInputValue(o.publicInsurance.dailyInsuredAmount),
+    );
+    this.editPubSalaryType.set(o.publicInsurance.salaryType ?? '');
     this.editPubInfonavit.set(o.publicInsurance.infonavit);
     this.editPubInfonavitCredit.set(o.publicInsurance.infonavitCreditNumber);
     this.editPubFonacot.set(o.publicInsurance.fonacot);

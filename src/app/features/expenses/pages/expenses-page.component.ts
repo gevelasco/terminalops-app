@@ -54,7 +54,7 @@ import {
   ToSegmentControlComponent,
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableColumn,
   ToTableComponent,
@@ -84,7 +84,7 @@ function currentMonthYearValue(now = new Date()): ToMonthYearValue {
     ToMonthYearPickerComponent,
     ToSegmentControlComponent,
     ToTableComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ExpensesNewDrawerComponent,
     ExpensesDetailDrawerComponent,
     ExpensesCalendarTabComponent,

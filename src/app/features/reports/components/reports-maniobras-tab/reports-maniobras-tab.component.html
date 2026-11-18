@@ -1,5 +1,5 @@
 @if (loading()) {
-  <to-skeleton [lines]="8" />
+  <to-module-skeleton layout="reports" />
 } @else if (summary() && insights()) {
   <div class="reports-maniobras-kpis">
     <to-kpi-card

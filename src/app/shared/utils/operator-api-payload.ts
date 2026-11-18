@@ -29,6 +29,8 @@ function pickPublicInsurance(
   return {
     nss: insurance.nss,
     imssAltaDate: insurance.imssAltaDate,
+    dailyInsuredAmount: insurance.dailyInsuredAmount ?? null,
+    salaryType: insurance.salaryType ?? '',
     infonavit: insurance.infonavit === true,
     infonavitCreditNumber: insurance.infonavitCreditNumber,
     fonacot: insurance.fonacot === true,

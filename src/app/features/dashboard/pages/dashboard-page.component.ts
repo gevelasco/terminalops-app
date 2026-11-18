@@ -49,7 +49,7 @@ import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToKpiCardComponent } from '@shared/ui/to-kpi-card/to-kpi-card.component';
 import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
-import { ToSkeletonComponent } from '@shared/ui/to-skeleton/to-skeleton.component';
+import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 
 function pluralEs(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
@@ -72,7 +72,7 @@ function formatDeltaPercent(value: number | null | undefined): string {
     ToPageHeaderComponent,
     ToKpiCardComponent,
     ToEchartsHostComponent,
-    ToSkeletonComponent,
+    ToModuleSkeletonComponent,
     ToIconComponent,
     ToInputComponent,
   ],
@@ -123,15 +123,24 @@ export class DashboardPageComponent {
       }
       return firstValueFrom(
         forkJoin({
-          summary: this.dashboardApi.getSummary(),
-          insights: this.dashboardApi.getInsights(),
+          summary: this.dashboardApi.getSummary().pipe(catchError(() => of(null))),
+          insights: this.dashboardApi.getInsights().pipe(catchError(() => of(null))),
           upcomingPayments: request.financial
             ? this.loadUpcomingPayments()
             : of([] as DashboardUpcomingPaymentRow[]),
           upcomingDepartures: request.financial
             ? of([] as DashboardUpcomingDepartureRow[])
             : this.loadUpcomingDepartures(),
-        }),
+        }).pipe(
+          catchError(() =>
+            of({
+              summary: null,
+              insights: null,
+              upcomingPayments: [] as DashboardUpcomingPaymentRow[],
+              upcomingDepartures: [] as DashboardUpcomingDepartureRow[],
+            }),
+          ),
+        ),
       );
     },
   });

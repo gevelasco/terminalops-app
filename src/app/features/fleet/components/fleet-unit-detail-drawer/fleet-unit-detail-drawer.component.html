@@ -84,3 +84,24 @@
     históricos se conservan en el sistema.
   </p>
 </to-confirm-dialog>
+
+<to-confirm-dialog
+  titleId="fleet-unit-maint-km-reset-title"
+  icon="warning"
+  title="Reiniciar kilómetros"
+  cancelLabel="Cancelar"
+  confirmLabel="Guardar"
+  confirmVariant="primary"
+  [open]="vm.maintKmResetConfirmOpen()"
+  (cancel)="vm.cancelMaintKmResetConfirm()"
+  (confirm)="vm.confirmMaintKmReset()"
+>
+  <p>
+    @if (vm.maintKmResetIntervalLabel(); as interval) {
+      Los km se van a restablecer en cero y comenzarán a contar hasta llegar a
+      <strong>{{ interval }} km</strong>.
+    } @else {
+      Los km se van a restablecer en cero.
+    }
+  </p>
+</to-confirm-dialog>
