@@ -1,0 +1,31 @@
+@if (newUserOpen()) {
+  @defer {
+    <app-users-new-drawer
+      (dismiss)="newUserOpen.set(false)"
+      (saved)="onUserCreated()"
+    />
+  }
+}
+
+@if (selectedUser(); as user) {
+  @defer {
+    <app-users-detail-drawer
+      [user]="user"
+      (dismiss)="onDetailDismiss()"
+      (saved)="onUserSaved($event)"
+    />
+  }
+}
+
+@if (loading()) {
+  <to-module-skeleton layout="table" [rows]="8" />
+} @else {
+  <div class="users-settings-tab__table">
+    <to-table
+      [columns]="columns"
+      [rows]="tableRows()"
+      [interactiveRows]="true"
+      (rowClick)="onRowClick($event)"
+    />
+  </div>
+}

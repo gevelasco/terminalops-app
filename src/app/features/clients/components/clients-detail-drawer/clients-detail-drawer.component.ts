@@ -6,6 +6,9 @@ import {
   inject,
   output,
 } from '@angular/core';
+import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -20,6 +23,8 @@ import { ClientsDetailDetailsTabComponent } from './tabs/clients-detail-details-
   providers: [ClientsDetailDrawerFacade],
   imports: [
     ToSideDrawerComponent,
+    ToButtonComponent,
+    ToConfirmDialogComponent,
     ToIconComponent,
     ToSegmentControlComponent,
     ToStatusPillComponent,
@@ -30,6 +35,7 @@ import { ClientsDetailDetailsTabComponent } from './tabs/clients-detail-details-
   templateUrl: './clients-detail-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
+    '../../../fleet/components/styles/fleet-detail-drawer-footer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables.scss',
@@ -38,6 +44,7 @@ import { ClientsDetailDetailsTabComponent } from './tabs/clients-detail-details-
 })
 export class ClientsDetailDrawerComponent {
   protected readonly vm = inject(ClientsDetailDrawerFacade);
+  protected readonly commercialHandshakeIconSrc = COMMERCIAL_HANDSHAKE_ICON_SRC;
 
   readonly dismiss = output<void>();
 
@@ -48,6 +55,13 @@ export class ClientsDetailDrawerComponent {
 
   @HostListener('document:keydown', ['$event'])
   onDocKey(ev: KeyboardEvent): void {
+    if (ev.key === 'Escape' && this.vm.deleteConfirmOpen()) {
+      this.vm.closeDeleteConfirm();
+      return;
+    }
+    if (this.vm.deleteConfirmOpen()) {
+      return;
+    }
     this.vm.onDocKey(ev);
   }
 }

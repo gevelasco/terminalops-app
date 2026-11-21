@@ -17,8 +17,6 @@ import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service
 import { userTableModuleIcons } from '@shared/utils/staff-module-present';
 import { UsersDetailDrawerComponent } from '@features/users/components/users-detail-drawer/users-detail-drawer.component';
 import { UsersNewDrawerComponent } from '@features/users/components/users-new-drawer/users-new-drawer.component';
-import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
-import { ToPageHeaderComponent } from '@shared/ui/to-page-header/to-page-header.component';
 import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import {
   ToTableColumn,
@@ -26,21 +24,19 @@ import {
 } from '@shared/ui/to-table/to-table.component';
 
 @Component({
-  selector: 'app-users-page',
+  selector: 'app-users-settings-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ToPageHeaderComponent,
     ToModuleSkeletonComponent,
     ToTableComponent,
-    ToButtonComponent,
     UsersNewDrawerComponent,
     UsersDetailDrawerComponent,
   ],
-  templateUrl: './users-page.component.html',
-  styleUrl: './users-page.component.scss',
+  templateUrl: './users-settings-tab.component.html',
+  styleUrl: './users-settings-tab.component.scss',
 })
-export class UsersPageComponent {
+export class UsersSettingsTabComponent {
   private readonly session = inject(SessionService);
   private readonly api = inject(CompanyUsersApiService);
   private readonly planEntitlements = inject(PlanEntitlementService);

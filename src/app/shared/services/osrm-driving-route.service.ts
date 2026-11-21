@@ -7,6 +7,7 @@ import { isValidLatLon } from '@shared/services/lat-lon';
 import {
   downsampleOsrmCoordinates,
   osrmRouteCacheKey,
+  osrmRouteThroughCacheKey,
   parseOsrmDrivingRoute,
   type OsrmDrivingRouteResult,
   type OsrmLngLat,
@@ -84,6 +85,41 @@ export class OsrmDrivingRouteService {
    * Ruta de manejo: km + polilínea [lon, lat] para dibujar sobre el mapa.
    * Reutiliza caché de memoria/sesión; las peticiones nuevas van en cola (1/s).
    */
+  /** Ruta por carretera pasando por todos los puntos en orden (aprox.). */
+  drivingRouteThrough(
+    points: readonly LatLon[],
+  ): Observable<OsrmDrivingRouteResult | null> {
+    if (points.length < 2) {
+      return of(null);
+    }
+    for (const p of points) {
+      if (!isValidLatLon(p)) {
+        return of(null);
+      }
+    }
+    const key = `through:${osrmRouteThroughCacheKey(points)}`;
+    const cached = this.memoryCache.get(key) ?? this.readSessionCache(key);
+    if (cached) {
+      this.memoryCache.set(key, cached);
+      return of(cached);
+    }
+    const pending = this.inflight.get(key);
+    if (pending) {
+      return pending;
+    }
+    const request$ = this.enqueue(() => this.fetchRouteThrough(points)).pipe(
+      tap((route) => {
+        if (route) {
+          this.writeCache(key, route);
+        }
+        this.inflight.delete(key);
+      }),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+    this.inflight.set(key, request$);
+    return request$;
+  }
+
   drivingRoute(
     from: LatLon,
     to: LatLon,
@@ -132,6 +168,32 @@ export class OsrmDrivingRouteService {
         },
       });
     });
+  }
+
+  private fetchRouteThrough(
+    points: readonly LatLon[],
+  ): Observable<OsrmDrivingRouteResult | null> {
+    const path = points.map((p) => `${p.lon},${p.lat}`).join(';');
+    const url = `${this.base}/${path}`;
+    const params = new HttpParams()
+      .set('overview', 'simplified')
+      .set('geometries', 'geojson')
+      .set('alternatives', 'false')
+      .set('steps', 'false')
+      .set('generate_hints', 'false');
+
+    return this.http.get<OsrmRouteResponse>(url, { params }).pipe(
+      map((res) => {
+        const parsed = parseOsrmDrivingRoute(res);
+        if (!parsed) {
+          return null;
+        }
+        return {
+          km: parsed.km,
+          coordinates: downsampleOsrmCoordinates(parsed.coordinates),
+        };
+      }),
+    );
   }
 
   private fetchRoute(

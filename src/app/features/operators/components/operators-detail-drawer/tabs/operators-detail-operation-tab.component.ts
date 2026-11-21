@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { REVERT_ROTATE_LEFT_ICON_SRC } from '@shared/constants/revert-rotate-left-icon';
 import { ToMonthYearPickerComponent } from '@shared/ui/to-month-year-picker/to-month-year-picker.component';
 import { OperatorsDetailDrawerFacade } from '../operators-detail-drawer.facade';
 import {
@@ -18,4 +19,5 @@ import {
 })
 export class OperatorsDetailOperationTabComponent {
   protected readonly vm = inject(OperatorsDetailDrawerFacade);
+  protected readonly revertPaymentIconSrc = REVERT_ROTATE_LEFT_ICON_SRC;
 }

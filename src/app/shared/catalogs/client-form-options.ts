@@ -11,6 +11,14 @@ export const DESTINATION_RATE_AVAILABILITY_OPTIONS: ToSelectOption[] = [
   { value: 'no', label: 'Inactiva' },
 ];
 
+/** Ejes del tracto para casetas INEGI (tarifas por maniobra). */
+export const DESTINATION_RATE_AXLE_OPTIONS: ToSelectOption[] = [
+  { value: '5', label: '5 ejes' },
+  { value: '6', label: '6 ejes' },
+  { value: '7', label: '7 ejes' },
+  { value: '8', label: '8 ejes' },
+];
+
 /** Unidad para tiempos estimados de referencia en tarifas por ruta. */
 export const DESTINATION_RATE_TIME_UNIT_OPTIONS: ToSelectOption[] = [
   { value: '', label: 'Sin especificar' },

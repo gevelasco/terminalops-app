@@ -1,5 +1,7 @@
+@use '../destination-rates-drawer.shared';
+
 :host ::ng-deep .destination-rates-new-drawer__panel.to-side-drawer__panel--wide {
-  width: min(38rem, 100vw);
+  width: min(43.7rem, 100vw);
 }
 
 .destination-rates-new-drawer__grid {
@@ -14,9 +16,50 @@
   gap: 0.75rem;
 }
 
-.destination-rates-new-drawer__distance-grid,
-.destination-rates-new-drawer__time-grid {
-  margin-top: 0;
+.destination-rates-new-drawer__metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  align-items: start;
+}
+
+:host ::ng-deep .destination-rates-new-drawer__metrics-grid {
+  .to-field__label {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+}
+
+.destination-rates-new-drawer__route-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.destination-rates-new-drawer__route-layout > app-operational-center-select {
+  grid-column: 1;
+}
+
+:host ::ng-deep .destination-rates-new-drawer__route-layout {
+  .destination-rate-location-fields__cp-cell {
+    grid-column: 2;
+  }
+
+  .destination-rate-location-fields__hint--route-form {
+    grid-column: 1 / -1;
+    margin: -0.35rem 0 0;
+  }
+
+  .destination-rate-location-fields__city-cell {
+    grid-column: 1;
+  }
+
+  .destination-rate-location-fields__locality-cell {
+    grid-column: 2;
+  }
 }
 
 .destination-rates-new-drawer__duplicate-banner {
@@ -68,7 +111,25 @@
 }
 
 @media (max-width: 640px) {
-  .destination-rates-new-drawer__grid {
+  .destination-rates-new-drawer__grid,
+  .destination-rates-new-drawer__route-layout {
     grid-template-columns: 1fr;
+  }
+
+  .destination-rates-new-drawer__metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :host ::ng-deep .destination-rates-new-drawer__route-layout {
+    .destination-rate-location-fields__cp-cell,
+    .destination-rate-location-fields__city-cell,
+    .destination-rate-location-fields__locality-cell,
+    .destination-rate-location-fields__hint--route-form {
+      grid-column: 1;
+    }
+  }
+
+  .destination-rates-new-drawer__route-layout > app-operational-center-select {
+    grid-column: 1;
   }
 }

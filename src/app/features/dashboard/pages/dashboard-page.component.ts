@@ -38,7 +38,7 @@ import { buildDashboardWeekResult } from '@features/dashboard/utils/dashboard-we
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { CurrencyMxPipe } from '@shared/pipes/currency-mx.pipe';
-import { canAccessModule, isAdminRole } from '@shared/utils/access-control';
+import { canAccessModule } from '@shared/utils/access-control';
 import { injectIsMobileViewport } from '@shared/utils/viewport';
 import {
   maneuverStatusPillClass,
@@ -96,10 +96,13 @@ export class DashboardPageComponent {
    */
   readonly isMobileViewport = injectIsMobileViewport();
 
+  readonly canReadDashboard = computed(() =>
+    this.session.canReadModule(APP_MODULE_CODES.DASHBOARD),
+  );
+
   readonly showFinancialInsights = computed(() => {
-    const role = this.session.role();
-    if (isAdminRole(role)) {
-      return true;
+    if (!this.canReadDashboard()) {
+      return false;
     }
     return canAccessModule(this.session.allowedModules(), APP_MODULE_CODES.EXPENSES);
   });
@@ -109,7 +112,7 @@ export class DashboardPageComponent {
     // (evita throw síncrono "No hay empresa en sesión" que rompía cerrar sesión).
     request: () => {
       const companyId = this.session.companyId();
-      if (!companyId) {
+      if (!companyId || !this.canReadDashboard()) {
         return undefined;
       }
       return {
@@ -192,7 +195,9 @@ export class DashboardPageComponent {
     return dashboardChartPrimary();
   });
 
-  readonly canEditDiesel = computed(() => isAdminRole(this.session.role()));
+  readonly canEditDiesel = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.DASHBOARD),
+  );
 
   readonly dieselSnapshot = computed(() => this.summary()?.diesel ?? null);
 

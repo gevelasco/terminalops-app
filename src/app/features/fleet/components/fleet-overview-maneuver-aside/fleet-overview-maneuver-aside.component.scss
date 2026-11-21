@@ -1,0 +1,20 @@
+@use '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel';
+
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.fleet-overview-maneuver-aside__dl {
+  margin: 0;
+}
+
+.fleet-overview-maneuver-aside__value--eta {
+  color: var(--to-color-primary);
+}
+
+.fleet-overview-maneuver-aside__value--update {
+  color: var(--to-color-primary, #6366f1);
+  font-weight: var(--to-weight-semibold);
+}

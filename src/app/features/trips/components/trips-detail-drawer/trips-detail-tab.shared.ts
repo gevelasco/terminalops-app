@@ -15,5 +15,6 @@ export const TRIPS_DETAIL_TAB_STYLE_URLS = [
   '../../../../fleet/components/fleet-drawer.shared.scss',
   '../../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
   '../../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
+  '../../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables.scss',
   '../trips-detail-drawer.component.scss',
 ] as const;

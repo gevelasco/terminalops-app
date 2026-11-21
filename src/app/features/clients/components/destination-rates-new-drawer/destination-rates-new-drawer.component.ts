@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   DestroyRef,
   HostListener,
   inject,
@@ -28,7 +29,10 @@ import {
 import { ToastService } from '@core/notifications/toast.service';
 import { DestinationRatesService as DestinationRatesApiService } from '@services/api/destination-rates';
 import { DestinationRateLocationFieldsComponent } from '@features/clients/components/destination-rate-location-fields/destination-rate-location-fields.component';
-import { DestinationRatePricesEditorComponent } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
+import {
+  DestinationRatePricesEditorComponent,
+  type DestinationRateRouteTollContext,
+} from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
 import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
@@ -60,19 +64,30 @@ import type {
   DestinationRate,
   DestinationRatePriceDraft,
 } from '@shared/models/destination-rate.models';
+import { formatEstimatedTimeValueNumber } from '@features/clients/utils/destination-rate-estimated-time';
 import {
-  DESTINATION_RATE_AVAILABILITY_OPTIONS,
-  DESTINATION_RATE_TIME_UNIT_OPTIONS,
-} from '@shared/catalogs/client-form-options';
-import { estimatedTimeUnitSuffix } from '@features/clients/utils/destination-rate-estimated-time';
+  suggestedDriveTimeHoursFromRouteKm,
+} from '@features/clients/utils/destination-rate-drive-time.util';
+import {
+  definedRouteDrivingPoints,
+  definedRouteMetricsKey,
+} from '@features/clients/utils/destination-rate-defined-route-metrics.util';
+import type { RouteTollPlazaRow } from '@core/services/api/routing';
 import { isValidLatLon, latLonFromPrefill } from '@shared/services/lat-lon';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 import { OsrmDrivingRouteService } from '@shared/services/osrm-driving-route.service';
+import { destinationRateSakbeSearchLabel } from '@features/clients/utils/destination-rate-sakbe-search.util';
+import { mexicanSepomexGeocodeHints } from '@features/clients/utils/destination-rate-state-resolve.util';
+import {
+  routeWaypointDraftsFromStored,
+  routeWaypointsToTollQuery,
+  destinationRateRouteTollContextKey,
+  type DestinationRateRouteWaypointDraft,
+} from '@features/clients/utils/destination-rate-route-waypoints.util';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
-import { ToSelectComponent, ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 
 @Component({
@@ -84,7 +99,6 @@ import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.
     ToButtonComponent,
     ToIconComponent,
     ToInputComponent,
-    ToSelectComponent,
     OperationalCenterSelectComponent,
     DestinationRateLocationFieldsComponent,
     DestinationRatePricesEditorComponent,
@@ -107,6 +121,7 @@ export class DestinationRatesNewDrawerComponent {
   private readonly toast = inject(ToastService);
 
   private readonly originSelect = viewChild(OperationalCenterSelectComponent);
+  private readonly pricesEditor = viewChild(DestinationRatePricesEditorComponent);
 
   readonly dismiss = output<void>();
   readonly saved = output<DestinationRate>();
@@ -114,31 +129,35 @@ export class DestinationRatesNewDrawerComponent {
   readonly drawerLoading = signal(true);
   readonly saving = signal(false);
 
-  readonly yesNoOptions: ToSelectOption[] = DESTINATION_RATE_AVAILABILITY_OPTIONS;
-  readonly timeUnitOptions: ToSelectOption[] = DESTINATION_RATE_TIME_UNIT_OPTIONS;
-
   readonly originOperationalCenterId = model('');
   readonly postalCode = model('');
   readonly cityMunicipality = model('');
   readonly locality = model('');
   readonly priceDrafts = model<DestinationRatePriceDraft[]>([createEmptyPriceDraft()]);
-  readonly active = model('yes');
-  readonly notes = model('');
+  readonly excludedTollPlazaKeys = model<string[]>([]);
   readonly estimatedArrivalTimeValue = model('');
   readonly estimatedReturnTimeValue = model('');
-  readonly estimatedTimeUnit = model('');
-
-  readonly estimatedTimeSuffix = computed(() =>
-    estimatedTimeUnitSuffix(this.estimatedTimeUnit()),
-  );
+  private readonly arrivalTimeTouched = signal(false);
+  private readonly returnTimeTouched = signal(false);
+  private readonly routeDistanceTouched = signal(false);
 
   /** CREATE_MODE | EXISTING_ROUTE | INVALIDATED */
   readonly routeMode = signal<DestinationRateRouteDrawerMode>('INVALIDATED');
   private readonly resolvedRouteKey = signal<DestinationRateRouteKey | null>(null);
+  private lastTollRouteContextKey = '';
+  private lastRouteBaseKey = '';
+  readonly routeCustomizeOpen = signal(false);
+  readonly draftRouteWaypoints = signal<DestinationRateRouteWaypointDraft[]>([]);
+  readonly appliedRouteWaypoints = signal<DestinationRateRouteWaypointDraft[]>([]);
   private readonly routeDistanceKm = signal<number | null>(null);
   readonly routeDistanceKmInput = signal('');
   private readonly routeLoading = signal(false);
+  private readonly definedRouteMetricsLoading = signal(false);
   private readonly duplicateChecking = signal(false);
+  private readonly routeMetricsPlazas = signal<readonly RouteTollPlazaRow[]>([]);
+  private lastDefinedRouteMetricsKey = '';
+  private definedRouteMetricsGeneration = 0;
+  private readonly originCoords = signal<LatLon | null>(null);
   private readonly destinationCoords = signal<LatLon | null>(null);
   readonly existingDuplicateRate = signal<DestinationRate | null>(null);
 
@@ -150,9 +169,17 @@ export class DestinationRatesNewDrawerComponent {
     }),
   );
 
+  readonly routeGeocodePending = computed(
+    () => this.routeLoading() || this.duplicateChecking(),
+  );
+
+  readonly routeMetricsPending = computed(
+    () => this.routeGeocodePending() || this.definedRouteMetricsLoading(),
+  );
+
   readonly routeDistanceDisplay = computed(() => {
-    if (this.routeLoading() || this.duplicateChecking()) {
-      return 'Calculando…';
+    if (this.routeMetricsPending()) {
+      return '';
     }
     const km = this.routeDistanceKm();
     if (km != null && km > 0) {
@@ -165,8 +192,8 @@ export class DestinationRatesNewDrawerComponent {
   });
 
   readonly operationalDistanceDisplay = computed(() => {
-    if (this.routeLoading() || this.duplicateChecking()) {
-      return 'Calculando…';
+    if (this.routeMetricsPending()) {
+      return '';
     }
     const km = this.routeDistanceKm();
     if (km != null && km > 0) {
@@ -179,7 +206,7 @@ export class DestinationRatesNewDrawerComponent {
   });
 
   readonly operationalDistanceInputSuffix = computed(() => {
-    if (this.routeLoading() || this.duplicateChecking()) {
+    if (this.routeMetricsPending()) {
       return '';
     }
     const km = this.routeDistanceKm();
@@ -188,13 +215,11 @@ export class DestinationRatesNewDrawerComponent {
 
   readonly routeDistanceInputDisabled = computed(
     () =>
-      this.routeLoading() ||
-      this.duplicateChecking() ||
-      this.routeMode() !== 'CREATE_MODE',
+      this.routeMetricsPending() || this.routeMode() !== 'CREATE_MODE',
   );
 
   readonly routeDistanceInputSuffix = computed(() => {
-    if (this.routeLoading() || this.duplicateChecking()) {
+    if (this.routeMetricsPending()) {
       return '';
     }
     if (this.routeMode() === 'CREATE_MODE') {
@@ -205,14 +230,101 @@ export class DestinationRatesNewDrawerComponent {
   });
 
   readonly routeDistanceInputDisplayValue = computed(() => {
-    if (this.routeLoading() || this.duplicateChecking()) {
-      return 'Calculando…';
+    if (this.routeMetricsPending()) {
+      return '';
     }
     if (this.routeMode() !== 'CREATE_MODE') {
       return this.routeDistanceDisplay();
     }
     return undefined;
   });
+
+  readonly estimatedArrivalTimeInputDisplay = computed(() =>
+    this.routeMetricsPending() ? '' : undefined,
+  );
+
+  readonly estimatedReturnTimeInputDisplay = computed(() =>
+    this.routeMetricsPending() ? '' : undefined,
+  );
+
+  readonly driveTimeInputDisabled = computed(
+    () => this.routeMetricsPending() || this.routeMode() === 'EXISTING_ROUTE',
+  );
+
+  readonly routeMapOriginLabel = computed(() => {
+    const center =
+      this.originSelect()?.selectedCenter() ??
+      this.centersFeature.centerById(this.originOperationalCenterId());
+    return (
+      center?.locality?.trim() ||
+      center?.name?.trim() ||
+      'Origen'
+    );
+  });
+
+  readonly routeMapDestinationLabel = computed(() => {
+    const loc = this.locality().trim();
+    const city = this.cityMunicipality().trim();
+    if (loc && city) {
+      return `${loc}, ${city}`;
+    }
+    return loc || city || 'Destino';
+  });
+
+  readonly showRouteCustomize = computed(
+    () =>
+      this.routeMode() === 'CREATE_MODE' &&
+      this.routeEndpointsReady() &&
+      (this.routeDistanceKm() != null || !this.routeMetricsPending()),
+  );
+
+  readonly routeTollContext = computed((): DestinationRateRouteTollContext | null => {
+    if (this.routeMode() !== 'CREATE_MODE' || this.routeGeocodePending()) {
+      return null;
+    }
+    return this.buildRouteTollContext();
+  });
+
+  private buildRouteTollContext(): DestinationRateRouteTollContext | null {
+    const origin = this.resolvedOriginCoords();
+    const dest = this.destinationCoords();
+    if (!isValidLatLon(origin) || !isValidLatLon(dest)) {
+      return null;
+    }
+    const center = this.centersFeature.centerById(this.originOperationalCenterId());
+    const waypoints = routeWaypointsToTollQuery(this.appliedRouteWaypoints());
+    return {
+      originLat: origin.lat,
+      originLon: origin.lon,
+      destinationLat: dest.lat,
+      destinationLon: dest.lon,
+      originSearch: destinationRateSakbeSearchLabel(
+        center?.locality || center?.name,
+        center?.cityMunicipality,
+      ),
+      destinationSearch: destinationRateSakbeSearchLabel(
+        this.locality(),
+        this.cityMunicipality(),
+      ),
+      ...(waypoints.length > 0 ? { waypoints } : {}),
+    };
+  }
+
+  private resolvedOriginCoords(): LatLon | null {
+    void this.centersFeature.centers();
+    const cached = this.originCoords();
+    if (isValidLatLon(cached)) {
+      return cached;
+    }
+    const center = this.centersFeature.centerById(this.originOperationalCenterId());
+    return latLonFromPrefill(center?.latitude, center?.longitude);
+  }
+
+  private routeEndpointsReady(): boolean {
+    const origin = this.resolvedOriginCoords();
+    const dest = this.destinationCoords();
+    return isValidLatLon(origin) && isValidLatLon(dest);
+  }
 
   readonly routeInputComplete = computed(() =>
     isDestinationRateRouteInputComplete({
@@ -249,6 +361,62 @@ export class DestinationRatesNewDrawerComponent {
     afterNextRender(() => this.drawerLoading.set(false));
     this.bindRouteDuplicatePipeline();
     this.bindRouteDistancePipeline();
+    effect(() => {
+      const ctx = this.routeTollContext();
+      const key = ctx ? destinationRateRouteTollContextKey(ctx) : '';
+      if (key && key !== this.lastTollRouteContextKey) {
+        this.lastTollRouteContextKey = key;
+        this.excludedTollPlazaKeys.set([]);
+      }
+      if (!key) {
+        this.lastTollRouteContextKey = '';
+      }
+    });
+    effect(() => {
+      const center =
+        this.originSelect()?.selectedCenter() ??
+        this.centersFeature.centerById(this.originOperationalCenterId());
+      const origin = latLonFromPrefill(center?.latitude, center?.longitude);
+      const dest = this.destinationCoords();
+      const baseKey = isValidLatLon(origin) && isValidLatLon(dest)
+        ? [
+            origin.lat,
+            origin.lon,
+            dest.lat,
+            dest.lon,
+            this.originOperationalCenterId(),
+            this.postalCode(),
+            this.locality(),
+          ].join('|')
+        : '';
+      if (baseKey && baseKey !== this.lastRouteBaseKey) {
+        this.lastRouteBaseKey = baseKey;
+        this.draftRouteWaypoints.set([]);
+        this.appliedRouteWaypoints.set([]);
+        this.routeCustomizeOpen.set(false);
+        this.routeMetricsPlazas.set([]);
+        this.lastDefinedRouteMetricsKey = '';
+        this.routeDistanceTouched.set(false);
+        this.arrivalTimeTouched.set(false);
+        this.returnTimeTouched.set(false);
+      }
+      if (!baseKey) {
+        this.lastRouteBaseKey = '';
+      }
+    });
+    this.bindDefinedRouteMetrics();
+  }
+
+  onRouteMetricsPlazasChange(plazas: readonly RouteTollPlazaRow[]): void {
+    this.routeMetricsPlazas.set(plazas);
+  }
+
+  onRouteWaypointsRecalculate(): void {
+    this.excludedTollPlazaKeys.set([]);
+  }
+
+  onRouteWaypointsReset(): void {
+    this.excludedTollPlazaKeys.set([]);
   }
 
   submit(): void {
@@ -271,7 +439,6 @@ export class DestinationRatesNewDrawerComponent {
       priceDrafts: this.priceDrafts(),
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
-      estimatedTimeUnit: this.estimatedTimeUnit(),
     });
     if (err) {
       this.toast.show(err, 'warning');
@@ -288,11 +455,12 @@ export class DestinationRatesNewDrawerComponent {
       routeDistanceKm: this.routeDistanceKm(),
       destinationLatitude: coords?.lat ?? null,
       destinationLongitude: coords?.lon ?? null,
-      active: this.active() === 'yes',
-      notes: this.notes(),
+      active: true,
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
-      estimatedTimeUnit: this.estimatedTimeUnit(),
+      excludedTollPlazaKeys: this.excludedTollPlazaKeys(),
+      routeWaypoints: this.appliedRouteWaypoints(),
+      routeTollPlazas: this.pricesEditor()?.routeTollPlazasForPersist(),
     });
 
     if (!beginInFlight(this.saving)) {
@@ -331,12 +499,26 @@ export class DestinationRatesNewDrawerComponent {
     if (this.routeDistanceInputDisabled()) {
       return;
     }
+    this.routeDistanceTouched.set(true);
     this.routeDistanceKmInput.set(raw);
     const parsed = parseRouteKmOneWayInput(raw);
     if (parsed == null) {
       return;
     }
     this.routeDistanceKm.set(parsed);
+    if (parsed != null) {
+      this.applySuggestedDriveTimesIfUntouched(parsed);
+    }
+  }
+
+  onEstimatedArrivalTimeTyped(raw: string): void {
+    this.arrivalTimeTouched.set(true);
+    this.estimatedArrivalTimeValue.set(raw);
+  }
+
+  onEstimatedReturnTimeTyped(raw: string): void {
+    this.returnTimeTouched.set(true);
+    this.estimatedReturnTimeValue.set(raw);
   }
 
   onRouteDistanceKmBlur(): void {
@@ -345,7 +527,9 @@ export class DestinationRatesNewDrawerComponent {
     }
     const parsed = parseRouteKmOneWayInput(this.routeDistanceKmInput());
     if (parsed != null) {
-      this.applyRouteDistanceKm(parsed);
+      this.routeDistanceKm.set(parsed);
+      this.routeDistanceKmInput.set(formatRouteKmInputValue(parsed));
+      this.applySuggestedDriveTimesIfUntouched(parsed);
       return;
     }
     this.routeDistanceKmInput.set(formatRouteKmInputValue(this.routeDistanceKm()));
@@ -479,6 +663,11 @@ export class DestinationRatesNewDrawerComponent {
     this.routeMode.set('CREATE_MODE');
     this.resolvedRouteKey.set(routeKey);
     this.existingDuplicateRate.set(null);
+    this.routeDistanceTouched.set(false);
+    this.arrivalTimeTouched.set(false);
+    this.returnTimeTouched.set(false);
+    this.lastDefinedRouteMetricsKey = '';
+    this.routeMetricsPlazas.set([]);
     this.clearDistancesOnly();
   }
 
@@ -569,13 +758,21 @@ export class DestinationRatesNewDrawerComponent {
       this.clearDistancesOnly();
       return of(undefined);
     }
+    this.originCoords.set(originCoords);
 
-    const destQuery = [input.locality, input.cityMunicipality, input.cp.trim(), 'México']
+    const hints = mexicanSepomexGeocodeHints(input.locality, input.cityMunicipality);
+    const destQuery = [
+      hints.settlement,
+      hints.municipality,
+      hints.state,
+      input.cp.trim(),
+      'México',
+    ]
       .filter(Boolean)
       .join(', ');
 
     this.routeLoading.set(true);
-    return this.photon.firstCoordinates(destQuery).pipe(
+    return this.photon.firstCoordinatesForMexicanSepomex(destQuery, hints).pipe(
       switchMap((destCoords) => {
         if (this.routeMode() !== 'CREATE_MODE') {
           return of(null);
@@ -591,7 +788,7 @@ export class DestinationRatesNewDrawerComponent {
         if (this.routeMode() !== 'CREATE_MODE') {
           return;
         }
-        this.applyRouteDistanceKm(routeKm);
+        this.applyAutoRouteDistanceKm(routeKm);
       }),
       catchError(() => {
         if (this.routeMode() === 'CREATE_MODE') {
@@ -608,14 +805,97 @@ export class DestinationRatesNewDrawerComponent {
     );
   }
 
+  private applyAutoRouteDistanceKm(km: number | null): void {
+    if (this.routeDistanceTouched()) {
+      return;
+    }
+    this.routeDistanceKm.set(km);
+    this.routeDistanceKmInput.set(formatRouteKmInputValue(km));
+    this.applySuggestedDriveTimesIfUntouched(km);
+  }
+
   private applyRouteDistanceKm(km: number | null): void {
     this.routeDistanceKm.set(km);
     this.routeDistanceKmInput.set(formatRouteKmInputValue(km));
+    this.applySuggestedDriveTimesIfUntouched(km);
+  }
+
+  private bindDefinedRouteMetrics(): void {
+    effect((onCleanup) => {
+      if (this.routeMode() !== 'CREATE_MODE') {
+        this.lastDefinedRouteMetricsKey = '';
+        return;
+      }
+      void this.appliedRouteWaypoints();
+      const ctx = this.routeTollContext();
+      if (!ctx) {
+        return;
+      }
+      const key = definedRouteMetricsKey(
+        ctx,
+        this.routeMetricsPlazas(),
+        this.excludedTollPlazaKeys(),
+      );
+      if (!key || key === this.lastDefinedRouteMetricsKey) {
+        return;
+      }
+      this.lastDefinedRouteMetricsKey = key;
+      const generation = ++this.definedRouteMetricsGeneration;
+      const points = definedRouteDrivingPoints({
+        ctx,
+        plazas: this.routeMetricsPlazas(),
+      });
+      if (points.length < 2) {
+        return;
+      }
+      this.definedRouteMetricsLoading.set(true);
+      const sub = this.osrm.drivingRouteThrough(points).subscribe({
+        next: (route) => {
+          if (generation !== this.definedRouteMetricsGeneration) {
+            return;
+          }
+          this.definedRouteMetricsLoading.set(false);
+          const km = route?.km ?? null;
+          if (km != null && km > 0) {
+            this.applyAutoRouteDistanceKm(km);
+          }
+        },
+        error: () => {
+          if (generation !== this.definedRouteMetricsGeneration) {
+            return;
+          }
+          this.definedRouteMetricsLoading.set(false);
+        },
+      });
+      onCleanup(() => {
+        sub.unsubscribe();
+        if (generation === this.definedRouteMetricsGeneration) {
+          this.definedRouteMetricsLoading.set(false);
+        }
+      });
+    });
+  }
+
+  private applySuggestedDriveTimesIfUntouched(routeKm: number | null): void {
+    const label =
+      routeKm != null && routeKm > 0
+        ? formatEstimatedTimeValueNumber(
+            suggestedDriveTimeHoursFromRouteKm(routeKm),
+          )
+        : '';
+    if (!this.arrivalTimeTouched()) {
+      this.estimatedArrivalTimeValue.set(label);
+    }
+    if (!this.returnTimeTouched()) {
+      this.estimatedReturnTimeValue.set(label);
+    }
   }
 
   private clearDistancesOnly(): void {
     this.applyRouteDistanceKm(null);
+    this.applySuggestedDriveTimesIfUntouched(null);
     this.routeLoading.set(false);
+    this.originCoords.set(null);
     this.destinationCoords.set(null);
   }
 }

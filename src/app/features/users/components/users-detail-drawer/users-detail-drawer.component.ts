@@ -123,6 +123,7 @@ export class UsersDetailDrawerComponent {
     );
   });
 
+
   readonly roleTabs = computed((): readonly ToSegmentTab<'admin' | 'staff'>[] => {
     const tabs: ToSegmentTab<'admin' | 'staff'>[] = [
       { id: 'staff', label: 'Staff', icon: 'person' },
@@ -135,15 +136,28 @@ export class UsersDetailDrawerComponent {
 
   constructor() {
     afterNextRender(() => this.drawerLoading.set(false));
+    let priorUserId: string | null = null;
     effect(() => {
       const row = this.user();
-      this.draftRole.set(row.role === 'admin' ? 'admin' : 'staff');
-      this.draftActive.set(row.status === 'active');
-      this.draftPermissions.set(
-        staffModulePermissionDraftFromGrants(row.moduleGrants, row.moduleCodes),
-      );
-      this.photoDataUrl.set(row.photoDataUrl?.trim() ?? '');
+      const userId = String(row.id);
+      if (priorUserId !== null && priorUserId !== userId) {
+        this.editingSection.set(null);
+        this.newPassword.set('');
+        this.confirmPassword.set('');
+      }
+      priorUserId = userId;
+
       const editing = this.editingSection();
+      if (editing !== 'permissions') {
+        this.draftRole.set(row.role === 'admin' ? 'admin' : 'staff');
+        this.draftActive.set(row.status === 'active');
+        this.draftPermissions.set(
+          staffModulePermissionDraftFromGrants(row.moduleGrants, row.moduleCodes),
+        );
+      }
+      if (editing !== 'personal') {
+        this.photoDataUrl.set(row.photoDataUrl?.trim() ?? '');
+      }
       if (!editing) {
         this.patchPersonalForm(row);
         this.patchAccessDraft(row);

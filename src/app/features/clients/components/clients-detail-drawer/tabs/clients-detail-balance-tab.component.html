@@ -16,8 +16,12 @@
           Sin cobros pactados con este cliente en maniobras facturables.
         </p>
       } @else {
-        <dl class="fleet-unit-detail__dl">
-          <div class="fleet-unit-detail__row clients-balance-highlight">
+        <dl
+          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+        >
+          <div
+            class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span clients-balance-highlight"
+          >
             <dt>Saldo por cobrar</dt>
             <dd>
               <span class="clients-balance-highlight__amount">{{
@@ -34,7 +38,7 @@
             </dd>
           </div>
           <div class="fleet-unit-detail__row">
-            <dt>Maniobras pendientes de cobro</dt>
+            <dt>Maniobras sin cobro</dt>
             <dd>{{ vm.receivableManeuverCountLabel() }}</dd>
           </div>
           <div class="fleet-unit-detail__row">
@@ -232,7 +236,14 @@
                               )
                             "
                           >
-                            <to-icon name="cancelCircle" [size]="16" />
+                            <img
+                              class="clients-balance-pay-table__revert-icon"
+                              [src]="revertCollectionIconSrc"
+                              alt=""
+                              width="16"
+                              height="16"
+                              aria-hidden="true"
+                            />
                           </button>
                         </span>
                       } @else {
@@ -249,32 +260,18 @@
 
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="cli-dv-maneuvers"
+      aria-labelledby="cli-dv-volume"
     >
-      <h3 id="cli-dv-maneuvers" class="fleet-unit-sec__title">
-        Maniobras por estado
+      <h3 id="cli-dv-volume" class="fleet-unit-sec__title">
+        Volumen y rentabilidad
         <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
       </h3>
-      <dl class="fleet-unit-detail__dl clients-balance-status-grid">
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols clients-balance-volume-grid"
+      >
         <div class="fleet-unit-detail__row">
-          <dt>Completadas</dt>
-          <dd>{{ ps.statusCounts.completed }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>En curso</dt>
-          <dd>{{ ps.statusCounts.inTransit }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Programadas</dt>
-          <dd>{{ ps.statusCounts.scheduled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Canceladas</dt>
-          <dd>{{ ps.statusCounts.cancelled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row clients-balance-status-grid__total">
-          <dt>Total</dt>
-          <dd>{{ ps.statusCounts.total }}</dd>
+          <dt>Total de maniobras</dt>
+          <dd>{{ vm.periodVolumeTotalManeuversLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
           <dt>Km en completadas</dt>
@@ -286,32 +283,16 @@
             }}
           </dd>
         </div>
-      </dl>
-    </section>
-
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="cli-dv-volume"
-    >
-      <h3 id="cli-dv-volume" class="fleet-unit-sec__title">
-        Volumen y rentabilidad
-        <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
-      </h3>
-      <dl class="fleet-unit-detail__dl">
         <div class="fleet-unit-detail__row">
-          <dt>Total de maniobras</dt>
-          <dd>{{ vm.periodVolumeTotalManeuversLabel() }}</dd>
+          <dt>Maniobras facturables</dt>
+          <dd>{{ vm.periodVolumeBillableManeuversLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Maniobras del periodo</dt>
-          <dd>{{ vm.periodVolumeManeuversPerMonthLabel() }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Cobros del periodo</dt>
+          <dt>Cobros pactados</dt>
           <dd>{{ vm.periodVolumeBilledPerMonthLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">
-          <dt>Costos operativos del periodo</dt>
+          <dt>Costos operativos</dt>
           <dd>{{ vm.periodVolumeOperationalPerMonthLabel() }}</dd>
         </div>
         <div class="fleet-unit-detail__row">

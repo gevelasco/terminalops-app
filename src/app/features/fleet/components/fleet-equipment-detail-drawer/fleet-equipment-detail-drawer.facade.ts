@@ -57,9 +57,10 @@ import {
 } from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
 import {
-  attachFleetMaintenanceDocNamesToNewestEntry,
+  mergeFleetMaintenanceDocNamesForDisplay,
   isSubstantiveMaintenanceEntry,
 } from '@features/fleet/utils/fleet-maintenance-entry.util';
+import { findFleetStoredDocumentByFileName } from '@features/fleet/utils/fleet-stored-document-resolve.util';
 import {
   buildFleetMaintenanceExpensePayload,
   FLEET_MAINTENANCE_LEDGER_ERROR,
@@ -147,6 +148,7 @@ import {
   hitchPositionForNewEquipmentOnUnit,
   validateEquipmentHitchAssignment,
 } from '@shared/utils/fleet/equipment-hitch-assignment';
+import { buildEquipmentHitchPersistPlan } from '@shared/utils/fleet/equipment-hitch-persist.util';
 import {
   equipmentAssignedToUnit,
   equipmentPromoteToLeadPersistDraft,
@@ -157,7 +159,10 @@ import {
 } from '@shared/utils/fleet/equipment-hitch-position';
 import { formatUnitTrailerLabel, formatUnitTrailerOperationalId } from '@shared/utils/fleet/unit-label';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
-import { equipmentHitchPositionDisplayLabel } from '@app/features/fleet/utils/unit-hitched-equipment';
+import {
+  equipmentHitchPositionDisplayLabel,
+  mergeEquipmentForUnitHitchContext,
+} from '@app/features/fleet/utils/unit-hitched-equipment';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
 import {
   Equipment,
@@ -847,13 +852,23 @@ export class FleetEquipmentDetailDrawerFacade {
     ),
   );
 
+  private hitchCatalogForUnit(unitId: string): readonly Equipment[] {
+    const id = unitId.trim();
+    if (!id) {
+      return [];
+    }
+    const embedded = this.unitCatalog().find((u) => resourceIdsEqual(u.id, id))
+      ?.hitchedEquipment;
+    return mergeEquipmentForUnitHitchContext(this.equipmentCatalog(), id, embedded);
+  }
+
   readonly editHitchSlot = computed(() => {
     const unitId = this.editUnitId().trim();
     if (!unitId) {
       return null;
     }
     return unitHitchSlotForNewEquipment(
-      this.equipmentCatalog(),
+      this.hitchCatalogForUnit(unitId),
       unitId,
       this.effEquipment().id,
     );
@@ -867,12 +882,14 @@ export class FleetEquipmentDetailDrawerFacade {
         isSecondTrailer: false,
       });
     }
+    const unitId = this.editUnitId().trim();
     return validateEquipmentHitchAssignment({
       unitId: this.editUnitId(),
-      catalog: this.equipmentCatalog(),
+      catalog: unitId ? this.hitchCatalogForUnit(unitId) : [],
       excludeEquipmentId: this.effEquipment().id,
       isSecondTrailer: this.editIsSecondTrailer(),
       unitLabel: this.editTractorLabel(),
+      equipmentType: this.effEquipment().type,
     });
   });
 
@@ -919,7 +936,8 @@ export class FleetEquipmentDetailDrawerFacade {
       );
       return;
     }
-    if (unitId && this.editHitchSlot() === 'second') {
+    const slot = this.editHitchSlot();
+    if (unitId && (slot === 'second' || slot === 'third')) {
       this.hitchSecondConfirmOpen.set(true);
       return;
     }
@@ -940,19 +958,51 @@ export class FleetEquipmentDetailDrawerFacade {
       return;
     }
     const unitId = this.editUnitId().trim();
-    const hitchPosition = unitId
-      ? hitchPositionForNewEquipmentOnUnit(
-          this.equipmentCatalog(),
-          unitId,
-          this.effEquipment().id,
-        )
-      : null;
-    const equipmentDraft: Partial<Equipment> = {
-      unitId: unitId || '',
-      hitchPosition,
-    };
+    const equipment = this.effEquipment();
+    if (!unitId) {
+      const equipmentDraft: Partial<Equipment> = { unitId: '', hitchPosition: null };
+      this.equipmentOverride.update((prev) => ({ ...prev, ...equipmentDraft }));
+      this.persistCurrentEquipment('Enganche actualizado.', { equipment: equipmentDraft });
+      return;
+    }
+    const plan = buildEquipmentHitchPersistPlan({
+      equipment,
+      unitId,
+      catalog: this.hitchCatalogForUnit(unitId),
+    });
+    if (!plan) {
+      this.toast.show(
+        'No se pudo determinar la posición de enganche. Revise el convoy (dolly entre chasis).',
+        'warning',
+      );
+      return;
+    }
+    const equipmentDraft = plan.hitchDraft.equipment ?? {};
     this.equipmentOverride.update((prev) => ({ ...prev, ...equipmentDraft }));
-    this.persistCurrentEquipment('Enganche actualizado.', { equipment: equipmentDraft });
+    if (this.saving()) {
+      return;
+    }
+    const hitchDraft = resolveEquipmentPersistDraft(plan.hitchDraft, equipment);
+    this.saving.set(true);
+    this.equipmentFeature
+      .updateEquipment(equipment, hitchDraft, { skipListRefresh: true })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+      next: (saved) => {
+        this.saving.set(false);
+        this.equipmentSource.set(saved);
+        this.equipmentOverride.set({});
+        this.syncCatalogFromFeature();
+        this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
+        this.toast.show('Enganche actualizado.', 'success');
+        this.editingSection.set(null);
+      },
+      error: (err) => {
+        this.saving.set(false);
+        const detail = parseHttpApiErrorMessage(err)?.trim();
+        this.toast.show(detail ?? 'No se pudo actualizar el enganche.', 'error');
+      },
+    });
   }
 
   requestViewAssignedTractor(): void {
@@ -2101,7 +2151,7 @@ export class FleetEquipmentDetailDrawerFacade {
     const sorted = [...base, ...local]
       .filter(isSubstantiveMaintenanceEntry)
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    return attachFleetMaintenanceDocNamesToNewestEntry(
+    return mergeFleetMaintenanceDocNamesForDisplay(
       sorted,
       this.docs('maint').map((d) => d.fileName),
     );
@@ -2157,9 +2207,12 @@ export class FleetEquipmentDetailDrawerFacade {
     const equipmentId = this.effEquipment().id;
     const resolved =
       typeof doc === 'string'
-        ? this.docs('maint')
-            .concat(this.docs('verification'), this.docs('ownership'), this.docs('policy'))
-            .find((d) => d.fileName === doc)
+        ? findFleetStoredDocumentByFileName(doc, [
+            this.docs('maint'),
+            this.docs('verification'),
+            this.docs('ownership'),
+            this.docs('policy'),
+          ])
         : doc;
     if (!resolved || resolved.id <= 0) {
       this.toast.show(
@@ -2378,7 +2431,10 @@ export class FleetEquipmentDetailDrawerFacade {
 
     registerFleetHitchSlotSync({
       isActive: () => this.editingSection() === 'hitch',
-      catalog: () => this.equipmentCatalog(),
+      catalog: () => {
+        const unitId = this.editUnitId().trim();
+        return unitId ? this.hitchCatalogForUnit(unitId) : this.equipmentCatalog();
+      },
       unitId: () => this.editUnitId(),
       excludeEquipmentId: () => this.effEquipment().id,
       isSecondTrailer: this.editIsSecondTrailer,

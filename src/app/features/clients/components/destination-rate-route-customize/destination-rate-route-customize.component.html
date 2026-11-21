@@ -1,0 +1,134 @@
+<div class="dest-rate-route-customize">
+  @if (!customizeOpen() && !externalTrigger()) {
+    <to-button
+      type="button"
+      variant="primary"
+      size="sm"
+      [disabled]="disabled()"
+      (click)="toggleCustomize()"
+    >
+      <to-icon name="route" [size]="15" />
+      Configurar ruta
+    </to-button>
+  }
+  @if (customizeOpen()) {
+    <div class="dest-rate-route-customize__panel">
+      <p class="dest-rate-route-customize__title">Puntos intermedios</p>
+      <p class="dest-rate-route-customize__hint">
+        Agrega ciudades o zonas en el orden del recorrido.
+        (origen → punto → … → destino).
+      </p>
+
+      <div class="dest-rate-route-customize__search">
+        <label class="dest-rate-route-customize__search-label" [attr.for]="inputId">
+          Buscar ciudad o zona
+        </label>
+        <input
+          [id]="inputId"
+          class="dest-rate-route-customize__search-input"
+          type="search"
+          autocomplete="off"
+          placeholder="Ej. Morelia"
+          [disabled]="disabled() || draftWaypoints().length >= 8"
+          [value]="searchText()"
+          (input)="onSearchInput($event)"
+          (focus)="onSearchFocus()"
+          aria-autocomplete="list"
+          [attr.aria-expanded]="searchOpen()"
+          [attr.aria-controls]="searchOpen() ? listId : null"
+        />
+        @if (searchLoading()) {
+          <p class="dest-rate-route-customize__search-status" aria-live="polite">
+            Buscando…
+          </p>
+        }
+        @if (searchOpen() && searchResults().length > 0) {
+          <ul [id]="listId" class="dest-rate-route-customize__suggestions" role="listbox">
+            @for (place of searchResults(); track place.label) {
+              <li role="presentation">
+                <button
+                  type="button"
+                  class="dest-rate-route-customize__suggestion"
+                  role="option"
+                  (pointerdown)="onPickPlace(place, $event)"
+                >
+                  {{ place.label }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      @if (draftWaypoints().length > 0) {
+        <ol class="dest-rate-route-customize__list">
+          @for (wp of draftWaypoints(); track wp.rowKey; let i = $index) {
+            <li class="dest-rate-route-customize__item">
+              <span class="dest-rate-route-customize__order">{{ i + 1 }}</span>
+              <span class="dest-rate-route-customize__label">{{ wp.label }}</span>
+              <div class="dest-rate-route-customize__item-actions">
+                <button
+                  type="button"
+                  class="dest-rate-route-customize__icon-btn"
+                  aria-label="Subir"
+                  [disabled]="disabled() || i === 0"
+                  (click)="moveWaypoint(wp.rowKey, -1)"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  class="dest-rate-route-customize__icon-btn"
+                  aria-label="Bajar"
+                  [disabled]="disabled() || i === draftWaypoints().length - 1"
+                  (click)="moveWaypoint(wp.rowKey, 1)"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  class="dest-rate-route-customize__icon-btn"
+                  aria-label="Quitar punto"
+                  [disabled]="disabled()"
+                  (click)="removeWaypoint(wp.rowKey)"
+                >
+                  <to-icon name="delete" [size]="14" />
+                </button>
+              </div>
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="dest-rate-route-customize__empty">Sin puntos intermedios.</p>
+      }
+
+      @if (pendingChanges()) {
+        <p class="dest-rate-route-customize__pending" role="status">
+          Hay cambios sin aplicar a la ruta de casetas.
+        </p>
+      }
+
+      <div class="dest-rate-route-customize__actions">
+        <to-button
+          type="button"
+          variant="primary"
+          size="sm"
+          [disabled]="disabled() || !pendingChanges()"
+          [loading]="tollsLoading()"
+          (click)="onRecalculate()"
+        >
+          Recalcular ruta
+        </to-button>
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          [disabled]="disabled()"
+          (click)="onResetSuggested()"
+        >
+          Usar ruta sugerida INEGI
+        </to-button>
+      </div>
+    </div>
+  }
+</div>

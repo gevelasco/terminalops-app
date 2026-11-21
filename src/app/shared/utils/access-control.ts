@@ -83,6 +83,42 @@ function grantLevelForModule(
   return resolveStaffModuleGrants(grants).find((grant) => grant.module === module)?.level ?? null;
 }
 
+/** Permiso efectivo (incluye legado: `clients` cubría tarifas). */
+export function effectiveGrantLevel(
+  grants: readonly StaffModuleGrant[] | undefined,
+  module: AppModuleCode,
+): ModuleAccessLevel | null {
+  const direct = grantLevelForModule(grants, module);
+  if (direct) {
+    return direct;
+  }
+  if (module === APP_MODULE_CODES.DESTINATION_RATES) {
+    return grantLevelForModule(grants, APP_MODULE_CODES.CLIENTS);
+  }
+  return null;
+}
+
+export function canReadComercialClients(
+  role: string | null | undefined,
+  grants: readonly StaffModuleGrant[] | undefined,
+): boolean {
+  return canReadModule(role, grants, APP_MODULE_CODES.CLIENTS);
+}
+
+export function canReadComercialRates(
+  role: string | null | undefined,
+  grants: readonly StaffModuleGrant[] | undefined,
+): boolean {
+  return canReadModule(role, grants, APP_MODULE_CODES.DESTINATION_RATES);
+}
+
+export function canAccessComercial(
+  role: string | null | undefined,
+  grants: readonly StaffModuleGrant[] | undefined,
+): boolean {
+  return canReadComercialClients(role, grants) || canReadComercialRates(role, grants);
+}
+
 export function canReadModule(
   role: string | null | undefined,
   grants: readonly StaffModuleGrant[] | undefined,
@@ -92,10 +128,7 @@ export function canReadModule(
   if (normalizedRole === 'superadmin' || normalizedRole === 'admin') {
     return resolveAllowedModules(role, grants).includes(module);
   }
-  if (module === APP_MODULE_CODES.DASHBOARD) {
-    return true;
-  }
-  const level = grantLevelForModule(grants, module);
+  const level = effectiveGrantLevel(grants, module);
   if (level === 'read' || level === 'write') {
     return true;
   }
@@ -111,10 +144,7 @@ export function canWriteModule(
   if (normalizedRole === 'superadmin' || normalizedRole === 'admin') {
     return resolveAllowedModules(role, grants).includes(module);
   }
-  if (module === APP_MODULE_CODES.DASHBOARD) {
-    return false;
-  }
-  const level = grantLevelForModule(grants, module);
+  const level = effectiveGrantLevel(grants, module);
   if (level === 'write') {
     return true;
   }
@@ -191,13 +221,35 @@ export function canAccessModule(
   return (allowedModules ?? []).includes(moduleCode);
 }
 
+export function canAccessNavItem(
+  allowedModules: readonly string[] | undefined,
+  role: string | null | undefined,
+  grants: readonly StaffModuleGrant[] | undefined,
+  item: { path: string; module: AppModuleCode },
+): boolean {
+  if (item.path === '/comercial') {
+    return canAccessComercial(role, grants);
+  }
+  return canAccessModule(allowedModules, item.module);
+}
+
 export function visibleNavItems(
   allowedModules: readonly string[] | undefined,
   placement: 'main' | 'bottom',
   items: readonly { path: string; label: string; module: AppModuleCode; placement: 'main' | 'bottom' }[],
+  options?: {
+    role?: string | null;
+    grants?: readonly StaffModuleGrant[];
+  },
 ) {
+  const role = options?.role;
+  const grants = options?.grants;
   return items.filter(
-    (item) => item.placement === placement && canAccessModule(allowedModules, item.module),
+    (item) =>
+      item.placement === placement &&
+      (role != null && grants != null
+        ? canAccessNavItem(allowedModules, role, grants, item)
+        : canAccessModule(allowedModules, item.module)),
   );
 }
 

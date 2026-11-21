@@ -31,6 +31,10 @@ import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
   imports: [ToInputComponent, ToSelectComponent],
   templateUrl: './destination-rate-location-fields.component.html',
   styleUrl: './destination-rate-location-fields.component.scss',
+  host: {
+    class: 'destination-rate-location-fields-host',
+    '[class.route-form-host]': 'routeFormLayout()',
+  },
 })
 export class DestinationRateLocationFieldsComponent {
   private readonly destroyRef = inject(DestroyRef);
@@ -39,6 +43,8 @@ export class DestinationRateLocationFieldsComponent {
 
   readonly referencePostalCode = input('');
   readonly disabled = input(false);
+  /** Layout en grid del drawer «Nueva tarifa» (CP junto al centro operativo). */
+  readonly routeFormLayout = input(false);
 
   readonly postalCode = model('');
   readonly cityMunicipality = model('');

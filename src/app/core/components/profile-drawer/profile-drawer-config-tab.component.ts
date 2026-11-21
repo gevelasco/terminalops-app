@@ -30,6 +30,12 @@ import {
   type MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
 import { TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
+import {
+  DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL,
+  OPERATIONAL_CONTROL_EXPENSE_LABEL_MAX,
+  normalizeOperationalControlExpenseLabelForSave,
+  resolveOperationalControlExpenseLabel,
+} from '@shared/utils/operational-control-expense-label.util';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -39,7 +45,7 @@ import {
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 
-type DisableConfirmKind = 'maintenance' | 'intelligent' | 'diesel';
+type DisableConfirmKind = 'maintenance' | 'diesel';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
@@ -53,11 +59,13 @@ type DisableConfirmKind = 'maintenance' | 'intelligent' | 'diesel';
     ToSegmentControlComponent,
   ],
   templateUrl: './profile-drawer-config-tab.component.html',
+  host: {
+    class: 'profile-drawer-config-tab-host',
+  },
   styleUrls: [
     '../../../features/fleet/components/fleet-drawer.shared.scss',
     '../../../features/fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     './profile-drawer-config-tab.component.scss',
-    './profile-drawer.component.scss',
   ],
 })
 export class ProfileDrawerConfigTabComponent {
@@ -93,14 +101,20 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftMaintenanceMode = model<CompanyMaintenancePolicyMode>('none');
   readonly draftKmInterval = model('');
   readonly draftDatePeriod = model<MaintenanceDatePeriod>('semiannual');
-  readonly draftIntelligentEnabled = model(false);
   readonly draftMaintenanceProvisionPercent = model('5');
   readonly draftFuelPaymentMethod = model('cash');
   readonly draftTollsPaymentMethod = model('cash');
   readonly draftPerDiemPaymentMethod = model('cash');
   readonly draftControlPaymentMethod = model('cash');
+  readonly draftOperationalControlLabel = model('');
   readonly draftDieselControlEnabled = model(true);
   readonly draftPaymentReminderDays = model(String(PAYMENT_REMINDER_DAYS_DEFAULT));
+
+  readonly defaultOperationalControlLabel = DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL;
+  readonly operationalControlLabelMax = OPERATIONAL_CONTROL_EXPENSE_LABEL_MAX;
+  readonly operationalControlExpensePreviewLabel = computed(() =>
+    resolveOperationalControlExpenseLabel(this.draftOperationalControlLabel()),
+  );
 
   readonly pendingDisableKind = signal<DisableConfirmKind | null>(null);
   private pendingMaintenanceMode = signal<CompanyMaintenancePolicyMode | null>(null);
@@ -150,7 +164,29 @@ export class ProfileDrawerConfigTabComponent {
 
   paymentReminderStatusLabel(): string {
     const days = this.session.paymentReminderDaysBefore();
-    return `${days} día${days === 1 ? '' : 's'} de anticipación`;
+    const daysPart = `${days} día${days === 1 ? '' : 's'} de anticipación`;
+    return this.settingUpdatedStatusLabel(
+      daysPart,
+      this.session.paymentReminderDaysChangedAt(),
+    );
+  }
+
+  autoPaymentsStatusLabel(): string {
+    if (!this.session.operationalAnalysisEnabled()) {
+      return 'Sin aplicar (provisión del motor en 0%)';
+    }
+    return this.controlStatusLabel(true, this.session.tripAutoPaymentsChangedAt());
+  }
+
+  private settingUpdatedStatusLabel(
+    summary: string,
+    changedAt: string | null | undefined,
+  ): string {
+    const at = formatOperationalSettingChangedAt(changedAt ?? '');
+    if (at === '—') {
+      return summary;
+    }
+    return `${summary} · Actualizado el ${at}`;
   }
 
   onMaintenancePolicySelect(mode: CompanyMaintenancePolicyMode): void {
@@ -171,16 +207,6 @@ export class ProfileDrawerConfigTabComponent {
       return;
     }
     this.draftMaintenanceMode.set(mode);
-  }
-
-  toggleDraftIntelligent(): void {
-    const next = !this.draftIntelligentEnabled();
-    if (!next && this.draftIntelligentEnabled()) {
-      this.pendingDisableKind.set('intelligent');
-      queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
-      return;
-    }
-    this.draftIntelligentEnabled.set(next);
   }
 
   toggleDraftDieselControl(): void {
@@ -210,8 +236,6 @@ export class ProfileDrawerConfigTabComponent {
       if (mode) {
         this.draftMaintenanceMode.set(mode);
       }
-    } else if (kind === 'intelligent') {
-      this.draftIntelligentEnabled.set(false);
     } else if (kind === 'diesel') {
       this.draftDieselControlEnabled.set(false);
     }
@@ -269,25 +293,20 @@ export class ProfileDrawerConfigTabComponent {
       }
     }
 
-    if (this.draftIntelligentEnabled()) {
-      const percentRaw = this.draftMaintenanceProvisionPercent().trim().replace(/,/g, '');
-      const percentN = percentRaw === '' ? undefined : Number(percentRaw);
-      if (
-        percentN === undefined ||
-        !Number.isFinite(percentN) ||
-        percentN < 0 ||
-        percentN > 100
-      ) {
-        this.toast.show(
-          'Indica un porcentaje de provisión de mantenimiento entre 0 y 100.',
-          'warning',
-        );
-        return;
-      }
-      if (!this.isValidAutoExpensePaymentMethod(this.draftControlPaymentMethod())) {
-        this.toast.show('Selecciona el método de pago de control operativo.', 'warning');
-        return;
-      }
+    const provisionPercent = this.parseDraftMaintenanceProvisionPercent();
+    if (provisionPercent === null) {
+      this.toast.show(
+        'Indica un porcentaje de provisión entre 0 y 100, o déjalo vacío para control manual.',
+        'warning',
+      );
+      return;
+    }
+    if (
+      provisionPercent > 0 &&
+      !this.isValidAutoExpensePaymentMethod(this.draftControlPaymentMethod())
+    ) {
+      this.toast.show('Selecciona el método de pago del gasto de provisión.', 'warning');
+      return;
     }
 
     if (!this.isValidAutoExpensePaymentMethod(this.draftFuelPaymentMethod())) {
@@ -340,8 +359,10 @@ export class ProfileDrawerConfigTabComponent {
   private buildConfigPatch(): PatchCompanyOperationalSettings | null {
     const patch: PatchCompanyOperationalSettings = {};
 
-    if (this.draftIntelligentEnabled() !== this.session.operationalAnalysisEnabled()) {
-      patch.operationalAnalysisEnabled = this.draftIntelligentEnabled();
+    const provisionPercent = this.parseDraftMaintenanceProvisionPercent();
+    const operationalAnalysisEnabled = provisionPercent != null && provisionPercent > 0;
+    if (operationalAnalysisEnabled !== this.session.operationalAnalysisEnabled()) {
+      patch.operationalAnalysisEnabled = operationalAnalysisEnabled;
     }
     if (this.draftDieselControlEnabled() !== this.session.dieselControlEnabled()) {
       patch.dieselControlEnabled = this.draftDieselControlEnabled();
@@ -355,14 +376,8 @@ export class ProfileDrawerConfigTabComponent {
     }
 
     const savedPercent = this.session.tripAutoMaintenanceProvisionPercent();
-    const percentRaw = this.draftMaintenanceProvisionPercent().trim().replace(/,/g, '');
-    const percentN = percentRaw === '' ? undefined : Number(percentRaw);
-    const draftPercentRounded =
-      percentN != null && Number.isFinite(percentN) ? Math.round(percentN * 100) / 100 : undefined;
-    if (
-      draftPercentRounded != null &&
-      draftPercentRounded !== savedPercent
-    ) {
+    const draftPercentRounded = provisionPercent ?? 0;
+    if (draftPercentRounded !== savedPercent) {
       patch.tripAutoMaintenanceProvisionPercent = draftPercentRounded;
     }
 
@@ -381,6 +396,16 @@ export class ProfileDrawerConfigTabComponent {
     const savedControlPayment = this.session.tripAutoControlPaymentMethod();
     if (this.draftControlPaymentMethod() !== savedControlPayment) {
       patch.tripAutoControlPaymentMethod = this.draftControlPaymentMethod();
+    }
+
+    const savedControlLabel = this.session.tripAutoOperationalControlLabel();
+    const savedControlLabelNorm =
+      savedControlLabel?.trim() ? savedControlLabel.trim() : null;
+    const draftControlLabel = normalizeOperationalControlExpenseLabelForSave(
+      this.draftOperationalControlLabel(),
+    );
+    if (draftControlLabel !== savedControlLabelNorm) {
+      patch.tripAutoOperationalControlLabel = draftControlLabel;
     }
 
     const mode = this.draftMaintenanceMode();
@@ -451,21 +476,40 @@ export class ProfileDrawerConfigTabComponent {
     this.draftDatePeriod.set(
       this.session.maintenanceDatePeriodDefault() ?? 'semiannual',
     );
-    this.draftIntelligentEnabled.set(this.session.operationalAnalysisEnabled());
     this.draftDieselControlEnabled.set(
       this.canUseDieselAutomatic() && this.session.dieselControlEnabled(),
     );
     this.draftPaymentReminderDays.set(
       String(this.session.paymentReminderDaysBefore()),
     );
-    const percent = this.session.tripAutoMaintenanceProvisionPercent();
-    this.draftMaintenanceProvisionPercent.set(
-      Number.isFinite(percent) ? String(percent) : '5',
-    );
+    if (!this.session.operationalAnalysisEnabled()) {
+      this.draftMaintenanceProvisionPercent.set('0');
+    } else {
+      const percent = this.session.tripAutoMaintenanceProvisionPercent();
+      this.draftMaintenanceProvisionPercent.set(
+        Number.isFinite(percent) ? String(percent) : '5',
+      );
+    }
     this.draftFuelPaymentMethod.set(this.session.tripAutoFuelPaymentMethod());
     this.draftTollsPaymentMethod.set(this.session.tripAutoTollsPaymentMethod());
     this.draftPerDiemPaymentMethod.set(this.session.tripAutoPerDiemPaymentMethod());
     this.draftControlPaymentMethod.set(this.session.tripAutoControlPaymentMethod());
+    this.draftOperationalControlLabel.set(
+      this.session.tripAutoOperationalControlLabel() ?? '',
+    );
+  }
+
+  /** Vacío = 0 (control manual). */
+  private parseDraftMaintenanceProvisionPercent(): number | null {
+    const percentRaw = this.draftMaintenanceProvisionPercent().trim().replace(/,/g, '');
+    if (percentRaw === '') {
+      return 0;
+    }
+    const percentN = Number(percentRaw);
+    if (!Number.isFinite(percentN) || percentN < 0 || percentN > 100) {
+      return null;
+    }
+    return Math.round(percentN * 100) / 100;
   }
 
   private isValidAutoExpensePaymentMethod(value: string): boolean {

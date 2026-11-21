@@ -4,6 +4,7 @@ import type {
   ExpenseMaintenanceTarget,
 } from '@shared/models/logistics.models';
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
+import { resolveOperationalControlExpenseLabel } from '@shared/utils/operational-control-expense-label.util';
 
 /** Rubro de alto nivel visible en listado y formularios. */
 export type ExpenseRubro =
@@ -333,6 +334,16 @@ export function resolveExpenseConceptFromExpense(e: Expense): {
 export function expenseConceptLabel(e: Expense): string {
   const text = e.category?.trim();
   return text || '—';
+}
+
+/** Catálogo de conceptos con etiqueta de provisión operativa de la empresa. */
+export function expenseConceptCatalogForCompany(
+  operationalControlLabel?: string | null,
+): readonly ExpenseConceptDefinition[] {
+  const label = resolveOperationalControlExpenseLabel(operationalControlLabel);
+  return EXPENSE_CONCEPT_CATALOG.map((concept) =>
+    concept.id === 'operational_control' ? { ...concept, label } : concept,
+  );
 }
 
 export function expenseRubroLabelForExpense(e: Expense): string {

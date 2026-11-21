@@ -2,14 +2,6 @@ import { localYmd } from '@features/reports/utils/reports-filter';
 import type { ClientPaymentDueBadgeVariant } from '@features/clients/utils/client-balance-summary';
 import type { Operator } from '@shared/models/logistics.models';
 
-export interface OperatorManeuverStatusCounts {
-  completed: number;
-  inTransit: number;
-  scheduled: number;
-  cancelled: number;
-  total: number;
-}
-
 export type OperatorPaymentRowStatus = 'paid' | 'pending' | 'due' | 'overdue';
 
 export interface OperatorPaymentRow {
@@ -40,8 +32,11 @@ export interface OperatorActiveAssignment {
 
 export interface OperatorOperationSummary {
   hasTrips: boolean;
-  statusCounts: OperatorManeuverStatusCounts;
+  periodManeuverTotal: number;
   completedKm: number;
+  workedHours: number;
+  workedDays: number;
+  incidentManeuverCount: number;
   activeAssignment: OperatorActiveAssignment | null;
   owedTripCount: number;
   owedAmount: number;
@@ -54,14 +49,11 @@ export interface OperatorOperationSummary {
 
 export const EMPTY_OPERATOR_OPERATION_SUMMARY: OperatorOperationSummary = {
   hasTrips: false,
-  statusCounts: {
-    completed: 0,
-    inTransit: 0,
-    scheduled: 0,
-    cancelled: 0,
-    total: 0,
-  },
+  periodManeuverTotal: 0,
   completedKm: 0,
+  workedHours: 0,
+  workedDays: 0,
+  incidentManeuverCount: 0,
   activeAssignment: null,
   owedTripCount: 0,
   owedAmount: 0,
@@ -215,8 +207,11 @@ function splitLegacyPaymentRows(
 export function mapApiOperatorOperationSummary(
   row: Record<string, unknown>,
 ): OperatorOperationSummary {
-  const counts = (row['statusCounts'] ?? {}) as Record<string, unknown>;
   const active = row['activeAssignment'] as Record<string, unknown> | null | undefined;
+  const legacyCounts = (row['statusCounts'] ?? {}) as Record<string, unknown>;
+  const periodManeuverTotal = Number(
+    row['periodManeuverTotal'] ?? legacyCounts['total'] ?? 0,
+  );
   const asOfYmd = localYmd(new Date());
   const pendingRaw = Array.isArray(row['pendingPaymentRows'])
     ? (row['pendingPaymentRows'] as Record<string, unknown>[])
@@ -247,14 +242,13 @@ export function mapApiOperatorOperationSummary(
 
   return {
     hasTrips: Boolean(row['hasTrips']),
-    statusCounts: {
-      completed: Number(counts['completed'] ?? 0) || 0,
-      inTransit: Number(counts['inTransit'] ?? 0) || 0,
-      scheduled: Number(counts['scheduled'] ?? 0) || 0,
-      cancelled: Number(counts['cancelled'] ?? 0) || 0,
-      total: Number(counts['total'] ?? 0) || 0,
-    },
+    periodManeuverTotal: Number.isFinite(periodManeuverTotal)
+      ? periodManeuverTotal
+      : 0,
     completedKm: Number(row['completedKm'] ?? 0) || 0,
+    workedHours: Number(row['workedHours'] ?? 0) || 0,
+    workedDays: Number(row['workedDays'] ?? 0) || 0,
+    incidentManeuverCount: Number(row['incidentManeuverCount'] ?? 0) || 0,
     activeAssignment:
       active && typeof active === 'object'
         ? {

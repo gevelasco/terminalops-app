@@ -9,6 +9,8 @@ import {
   type StaffGrantableModuleCode,
 } from '@shared/models/app-modules.models';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
+import { COMMERCIAL_HANDSHAKE_ICON_MASK } from '@shared/constants/commercial-handshake-icon';
+import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
 import type { StaffModulePermissionDraftMap } from '@shared/utils/staff-module-permissions';
 
@@ -26,6 +28,8 @@ export class UsersModulePermissionsFieldsComponent {
 
   readonly rbacModuleOptions = STAFF_RBAC_MODULE_OPTIONS;
   readonly staffModuleIcon = staffModuleIcon;
+  readonly clientsModuleCode = APP_MODULE_CODES.CLIENTS;
+  readonly commercialHandshakeIconMask = COMMERCIAL_HANDSHAKE_ICON_MASK;
 
   permissionState(code: StaffGrantableModuleCode) {
     return this.permissions()[code];

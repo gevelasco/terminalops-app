@@ -35,9 +35,12 @@ export interface AuthUser {
   tripAutoTollsPaymentMethod?: string;
   tripAutoPerDiemPaymentMethod?: string;
   tripAutoControlPaymentMethod?: string;
+  tripAutoOperationalControlLabel?: string | null;
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore?: number;
+  paymentReminderDaysChangedAt?: string;
+  tripAutoPaymentsChangedAt?: string;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;
@@ -118,9 +121,12 @@ export interface SessionData {
   tripAutoTollsPaymentMethod: string;
   tripAutoPerDiemPaymentMethod: string;
   tripAutoControlPaymentMethod: string;
+  tripAutoOperationalControlLabel?: string | null;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore: number;
+  paymentReminderDaysChangedAt?: string;
+  tripAutoPaymentsChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled: boolean;

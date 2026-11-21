@@ -168,6 +168,20 @@ describe('unit-hitched-equipment', () => {
     ).toEqual([]);
   });
 
+  it('resolveHitchedEquipmentForUnit merges embedded when catalog is partial', () => {
+    const embedded = [
+      eq({
+        id: 'dolly-1',
+        unitId: 'u98',
+        type: 'dolly',
+        hitchPosition: 'rear',
+      }),
+    ];
+    const catalog = [eq({ id: 'lead-1', unitId: 'u98', hitchPosition: 'lead' })];
+    const merged = resolveHitchedEquipmentForUnit('u98', catalog, embedded);
+    expect(merged.map((e) => e.id).sort()).toEqual(['dolly-1', 'lead-1']);
+  });
+
   it('derives fleet unit convoy table labels from hitch count', () => {
     expect(fleetUnitConvoyTableLabel(0)).toBe('Tracto');
     expect(fleetUnitConvoyTableLabel(1)).toBe('Sencillo');

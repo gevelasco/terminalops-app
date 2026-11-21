@@ -1,33 +1,28 @@
 import {
   computePlannedScheduleSuggestionFromRate,
-  estimatedTimeUnitToMs,
+  estimatedHoursToMs,
 } from './planned-schedule-from-destination-rate';
 
 describe('planned-schedule-from-destination-rate', () => {
-  it('estimatedTimeUnitToMs converts hours and days', () => {
-    expect(estimatedTimeUnitToMs(2, 'hours')).toBe(2 * 60 * 60 * 1000);
-    expect(estimatedTimeUnitToMs(1, 'days')).toBe(24 * 60 * 60 * 1000);
+  it('estimatedHoursToMs converts hours', () => {
+    expect(estimatedHoursToMs(2)).toBe(2 * 60 * 60 * 1000);
+    expect(estimatedHoursToMs(0)).toBe(0);
   });
 
-  it('computePlannedScheduleSuggestionFromRate sums arrival and return', () => {
-    const departure = '2026-05-28T08:00';
-    const suggested = computePlannedScheduleSuggestionFromRate(departure, {
-      estimatedArrivalTimeValue: 4,
-      estimatedReturnTimeValue: 2,
-      estimatedTimeUnit: 'hours',
+  it('computePlannedScheduleSuggestionFromRate uses arrival and return hours', () => {
+    const result = computePlannedScheduleSuggestionFromRate('2025-06-01T08:00', {
+      estimatedArrivalTimeValue: 10,
+      estimatedReturnTimeValue: 10,
     });
-    expect(suggested).toEqual({
-      arrivalLocal: '2026-05-28T12:00',
-      completionLocal: '2026-05-28T14:00',
-    });
+    expect(result).not.toBeNull();
+    expect(result!.arrivalLocal).toBe('2025-06-01T18:00');
+    expect(result!.completionLocal).toBe('2025-06-02T04:00');
   });
 
-  it('returns null when estimated times are incomplete', () => {
+  it('returns null when times are missing', () => {
     expect(
-      computePlannedScheduleSuggestionFromRate('2026-05-28T08:00', {
-        estimatedArrivalTimeValue: 4,
-        estimatedReturnTimeValue: undefined,
-        estimatedTimeUnit: 'hours',
+      computePlannedScheduleSuggestionFromRate('2025-06-01T08:00', {
+        estimatedArrivalTimeValue: 10,
       }),
     ).toBeNull();
   });

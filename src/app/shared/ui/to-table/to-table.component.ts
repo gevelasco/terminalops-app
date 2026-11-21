@@ -57,6 +57,7 @@ export interface ToTableModuleAccessIcon {
   label: string;
   icon: string;
   active: boolean;
+  iconImageSrc?: string;
 }
 
 /** Valor en la fila para `cell: 'datetime-stacked'` (fecha + hora en dos líneas). */

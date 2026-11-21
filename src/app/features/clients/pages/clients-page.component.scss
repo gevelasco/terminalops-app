@@ -15,6 +15,22 @@
   flex-shrink: 0;
 }
 
+.clients-page-header__handshake-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-image: var(--clients-handshake-icon-mask);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--clients-handshake-icon-mask);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
 .clients-table-block {
   display: flex;
   flex-direction: column;

@@ -47,7 +47,9 @@
             }
             <p class="operators-detail-photo__name">{{ vm.operator().name }}</p>
           </div>
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>ID interno</dt>
               <dd class="fleet-unit-detail__mono">{{ vm.operator().id }}</dd>
@@ -176,7 +178,9 @@
           }
         </div>
         @if (vm.editingSection() !== "contact") {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Nombre</dt>
               <dd>{{ vm.operator().emergencyContact.name.trim() || "—" }}</dd>
@@ -276,7 +280,9 @@
           }
         </div>
         @if (vm.editingSection() !== "coverage") {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Tipo</dt>
               <dd>{{ vm.insuranceKindLabel() }}</dd>

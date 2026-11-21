@@ -67,6 +67,9 @@ import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { OperatorsFeatureService } from '@features/operators/services/operators.service';
+import { FLEET_DELETE_ON_ROUTE_TOOLTIP } from '@features/fleet/utils/fleet-resource-delete';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
+import { isAdminRole } from '@shared/utils/access-control';
 import {
   catchError,
   concat,
@@ -116,9 +119,16 @@ export class OperatorsDetailDrawerFacade {
   readonly editingSection = signal<OperatorEditSection | null>(null);
   readonly saving = signal(false);
   readonly paymentConfirming = signal(false);
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteSubmitting = signal(false);
   readonly canWriteOperators = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.OPERATORS),
   );
+  readonly canDeleteOperator = computed(() => isAdminRole(this.session.role()));
+  readonly deleteBlockedByRoute = computed(
+    () => this.derivedOperationalStatus() === 'in_use',
+  );
+  readonly deleteBlockedTooltip = () => FLEET_DELETE_ON_ROUTE_TOOLTIP;
 
   readonly editName = signal('');
   readonly editBirthDate = signal('');
@@ -373,6 +383,58 @@ export class OperatorsDetailDrawerFacade {
     this.dismissCallback?.();
   }
 
+  openDeleteConfirm(): void {
+    if (
+      !this.canDeleteOperator() ||
+      this.deleteBlockedByRoute() ||
+      this.deleteSubmitting()
+    ) {
+      return;
+    }
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDeleteOperator(): void {
+    if (
+      !this.canDeleteOperator() ||
+      this.deleteBlockedByRoute() ||
+      this.deleteSubmitting()
+    ) {
+      return;
+    }
+    const operator = this.operator();
+    const label = operator.name?.trim() || 'Operador';
+    this.deleteSubmitting.set(true);
+    this.operatorsFeature
+      .deleteOperator(operator.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
+          this.operationalSync.notifyOperatorsModuleMutation();
+          this.operationalSync.notifyTripFleetMutation();
+          this.toast.show(`${label} dado de baja.`, 'success');
+          this.requestDismiss();
+        },
+        error: (err: unknown) => {
+          this.deleteSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo dar de baja al operador. Inténtalo de nuevo.',
+            'error',
+          );
+        },
+      });
+  }
+
   onDocKey(ev: KeyboardEvent): void {
     if (ev.key !== 'Escape') {
       return;
@@ -453,6 +515,30 @@ export class OperatorsDetailDrawerFacade {
 
   operatorPhotoInitialsLabel(): string {
     return operatorPhotoInitials(this.operator().name);
+  }
+
+  operationPeriodManeuverTotalLabel(): string {
+    const n = this.operationSummary().periodManeuverTotal;
+    if (n === 0) {
+      return '—';
+    }
+    return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
+  }
+
+  operationWorkedHoursLabel(): string {
+    const s = this.operationSummary();
+    if (s.workedHours <= 0) {
+      return '—';
+    }
+    const hoursLabel =
+      Number.isInteger(s.workedHours) || s.workedHours >= 10
+        ? String(Math.round(s.workedHours))
+        : s.workedHours.toFixed(1);
+    const daysLabel =
+      Number.isInteger(s.workedDays) || s.workedDays >= 10
+        ? String(Math.round(s.workedDays))
+        : s.workedDays.toFixed(1);
+    return `${hoursLabel} horas · ${daysLabel} días`;
   }
 
   operationMoney(value: number): string {

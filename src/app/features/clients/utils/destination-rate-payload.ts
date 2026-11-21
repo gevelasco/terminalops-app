@@ -2,11 +2,15 @@ import {
   parseEstimatedTimeValueInput,
   validateDestinationRateEstimatedTimesInput,
 } from '@features/clients/utils/destination-rate-estimated-time';
+import { parseDestinationRateAxleCount } from '@features/clients/utils/destination-rate-axle-count.util';
+import { routeWaypointsPersistPayload } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import type {
   CreateDestinationRatePayload,
   DestinationRate,
   DestinationRatePriceDraft,
   DestinationRatePriceInput,
+  DestinationRateRouteWaypoint,
+  DestinationRateRouteTollPlaza,
 } from '@shared/models/destination-rate.models';
 import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 
@@ -103,6 +107,7 @@ export function createEmptyPriceDraft(
     clientCharge: '',
     operatorPaymentEstimate: '',
     estimatedTollAmount: '',
+    axleCount: '5',
     perDiemAmount: '',
     notes: '',
   };
@@ -119,9 +124,23 @@ export function priceDraftsFromRate(rate: DestinationRate): DestinationRatePrice
     clientCharge: String(p.clientCharge),
     operatorPaymentEstimate: String(p.operatorPaymentEstimate),
     estimatedTollAmount: String(p.estimatedTollAmount),
+    axleCount:
+      p.axleCount != null && p.axleCount >= 2 ? String(Math.round(p.axleCount)) : '5',
     perDiemAmount: String(p.perDiemAmount ?? 0),
     notes: p.notes ?? '',
   }));
+}
+
+/** Filas guardadas + renglón vacío al final para capturar otro tipo. */
+export function priceDraftsForEditorFromRate(
+  rate: DestinationRate,
+): DestinationRatePriceDraft[] {
+  const rows = priceDraftsFromRate(rate);
+  const last = rows[rows.length - 1];
+  if (last != null && destinationRatePriceManeuverKey(last).length === 0) {
+    return rows;
+  }
+  return [...rows, createEmptyPriceDraft()];
 }
 
 export function validateDestinationRateForm(params: {
@@ -132,7 +151,6 @@ export function validateDestinationRateForm(params: {
   priceDrafts: readonly DestinationRatePriceDraft[];
   estimatedArrivalTimeValue?: string;
   estimatedReturnTimeValue?: string;
-  estimatedTimeUnit?: string;
 }): string | null {
   if (!params.originOperationalCenterId.trim()) {
     return 'Selecciona el centro operativo de origen.';
@@ -181,7 +199,6 @@ export function validateDestinationRateForm(params: {
   return validateDestinationRateEstimatedTimesInput({
     arrivalRaw: params.estimatedArrivalTimeValue ?? '',
     returnRaw: params.estimatedReturnTimeValue ?? '',
-    unit: params.estimatedTimeUnit ?? '',
   });
 }
 
@@ -190,34 +207,30 @@ function appendEstimatedTimesToPayload(
   params: {
     estimatedArrivalTimeValue: string;
     estimatedReturnTimeValue: string;
-    estimatedTimeUnit: string;
     forUpdate: boolean;
   },
 ): CreateDestinationRatePayload {
   const arrivalRaw = params.estimatedArrivalTimeValue.trim();
   const returnRaw = params.estimatedReturnTimeValue.trim();
-  const unit = params.estimatedTimeUnit.trim();
-  if (!arrivalRaw && !returnRaw && !unit) {
+  if (!arrivalRaw && !returnRaw) {
     if (params.forUpdate) {
       return {
         ...payload,
         estimatedArrivalTimeValue: null,
         estimatedReturnTimeValue: null,
-        estimatedTimeUnit: null,
       };
     }
     return payload;
   }
   const arrival = parseEstimatedTimeValueInput(arrivalRaw);
   const returnValue = parseEstimatedTimeValueInput(returnRaw);
-  if (!arrival || !returnValue || (unit !== 'hours' && unit !== 'days')) {
+  if (!arrival || !returnValue) {
     return payload;
   }
   return {
     ...payload,
     estimatedArrivalTimeValue: arrival,
     estimatedReturnTimeValue: returnValue,
-    estimatedTimeUnit: unit,
   };
 }
 
@@ -231,6 +244,7 @@ export function buildDestinationRatePricesPayload(
     clientCharge: parseRateMoneyInput(row.clientCharge) ?? 0,
     operatorPaymentEstimate: parseRateMoneyInput(row.operatorPaymentEstimate) ?? 0,
     estimatedTollAmount: parseRateMoneyInput(row.estimatedTollAmount) ?? 0,
+    axleCount: parseDestinationRateAxleCount(row.axleCount),
     perDiemAmount: parseRateMoneyInput(row.perDiemAmount) ?? 0,
     notes: row.notes.trim() || undefined,
   }));
@@ -246,11 +260,13 @@ export function buildCreateDestinationRatePayload(params: {
   destinationLatitude?: number | null;
   destinationLongitude?: number | null;
   active: boolean;
-  notes: string;
+  notes?: string;
   estimatedArrivalTimeValue?: string;
   estimatedReturnTimeValue?: string;
-  estimatedTimeUnit?: string;
   forUpdate?: boolean;
+  excludedTollPlazaKeys?: string[];
+  routeWaypoints?: readonly DestinationRateRouteWaypoint[];
+  routeTollPlazas?: readonly DestinationRateRouteTollPlaza[];
 }): CreateDestinationRatePayload {
   const base: CreateDestinationRatePayload = {
     originOperationalCenterId: params.originOperationalCenterId.trim(),
@@ -268,12 +284,20 @@ export function buildCreateDestinationRatePayload(params: {
         }
       : {}),
     active: params.active,
-    notes: params.notes.trim() || undefined,
+    notes: params.notes?.trim() || undefined,
+    ...(params.excludedTollPlazaKeys != null
+      ? { excludedTollPlazaKeys: params.excludedTollPlazaKeys }
+      : {}),
+    ...(params.routeWaypoints !== undefined
+      ? { routeWaypoints: routeWaypointsPersistPayload(params.routeWaypoints) }
+      : {}),
+    ...(params.routeTollPlazas != null && params.routeTollPlazas.length > 0
+      ? { routeTollPlazas: [...params.routeTollPlazas] }
+      : {}),
   };
   return appendEstimatedTimesToPayload(base, {
     estimatedArrivalTimeValue: params.estimatedArrivalTimeValue ?? '',
     estimatedReturnTimeValue: params.estimatedReturnTimeValue ?? '',
-    estimatedTimeUnit: params.estimatedTimeUnit ?? '',
     forUpdate: params.forUpdate === true,
   });
 }

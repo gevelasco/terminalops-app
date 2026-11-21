@@ -75,7 +75,7 @@ describe('validateEquipmentHitchAssignment', () => {
       unitLabel: 'TRC-02',
     });
     expect(v.canSave).toBe(true);
-    expect(v.infoMessage).toMatch(/2do equipo/i);
+    expect(v.infoMessage).toMatch(/2do remolque/i);
   });
 
   it('blocks first equipment when lead already exists', () => {
@@ -87,7 +87,42 @@ describe('validateEquipmentHitchAssignment', () => {
     });
     expect(v.canSave).toBe(false);
     expect(v.blockMessage).toMatch(/1er equipo/i);
-    expect(v.blockMessage).toMatch(/2do equipo/i);
+    expect(v.blockMessage).toMatch(/siguiente equipo/i);
+  });
+
+  it('blocks second chassis without dolly between lead chassis', () => {
+    const leadChassis = eq({
+      id: 'ch-1',
+      unitId: 'U-CH',
+      hitchPosition: 'lead',
+      type: 'portacontenedor',
+    });
+    const v = validateEquipmentHitchAssignment({
+      unitId: 'U-CH',
+      catalog: [leadChassis],
+      isSecondTrailer: true,
+      equipmentType: 'plataforma',
+      unitLabel: 'TRC-CH',
+    });
+    expect(v.canSave).toBe(false);
+    expect(v.blockMessage).toMatch(/dolly/i);
+  });
+
+  it('allows dolly after lead chassis', () => {
+    const leadChassis = eq({
+      id: 'ch-1',
+      unitId: 'U-CH',
+      hitchPosition: 'lead',
+      type: 'portacontenedor',
+    });
+    const v = validateEquipmentHitchAssignment({
+      unitId: 'U-CH',
+      catalog: [leadChassis],
+      isSecondTrailer: false,
+      equipmentType: 'dolly',
+    });
+    expect(v.canSave).toBe(true);
+    expect(v.infoMessage).toMatch(/intermedia/i);
   });
 
   it('lists selectable equipment for unit', () => {
@@ -196,6 +231,27 @@ describe('unitHitchSlotForNewEquipment', () => {
 
   it('returns second when one equipment is hitched', () => {
     expect(unitHitchSlotForNewEquipment(catalog, 'U1')).toBe('second');
-    expect(equipmentHitchAddActionLabel(catalog, 'U1')).toBe('Enganchar 2do equipo');
+    expect(equipmentHitchAddActionLabel(catalog, 'U1')).toBe('Enganchar siguiente equipo');
+  });
+
+  it('returns third when lead and dolly with api rear position', () => {
+    const catalog = [
+      eq({ id: 'ch-1', unitId: 'U1', hitchPosition: 'lead', type: 'portacontenedor' }),
+      eq({ id: 'dolly-1', unitId: 'U1', hitchPosition: 'rear', type: 'dolly' }),
+    ];
+    expect(unitHitchSlotForNewEquipment(catalog, 'U1', 'free')).toBe('third');
+    expect(unitHasHitchSlot(catalog, 'U1')).toBe(true);
+  });
+
+  it('returns third when lead and dolly are hitched', () => {
+    const tripleCatalog = [
+      eq({ id: 'ch-1', unitId: 'U1', hitchPosition: 'lead', type: 'portacontenedor' }),
+      eq({ id: 'dolly-1', unitId: 'U1', hitchPosition: 'middle', type: 'dolly' }),
+    ];
+    expect(unitHitchSlotForNewEquipment(tripleCatalog, 'U1')).toBe('third');
+    expect(
+      hitchPositionForNewEquipmentOnUnit(tripleCatalog, 'U1', 'free', 'portacontenedor'),
+    ).toBe('rear');
+    expect(unitHasHitchSlot(tripleCatalog, 'U1')).toBe(true);
   });
 });

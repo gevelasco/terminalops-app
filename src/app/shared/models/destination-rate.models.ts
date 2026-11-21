@@ -1,4 +1,19 @@
-export type DestinationRateEstimatedTimeUnit = 'hours' | 'days';
+export interface DestinationRateRouteWaypoint {
+  label: string;
+  lat: number;
+  lon: number;
+  searchLabel?: string;
+}
+
+/** Caseta en ruta persistida en la tarifa (misma forma que consulta INEGI al editar). */
+export interface DestinationRateRouteTollPlaza {
+  order: number;
+  plazaKey: string;
+  plazaKeySource?: 'inegi' | 'fallback';
+  inegiPoint?: string;
+  name: string;
+  costMxn: number | null;
+}
 
 export interface DestinationRate {
   id: string;
@@ -20,11 +35,16 @@ export interface DestinationRate {
   operationalDistanceKm?: number;
   isRoundTrip: boolean;
   distanceCalculatedAt?: string;
-  /** Referencia UX — no operativo; no alimenta trips. */
+  /** Referencia UX — horas de manejo (ida / retorno); no operativo directo. */
   estimatedArrivalTimeValue?: number;
   estimatedReturnTimeValue?: number;
-  estimatedTimeUnit?: DestinationRateEstimatedTimeUnit;
   maneuverCount?: number;
+  /** Claves INEGI de casetas que no se cruzan (por libre). */
+  excludedTollPlazaKeys?: string[];
+  /** Puntos intermedios de ruta personalizada, en orden de recorrido. */
+  routeWaypoints?: DestinationRateRouteWaypoint[];
+  /** Casetas en ruta para esta tarifa (fuente única al visualizar / mapa). */
+  routeTollPlazas?: DestinationRateRouteTollPlaza[];
   prices: readonly DestinationRatePrice[];
   active: boolean;
   notes?: string;
@@ -40,6 +60,7 @@ export interface DestinationRatePrice {
   clientCharge: number;
   operatorPaymentEstimate: number;
   estimatedTollAmount: number;
+  axleCount?: number;
   perDiemAmount: number;
   notes?: string;
   createdAt?: string;
@@ -52,6 +73,7 @@ export interface DestinationRatePriceInput {
   clientCharge: number;
   operatorPaymentEstimate: number;
   estimatedTollAmount: number;
+  axleCount?: number;
   perDiemAmount: number;
   notes?: string;
 }
@@ -69,8 +91,10 @@ export interface CreateDestinationRatePayload {
   active?: boolean;
   estimatedArrivalTimeValue?: number | null;
   estimatedReturnTimeValue?: number | null;
-  estimatedTimeUnit?: DestinationRateEstimatedTimeUnit | null;
   notes?: string;
+  excludedTollPlazaKeys?: string[];
+  routeWaypoints?: DestinationRateRouteWaypoint[];
+  routeTollPlazas?: DestinationRateRouteTollPlaza[];
 }
 
 export type UpdateDestinationRatePayload = Partial<CreateDestinationRatePayload>;
@@ -82,6 +106,7 @@ export interface DestinationRatePriceDraft {
   clientCharge: string;
   operatorPaymentEstimate: string;
   estimatedTollAmount: string;
+  axleCount: string;
   perDiemAmount: string;
   notes: string;
 }

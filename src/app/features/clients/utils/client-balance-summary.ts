@@ -53,8 +53,11 @@ export interface ClientBalanceSummary {
   volumeMonthsWindow: number;
   volumeBillableCount: number;
   volumeAllCount: number;
+  /** Total de maniobras facturables (campo legado `*PerMonth`, ya no es promedio). */
   volumeManeuversPerMonth: number;
+  /** Suma de cobros pactados (`clientCharge`) en el alcance del resumen. */
   volumeBilledPerMonth: number;
+  /** Suma de costos operativos programados en el alcance del resumen. */
   volumeOperationalPerMonth: number;
   volumeProfitPerMonth: number;
   period?: ClientBalancePeriodSummary;

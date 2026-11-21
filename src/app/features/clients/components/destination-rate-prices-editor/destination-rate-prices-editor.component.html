@@ -1,99 +1,276 @@
 <div class="destination-rate-prices-editor">
-  <div class="destination-rate-prices-editor__group-label-row">
-    <span class="destination-rate-prices-editor__head-cell">Costos</span>
-  </div>
-
-  <div class="destination-rate-prices-editor__table" role="table">
-    <div
-      class="destination-rate-prices-editor__grid destination-rate-prices-editor__grid--head"
-      role="row"
-    >
-      <span class="destination-rate-prices-editor__head-cell">Tipo de maniobra</span>
-      <span class="destination-rate-prices-editor__head-cell">Tarifa</span>
-      <span class="destination-rate-prices-editor__head-cell">Operador</span>
-      <span class="destination-rate-prices-editor__head-cell">Casetas</span>
-      <span class="destination-rate-prices-editor__head-cell">Viáticos</span>
-      <span
-        class="destination-rate-prices-editor__head-cell destination-rate-prices-editor__head-cell--action"
-        aria-hidden="true"
-      ></span>
-    </div>
-
-    <div
-      class="destination-rate-prices-editor__rows"
-      [class.destination-rate-prices-editor__rows--scroll]="rowsScroll()"
-    >
-      @for (row of priceDrafts(); track row.rowKey) {
-        <div
-          class="destination-rate-prices-editor__grid destination-rate-prices-editor__grid--form"
-          role="row"
-        >
-          <app-destination-rate-maneuver-combobox
-            [operationConfigurationId]="row.operationConfigurationId"
-            [operationConfigurationName]="row.operationConfigurationName"
-            [options]="availableOptionsForRow(row)"
-            [allConfigurationNames]="allConfigurationNames()"
-            [disabled]="disabled()"
-            (valueChange)="onManeuverChange(row.rowKey, $event)"
-          />
-          <to-input
-            placeholder="0"
-            prefix="$"
-            inputMode="decimal"
-            [groupThousands]="true"
-            [value]="row.clientCharge"
-            [disabled]="disabled()"
-            (valueChange)="updateField(row.rowKey, 'clientCharge', $event)"
-          />
-          <to-input
-            placeholder="0"
-            prefix="$"
-            inputMode="decimal"
-            [groupThousands]="true"
-            [value]="row.operatorPaymentEstimate"
-            [disabled]="disabled()"
-            (valueChange)="updateField(row.rowKey, 'operatorPaymentEstimate', $event)"
-          />
-          <to-input
-            placeholder="0"
-            prefix="$"
-            inputMode="decimal"
-            [groupThousands]="true"
-            [value]="row.estimatedTollAmount"
-            [disabled]="disabled()"
-            (valueChange)="updateField(row.rowKey, 'estimatedTollAmount', $event)"
-          />
-          <to-input
-            placeholder="0"
-            prefix="$"
-            inputMode="decimal"
-            [groupThousands]="true"
-            [value]="row.perDiemAmount"
-            [disabled]="disabled()"
-            (valueChange)="updateField(row.rowKey, 'perDiemAmount', $event)"
-          />
-          <button
-            type="button"
-            class="destination-rate-prices-editor__remove"
-            [disabled]="disabled() || !canRemoveRow(row)"
-            aria-label="Quitar tipo de maniobra"
-            (click)="removeRow(row.rowKey)"
-          >
-            <to-icon name="close" [size]="16" />
-          </button>
-        </div>
-      }
-    </div>
-  </div>
-
-  <to-button
-    type="button"
-    variant="outline"
-    size="sm"
-    [disabled]="!canAddRow()"
-    (click)="addRow()"
+  <div
+    class="destination-rate-prices-editor__body"
+    [class.destination-rate-prices-editor__body--loading]="tollsSectionLoading()"
   >
-    <to-icon name="sell" [size]="16" />
-    Agregar tipo
-  </to-button>
+    @if (tollsSectionLoading()) {
+      <div class="destination-rate-prices-editor__loading" role="status" aria-live="polite">
+        <span class="destination-rate-prices-editor__spinner" aria-hidden="true"></span>
+        <span class="destination-rate-prices-editor__loading-text">Consultando casetas (INEGI)…</span>
+      </div>
+    }
+
+  @if (!viewOnly()) {
+  <div class="destination-rate-prices-editor__composer-block">
+    @if (!disabled()) {
+      @let composer = composerRow();
+      <div class="destination-rate-prices-editor__composer">
+        <div class="destination-rate-prices-editor__edit-row">
+          <div class="destination-rate-prices-editor__field">
+            <span class="destination-rate-prices-editor__field-label">Tipo de maniobra</span>
+            <app-destination-rate-maneuver-combobox
+              [operationConfigurationId]="composer.operationConfigurationId"
+              [operationConfigurationName]="composer.operationConfigurationName"
+              [options]="availableOptionsForComposer()"
+              [allConfigurationNames]="allConfigurationNames()"
+              [disabled]="disabled()"
+              (valueChange)="onManeuverChange(composerRowKey(), $event)"
+            />
+          </div>
+          <to-select
+            label="Ejes"
+            [options]="axleOptions"
+            [disabled]="disabled()"
+            [value]="composer.axleCount || '5'"
+            (valueChange)="onAxleCountChange(composerRowKey(), $event)"
+          />
+          <to-input
+            label="Tarifa comercial"
+            placeholder="0"
+            prefix="$"
+            inputMode="decimal"
+            [groupThousands]="true"
+            [value]="composer.clientCharge"
+            [disabled]="disabled()"
+            (valueChange)="updateField(composerRowKey(), 'clientCharge', $event)"
+          />
+        </div>
+        <div
+          class="destination-rate-prices-editor__edit-row destination-rate-prices-editor__edit-row--triple"
+        >
+          <to-input
+            label="Operador"
+            placeholder="0"
+            prefix="$"
+            inputMode="decimal"
+            [groupThousands]="true"
+            [value]="composer.operatorPaymentEstimate"
+            [disabled]="disabled()"
+            (valueChange)="updateField(composerRowKey(), 'operatorPaymentEstimate', $event)"
+          />
+          <to-input
+            label="Casetas (ida y vuelta)"
+            placeholder="Sugerido INEGI"
+            prefix="$"
+            inputMode="decimal"
+            [groupThousands]="true"
+            [value]="composer.estimatedTollAmount"
+            [disabled]="disabled()"
+            (valueChange)="updateField(composerRowKey(), 'estimatedTollAmount', $event)"
+          />
+          <to-input
+            label="Viáticos"
+            placeholder="0"
+            prefix="$"
+            inputMode="decimal"
+            [groupThousands]="true"
+            [value]="composer.perDiemAmount"
+            [disabled]="disabled()"
+            (valueChange)="updateField(composerRowKey(), 'perDiemAmount', $event)"
+          />
+        </div>
+
+        @if (showComposerTolls()) {
+          <div class="destination-rate-prices-editor__tolls">
+            @if (routeMapOpen()) {
+              <app-destination-rate-route-map-dialog
+                [inline]="true"
+                [open]="true"
+                [routeContext]="routeTollContext()"
+                [tollPlazas]="tollPlazasForComposer()"
+                [originLabel]="routeMapOriginLabel()"
+                [destinationLabel]="routeMapDestinationLabel()"
+                (dismiss)="routeMapOpen.set(false)"
+              />
+            } @else {
+              <div class="destination-rate-prices-editor__tolls-head">
+                <p class="destination-rate-prices-editor__tolls-title">
+                  Casetas en ruta (ida, cuota)
+                </p>
+                @if (routeTollContext()) {
+                  <to-button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    (click)="routeMapOpen.set(true)"
+                  >
+                    <to-icon name="mapSearch" [size]="15" />
+                    Ver ruta
+                  </to-button>
+                }
+              </div>
+              @if (composerTollsLoading() && tollPlazasForComposer().length === 0) {
+                <p class="destination-rate-prices-editor__tolls-pending">Cargando casetas…</p>
+              }
+              @if (tollPlazasForComposer().length > 0) {
+                <ol
+                  class="destination-rate-prices-editor__toll-list"
+                  [class.destination-rate-prices-editor__toll-list--scroll]="
+                    tollPlazasForComposer().length > 10
+                  "
+                >
+                  @for (plaza of tollPlazasForComposer(); track plaza.plazaKey) {
+                    <li class="destination-rate-prices-editor__toll-item">
+                      <div class="destination-rate-prices-editor__toll-item-main">
+                        <span class="destination-rate-prices-editor__toll-order">{{ plaza.order }}</span>
+                        <span class="destination-rate-prices-editor__toll-name">{{ plaza.name }}</span>
+                        <span class="destination-rate-prices-editor__toll-cost">
+                          {{ formatPlazaCost(plaza.costMxn) }}
+                        </span>
+                        <button
+                          type="button"
+                          class="destination-rate-prices-editor__toll-remove"
+                          aria-label="Omitir caseta (ir por libre)"
+                          (click)="excludeTollPlaza(plaza.plazaKey)"
+                        >
+                          <to-icon name="delete" [size]="14" />
+                        </button>
+                      </div>
+                    </li>
+                  }
+                </ol>
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <div class="destination-rate-prices-editor__add-row">
+        @if (showRouteConfigure() && !routeCustomizeOpen()) {
+          <to-button
+            type="button"
+            variant="primary"
+            size="sm"
+            [disabled]="routeConfigureDisabled()"
+            (click)="openRouteConfigure()"
+          >
+            <to-icon name="route" [size]="16" />
+            Configurar ruta
+          </to-button>
+        }
+        <to-button
+          type="button"
+          variant="outline"
+          size="sm"
+          [disabled]="!canAddRow() || tollsSectionLoading()"
+          (click)="addRow()"
+        >
+          <to-icon name="sell" [size]="16" />
+          Agregar tipo
+        </to-button>
+      </div>
+      @if (showRouteConfigure() && routeCustomizeOpen()) {
+        <app-destination-rate-route-customize
+          [externalTrigger]="true"
+          [(customizeOpen)]="routeCustomizeOpen"
+          [(draftWaypoints)]="routeDraftWaypoints"
+          [(appliedWaypoints)]="routeAppliedWaypoints"
+          [disabled]="routeConfigureDisabled()"
+          [tollsLoading]="tollsSectionLoading()"
+          (recalculate)="onRouteCustomizeRecalculate()"
+          (resetSuggestedRoute)="onRouteCustomizeResetSuggested()"
+        />
+      }
+    } @else if (savedRows().length === 0) {
+      @let composer = composerRow();
+      <dl class="destination-rate-prices-editor__facts">
+        <div>
+          <dt>Tipo de maniobra</dt>
+          <dd>{{ maneuverLabel(composer) }}</dd>
+        </div>
+        <div>
+          <dt>Ejes</dt>
+          <dd>{{ composer.axleCount || '5' }}</dd>
+        </div>
+        <div>
+          <dt>Tarifa comercial</dt>
+          <dd>{{ displayMoney(composer.clientCharge) }}</dd>
+        </div>
+        <div>
+          <dt>Operador</dt>
+          <dd>{{ displayMoney(composer.operatorPaymentEstimate) }}</dd>
+        </div>
+        <div>
+          <dt>Casetas (ida y vuelta)</dt>
+          <dd>{{ displayMoney(composer.estimatedTollAmount) }}</dd>
+        </div>
+        <div>
+          <dt>Viáticos</dt>
+          <dd>{{ displayMoney(composer.perDiemAmount) }}</dd>
+        </div>
+      </dl>
+    }
+  </div>
+  }
+
+    @if (displayCardRows().length > 0) {
+      <div
+        class="destination-rate-prices-editor__cards-region"
+        [class.destination-rate-prices-editor__cards-region--view-only]="viewOnly()"
+      >
+        <ul class="destination-rate-prices-editor__cards">
+          @for (row of displayCardRows(); track row.rowKey) {
+            <li
+              class="destination-rate-prices-editor__card"
+              [class.destination-rate-prices-editor__card--selected]="isCardSelected(row.rowKey)"
+            >
+              @if (!disabled() && !viewOnly()) {
+                <button
+                  type="button"
+                  class="destination-rate-prices-editor__card-edit"
+                  aria-label="Editar tipo de maniobra"
+                  (click)="editSavedRow(row.rowKey)"
+                >
+                  <to-icon name="edit" [size]="14" />
+                </button>
+              }
+              <div class="destination-rate-prices-editor__card-title">
+                <to-icon name="route" [size]="16" />
+                <span class="destination-rate-prices-editor__card-maneuver">{{ maneuverLabel(row) }}</span>
+              </div>
+              <div class="destination-rate-prices-editor__card-grid">
+                <div class="destination-rate-prices-editor__card-cell">
+                  <to-icon name="tire" [size]="15" />
+                  <span>{{ axleCardLabel(row) }}</span>
+                </div>
+                <div class="destination-rate-prices-editor__card-cell">
+                  <to-icon name="toll" [size]="15" />
+                  <span>{{ tollCardLabel(row) }}</span>
+                </div>
+                <div class="destination-rate-prices-editor__card-cell">
+                  <to-icon name="person" [size]="15" />
+                  <span>{{ displayMoney(row.operatorPaymentEstimate) }} operador</span>
+                </div>
+                <div class="destination-rate-prices-editor__card-cell">
+                  <to-icon name="meal" [size]="15" />
+                  <span>{{ displayMoney(row.perDiemAmount) }} viáticos</span>
+                </div>
+              </div>
+              <div class="destination-rate-prices-editor__card-tariff">
+                <img
+                  class="destination-rate-prices-editor__handshake-icon"
+                  [src]="commercialTariffHandshakeSrc"
+                  alt=""
+                  width="17"
+                  height="17"
+                />
+                <span>{{ displayMoney(row.clientCharge) }} tarifa comercial</span>
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+  </div>
 </div>

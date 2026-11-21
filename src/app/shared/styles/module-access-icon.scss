@@ -24,6 +24,22 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-primary) 10%, transparent);
 }
 
+.commercial-handshake-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-image: var(--commercial-handshake-icon-mask, url('/icons/handshake-solid.png'));
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--commercial-handshake-icon-mask, url('/icons/handshake-solid.png'));
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
 :host-context([data-app-scheme='dark']) {
   .module-access-icon {
     border-color: color-mix(in srgb, var(--to-color-border) 55%, transparent);

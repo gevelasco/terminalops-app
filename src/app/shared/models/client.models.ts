@@ -105,6 +105,11 @@ export interface Client {
   maneuverCount?: number;
   /** Estatus comercial derivado por el backend desde trips (tenant-scoped). */
   commercialHealth?: ClientCommercialHealth;
+  /**
+   * Baja lógica (solo vía DELETE admin). Inactivo = oculto en Comercial.
+   * Sin reactivación: alta nueva. Historial conserva `clientId` / `clientName`.
+   */
+  isActive?: boolean;
 }
 
 export type CreateClientPayload = Omit<Client, 'id'>;

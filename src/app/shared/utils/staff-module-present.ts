@@ -1,3 +1,4 @@
+import { commercialClientsModuleIconSrc } from '@shared/constants/commercial-handshake-icon';
 import {
   APP_MODULE_CODES,
   APP_NAV_ITEMS,
@@ -8,16 +9,17 @@ import {
 import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
 
 export const STAFF_MODULE_ICON_BY_CODE: Record<StaffGrantableModuleCode, ToIconName> = {
+  [APP_MODULE_CODES.DASHBOARD]: 'grid',
   [APP_MODULE_CODES.TRIPS]: 'route',
   [APP_MODULE_CODES.FLEET]: 'truck',
   [APP_MODULE_CODES.OPERATORS]: 'groups',
   [APP_MODULE_CODES.CLIENTS]: 'enterprise',
+  [APP_MODULE_CODES.DESTINATION_RATES]: 'sell',
   [APP_MODULE_CODES.EXPENSES]: 'settlement',
   [APP_MODULE_CODES.REPORTS]: 'chartBar',
 };
 
 const MODULE_ICON_BY_CODE: Partial<Record<AppModuleCode, ToIconName>> = {
-  [APP_MODULE_CODES.DASHBOARD]: 'grid',
   [APP_MODULE_CODES.USERS]: 'person',
   [APP_MODULE_CODES.ACCOUNT]: 'document',
   ...STAFF_MODULE_ICON_BY_CODE,
@@ -37,6 +39,7 @@ export interface UserTableModuleIcon {
   label: string;
   icon: ToIconName;
   active: boolean;
+  iconImageSrc?: string;
 }
 
 /** Iconos de módulos para la tabla de usuarios: todos visibles, activos si hay acceso. */
@@ -46,11 +49,19 @@ export function userTableModuleIcons(
 ): UserTableModuleIcon[] {
   const granted = new Set(allowedModules ?? []);
   const allStaffLit = role === 'admin' || role === 'superadmin';
-  return STAFF_MODULE_OPTIONS.map((option) => ({
-    label: option.label,
-    icon: staffModuleIcon(option.code),
-    active: allStaffLit || granted.has(option.code),
-  }));
+  return STAFF_MODULE_OPTIONS.map((option) => {
+    const active =
+      allStaffLit ||
+      granted.has(option.code) ||
+      (option.code === APP_MODULE_CODES.DESTINATION_RATES &&
+        granted.has(APP_MODULE_CODES.CLIENTS));
+    return {
+      label: option.label,
+      icon: staffModuleIcon(option.code),
+      active,
+      iconImageSrc: commercialClientsModuleIconSrc(option.code),
+    };
+  });
 }
 
 export function modulePermissionChips(

@@ -106,24 +106,34 @@
             }
           </div>
 
-          <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
-          @if (vm.docs("verification").length > 0) {
-            <ul class="fleet-unit-detail__doc-list">
-              @for (doc of vm.docs("verification"); track doc.id) {
-                <li class="fleet-unit-detail__doc-item">
-                  <button
-                    type="button"
-                    class="fleet-unit-detail__doc-link"
-                    (click)="vm.downloadStoredDocument(doc)"
-                  >
-                    {{ doc.fileName }}
-                  </button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="fleet-unit-detail__route-line">Sin archivos registrados.</p>
-          }
+          <div class="fleet-unit-docs">
+            <div class="fleet-unit-docs__head">
+              <h4 class="fleet-unit-sec__subtitle">Documentos de verificación</h4>
+              <span class="fleet-unit-sec__docs-hint">(PDF, JPG, PNG, etc.)</span>
+            </div>
+            @if (vm.docs("verification").length > 0) {
+              <ul
+                class="fleet-unit-detail__file-list fleet-unit-detail__file-list--actions"
+              >
+                @for (doc of vm.docs("verification"); track doc.id) {
+                  <li class="fleet-unit-detail__file-line">
+                    <span class="fleet-unit-detail__file-name">{{ doc.fileName }}</span>
+                    <button
+                      type="button"
+                      class="fleet-unit-detail__file-dl"
+                      (click)="vm.downloadStoredDocument(doc)"
+                    >
+                      Descargar
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="fleet-unit-detail__empty-files">
+                Sin archivos en el registro.
+              </p>
+            }
+          </div>
         } @else {
           <div class="fleet-unit-sec__edit-form">
             <div

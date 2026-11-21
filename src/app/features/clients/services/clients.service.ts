@@ -130,6 +130,23 @@ export class ClientsFeatureService {
     );
   }
 
+  deleteClient(clientId: string): Observable<void> {
+    const id = clientId.trim();
+    const requestId = this.requestGen.next();
+    return this.clientsApi.deleteClient(id).pipe(
+      map(() => {
+        if (!this.canApplyResponse(requestId)) {
+          return;
+        }
+        this._clients.update((list) => list.filter((c) => c.id !== id));
+        if (this._selectedClientId() === id) {
+          this.clearSelection();
+        }
+      }),
+      map(() => void 0),
+    );
+  }
+
   refreshClientById(clientId: string): void {
     const id = clientId.trim();
     if (!id || this.disposed) {

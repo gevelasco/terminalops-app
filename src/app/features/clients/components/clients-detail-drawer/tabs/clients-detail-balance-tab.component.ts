@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { REVERT_ROTATE_LEFT_ICON_SRC } from '@shared/constants/revert-rotate-left-icon';
 import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToMonthYearPickerComponent } from '@shared/ui/to-month-year-picker/to-month-year-picker.component';
 import { ClientsDetailDrawerFacade } from '../clients-detail-drawer.facade';
@@ -19,4 +20,5 @@ import {
 })
 export class ClientsDetailBalanceTabComponent {
   protected readonly vm = inject(ClientsDetailDrawerFacade);
+  protected readonly revertCollectionIconSrc = REVERT_ROTATE_LEFT_ICON_SRC;
 }

@@ -27,6 +27,14 @@ export function osrmRouteCacheKey(
   return `${roundCoord(from.lat)},${roundCoord(from.lon)}>${roundCoord(to.lat)},${roundCoord(to.lon)}`;
 }
 
+export function osrmRouteThroughCacheKey(
+  points: readonly { lat: number; lon: number }[],
+): string {
+  return points
+    .map((p) => `${roundCoord(p.lat)},${roundCoord(p.lon)}`)
+    .join('>');
+}
+
 export function parseOsrmDrivingRoute(
   res: OsrmRouteResponse,
 ): OsrmDrivingRouteResult | null {

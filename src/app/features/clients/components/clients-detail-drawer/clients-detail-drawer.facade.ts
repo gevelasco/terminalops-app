@@ -49,6 +49,8 @@ import type {
   ClientContactPerson,
   ClientDelivery,
 } from '@shared/models/client.models';
+import { isAdminRole } from '@shared/utils/access-control';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
 import { type ToSegmentTab } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
@@ -90,6 +92,9 @@ export class ClientsDetailDrawerFacade {
   ];
   readonly editingSection = signal<ClientDetailEditSection | null>(null);
   readonly saving = signal(false);
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteSubmitting = signal(false);
+  readonly canDeleteClient = computed(() => isAdminRole(this.session.role()));
   readonly collectionConfirming = signal(false);
   readonly collectionConfirmRequest = signal<{
     kind: 'confirm' | 'revert';
@@ -99,7 +104,7 @@ export class ClientsDetailDrawerFacade {
   readonly collectionConfirmOpen = computed(
     () => this.collectionConfirmRequest() !== null,
   );
-  readonly canWriteCommercial = computed(() =>
+  readonly canWriteClients = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
   );
   readonly canWriteTrips = computed(() =>
@@ -291,6 +296,51 @@ export class ClientsDetailDrawerFacade {
     this.dismissCallback?.();
   }
 
+  openDeleteConfirm(): void {
+    if (!this.canDeleteClient() || this.deleteSubmitting() || this.saving()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDeleteClient(): void {
+    if (!this.canDeleteClient() || this.deleteSubmitting() || this.saving()) {
+      return;
+    }
+    const client = this.client();
+    const label = client.name?.trim() || 'Cliente';
+    this.deleteSubmitting.set(true);
+    this.clientsFeature
+      .deleteClient(client.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
+          this.clientsApi.invalidateClientPickerCache();
+          this.balanceContext.invalidateBalances();
+          this.balanceContext.ensureOverviewLoaded();
+          this.toast.show(`${label} dado de baja en Comercial.`, 'success');
+          this.requestDismiss();
+        },
+        error: (err: unknown) => {
+          this.deleteSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail ? detail : 'No se pudo dar de baja al cliente.',
+            'error',
+          );
+        },
+      });
+  }
+
   onDocKey(ev: KeyboardEvent): void {
     if (ev.key !== 'Escape') {
       return;
@@ -436,25 +486,23 @@ export class ClientsDetailDrawerFacade {
     return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
   }
 
-  periodVolumeManeuversPerMonthLabel(): string {
+  periodVolumeBillableManeuversLabel(): string {
     const p = this.periodSummary();
     if (!p || p.volumeBillableCount === 0) return '—';
-    const n = p.volumeManeuversPerMonth;
-    const rounded = n < 10 ? n.toFixed(1) : String(Math.round(n));
-    const meses = p.volumeMonthsWindow === 1 ? 'mes' : 'meses';
-    return `${rounded} en promedio (${p.volumeMonthsWindow} ${meses})`;
+    const n = p.volumeBillableCount;
+    return `${n} ${n === 1 ? 'maniobra' : 'maniobras'}`;
   }
 
   periodVolumeBilledPerMonthLabel(): string {
     const p = this.periodSummary();
     if (!p || p.volumeBillableCount === 0) return '—';
-    return `${formatClientBalanceMoney(p.volumeBilledPerMonth)} (cobros pactados)`;
+    return formatClientBalanceMoney(p.volumeBilledPerMonth);
   }
 
   periodVolumeOperationalPerMonthLabel(): string {
     const p = this.periodSummary();
     if (!p || p.volumeBillableCount === 0) return '—';
-    return `${formatClientBalanceMoney(p.volumeOperationalPerMonth)} (diesel, casetas, operador)`;
+    return formatClientBalanceMoney(p.volumeOperationalPerMonth);
   }
 
   periodVolumeProfitPerMonthLabel(): string {
@@ -564,7 +612,7 @@ export class ClientsDetailDrawerFacade {
   }
 
   startEditSection(section: ClientDetailEditSection): void {
-    if (!this.canWriteCommercial()) {
+    if (!this.canWriteClients()) {
       return;
     }
     this.patchFormFromClient(this.client());
@@ -585,11 +633,11 @@ export class ClientsDetailDrawerFacade {
   }
 
   showClientEdit(section: ClientDetailEditSection): boolean {
-    return this.canWriteCommercial() && this.editingSection() !== section;
+    return this.canWriteClients() && this.editingSection() !== section;
   }
 
   openContactForm(): void {
-    if (!this.canWriteCommercial()) {
+    if (!this.canWriteClients()) {
       return;
     }
     this.addingContact.set(true);

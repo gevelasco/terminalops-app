@@ -9,6 +9,7 @@ import {
   type AppModuleCode,
 } from '@shared/models/app-modules.models';
 import {
+  canAccessComercial,
   canAccessModule,
   canViewAccount,
 } from '@shared/utils/access-control';
@@ -27,10 +28,11 @@ type ModuleAccessDeniedBody = {
 
 const PATH_MODULE_PREFIXES: ReadonlyArray<readonly [string, AppModuleCode]> = [
   ['/account', APP_MODULE_CODES.ACCOUNT],
-  ['/users', APP_MODULE_CODES.USERS],
+  ['/settings', APP_MODULE_CODES.USERS],
   ['/trips', APP_MODULE_CODES.TRIPS],
   ['/fleet', APP_MODULE_CODES.FLEET],
   ['/operators', APP_MODULE_CODES.OPERATORS],
+  ['/comercial', APP_MODULE_CODES.CLIENTS],
   ['/clients', APP_MODULE_CODES.CLIENTS],
   ['/expenses', APP_MODULE_CODES.EXPENSES],
   ['/reports', APP_MODULE_CODES.REPORTS],
@@ -117,6 +119,12 @@ export class SessionAccessSyncStore {
       !canViewAccount(this.session.role())
     ) {
       void this.router.navigateByUrl('/dashboard');
+      return;
+    }
+    if (url.startsWith('/comercial')) {
+      if (!canAccessComercial(this.session.role(), this.session.moduleGrants())) {
+        void this.router.navigateByUrl('/dashboard');
+      }
       return;
     }
     if (!canAccessModule(this.session.allowedModules(), module)) {

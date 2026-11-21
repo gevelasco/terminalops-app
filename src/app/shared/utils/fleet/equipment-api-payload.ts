@@ -1,5 +1,7 @@
 import type { CreateEquipmentPayload } from '@shared/models/api/api-fleet.model';
 import type { Equipment, EquipmentFleetMeta } from '@shared/models/logistics.models';
+import { isDollyEquipmentType } from '@features/fleet/utils/equipment-dolly-convoy.util';
+import { mapAppHitchPositionToApiWrite } from '@shared/utils/fleet/equipment-hitch-position-api.util';
 import {
   sanitizeFleetMetaForWrite,
   withoutFleetOperationalStatus,
@@ -36,6 +38,8 @@ export type EquipmentPersistDraft = {
   fleetMeta?: Partial<EquipmentFleetMeta>;
   /** Envía solo las claves de `fleetMeta` del borrador (p. ej. confirmar un pago). */
   sparseFleetMeta?: boolean;
+  /** Otros equipos en la misma tractora (serialización hitch API). */
+  hitchPeersOnUnit?: readonly Equipment[];
 };
 
 /** `null` en PATCH = desenganchar de la tractora. */
@@ -82,15 +86,26 @@ export function buildEquipmentWritePayload(
       );
   const name = (merged.name || merged.serialNumber).trim();
   const unitId = unitIdForEquipmentPayload(merged.unitId);
-  const hitchPosition = unitId
-    ? merged.hitchPosition === 'rear'
-      ? 'rear'
-      : 'lead'
-    : null;
+  let hitchPosition: CreateEquipmentPayload['hitchPosition'];
+  if (unitId) {
+    const mapped = mapAppHitchPositionToApiWrite(merged.hitchPosition, merged.type, {
+      peersOnUnit: draft?.hitchPeersOnUnit,
+      equipmentId: merged.id,
+    });
+    if (merged.hitchPosition === 'rear' && !isDollyEquipmentType(merged.type)) {
+      hitchPosition = 'rear';
+    } else if (merged.hitchPosition === 'lead') {
+      hitchPosition = 'lead';
+    } else if (mapped === 'lead' || mapped === 'rear') {
+      hitchPosition = mapped;
+    }
+    // Dolly intermedio u otros sin slot API válido: no enviar hitchPosition en el PATCH.
+  } else {
+    hitchPosition = null;
+  }
 
-  return withoutFleetOperationalStatus({
+  const core = withoutFleetOperationalStatus({
     unitId,
-    hitchPosition,
     name,
     serialNumber: merged.serialNumber.trim(),
     plate: merged.plate?.trim() || undefined,
@@ -102,4 +117,8 @@ export function buildEquipmentWritePayload(
       fleetMeta as Record<string, unknown> | undefined,
     ) as EquipmentFleetMeta | undefined,
   }) as CreateEquipmentPayload;
+  if (hitchPosition !== undefined) {
+    core.hitchPosition = hitchPosition;
+  }
+  return core;
 }

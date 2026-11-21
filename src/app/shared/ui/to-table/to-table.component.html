@@ -171,7 +171,16 @@
                       [attr.title]="item.label + (item.active ? '' : ' (sin acceso)')"
                       [attr.aria-label]="item.label + (item.active ? ': con acceso' : ': sin acceso')"
                     >
-                      <to-icon [name]="moduleAccessIconName(item.icon)" [size]="16" />
+                      @if (item.iconImageSrc) {
+                        <span
+                          class="commercial-handshake-icon"
+                          [style.--commercial-handshake-icon-mask]="
+                            'url(' + item.iconImageSrc + ')'
+                          "
+                        ></span>
+                      } @else {
+                        <to-icon [name]="moduleAccessIconName(item.icon)" [size]="16" />
+                      }
                     </span>
                   }
                 </div>

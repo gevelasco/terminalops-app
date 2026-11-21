@@ -5,6 +5,8 @@
   --fleet-overview-plana-standalone-scale: 0.9;
   /* Chasis/portacontenedor: PNG más bajo → escala menor para igualar al tracto. */
   --fleet-overview-remolque-scale: 0.58;
+  /* Misma altura en convoy que chasis/remolque; trazo ya engrosado en el PNG. */
+  --fleet-overview-dolly-scale: 0.54;
   --fleet-overview-caja-seca-scale: 1.05;
   --fleet-overview-caja-seca-standalone-scale: 1.08;
   /* Escalas por tipo de equipo según la altura del dibujo en el PNG recortado. */
@@ -14,6 +16,8 @@
   --fleet-overview-cama-baja-scale: 0.62;
   --fleet-overview-tolva-scale: 1.1;
   --fleet-overview-convoy-offset-y: 0.2rem;
+  /** Solape entre PNGs para que el convoy se vea enganchado (no columnas separadas). */
+  --fleet-overview-convoy-hitch-pull: -0.52rem;
   --fleet-overview-identity-row-code: 1.5rem;
   --fleet-overview-identity-row-route: 1.1rem;
   --fleet-overview-identity-row-client: 1.35rem;
@@ -28,7 +32,7 @@
     var(--fleet-overview-icon-h) * var(--fleet-overview-tracto-scale) + 0.85rem
   );
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
   gap: 0.75rem;
   padding: 0.35rem 0 0.5rem;
   min-width: 0;
@@ -42,7 +46,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  max-width: 34rem;
+  max-width: 40rem;
   min-width: 0;
   padding: 0.75rem 0.85rem;
   border-radius: var(--to-radius-md);
@@ -59,22 +63,6 @@
     padding-inline: 0.3rem;
   }
 
-  .fleet-overview__convoy-strip {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .fleet-overview__segment {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 33.333%;
-  }
-
-  .fleet-overview__convoy-part {
-    width: 100%;
-    max-width: 100%;
-    object-fit: contain;
-  }
 }
 
 .fleet-overview__card-grid {
@@ -86,81 +74,73 @@
   min-height: 100%;
 }
 
-@container fleet-overview-card (min-width: 27rem) {
-  .fleet-overview__card .fleet-overview__card-grid {
-    display: grid;
-    grid-template-columns: minmax(8.25rem, 10.75rem) minmax(11.5rem, 1fr);
-    align-items: start;
-    gap: 0.65rem 0.65rem;
+/* Convoy enganchado: ancho natural de cada PNG + solape entre segmentos. */
+.fleet-overview__card:not(.fleet-overview__card--standalone-equipment) {
+  .fleet-overview__graphic {
+    overflow: hidden;
   }
 
-  .fleet-overview__card .fleet-overview__card-main {
-    grid-column: 1;
-    grid-row: 1;
-    width: 100%;
-    max-width: 10.75rem;
-    min-width: 0;
-  }
-
-  .fleet-overview__card .fleet-overview__graphic {
-    width: 100%;
-    max-width: 10.75rem;
-  }
-
-  .fleet-overview__card .fleet-overview__schedule {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
-    width: 100%;
-    min-width: 0;
+  .fleet-overview__convoy-strip:not(.fleet-overview__convoy-strip--standalone) {
+    width: max-content;
     max-width: 100%;
-    padding: 0.5rem 0.55rem;
+    margin-inline: auto;
   }
 
-  .fleet-overview__card .fleet-overview__schedule-row {
-    grid-template-columns: minmax(4.5rem, 5.5rem) minmax(0, 1fr);
-    gap: 0.28rem 0.45rem;
-
-    dt {
-      font-size: 0.625rem;
-    }
-
-    dd {
-      font-size: clamp(0.6875rem, 2.4cqi, 0.8125rem);
-      overflow-wrap: anywhere;
-      text-align: right;
-    }
+  .fleet-overview__segment {
+    flex: 0 0 auto;
+    max-width: none;
   }
 
-  .fleet-overview__card:not(.fleet-overview__card--full) .fleet-overview__segment {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 50%;
+  .fleet-overview__segment + .fleet-overview__segment {
+    margin-left: var(--fleet-overview-convoy-hitch-pull);
   }
 
-  .fleet-overview__card--full .fleet-overview__segment {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 33.333%;
-  }
-
-  .fleet-overview__card .fleet-overview__convoy-part {
-    width: 100%;
-    max-width: 100%;
+  .fleet-overview__convoy-part {
+    width: auto;
+    max-width: none;
     object-fit: contain;
+    object-position: center bottom;
   }
 
-  /* Equipo suelto: un solo icono; no limitar al 50% del convoy (vs. tracto+remolque). */
-  .fleet-overview__card--standalone-equipment {
-    .fleet-overview__segment {
-      flex: 0 0 auto;
-      max-width: none;
-    }
+  .fleet-overview__convoy-part--hitch-right {
+    margin-right: -0.2rem;
+  }
 
-    .fleet-overview__convoy-part {
-      width: auto;
-      max-width: none;
-    }
+  .fleet-overview__convoy-part--hitch-left {
+    margin-left: -0.2rem;
+  }
+}
+
+.fleet-overview__card--convoy-interactive:not(
+    .fleet-overview__card--standalone-equipment
+  ) {
+  .fleet-overview__graphic {
+    position: relative;
+  }
+
+  .fleet-overview__graphic:has(.fleet-overview__hit:hover),
+  .fleet-overview__graphic:has(.fleet-overview__hit:focus-within) {
+    overflow: visible;
+    z-index: 15;
+  }
+
+  .fleet-overview__hit--unit .fleet-overview__tip,
+  .fleet-overview__hit--eq .fleet-overview__tip,
+  .fleet-overview__hit--dolly-slot .fleet-overview__tip {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+}
+
+.fleet-overview__card--standalone-equipment {
+  .fleet-overview__segment {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .fleet-overview__convoy-part {
+    width: auto;
+    max-width: none;
   }
 }
 
@@ -454,7 +434,7 @@
     var(--to-color-surface)
   );
   border: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .fleet-overview__graphic--full-standard {
@@ -480,6 +460,149 @@
 
 .fleet-overview__convoy-strip--standalone {
   justify-content: center;
+}
+
+.fleet-overview__convoy-strip--convoy-triple {
+  justify-content: center;
+  /* Sin dolly en tira: dos remolques encadenados al tracto (referencia doble articulado). */
+  --fleet-overview-convoy-hitch-pull: -0.44rem;
+  transform: translateY(var(--fleet-overview-convoy-offset-y)) scale(0.9);
+  transform-origin: center bottom;
+}
+
+.fleet-overview__card.fleet-overview__card--convoy-triple {
+  .fleet-overview__segment--dolly {
+    margin-left: calc(var(--fleet-overview-convoy-hitch-pull) + 0.08rem);
+    z-index: 1;
+  }
+
+  .fleet-overview__segment--dolly-slot {
+    position: relative;
+    --fleet-overview-dolly-slot-w: 1.85rem;
+    flex: 0 0 var(--fleet-overview-dolly-slot-w);
+    width: var(--fleet-overview-dolly-slot-w);
+    min-width: var(--fleet-overview-dolly-slot-w);
+    max-width: var(--fleet-overview-dolly-slot-w);
+    align-self: flex-end;
+    height: calc(var(--fleet-overview-icon-h) * var(--fleet-overview-remolque-scale));
+    margin-left: calc(var(--fleet-overview-convoy-hitch-pull) * 0.2);
+    z-index: 2;
+  }
+
+  .fleet-overview__dolly-slot-visual {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 0.02rem 0.28rem;
+    pointer-events: none;
+  }
+
+  .fleet-overview__dolly-slot-bridge {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0.22rem;
+    gap: 0;
+  }
+
+  .fleet-overview__dolly-slot-bridge-line {
+    flex: 1 1 auto;
+    height: 2px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--to-color-text-muted) 42%, transparent);
+  }
+
+  .fleet-overview__dolly-slot-bridge-dot {
+    flex: 0 0 auto;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin: 0 0.05rem;
+    border-radius: 50%;
+    box-sizing: border-box;
+    background: var(--to-color-surface);
+    border: 2px solid color-mix(in srgb, var(--to-color-text-muted) 55%, var(--to-color-border));
+  }
+
+  .fleet-overview__dolly-slot-pill {
+    display: inline-block;
+    padding: 0.1rem 0.32rem;
+    border-radius: 999px;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    text-align: center;
+    color: var(--to-color-text-muted);
+    background: color-mix(
+      in srgb,
+      var(--to-color-surface-muted) 88%,
+      var(--to-color-surface)
+    );
+    border: 1px solid color-mix(in srgb, var(--to-color-border) 78%, transparent);
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .fleet-overview__hit--dolly-slot {
+    inset: 0.08rem 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 0.12rem;
+    border-radius: 3px;
+    transition: background 0.12s ease;
+  }
+
+  .fleet-overview__hit--dolly-slot:hover,
+  .fleet-overview__hit--dolly-slot:focus-visible {
+    background: color-mix(in srgb, var(--to-color-primary) 10%, transparent);
+    outline: none;
+  }
+
+  .fleet-overview__hit--dolly-slot:focus-visible {
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--to-color-primary) 45%, transparent);
+  }
+
+  .fleet-overview__segment--dolly-slot:has(.fleet-overview__hit--dolly-slot:hover)
+    .fleet-overview__dolly-slot-visual,
+  .fleet-overview__segment--dolly-slot:has(.fleet-overview__hit--dolly-slot:focus-visible)
+    .fleet-overview__dolly-slot-visual {
+    .fleet-overview__dolly-slot-pill {
+      color: var(--to-color-primary);
+      border-color: color-mix(in srgb, var(--to-color-primary) 45%, var(--to-color-border));
+      background: color-mix(in srgb, var(--to-color-primary) 8%, var(--to-color-surface));
+    }
+
+    .fleet-overview__dolly-slot-bridge-line {
+      background: color-mix(in srgb, var(--to-color-primary) 50%, transparent);
+    }
+
+    .fleet-overview__dolly-slot-bridge-dot {
+      border-color: var(--to-color-primary);
+    }
+  }
+
+  .fleet-overview__segment--lead-trailer .fleet-overview__convoy-part {
+    transform: translate(-0.22rem, -0.18rem);
+  }
+
+  .fleet-overview__segment--rear-trailer .fleet-overview__convoy-part {
+    transform: translate(-0.18rem, -0.14rem);
+  }
+
+  .fleet-overview__convoy-part--hitch-right {
+    margin-right: -0.1rem;
+  }
+
+  .fleet-overview__convoy-part--hitch-left {
+    margin-left: -0.1rem;
+  }
 }
 
 .fleet-overview__card--standalone-equipment .fleet-overview__convoy-part {
@@ -551,6 +674,15 @@
   );
   max-height: calc(
     var(--fleet-overview-icon-h) * var(--fleet-overview-remolque-scale)
+  );
+}
+
+.fleet-overview__convoy-part--dolly {
+  height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-dolly-scale)
+  );
+  max-height: calc(
+    var(--fleet-overview-icon-h) * var(--fleet-overview-dolly-scale)
   );
 }
 
@@ -781,7 +913,6 @@
     color-mix(in srgb, var(--to-color-border) 70%, transparent);
 
   &--footer {
-    grid-column: 1 / -1;
     width: 100%;
     margin-top: 0.15rem;
   }

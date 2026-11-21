@@ -14,6 +14,8 @@ export interface ToSegmentTab<T extends string = string> {
   id: T;
   label: string;
   icon?: ToIconName;
+  /** Imagen estática (p. ej. PNG en `public/`). */
+  iconImageSrc?: string;
   iconPath?: string;
   iconViewBox?: string;
   htmlId?: string;

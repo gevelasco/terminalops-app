@@ -1,224 +1,225 @@
-<div class="profile-drawer__config-sections">
-  <section class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__operations">
+<section
+  class="company-controls fleet-unit-sec fleet-unit-sec--boxed"
+  aria-label="Controles de la empresa"
+>
+  <div class="company-controls__grid">
     <article
-      class="profile-drawer__setting-row"
+      class="co-setting co-setting--stacked co-setting--estimates"
       aria-labelledby="profile-setting-intelligent"
     >
-      <div class="profile-drawer__setting-head">
-        <div class="profile-drawer__setting-copy">
-          <h4
-            id="profile-setting-intelligent"
-            class="profile-drawer__setting-title"
-          >
+      <div
+        class="co-setting__stacked-col co-setting__stacked-col--motor"
+        aria-labelledby="profile-setting-intelligent"
+      >
+        <div class="co-setting__main">
+          <h4 id="profile-setting-intelligent" class="co-setting__title">
             Motor operativo asistido
+            <span
+              class="co-setting__privacy-hint"
+              tabindex="0"
+              aria-label="Qué hace el motor operativo asistido"
+              data-tooltip="Reserva un % del cobro al cliente como gasto (llantas y provisión de mantenimiento) y alimenta reportes. Deja la provisión en 0 o vacía para control manual."
+            >
+              <to-icon name="info" [size]="16" />
+            </span>
           </h4>
-          <p class="profile-drawer__setting-meta">
-            {{ intelligentStatusLabel() }}
-          </p>
+          <p class="co-setting__meta">{{ intelligentStatusLabel() }}</p>
         </div>
-        @if (draftIntelligentEnabled()) {
-          <div class="profile-drawer__provision-field">
+        <div class="co-setting__panel co-setting__panel--motor-row">
+          <p class="co-setting__field-block">
             <to-input
-              label="Control operativo"
+              label="Nombre en gastos"
               type="text"
-              placeholder="5"
-              suffix="%"
-              [(value)]="draftMaintenanceProvisionPercent"
+              [placeholder]="defaultOperationalControlLabel"
+              [maxLength]="operationalControlLabelMax"
+              [(value)]="draftOperationalControlLabel"
               [disabled]="saving()"
             />
-          </div>
-        }
-        <button
-          type="button"
-          class="fleet-unit-toggle"
-          [class.fleet-unit-toggle--on]="draftIntelligentEnabled()"
-          role="switch"
-          [attr.aria-checked]="draftIntelligentEnabled()"
-          [disabled]="saving()"
-          aria-labelledby="profile-setting-intelligent"
-          (click)="toggleDraftIntelligent()"
-        >
-          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-        </button>
-      </div>
-      @if (draftIntelligentEnabled()) {
-        <div class="profile-drawer__provision-payment">
+          </p>
+          <to-input
+            label="Provisión"
+            type="text"
+            placeholder="0"
+            suffix="%"
+            [(value)]="draftMaintenanceProvisionPercent"
+            [disabled]="saving()"
+          />
           <to-select
-            label="Pago de control operativo"
+            label="Método de pago"
             [options]="autoExpensePaymentMethodOptions"
             [value]="draftControlPaymentMethod()"
             [disabled]="saving()"
             (valueChange)="draftControlPaymentMethod.set($event)"
           />
         </div>
-      }
-      @if (!draftIntelligentEnabled()) {
-        <p class="profile-drawer__setting-desc">
-          Estima llantas y provisión de mantenimiento por maniobra; alimenta
-          reportes y gastos automáticos.
-        </p>
-      }
-    </article>
-
-    <article
-      class="profile-drawer__setting-row"
-      aria-labelledby="profile-setting-diesel"
-    >
-      <div class="profile-drawer__setting-head">
-        <div class="profile-drawer__setting-copy">
-          <h4 id="profile-setting-diesel" class="profile-drawer__setting-title">
-            Diesel automático
-          </h4>
-          <p class="profile-drawer__setting-meta">
-            {{ dieselControlStatusLabel() }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="fleet-unit-toggle"
-          [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
-          role="switch"
-          [attr.aria-checked]="draftDieselControlEnabled()"
-          [disabled]="saving() || !canUseDieselAutomatic()"
-          aria-labelledby="profile-setting-diesel"
-          (click)="toggleDraftDieselControl()"
-        >
-          <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-        </button>
       </div>
-      @if (dieselPlanHint(); as hint) {
-        <p class="profile-drawer__setting-desc">{{ hint }}</p>
-      } @else if (!draftDieselControlEnabled()) {
-        <p class="profile-drawer__setting-desc">
-          Estima consumo y costos de diesel según distancia, unidad, carga y
-          rendimiento.
-        </p>
-      }
+
+      <div class="co-setting__subsection co-setting__duo">
+        <div class="co-setting__duo-col co-setting__stacked-col" aria-labelledby="profile-setting-diesel">
+          <div class="co-setting__main">
+            <h4 id="profile-setting-diesel" class="co-setting__title">
+              Diesel automático
+              <span
+                class="co-setting__privacy-hint"
+                tabindex="0"
+                aria-label="Qué hace el diesel automático"
+                data-tooltip="Estima consumo, litros y costo de diésel según ruta, unidad y rendimiento."
+              >
+                <to-icon name="info" [size]="16" />
+              </span>
+            </h4>
+            <p class="co-setting__meta">{{ dieselControlStatusLabel() }}</p>
+            @if (dieselPlanHint(); as hint) {
+              <p class="co-setting__help co-setting__help--warn">{{ hint }}</p>
+            }
+          </div>
+          <div class="co-setting__action-row">
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="draftDieselControlEnabled()"
+              role="switch"
+              [attr.aria-checked]="draftDieselControlEnabled()"
+              [disabled]="saving() || !canUseDieselAutomatic()"
+              aria-labelledby="profile-setting-diesel"
+              (click)="toggleDraftDieselControl()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="co-setting__duo-col co-setting__stacked-col"
+          aria-labelledby="profile-setting-payment-reminder"
+        >
+          <div class="co-setting__main">
+            <h4 id="profile-setting-payment-reminder" class="co-setting__title">
+              Aviso de pagos
+              <span
+                class="co-setting__privacy-hint"
+                tabindex="0"
+                aria-label="Qué avisos de pago incluye"
+                data-tooltip="Seguro, GPS, verificación, financiamiento y operador: avisa entre 1 y 15 días antes del vencimiento."
+              >
+                <to-icon name="info" [size]="16" />
+              </span>
+            </h4>
+            <p class="co-setting__meta">{{ paymentReminderStatusLabel() }}</p>
+          </div>
+          <div class="co-setting__action-row co-setting__action-row--field">
+            <to-input
+              label="Días de anticipación"
+              type="text"
+              placeholder="5"
+              suffix="días"
+              [(value)]="draftPaymentReminderDays"
+              [disabled]="saving()"
+            />
+          </div>
+        </div>
+      </div>
     </article>
 
     <article
-      class="profile-drawer__setting-row"
-      aria-labelledby="profile-setting-payment-reminder"
+      class="co-setting co-setting--stacked"
+      aria-labelledby="profile-setting-maintenance"
     >
-      <div class="profile-drawer__setting-head">
-        <div class="profile-drawer__setting-copy">
-          <h4
-            id="profile-setting-payment-reminder"
-            class="profile-drawer__setting-title"
+      <div class="co-setting__main">
+        <h4 id="profile-setting-maintenance" class="co-setting__title">
+          Política entre servicios
+          <span
+            class="co-setting__privacy-hint"
+            tabindex="0"
+            aria-label="Cómo aplica la política de mantenimiento"
+            data-tooltip="Al guardar, las unidades heredan la política elegida (salvo excepciones manuales)."
           >
-            Aviso de pagos
-          </h4>
-          <p class="profile-drawer__setting-meta">
-            {{ paymentReminderStatusLabel() }}
+            <to-icon name="info" [size]="16" />
+          </span>
+        </h4>
+        <p class="co-setting__meta">{{ maintenanceStatusLabel() }}</p>
+        @if (maintenancePlanHint(); as hint) {
+          <p class="co-setting__help co-setting__help--warn">{{ hint }}</p>
+        } @else if (draftMaintenanceMode() === 'none') {
+          <p class="co-setting__help">
+            Cada unidad define su próximo servicio de forma manual hasta que actives control por
+            km o por fechas.
           </p>
-        </div>
-        <div class="profile-drawer__provision-field">
+        }
+      </div>
+      <div class="co-setting__panel co-setting__panel--policy-row">
+        <to-segment-control
+          class="co-setting__policy-segment"
+          layout="toolbar"
+          ariaLabel="Política de mantenimiento"
+          [tabs]="maintenancePolicyTabs"
+          [activeId]="draftMaintenanceMode()"
+          (tabSelect)="onMaintenancePolicySelect($event)"
+        />
+        @if (draftMaintenanceMode() === 'km') {
           <to-input
-            label="Días antes de notificación"
+            class="co-setting__policy-field"
+            label="Km entre servicios"
             type="text"
-            placeholder="5"
-            suffix="días"
-            [(value)]="draftPaymentReminderDays"
+            placeholder="Ej. 15000"
+            [groupThousands]="true"
+            [(value)]="draftKmInterval"
             [disabled]="saving()"
+          />
+        }
+        @if (draftMaintenanceMode() === 'date') {
+          <to-select
+            class="co-setting__policy-field"
+            label="Periodo entre servicios"
+            [options]="maintDatePeriodOptions"
+            [value]="draftDatePeriod()"
+            [disabled]="saving()"
+            (valueChange)="onDraftDatePeriodChange($event)"
+          />
+        }
+      </div>
+      <div class="co-setting__subsection" aria-labelledby="profile-setting-auto-payments">
+        <div class="co-setting__main">
+          <h4 id="profile-setting-auto-payments" class="co-setting__title">
+            Gastos automáticos
+            <span
+              class="co-setting__privacy-hint"
+              tabindex="0"
+              aria-label="Métodos de pago en gastos automáticos"
+              data-tooltip="Método de pago al registrar diésel, casetas y viáticos al crear la maniobra."
+            >
+              <to-icon name="info" [size]="16" />
+            </span>
+          </h4>
+          <p class="co-setting__meta">{{ autoPaymentsStatusLabel() }}</p>
+        </div>
+        <div class="co-setting__panel co-setting__panel--inline-payments">
+          <to-select
+            label="Diésel"
+            [options]="autoExpensePaymentMethodOptions"
+            [value]="draftFuelPaymentMethod()"
+            [disabled]="saving()"
+            (valueChange)="draftFuelPaymentMethod.set($event)"
+          />
+          <to-select
+            label="Casetas"
+            [options]="autoExpensePaymentMethodOptions"
+            [value]="draftTollsPaymentMethod()"
+            [disabled]="saving()"
+            (valueChange)="draftTollsPaymentMethod.set($event)"
+          />
+          <to-select
+            label="Viáticos"
+            [options]="autoExpensePaymentMethodOptions"
+            [value]="draftPerDiemPaymentMethod()"
+            [disabled]="saving()"
+            (valueChange)="draftPerDiemPaymentMethod.set($event)"
           />
         </div>
       </div>
-      <p class="profile-drawer__setting-desc">
-        Avisa en notificaciones cuando un pago de seguro, GPS, verificación,
-        financiamiento u operador está próximo a vencer o ya venció (mínimo 1,
-        máximo 15).
-      </p>
     </article>
-
-    <article
-      class="profile-drawer__setting-row profile-drawer__setting-row--policy"
-      aria-labelledby="profile-setting-maintenance"
-    >
-      <div class="profile-drawer__setting-head">
-        <div class="profile-drawer__setting-copy">
-          <h4
-            id="profile-setting-maintenance"
-            class="profile-drawer__setting-title"
-          >
-            Política de mantenimiento
-          </h4>
-          <p class="profile-drawer__setting-meta">{{ maintenanceStatusLabel() }}</p>
-        </div>
-      </div>
-      @if (maintenancePlanHint(); as hint) {
-        <p class="profile-drawer__setting-desc">{{ hint }}</p>
-      } @else if (draftMaintenanceMode() === 'none') {
-        <p class="profile-drawer__setting-desc">
-          Cada unidad define su próximo servicio de forma manual. Activa control
-          por km o por fechas para estandarizarlo a nivel empresa.
-        </p>
-      }
-      <to-segment-control
-        class="profile-drawer__maintenance-segment"
-        layout="drawer"
-        ariaLabel="Política de mantenimiento"
-        [tabs]="maintenancePolicyTabs"
-        [activeId]="draftMaintenanceMode()"
-        (tabSelect)="onMaintenancePolicySelect($event)"
-      />
-      @if (draftMaintenanceMode() === 'km') {
-        <to-input
-          label="Km entre servicios"
-          type="text"
-          placeholder="Ej. 15000"
-          [groupThousands]="true"
-          [(value)]="draftKmInterval"
-          [disabled]="saving()"
-        />
-      }
-      @if (draftMaintenanceMode() === 'date') {
-        <to-select
-          label="Periodo entre servicios"
-          [options]="maintDatePeriodOptions"
-          [value]="draftDatePeriod()"
-          [disabled]="saving()"
-          (valueChange)="onDraftDatePeriodChange($event)"
-        />
-      }
-    </article>
-  </section>
-
-  <section
-    class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__auto-payments"
-    aria-labelledby="profile-auto-payments-heading"
-  >
-    <h3 id="profile-auto-payments-heading" class="fleet-unit-sec__title">
-      Pagos en gastos automáticos
-    </h3>
-    <p class="fleet-unit-sec__docs-hint">
-      Método de pago con el que se registra cada gasto generado automáticamente
-      al crear una maniobra.
-    </p>
-    <div class="profile-drawer__auto-payment-grid">
-      <to-select
-        label="Pago de diésel"
-        [options]="autoExpensePaymentMethodOptions"
-        [value]="draftFuelPaymentMethod()"
-        [disabled]="saving()"
-        (valueChange)="draftFuelPaymentMethod.set($event)"
-      />
-      <to-select
-        label="Pago de casetas"
-        [options]="autoExpensePaymentMethodOptions"
-        [value]="draftTollsPaymentMethod()"
-        [disabled]="saving()"
-        (valueChange)="draftTollsPaymentMethod.set($event)"
-      />
-      <to-select
-        label="Pago de viáticos"
-        [options]="autoExpensePaymentMethodOptions"
-        [value]="draftPerDiemPaymentMethod()"
-        [disabled]="saving()"
-        (valueChange)="draftPerDiemPaymentMethod.set($event)"
-      />
-    </div>
-  </section>
-</div>
+  </div>
+</section>
 
 <dialog
   #disableConfirmDialog
@@ -244,69 +245,36 @@
           @case ("maintenance") {
             ¿Cambiar a control manual de mantenimiento?
           }
-          @case ("intelligent") {
-            ¿Desactivar motor operativo asistido?
-          }
           @case ("diesel") {
             ¿Desactivar diesel automático?
           }
         }
       </h2>
     </div>
-    @if (pendingDisableKind() === "intelligent") {
-      <p class="profile-drawer__confirm-text">
-        Este cambio aplica para <strong>toda la empresa</strong> y para
-        <strong>todos los usuarios</strong>.
-      </p>
-      <ul class="profile-drawer__confirm-list">
-        <li>
-          Dejará de calcularse la reserva de llantas y mantenimiento por
-          maniobra.
-        </li>
-        <li>
-          <strong>Reportes</strong> ya no mostrará la provisión operativa
-          estimada.
-        </li>
-        <li>
-          <strong>Gastos</strong> pasará a control manual bajo el proceso propio
-          del equipo.
-        </li>
-      </ul>
-      <p class="profile-drawer__confirm-note">
-        Debes guardar la configuración para que el cambio quede registrado.
-      </p>
-    } @else if (pendingDisableKind() === "diesel") {
+    @if (pendingDisableKind() === "diesel") {
       <p class="profile-drawer__confirm-text">
         Al desactivar el diesel automático, el sistema dejará de calcular de forma
-        automática el consumo estimado, litros y costos operativos en las
-        maniobras. Los valores deberán capturarse manualmente.
+        automática el consumo estimado, litros y costos operativos en las maniobras. Los
+        valores deberán capturarse manualmente.
       </p>
       <p class="profile-drawer__confirm-note">
-        Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar
-        la configuración para que quede registrado.
+        Este cambio aplica para <strong>toda la empresa</strong>. Debes guardar la
+        configuración para que quede registrado.
       </p>
     } @else if (pendingDisableKind() === "maintenance") {
       <p class="profile-drawer__confirm-text">
-        Las unidades volverán al control manual de mantenimiento hasta que actives
-        otra política y guardes la configuración.
+        Las unidades volverán al control manual de mantenimiento hasta que actives otra
+        política y guardes la configuración.
       </p>
       <p class="profile-drawer__confirm-note">
         Este cambio aplica para <strong>toda la empresa</strong>.
       </p>
     }
     <div class="profile-drawer__confirm-actions">
-      <to-button
-        type="button"
-        variant="outline"
-        (click)="closeDisableConfirm()"
-      >
+      <to-button type="button" variant="outline" (click)="closeDisableConfirm()">
         Cancelar
       </to-button>
-      <to-button
-        type="button"
-        variant="primary"
-        (click)="confirmDisableControl()"
-      >
+      <to-button type="button" variant="primary" (click)="confirmDisableControl()">
         Sí, continuar
       </to-button>
     </div>

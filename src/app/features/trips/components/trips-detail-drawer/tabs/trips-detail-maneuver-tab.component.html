@@ -19,46 +19,78 @@
           </svg>
           Detalle de ruta
         </h3>
-        <dl class="maniobra-detail__dl">
+        <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols">
           @if (vm.showsClientBillingBlock()) {
+            <div class="fleet-unit-detail__row">
             <dt>Cliente</dt>
             <dd>{{ vm.trip().clientName || '—' }}</dd>
+            </div>
           }
           @if (vm.originOperationalCenterDisplay()) {
+            <div class="fleet-unit-detail__row">
             <dt>Centro operativo</dt>
             <dd>{{ vm.originOperationalCenterDisplay() }}</dd>
+            </div>
           }
-          <dt>Origen</dt>
-          <dd>{{ vm.originEndpointDisplay() }}</dd>
-          <dt>Destino</dt>
-          <dd>{{ vm.destinationEndpointDisplay() }}</dd>
+          <div
+            class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span fleet-unit-detail__row--ficha-wrap"
+          >
+            <dt>Origen</dt>
+            <dd>{{ vm.originEndpointDisplay() }}</dd>
+          </div>
+          <div
+            class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span fleet-unit-detail__row--ficha-wrap"
+          >
+            <dt>Destino</dt>
+            <dd>{{ vm.destinationEndpointDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Distancia de ruta (ida)</dt>
           <dd>{{ vm.routeDistanceDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Distancia operativa</dt>
           <dd>{{ vm.operationalDistanceDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Tipo de maniobra</dt>
           <dd>{{ vm.maneuverKindDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Salida (plan)</dt>
           <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedDepartureAt) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Cita cliente (plan)</dt>
           <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedArrivalAt) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Llegada origen (plan)</dt>
           <dd>{{ vm.plannedScheduleDisplay(vm.trip().plannedCompletionAt) }}</dd>
+          </div>
           @if (vm.trip().departureAt) {
+            <div class="fleet-unit-detail__row">
             <dt>Salida real</dt>
             <dd>{{ vm.fmt(vm.trip().departureAt) }}</dd>
+            </div>
           }
           @if (vm.trip().arrivedAt) {
+            <div class="fleet-unit-detail__row">
             <dt>Cita cliente real</dt>
             <dd>{{ vm.fmt(vm.trip().arrivedAt) }}</dd>
+            </div>
           }
           @if (vm.trip().returnAt) {
+            <div class="fleet-unit-detail__row">
             <dt>Llegada origen real</dt>
             <dd>{{ vm.fmt(vm.trip().returnAt) }}</dd>
+            </div>
           }
           @if (vm.destinationRateDisplay()) {
+            <div class="fleet-unit-detail__row">
             <dt>Tarifa de destino</dt>
             <dd>{{ vm.destinationRateDisplay() }}</dd>
+            </div>
           }
         </dl>
       </section>
@@ -83,29 +115,47 @@
           </svg>
           Detalles de Carga
         </h3>
-        <dl class="maniobra-detail__dl">
+        <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols">
+          <div class="fleet-unit-detail__row">
           <dt>Carga</dt>
           <dd>{{ vm.plannedScheduleDisplay(vm.trip().loadDate) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Lugar de carga</dt>
           <dd>{{ vm.loadPlaceDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Configuración</dt>
           <dd>{{ vm.operationLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Tipo de carga</dt>
           <dd>{{ vm.cargoCategoryLabel(vm.trip().cargoCategory) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Condición</dt>
           <dd>{{ vm.loadLabel(vm.trip().loadType) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Descripción</dt>
           <dd>{{ vm.cargoDescriptionDisplay() }}</dd>
+          </div>
           @for (row of vm.tripContainersDisplay(); track row.slot) {
+            <div class="fleet-unit-detail__row">
             <dt>{{ row.typeLabel }}</dt>
             <dd>{{ row.typeValue }}</dd>
+            </div>
             @if (row.numberValue !== '—') {
+              <div class="fleet-unit-detail__row">
               <dt>{{ row.numberLabel }}</dt>
               <dd>{{ row.numberValue }}</dd>
+              </div>
             }
           }
+          <div class="fleet-unit-detail__row">
           <dt>Peso aproximado</dt>
           <dd>{{ vm.weightDisplay() }}</dd>
+          </div>
         </dl>
         <h4 class="maniobra-drawer__subsection-title">Documentos de carga</h4>
         @if (vm.docs('load').length === 0) {
@@ -147,23 +197,37 @@
           </svg>
           Asignación
         </h3>
-        <dl class="maniobra-detail__dl">
+        <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols">
+          <div class="fleet-unit-detail__row">
           <dt>Nombre del operador</dt>
           <dd>{{ vm.operatorName() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>No. de licencia</dt>
           <dd>{{ vm.operatorLicenseNumberDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Vencimiento de licencia</dt>
           <dd>{{ vm.operatorLicenseExpiresDisplay() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Unidad</dt>
           <dd>{{ vm.unitDisplay() }}</dd>
+          </div>
           @if (vm.isFullTrip()) {
+            <div class="fleet-unit-detail__row">
             <dt>Equipo 1</dt>
             <dd>{{ vm.equipmentAt(0) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Equipo 2</dt>
             <dd>{{ vm.equipmentAt(1) }}</dd>
+            </div>
           } @else {
+            <div class="fleet-unit-detail__row">
             <dt>Equipo</dt>
             <dd>{{ vm.equipmentAt(0) }}</dd>
+            </div>
           }
         </dl>
       </section>
@@ -189,23 +253,35 @@
           </svg>
           Costos operativos
         </h3>
-        <dl class="maniobra-detail__dl">
+        <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols">
+          <div class="fleet-unit-detail__row">
           <dt>Diesel (litros)</dt>
           <dd>{{ vm.litersDisplay(vm.trip().dieselLiters) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Diesel (monto)</dt>
           <dd>{{ vm.displayMoney(vm.trip().dieselAmount) }}</dd>
+          </div>
           @if (vm.dieselPriceAtCreationDisplay()) {
+            <div class="fleet-unit-detail__row">
             <dt>Precio diesel</dt>
             <dd>{{ vm.dieselPriceAtCreationDisplay() }}</dd>
+            </div>
           }
+          <div class="fleet-unit-detail__row">
           <dt>Casetas</dt>
           <dd>
             {{ vm.displayMoney(vm.trip().casetasAmount) }}
           </dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Operador</dt>
           <dd>{{ vm.displayMoney(vm.trip().operatorQuota) }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
           <dt>Viáticos</dt>
           <dd>{{ vm.displayMoney(vm.trip().perDiemAmount) }}</dd>
+          </div>
         </dl>
         <h4 class="maniobra-drawer__subsection-title">Documentos de costos</h4>
         @if (vm.docs('operational_costs').length === 0) {
@@ -256,17 +332,27 @@
             programar.
           </p>
         } @else {
-          <dl class="maniobra-detail__dl">
+          <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols">
+            <div class="fleet-unit-detail__row">
             <dt>Cliente</dt>
             <dd>{{ vm.trip().clientName }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Cobro</dt>
             <dd>{{ vm.displayMoney(vm.trip().clientCharge) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Método de pago</dt>
             <dd>{{ vm.paymentLabel(vm.trip().paymentMethod) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Días de crédito (opcional; vacío = 0)</dt>
             <dd>{{ vm.trip().creditDays }} días</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Requiere factura</dt>
             <dd>{{ vm.invoiceLabel() }}</dd>
+            </div>
           </dl>
           @if (vm.canMarkClientCollected()) {
           <div

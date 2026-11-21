@@ -3,7 +3,14 @@
     <div class="users-module-permission-row">
       <div class="users-module-permission-row__head">
         <span class="users-module-permission-row__icon" aria-hidden="true">
-          <to-icon [name]="staffModuleIcon(option.code)" [size]="16" />
+          @if (option.code === clientsModuleCode) {
+            <span
+              class="commercial-handshake-icon"
+              [style.--commercial-handshake-icon-mask]="commercialHandshakeIconMask"
+            ></span>
+          } @else {
+            <to-icon [name]="staffModuleIcon(option.code)" [size]="16" />
+          }
         </span>
         <span class="users-module-permission-row__label">{{ option.label }}</span>
       </div>

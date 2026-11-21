@@ -106,6 +106,27 @@ export function fleetTransportTypeBadgeLabel(
   return FLEET_TRANSPORT_TYPE_BADGE_LABELS[transportType?.trim() ?? ''] ?? null;
 }
 
+/** Etiqueta en fichas y solo lectura (sin texto legal largo del select). */
+export function fleetTransportTypeDisplayLabel(
+  transportType?: string | null,
+): string {
+  const value = transportType?.trim() ?? '';
+  if (!value) {
+    return '—';
+  }
+  if (value === 'tractocamion') {
+    return 'Tractocamión';
+  }
+  const badge = fleetTransportTypeBadgeLabel(value);
+  if (badge) {
+    return badge;
+  }
+  return (
+    FLEET_TRANSPORT_TYPE_OPTIONS.find((option) => option.value === value)
+      ?.label ?? value
+  );
+}
+
 /** Tipo de transmisión (unidad tractora). */
 export const FLEET_TRANSMISSION_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'automatic', label: 'Automática' },
@@ -155,6 +176,7 @@ export const EQUIPMENT_OPERATION_TYPE_OPTIONS: ToSelectOption[] = [
   { value: 'pipa', label: 'Pipa (tanque)' },
   { value: 'cortina', label: 'Lona / cortina lateral' },
   { value: 'modular', label: 'Modular / plataforma step-deck' },
+  { value: 'dolly', label: 'Dolly (convertidor)' },
   { value: 'otro', label: 'Otro' },
 ];
 
@@ -172,6 +194,7 @@ const EQUIPMENT_TYPE_SHORT_LABELS: Record<string, string> = {
   pipa: 'Pipa',
   cortina: 'Cortina',
   modular: 'Modular',
+  dolly: 'Dolly',
   otro: 'Otro',
 };
 

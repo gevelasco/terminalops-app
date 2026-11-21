@@ -48,7 +48,6 @@ describe('buildDestinationRateTableRows', () => {
         cityMunicipality: 'Miguel Hidalgo, Ciudad de México',
         estimatedArrivalTimeValue: 4,
         estimatedReturnTimeValue: 5,
-        estimatedTimeUnit: 'hours',
         prices: [
           {
             id: 'p1a',
@@ -108,7 +107,7 @@ describe('buildDestinationRateTableRows', () => {
       }),
       'Jalisco',
     );
-    expect(label).toBe('Centro');
+    expect(label).toBe('—');
   });
 
   it('uses SEPOMEX override for municipality', () => {
@@ -130,7 +129,6 @@ describe('buildDestinationRateTableRows', () => {
       formatDestinationRateRoundTripEta({
         estimatedArrivalTimeValue: 3,
         estimatedReturnTimeValue: 4,
-        estimatedTimeUnit: 'hours',
       }),
     ).toBe('7 hrs');
   });

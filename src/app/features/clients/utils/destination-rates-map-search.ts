@@ -4,6 +4,10 @@ import {
   findMexicoStateForPoint,
   type MexicoStatesGeoJson,
 } from '@features/trips/utils/trips-map-state-activity';
+import {
+  matchMexicoStateLabelToGeoName,
+  parseMexicanCityMunicipalityLine,
+} from '@features/clients/utils/destination-rate-state-resolve.util';
 
 function priceTypeLabel(price: DestinationRate['prices'][number]): string {
   return (
@@ -35,10 +39,17 @@ export function resolveDestinationRateStateName(
   }
   const lat = rate.destinationLatitude;
   const lng = rate.destinationLongitude;
-  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+    const fromPoint = findMexicoStateForPoint(lng, lat, geoJson.features);
+    if (fromPoint) {
+      return fromPoint;
+    }
+  }
+  const { state } = parseMexicanCityMunicipalityLine(rate.cityMunicipality ?? '');
+  if (!state) {
     return '';
   }
-  return findMexicoStateForPoint(lng, lat, geoJson.features) ?? '';
+  return matchMexicoStateLabelToGeoName(state, geoJson.features) ?? '';
 }
 
 function rateSearchTokens(

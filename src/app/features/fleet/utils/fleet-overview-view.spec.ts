@@ -5,7 +5,10 @@ import {
   overviewCardEntryFromDto,
   overviewCardEntryFromEquipmentRow,
   overviewConvoySortKind,
+  overviewDoubleArticulatedLeadIndex,
+  overviewDoubleArticulatedRearIndex,
   overviewIsEnCurso,
+  overviewSkipConvoyGraphicSegment,
   overviewSortRank,
   overviewUnitConvoyLabel,
   type FleetOverviewCardEntry,
@@ -82,6 +85,43 @@ describe('overviewUnitConvoyLabel', () => {
   });
 });
 
+describe('overview doble articulado graphic', () => {
+  it('omits dolly in unit convoy strip but keeps lead/rear indices', () => {
+    const entry = overviewCardEntryFromDto(
+      unitItem({
+        hitchedEquipment: [
+          {
+            equipmentId: 2,
+            operationalCode: 'L1',
+            equipmentType: 'caja_seca',
+            hitchPosition: 'lead',
+            status: 'available',
+          },
+          {
+            equipmentId: 3,
+            operationalCode: 'DOL',
+            equipmentType: 'dolly',
+            status: 'available',
+          },
+          {
+            equipmentId: 4,
+            operationalCode: 'L2',
+            equipmentType: 'caja_seca',
+            hitchPosition: 'rear',
+            status: 'available',
+          },
+        ],
+        equipment: { equipmentId: 2, type: 'full', status: 'available' },
+      }),
+    );
+    expect(overviewSkipConvoyGraphicSegment(entry, 0)).toBe(false);
+    expect(overviewSkipConvoyGraphicSegment(entry, 1)).toBe(true);
+    expect(overviewSkipConvoyGraphicSegment(entry, 2)).toBe(false);
+    expect(overviewDoubleArticulatedLeadIndex(entry)).toBe(0);
+    expect(overviewDoubleArticulatedRearIndex(entry)).toBe(2);
+  });
+});
+
 describe('overviewCardEntryFromDto', () => {
   it('ignores operation configuration name for badge label', () => {
     const entry = overviewCardEntryFromDto(
@@ -152,6 +192,58 @@ describe('attachOverviewCompliance', () => {
     });
     expect(withCompliance.compliance?.insBucket).toBe('ok');
     expect(withCompliance.compliance?.insLabel).toBe('Al día');
+  });
+
+  it('maps unit and hitched serial numbers from overview DTO for convoy tooltips', () => {
+    const item = unitItem({
+      unitSerialNumber: 'VIN-123',
+      hitchedEquipment: [
+        {
+          equipmentId: 2,
+          operationalCode: 'EQ-1',
+          equipmentType: 'caja_seca',
+          serialNumber: 'REM-456',
+          status: 'available',
+        },
+      ],
+    });
+    const entry = overviewCardEntryFromDto(item);
+    expect(entry.unitSerialNumber).toBe('VIN-123');
+    expect(entry.hitched[0]?.serialNumber).toBe('REM-456');
+  });
+
+  it('attaches unit and equipment serial numbers for convoy tooltips', () => {
+    const entry = overviewCardEntryFromDto(
+      unitItem({
+        hitchedEquipment: [
+          {
+            equipmentId: 2,
+            operationalCode: 'EQ-1',
+            equipmentType: 'caja_seca',
+            status: 'available',
+          },
+        ],
+        equipment: { equipmentId: 2, type: 'single', status: 'available' },
+      }),
+    );
+    const unit = {
+      id: '1',
+      serialNumber: 'UNT-999',
+      name: 'U',
+      fleetMeta: { lastMaintenanceDate: '2026-03-13', maintenanceKmCounter: 4862 },
+    } as Unit;
+    const eq = { id: '2', serialNumber: 'REM-111', name: 'R' } as import('@shared/models/logistics.models').Equipment;
+    const policy = {
+      kmControlEnabled: true,
+      kmIntervalDefault: 15000,
+      dateControlEnabled: false,
+      datePeriodDefault: null,
+    };
+    const enriched = attachOverviewCompliance(entry, [unit], [eq], null, policy);
+    expect(enriched.unitSerialNumber).toBe('UNT-999');
+    expect(enriched.hitched[0]?.serialNumber).toBe('REM-111');
+    expect(enriched.maintPanel?.showKmCounter).toBe(true);
+    expect(enriched.maintPanel?.secondaryMaint?.label).toMatch(/Kms restantes/);
   });
 
   it('builds maintenance panel for standalone equipment from fleet catalog', () => {

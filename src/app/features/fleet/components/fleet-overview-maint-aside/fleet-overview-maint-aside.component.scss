@@ -1,0 +1,66 @@
+@use '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables';
+@use '../fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel';
+
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.fleet-overview-maint-aside {
+  gap: 0.45rem;
+
+  &.fleet-unit-detail__maint-stack {
+    gap: 0.35rem;
+  }
+
+  .fleet-unit-detail__badge-block--maint {
+    margin: 0 0 0.35rem;
+  }
+}
+
+.fleet-overview-maint-aside__dl {
+  margin: 0;
+  gap: 0.35rem;
+
+  .fleet-unit-detail__row {
+    dt {
+      font-size: 0.6875rem;
+    }
+
+    dd {
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-align: right;
+    }
+  }
+}
+
+.fleet-overview-maint-aside__compliance {
+  margin: 0.15rem 0 0;
+
+  .fleet-unit-detail__badge-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.35rem;
+  }
+
+  .fleet-unit-detail__badge {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+  }
+}
+
+.fleet-overview-maint-aside__compliance--insurance {
+  .fleet-unit-detail__badge-label--sentence {
+    font-weight: 700;
+    color: var(--to-color-text);
+  }
+}
+
+.fleet-overview-maint-aside__compliance-meta {
+  margin: 0.3rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+}

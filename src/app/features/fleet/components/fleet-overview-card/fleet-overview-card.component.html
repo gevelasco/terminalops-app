@@ -1,6 +1,8 @@
 <article
   class="fleet-overview__card"
   [class.fleet-overview__card--full]="isFull(entry())"
+  [class.fleet-overview__card--convoy-interactive]="convoyInteractive()"
+  [class.fleet-overview__card--convoy-triple]="convoyUsesDollyLayout(entry())"
   [class.fleet-overview__card--standalone-equipment]="entry().kind === 'standalone-equipment'"
   [attr.role]="overviewListItem() ? 'listitem' : null"
 >
@@ -53,6 +55,7 @@
           [class.fleet-overview__convoy-strip--plana]="usesPlataforma(entry())"
           [class.fleet-overview__convoy-strip--caja-seca]="usesCajaSeca(entry())"
           [class.fleet-overview__convoy-strip--standalone]="entry().kind === 'standalone-equipment'"
+          [class.fleet-overview__convoy-strip--convoy-triple]="convoyUsesDollyLayout(entry())"
           role="group"
           [attr.aria-label]="convoyAriaLabel()"
         >
@@ -90,50 +93,9 @@
                         <dt>Alias</dt>
                         <dd>{{ entry().unitAlias.trim() || '—' }}</dd>
                       </div>
-                    </dl>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-          @if (entry().hitched.length > 0) {
-            <div class="fleet-overview__segment">
-              <img
-                [class]="trailerClassAt(entry(), 0)"
-                [src]="assetAt(entry(), 0)"
-                loading="lazy"
-                decoding="async"
-                [alt]="trailerAlt(entry(), 'primary')"
-              />
-              @if (convoyInteractive()) {
-                <div
-                  class="fleet-overview__hit fleet-overview__hit--eq"
-                  role="button"
-                  tabindex="0"
-                  [attr.aria-label]="'Ver equipo ' + entry().hitched[0]!.operationalCode"
-                  (click)="onEquipmentHit($event, entry().hitched[0]!.equipmentId)"
-                  (keydown.enter)="onEquipmentHit($event, entry().hitched[0]!.equipmentId)"
-                  (keydown.space)="
-                    $event.preventDefault();
-                    onEquipmentHit($event, entry().hitched[0]!.equipmentId)
-                  "
-                >
-                  <div class="fleet-overview__tip fleet-overview__tip--eq">
-                    <p class="fleet-overview__tip-title">
-                      {{ isFull(entry()) ? 'Primer equipo' : 'Equipo' }}
-                    </p>
-                    <dl class="fleet-overview__tip-dl">
                       <div class="fleet-overview__tip-row">
-                        <dt>Código</dt>
-                        <dd>{{ entry().hitched[0]!.operationalCode }}</dd>
-                      </div>
-                      <div class="fleet-overview__tip-row">
-                        <dt>Tipo</dt>
-                        <dd>{{ entry().hitched[0]!.equipmentType }}</dd>
-                      </div>
-                      <div class="fleet-overview__tip-row">
-                        <dt>Alias</dt>
-                        <dd>{{ entry().hitched[0]!.alias?.trim() || '—' }}</dd>
+                        <dt>No. serie</dt>
+                        <dd>{{ serialDisplay(entry().unitSerialNumber) }}</dd>
                       </div>
                     </dl>
                   </div>
@@ -141,48 +103,104 @@
               }
             </div>
           }
-          @if (isFull(entry())) {
-            <div class="fleet-overview__segment">
-              <img
-                [class]="trailerClassAt(entry(), 1)"
-                [src]="assetAt(entry(), 1)"
-                loading="lazy"
-                decoding="async"
-                [alt]="trailerAlt(entry(), 'secondary')"
-              />
-              @if (convoyInteractive()) {
-                <div
-                  class="fleet-overview__hit fleet-overview__hit--eq"
-                  role="button"
-                  tabindex="0"
-                  [attr.aria-label]="'Ver equipo ' + entry().hitched[1]!.operationalCode"
-                  (click)="onEquipmentHit($event, entry().hitched[1]!.equipmentId)"
-                  (keydown.enter)="onEquipmentHit($event, entry().hitched[1]!.equipmentId)"
-                  (keydown.space)="
-                    $event.preventDefault();
-                    onEquipmentHit($event, entry().hitched[1]!.equipmentId)
-                  "
-                >
-                  <div class="fleet-overview__tip fleet-overview__tip--eq">
-                    <p class="fleet-overview__tip-title">Segundo equipo</p>
-                    <dl class="fleet-overview__tip-dl">
-                      <div class="fleet-overview__tip-row">
-                        <dt>Código</dt>
-                        <dd>{{ entry().hitched[1]!.operationalCode }}</dd>
-                      </div>
-                      <div class="fleet-overview__tip-row">
-                        <dt>Tipo</dt>
-                        <dd>{{ entry().hitched[1]!.equipmentType }}</dd>
-                      </div>
-                      <div class="fleet-overview__tip-row">
-                        <dt>Alias</dt>
-                        <dd>{{ entry().hitched[1]!.alias?.trim() || '—' }}</dd>
-                      </div>
-                    </dl>
+          @for (h of entry().hitched; track h.equipmentId; let i = $index) {
+            @if (dollyConvoySlotSegment(entry(), i)) {
+              <div
+                class="fleet-overview__segment fleet-overview__segment--dolly-slot"
+                [attr.aria-label]="dollySlotAriaLabel(h.operationalCode)"
+                [attr.title]="dollySlotHint()"
+              >
+                <div class="fleet-overview__dolly-slot-visual" aria-hidden="true">
+                  <div class="fleet-overview__dolly-slot-bridge" aria-hidden="true">
+                    <span class="fleet-overview__dolly-slot-bridge-line"></span>
+                    <span class="fleet-overview__dolly-slot-bridge-dot"></span>
+                    <span class="fleet-overview__dolly-slot-bridge-line"></span>
                   </div>
+                  <span class="fleet-overview__dolly-slot-pill">Dolly</span>
                 </div>
-              }
-            </div>
+                @if (convoyInteractive()) {
+                  <div
+                    class="fleet-overview__hit fleet-overview__hit--eq fleet-overview__hit--dolly-slot"
+                    role="button"
+                    tabindex="0"
+                    [attr.aria-label]="'Ver dolly ' + h.operationalCode"
+                    (click)="onEquipmentHit($event, h.equipmentId)"
+                    (keydown.enter)="onEquipmentHit($event, h.equipmentId)"
+                    (keydown.space)="$event.preventDefault(); onEquipmentHit($event, h.equipmentId)"
+                  >
+                    <div class="fleet-overview__tip fleet-overview__tip--eq">
+                      <p class="fleet-overview__tip-title">{{ equipmentSegmentTitle(entry(), i) }}</p>
+                      <dl class="fleet-overview__tip-dl">
+                        <div class="fleet-overview__tip-row">
+                          <dt>Código</dt>
+                          <dd>{{ h.operationalCode }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>Tipo</dt>
+                          <dd>{{ h.equipmentType }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>Alias</dt>
+                          <dd>{{ h.alias?.trim() || '—' }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>No. serie</dt>
+                          <dd>{{ serialDisplay(h.serialNumber) }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div
+                class="fleet-overview__segment"
+                [class.fleet-overview__segment--dolly]="isDollySegment(entry(), i)"
+                [class.fleet-overview__segment--lead-trailer]="isLeadTrailerGraphic(entry(), i)"
+                [class.fleet-overview__segment--rear-trailer]="isRearTrailerGraphic(entry(), i)"
+              >
+                <img
+                  [class]="trailerClassAt(entry(), i)"
+                  [src]="assetAt(entry(), i)"
+                  loading="lazy"
+                  decoding="async"
+                  [alt]="trailerAltAt(entry(), i)"
+                />
+                @if (convoyInteractive()) {
+                  <div
+                    class="fleet-overview__hit fleet-overview__hit--eq"
+                    role="button"
+                    tabindex="0"
+                    [attr.aria-label]="'Ver equipo ' + h.operationalCode"
+                    (click)="onEquipmentHit($event, h.equipmentId)"
+                    (keydown.enter)="onEquipmentHit($event, h.equipmentId)"
+                    (keydown.space)="$event.preventDefault(); onEquipmentHit($event, h.equipmentId)"
+                  >
+                    <div class="fleet-overview__tip fleet-overview__tip--eq">
+                      <p class="fleet-overview__tip-title">{{ equipmentSegmentTitle(entry(), i) }}</p>
+                      <dl class="fleet-overview__tip-dl">
+                        <div class="fleet-overview__tip-row">
+                          <dt>Código</dt>
+                          <dd>{{ h.operationalCode }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>Tipo</dt>
+                          <dd>{{ h.equipmentType }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>Alias</dt>
+                          <dd>{{ h.alias?.trim() || '—' }}</dd>
+                        </div>
+                        <div class="fleet-overview__tip-row">
+                          <dt>No. serie</dt>
+                          <dd>{{ serialDisplay(h.serialNumber) }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           }
         </div>
       </div>
@@ -190,93 +208,9 @@
 
     <aside class="fleet-overview__schedule" [attr.aria-label]="scheduleAriaLabel()">
       @if (entry().panelMode === 'maneuver' && entry().trip; as trip) {
-        <dl class="fleet-overview__schedule-dl">
-          <div class="fleet-overview__schedule-row">
-            <dt>Salida</dt>
-            <dd>{{ tripDeparture(trip) }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row">
-            <dt>Cita cliente</dt>
-            <dd>{{ tripArrival(trip) }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row">
-            <dt>Llegada origen</dt>
-            <dd>{{ tripCompletion(trip) }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--eta">
-            <dt>ETA Viaje</dt>
-            <dd>{{ tripEtaDays(trip) }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--eta">
-            <dt>ETA KMS</dt>
-            <dd>{{ tripEtaKm(trip) }}</dd>
-          </div>
-          @if (showAssignmentSummary()) {
-            <div class="fleet-overview__schedule-row">
-              <dt>Unidad</dt>
-              <dd>{{ entry().unitName }}</dd>
-            </div>
-            <div class="fleet-overview__schedule-row">
-              <dt>Equipo</dt>
-              <dd>{{ maneuverEquipmentCodes(entry()) }}</dd>
-            </div>
-          }
-          <div class="fleet-overview__schedule-row">
-            <dt>Operador</dt>
-            <dd>{{ trip.operatorName?.trim() || '—' }}</dd>
-          </div>
-        </dl>
-      } @else if (showMaintenanceAside() && entry().maintenance) {
-        <dl class="fleet-overview__schedule-dl">
-          <div class="fleet-overview__schedule-row">
-            <dt>Último mantenimiento</dt>
-            <dd>{{ entry().maintenance!.lastMaintenanceDate ?? '—' }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row">
-            <dt>Próximo mantenimiento</dt>
-            <dd>{{ entry().maintenance!.nextMaintenanceDate ?? '—' }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row">
-            <dt>Kms desde último mant.</dt>
-            <dd>{{
-              entry().maintenance!.kmSinceLastMaintenance != null
-                ? entry().maintenance!.kmSinceLastMaintenance + ' km'
-                : '—'
-            }}</dd>
-          </div>
-          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--icon">
-            <dt>Seguro</dt>
-            <dd>
-              <span [class]="renewalIconClass(insBucket())" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
-                  />
-                </svg>
-              </span>
-              <span>{{ insLabel() }}</span>
-            </dd>
-          </div>
-          <div class="fleet-overview__schedule-row fleet-overview__schedule-row--icon">
-            <dt>Verificaciones</dt>
-            <dd>
-              <span [class]="renewalIconClass(verifBucket())" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M23,12l-2.44-2.79l0.34-3.69l-3.61-0.82L15.4,1.5L12,2.96L8.6,1.5L6.71,4.69L3.1,5.5L3.44,9.2L1,12l2.44,2.79l-0.34,3.7 l3.61,0.82L8.6,22.5l3.4-1.47l3.4,1.46l1.89-3.19l3.61-0.82l-0.34-3.69L23,12z M10.09,16.72l-3.8-3.81l1.48-1.48l2.32,2.33 l5.85-5.87l1.48,1.48L10.09,16.72z"
-                  />
-                </svg>
-              </span>
-              <span>{{ verifLabel() }}</span>
-            </dd>
-          </div>
-          <div class="fleet-overview__schedule-row">
-            <dt>Llantas</dt>
-            <dd>{{ entry().maintenance!.tireStatus ?? '—' }}</dd>
-          </div>
-        </dl>
+        <app-fleet-overview-maneuver-aside [view]="maneuverAsideView(trip)" />
+      } @else if (showMaintenanceAside() && entry().maintPanel) {
+        <app-fleet-overview-maint-aside [panel]="entry().maintPanel!" />
       }
     </aside>
 

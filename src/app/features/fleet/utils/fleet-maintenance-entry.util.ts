@@ -23,9 +23,8 @@ export function isSubstantiveMaintenanceEntry(
 }
 
 /**
- * Los documentos de mantenimiento viven a nivel unidad (`fleetDocuments` /
- * `documentMaintenanceNames`), no en cada fila del historial. Para la tabla
- * Docs, se muestran en la entrada más reciente.
+ * Legacy: todos los archivos vivían a nivel unidad y la UI los mostraba en la
+ * fila más reciente. Solo aplica cuando ninguna fila trae `documentNames`.
  */
 export function attachFleetMaintenanceDocNamesToNewestEntry(
   entries: readonly MaintenanceEntry[],
@@ -47,4 +46,24 @@ export function attachFleetMaintenanceDocNamesToNewestEntry(
     return [...entries];
   }
   return [{ ...newest, documentNames: merged }, ...rest];
+}
+
+/**
+ * Arma el historial para la tabla: cada fila usa los `documentNames` persistidos
+ * en API; sin eso (datos viejos), se mantiene el comportamiento legacy.
+ */
+export function mergeFleetMaintenanceDocNamesForDisplay(
+  entries: readonly MaintenanceEntry[],
+  unitLevelDocNames: readonly string[],
+): MaintenanceEntry[] {
+  if (entries.length === 0 || unitLevelDocNames.length === 0) {
+    return [...entries];
+  }
+  const anyRowHasDocNames = entries.some(
+    (e) => (e.documentNames?.length ?? 0) > 0,
+  );
+  if (!anyRowHasDocNames) {
+    return attachFleetMaintenanceDocNamesToNewestEntry(entries, unitLevelDocNames);
+  }
+  return [...entries];
 }

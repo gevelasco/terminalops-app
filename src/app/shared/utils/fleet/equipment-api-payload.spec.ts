@@ -42,6 +42,73 @@ describe('equipment-api-payload', () => {
     expect(payload.hitchPosition).toBe('rear');
   });
 
+  it('omits hitchPosition for dolly when convoy has lead and rear trailers', () => {
+    const payload = buildEquipmentWritePayload(
+      {
+        id: 'dolly',
+        unitId: 'U1',
+        name: 'D',
+        serialNumber: 'S',
+        lastServiceDate: '',
+        hitchPosition: 'middle',
+        type: 'dolly',
+      },
+      {
+        equipment: { hitchPosition: 'middle' },
+        hitchPeersOnUnit: [
+          {
+            id: 'lead',
+            unitId: 'U1',
+            hitchPosition: 'lead',
+            type: 'portacontenedor',
+            name: 'L',
+            serialNumber: 'L',
+            lastServiceDate: '',
+          },
+          {
+            id: 'rear',
+            unitId: 'U1',
+            hitchPosition: 'rear',
+            type: 'portacontenedor',
+            name: 'R',
+            serialNumber: 'R',
+            lastServiceDate: '',
+          },
+        ],
+      },
+    );
+    expect(payload.hitchPosition).toBeUndefined();
+  });
+
+  it('maps dolly middle to api rear when tractor has lead only', () => {
+    const payload = buildEquipmentWritePayload(
+      {
+        id: 'dolly',
+        unitId: 'U1',
+        name: 'D',
+        serialNumber: 'S',
+        lastServiceDate: '',
+        hitchPosition: 'middle',
+        type: 'dolly',
+      },
+      {
+        equipment: { hitchPosition: 'middle' },
+        hitchPeersOnUnit: [
+          {
+            id: 'lead',
+            unitId: 'U1',
+            hitchPosition: 'lead',
+            type: 'portacontenedor',
+            name: 'L',
+            serialNumber: 'L',
+            lastServiceDate: '',
+          },
+        ],
+      },
+    );
+    expect(payload.hitchPosition).toBe('rear');
+  });
+
   it('never sends operational status in write payload (A6)', () => {
     const payload = buildEquipmentWritePayload(baseEquipment(), {
       equipment: { status: 'available' },

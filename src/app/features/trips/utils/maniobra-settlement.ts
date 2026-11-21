@@ -10,6 +10,7 @@ import {
   tripRevenue,
 } from '@features/reports/utils/reports-trip-helpers';
 import type { Expense, ExpenseKind, Trip } from '@shared/models/logistics.models';
+import { DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL } from '@shared/utils/operational-control-expense-label.util';
 
 /** Gastos automáticos al programar; si ya están en ledger, no duplicar desde campos del trip. */
 const TRIP_PROGRAMMED_EXPENSE_KINDS = {
@@ -169,11 +170,13 @@ function formatOperationalControlSettlementDetail(
   charged: number,
 ): string {
   const ref = tripManeuverRef(trip);
+  const label =
+    expense.category?.trim() || DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL;
   const pct = resolveOperationalControlPercent(trip, expense, charged);
   if (pct != null) {
-    return `Control operativo ${formatPercentLabel(pct)}% — maniobra ${ref}`;
+    return `${label} ${formatPercentLabel(pct)}% — maniobra ${ref}`;
   }
-  return `Control operativo — maniobra ${ref}`;
+  return `${label} — maniobra ${ref}`;
 }
 
 function settlementExpenseDetail(

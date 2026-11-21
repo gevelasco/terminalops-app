@@ -18,6 +18,7 @@ export const SCHEMA_CORTINA_ASSET = 'maniobra-schema-cortina.png';
 export const SCHEMA_GONDOLA_ASSET = 'maniobra-schema-gondola.png';
 export const SCHEMA_CAMA_BAJA_ASSET = 'maniobra-schema-cama-baja.png';
 export const SCHEMA_TOLVA_ASSET = 'maniobra-schema-tolva.png';
+export const SCHEMA_DOLLY_ASSET = 'maniobra-schema-dolly.png';
 /** @deprecated Usar {@link SCHEMA_PLANA_ASSET} */
 export const SCHEMA_PLANA_PRIMERA_ASSET = SCHEMA_PLANA_ASSET;
 
@@ -29,6 +30,7 @@ export type ConvoyTrailerVisual =
   | 'gondola'
   | 'cama_baja'
   | 'tolva'
+  | 'dolly'
   | 'remolque';
 
 /** Imagen de la unidad motriz según su tipo de transporte (alta de unidad). */
@@ -71,6 +73,9 @@ export function convoyTrailerVisualFromType(type: string): ConvoyTrailerVisual {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+  if (v === 'dolly' || v.includes('dolly') || v.includes('convertidor')) {
+    return 'dolly';
+  }
   if (v === 'plataforma' || v.includes('plana') || v.includes('flatbed')) {
     return 'plataforma';
   }
@@ -115,6 +120,8 @@ export function schemaPrimaryAssetForVisual(visual: ConvoyTrailerVisual): string
       return SCHEMA_CAMA_BAJA_ASSET;
     case 'tolva':
       return SCHEMA_TOLVA_ASSET;
+    case 'dolly':
+      return SCHEMA_DOLLY_ASSET;
     default:
       return SCHEMA_REMOLQUE_ASSET;
   }

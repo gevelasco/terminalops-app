@@ -1,9 +1,6 @@
 import type { WritableSignal } from '@angular/core';
 import { effect } from '@angular/core';
-import {
-  isSecondTrailerForUnitHitchSlot,
-  unitHitchSlotForNewEquipment,
-} from '@shared/utils/fleet/equipment-hitch-assignment';
+import { resolveAutoSecondTrailerFlag } from '@shared/utils/fleet/equipment-hitch-assignment';
 import type { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { stripGroupedNumber } from '@shared/utils/format-grouped-number';
 
@@ -132,17 +129,20 @@ export function registerFleetHitchSlotSync(opts: {
   catalog: () => readonly import('@shared/models/logistics.models').Equipment[];
   unitId: () => string;
   excludeEquipmentId?: () => string | undefined;
+  equipmentType?: () => string | undefined;
   isSecondTrailer: WritableSignal<boolean>;
 }): ReturnType<typeof effect> {
   return effect(() => {
     if (!opts.isActive()) {
       return;
     }
-    const slot = unitHitchSlotForNewEquipment(
-      opts.catalog(),
-      opts.unitId(),
-      opts.excludeEquipmentId?.(),
+    opts.isSecondTrailer.set(
+      resolveAutoSecondTrailerFlag(
+        opts.catalog(),
+        opts.unitId(),
+        opts.excludeEquipmentId?.(),
+        opts.equipmentType?.(),
+      ),
     );
-    opts.isSecondTrailer.set(isSecondTrailerForUnitHitchSlot(slot));
   });
 }

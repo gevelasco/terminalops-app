@@ -1,0 +1,100 @@
+@if (inline()) {
+  <div
+    class="dest-rate-route-map-dialog--inline"
+    [class.dest-rate-route-map-dialog--rate-view]="rateViewLayout()"
+    [attr.role]="rateViewLayout() ? null : 'region'"
+    [attr.aria-labelledby]="rateViewLayout() ? null : 'dest-rate-route-map-title'"
+  >
+    <div
+      class="dest-rate-route-map-dialog__panel"
+      [class.dest-rate-route-map-dialog__panel--inline]="true"
+      [class.dest-rate-route-map-dialog__panel--rate-view]="rateViewLayout()"
+    >
+      @if (!rateViewLayout()) {
+        <ng-container *ngTemplateOutlet="panelChrome" />
+      }
+      <div
+        class="dest-rate-route-map-dialog__chart-wrap dest-rate-route-map-dialog__chart-wrap--inline"
+        [class.dest-rate-route-map-dialog__chart-wrap--rate-view]="rateViewLayout()"
+      >
+        @if (mapLoading()) {
+          <to-module-skeleton layout="map" />
+        } @else if (mapError()) {
+          <p class="dest-rate-route-map-dialog__error" role="alert">
+            No se pudo cargar el mapa. Intenta de nuevo.
+          </p>
+        }
+        <div
+          #chartHost
+          class="dest-rate-route-map-dialog__chart dest-rate-route-map-dialog__chart--inline"
+          [class.dest-rate-route-map-dialog__chart--rate-view]="rateViewLayout()"
+          [class.dest-rate-route-map-dialog__chart--hidden]="mapLoading() || mapError()"
+          role="img"
+          aria-label="Mapa con ruta y casetas"
+        ></div>
+      </div>
+    </div>
+  </div>
+} @else {
+  <dialog
+    #dialog
+    class="dest-rate-route-map-dialog"
+    aria-labelledby="dest-rate-route-map-title"
+    (cancel)="onDialogCancel($event)"
+    (close)="onDialogClose()"
+  >
+    <div class="dest-rate-route-map-dialog__panel">
+      <ng-container *ngTemplateOutlet="panelChrome" />
+      <div class="dest-rate-route-map-dialog__chart-wrap">
+        @if (mapLoading()) {
+          <to-module-skeleton layout="map" />
+        } @else if (mapError()) {
+          <p class="dest-rate-route-map-dialog__error" role="alert">
+            No se pudo cargar el mapa. Intenta de nuevo.
+          </p>
+        }
+        <div
+          #chartHost
+          class="dest-rate-route-map-dialog__chart"
+          [class.dest-rate-route-map-dialog__chart--hidden]="mapLoading() || mapError()"
+          role="img"
+          aria-label="Mapa con ruta y casetas"
+        ></div>
+      </div>
+      <div class="dest-rate-route-map-dialog__actions">
+        <to-button type="button" variant="primary" size="sm" (click)="onCloseClick()">
+          Cerrar
+        </to-button>
+      </div>
+    </div>
+  </dialog>
+}
+
+<ng-template #panelChrome>
+  <header class="dest-rate-route-map-dialog__head">
+    <h2 id="dest-rate-route-map-title" class="dest-rate-route-map-dialog__title">
+      Recorrido aproximado
+    </h2>
+    <button
+      type="button"
+      class="dest-rate-route-map-dialog__close"
+      aria-label="Cerrar"
+      (click)="onCloseClick()"
+    >
+      <to-icon name="close" [size]="18" />
+    </button>
+  </header>
+  <p class="dest-rate-route-map-dialog__hint">
+    Línea por carretera (OSRM). Casetas con ubicación INEGI. No sustituye el ruteo oficial.
+  </p>
+  <p class="dest-rate-route-map-dialog__legend">
+    <span class="dest-rate-route-map-dialog__dot dest-rate-route-map-dialog__dot--origin"></span>
+    Origen
+    <span class="dest-rate-route-map-dialog__dot dest-rate-route-map-dialog__dot--dest"></span>
+    Destino
+    <span class="dest-rate-route-map-dialog__dot dest-rate-route-map-dialog__dot--wp"></span>
+    Intermedio
+    <span class="dest-rate-route-map-dialog__dot dest-rate-route-map-dialog__dot--toll"></span>
+    Caseta
+  </p>
+</ng-template>

@@ -5,14 +5,15 @@ import {
   HostListener,
   inject,
   output,
+  viewChild,
 } from '@angular/core';
 import { DestinationRateLocationFieldsComponent } from '@features/clients/components/destination-rate-location-fields/destination-rate-location-fields.component';
 import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
 import { DestinationRatePricesEditorComponent } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
+import { DestinationRateRouteMapDialogComponent } from '@features/clients/components/destination-rate-route-map-dialog/destination-rate-route-map-dialog.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
-import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { ToStatusPillComponent } from '@shared/ui/to-status-pill/to-status-pill.component';
 import { DestinationRatesDetailDrawerFacade } from './destination-rates-detail-drawer.facade';
@@ -27,24 +28,32 @@ import { DestinationRatesDetailDrawerFacade } from './destination-rates-detail-d
     ToIconComponent,
     ToButtonComponent,
     ToInputComponent,
-    ToSelectComponent,
     ToStatusPillComponent,
     OperationalCenterSelectComponent,
     DestinationRateLocationFieldsComponent,
     DestinationRatePricesEditorComponent,
+    DestinationRateRouteMapDialogComponent,
   ],
   templateUrl: './destination-rates-detail-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
+    '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables.scss',
     './destination-rates-detail-drawer.component.scss',
   ],
 })
 export class DestinationRatesDetailDrawerComponent {
   protected readonly vm = inject(DestinationRatesDetailDrawerFacade);
 
+  private readonly pricesEditor = viewChild(DestinationRatePricesEditorComponent);
+
   readonly dismiss = output<void>();
+
+  saveEdit(): void {
+    const routeTollPlazas = this.pricesEditor()?.routeTollPlazasForPersist();
+    this.vm.persist(routeTollPlazas);
+  }
 
   constructor() {
     this.vm.bindDismiss(() => this.dismiss.emit());

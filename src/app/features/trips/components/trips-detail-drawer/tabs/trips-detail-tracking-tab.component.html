@@ -520,19 +520,23 @@
         }
 
         @if (vm.trip().falseManeuver === true) {
-          <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
+          <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols maniobra-detail__dl--status-flow">
+            <div class="fleet-unit-detail__row">
             <dt>Cobro</dt>
             <dd class="maniobra-detail__dd-highlight">
               Vigente según pacto / maniobra en falso
             </dd>
+            </div>
           </dl>
         }
         @if (vm.cancellationNoteDisplay().length > 0) {
-          <dl class="maniobra-detail__dl maniobra-detail__dl--status-flow">
+          <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols maniobra-detail__dl--status-flow">
+            <div class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span fleet-unit-detail__row--ficha-wrap">
             <dt>Motivo registrado</dt>
             <dd class="maniobra-detail__cancellation-note">{{
               vm.cancellationNoteDisplay()
             }}</dd>
+            </div>
           </dl>
         }
       </section>

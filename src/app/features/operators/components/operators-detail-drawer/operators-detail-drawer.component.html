@@ -39,4 +39,55 @@
       <app-operators-detail-operation-tab />
     }
   }
+
+  <div toSideDrawerFooter class="maniobra-detail__footer">
+    <div class="maniobra-detail__footer-start">
+      @if (vm.canDeleteOperator()) {
+        <span
+          class="fleet-detail-drawer__delete-wrap"
+          [class.fleet-detail-drawer__delete-wrap--hint]="vm.deleteBlockedByRoute()"
+          [attr.data-tooltip]="
+            vm.deleteBlockedByRoute() ? vm.deleteBlockedTooltip() : null
+          "
+          [attr.tabindex]="vm.deleteBlockedByRoute() ? 0 : null"
+        >
+          <button
+            type="button"
+            class="maniobra-detail__delete-maniobra-btn"
+            [disabled]="vm.deleteBlockedByRoute() || vm.deleteSubmitting()"
+            (click)="vm.openDeleteConfirm()"
+          >
+            <to-icon name="delete" [size]="16" />
+            Eliminar operador
+          </button>
+        </span>
+      }
+    </div>
+    <to-button type="button" variant="outline" (click)="vm.requestDismiss()">
+      Cerrar
+    </to-button>
+  </div>
 </to-side-drawer>
+
+<to-confirm-dialog
+  titleId="operators-delete-title"
+  icon="warning"
+  title="Eliminar operador"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar operador"
+  confirmVariant="primary"
+  [open]="vm.deleteConfirmOpen()"
+  [confirmLoading]="vm.deleteSubmitting()"
+  [confirmDisabled]="vm.deleteSubmitting()"
+  (cancel)="vm.closeDeleteConfirm()"
+  (confirm)="vm.confirmDeleteOperator()"
+>
+  <p class="maniobra-detail__delete-copy">
+    Estás a punto de dar de baja al operador
+    <strong>{{ vm.operator().name }}</strong>.
+  </p>
+  <p class="maniobra-detail__delete-copy">
+    Dejará de aparecer en listados, asignaciones y operación diaria. Los registros
+    históricos se conservan en el sistema.
+  </p>
+</to-confirm-dialog>

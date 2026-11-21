@@ -1,5 +1,7 @@
+@use '../destination-rates-drawer.shared';
+
 :host ::ng-deep .destination-rates-detail-drawer__panel.to-side-drawer__panel--wide {
-  width: min(38rem, 100vw);
+  width: min(43.7rem, 100vw);
 }
 
 .destination-rates-detail-drawer__rate-head {
@@ -31,21 +33,75 @@
   color: var(--to-color-text-muted, #64748b);
 }
 
+.destination-rates-detail-drawer__route-map {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .destination-rates-detail-drawer__stack {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.destination-rates-detail-drawer__time-grid {
+.destination-rates-detail-drawer__route-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+  align-items: start;
+}
+
+.destination-rates-detail-drawer__route-layout > app-operational-center-select {
+  grid-column: 1;
+}
+
+:host ::ng-deep .destination-rates-detail-drawer__route-layout {
+  .destination-rate-location-fields__cp-cell {
+    grid-column: 2;
+  }
+
+  .destination-rate-location-fields__hint--route-form {
+    grid-column: 1 / -1;
+    margin: -0.35rem 0 0;
+  }
+
+  .destination-rate-location-fields__city-cell {
+    grid-column: 1;
+  }
+
+  .destination-rate-location-fields__locality-cell {
+    grid-column: 2;
+  }
+}
+
+.destination-rates-detail-drawer__metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  align-items: start;
+}
+
+.destination-rates-detail-drawer__metrics-grid--times-only {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:host ::ng-deep .destination-rates-detail-drawer__metrics-grid {
+  .to-field__label {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
 }
 
 @media (max-width: 640px) {
-  .destination-rates-detail-drawer__time-grid {
+  .destination-rates-detail-drawer__route-layout {
     grid-template-columns: 1fr;
+  }
+
+  .destination-rates-detail-drawer__metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -55,31 +111,59 @@
   white-space: pre-wrap;
 }
 
-.destination-rates-detail-drawer__table-wrap {
-  overflow-x: auto;
+.destination-rates-detail-drawer__price-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.destination-rates-detail-drawer__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
+.destination-rates-detail-drawer__price-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 80%, transparent);
+  background: color-mix(in srgb, var(--to-color-surface, #fff) 96%, var(--to-color-border, #e2e8f0));
+}
 
-  th,
-  td {
-    padding: 0.45rem 0.35rem;
-    text-align: left;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--to-color-border, #e2e8f0) 60%, transparent);
+.destination-rates-detail-drawer__price-card-updated {
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted, #64748b);
+  text-align: right;
+}
+
+.destination-rates-detail-drawer__price-card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
   }
 
-  th {
-    font-size: 0.6875rem;
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  dt {
+    margin: 0;
+    font-size: 0.625rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--to-color-text-muted, #64748b);
   }
-}
 
-@media (max-width: 640px) {
+  dd {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
 }

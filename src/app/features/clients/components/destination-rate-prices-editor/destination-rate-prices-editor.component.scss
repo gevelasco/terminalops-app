@@ -1,101 +1,391 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+
+  &:has(.destination-rate-prices-editor__cards-region--view-only) {
+    flex: none;
+  }
+}
+
 .destination-rate-prices-editor {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
   min-width: 0;
-  overflow: visible;
+  min-height: 0;
+  flex: 1;
 }
 
-.destination-rate-prices-editor__group-label-row {
-  display: flex;
-  align-items: baseline;
-}
-
-.destination-rate-prices-editor__table {
+.destination-rate-prices-editor__body {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
-  overflow: visible;
 }
 
-.destination-rate-prices-editor__rows {
+.destination-rate-prices-editor__composer-block {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.65rem;
   min-width: 0;
-  overflow: visible;
 }
 
-.destination-rate-prices-editor__rows--scroll {
-  max-height: calc(3 * 2.5rem + 2 * 0.35rem);
+.destination-rate-prices-editor__add-row {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.destination-rate-prices-editor__cards-region {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
   overflow-x: hidden;
   overflow-y: auto;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 55%, transparent);
+
+  &--view-only {
+    flex: none;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    overflow: visible;
+  }
 }
 
-.destination-rate-prices-editor__grid {
-  display: grid;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  grid-template-columns:
-    minmax(7.25rem, 1.1fr)
-    repeat(4, minmax(5.65rem, 0.85fr))
-    1.5rem;
-  gap: 0.25rem;
+.destination-rate-prices-editor__body--loading .destination-rate-prices-editor__composer-block,
+.destination-rate-prices-editor__body--loading .destination-rate-prices-editor__cards-region {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.destination-rate-prices-editor__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: var(--to-radius-md, 8px);
+  background: color-mix(in srgb, var(--to-color-surface, #fff) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 70%, transparent);
 }
 
-.destination-rate-prices-editor__grid--head {
-  padding-bottom: 0.1rem;
-  border-bottom: 1px solid var(--to-color-border, #e2e8f0);
+.destination-rate-prices-editor__spinner {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 55%, transparent);
+  border-top-color: var(--to-color-primary, #2563eb);
+  border-radius: 50%;
+  animation: dr-price-spin 0.65s linear infinite;
 }
 
-.destination-rate-prices-editor__head-cell {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+.destination-rate-prices-editor__loading-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--to-color-text-muted, #64748b);
-  line-height: 1.2;
 }
 
-.destination-rate-prices-editor__head-cell--action {
-  width: 1.5rem;
+@keyframes dr-price-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.destination-rate-prices-editor__grid--form {
-  overflow: visible;
+.destination-rate-prices-editor__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0 0.15rem 0.25rem 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.destination-rate-prices-editor__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 85%, transparent);
+  background: color-mix(in srgb, var(--to-color-surface, #fff) 92%, var(--to-color-border, #e2e8f0));
+
+  &--selected {
+    border-color: color-mix(in srgb, var(--to-color-primary, #2563eb) 55%, var(--to-color-border, #e2e8f0));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--to-color-primary, #2563eb) 25%, transparent);
+  }
+}
+
+.destination-rate-prices-editor__card-edit {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--to-color-border, #e2e8f0);
+  border-radius: var(--to-radius-md, 6px);
+  background: var(--to-color-surface, #fff);
+  color: var(--to-color-text-muted, #64748b);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--to-color-primary, #2563eb);
+    border-color: color-mix(in srgb, var(--to-color-primary, #2563eb) 35%, var(--to-color-border, #e2e8f0));
+  }
+}
+
+.destination-rate-prices-editor__card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 1.75rem;
+  min-width: 0;
+  color: var(--to-color-text, #0f172a);
+}
+
+.destination-rate-prices-editor__card-maneuver {
+  font-size: 0.875rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.destination-rate-prices-editor__card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.65rem;
+}
+
+.destination-rate-prices-editor__card-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text, #0f172a);
+
+  to-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: var(--to-color-text-muted, #64748b);
+  }
+
+  span {
+    min-width: 0;
+  }
+}
+
+.destination-rate-prices-editor__card-tariff {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text, #0f172a);
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 45%, transparent);
+
+  .destination-rate-prices-editor__handshake-icon {
+    flex-shrink: 0;
+    display: block;
+    width: 1.0625rem;
+    height: 1.0625rem;
+    object-fit: contain;
+  }
+}
+
+.destination-rate-prices-editor__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.destination-rate-prices-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--to-gap-field, 0.25rem);
+  min-width: 0;
+}
+
+.destination-rate-prices-editor__field-label {
+  font-size: var(--to-text-base, 0.8125rem);
+  font-weight: var(--to-weight-semibold, 600);
+  letter-spacing: var(--to-tracking-normal, 0);
+  line-height: var(--to-leading-snug, 1.25);
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.destination-rate-prices-editor__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  dt {
+    margin: 0;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--to-color-text-muted, #64748b);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--to-color-text, #0f172a);
+  }
+}
+
+.destination-rate-prices-editor__edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(4.75rem, 0.64fr) minmax(0, 0.85fr);
+  gap: 0.45rem;
+  align-items: end;
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+
+  &--triple {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  }
 
   to-input,
+  to-select,
   app-destination-rate-maneuver-combobox {
     display: block;
     min-width: 0;
-    overflow: visible;
   }
 
   ::ng-deep .to-field__control {
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
-    padding-left: 0.4rem;
-    padding-right: 0.4rem;
     font-size: 0.8125rem;
-  }
-
-  ::ng-deep .to-field__affix {
-    padding: 0 0.28rem;
-    font-size: 0.75rem;
   }
 
   ::ng-deep .dr-maneuver-combobox__control {
     min-height: 2.15rem;
-    padding: 0.35rem 0.55rem;
     font-size: 0.8125rem;
   }
 }
 
-.destination-rate-prices-editor__remove {
+.destination-rate-prices-editor__tolls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 65%, transparent);
+
+  &--view {
+    flex-shrink: 0;
+    margin-top: 0.65rem;
+  }
+}
+
+.destination-rate-prices-editor__toll-item-main--view {
+  grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+}
+
+.destination-rate-prices-editor__tolls-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.destination-rate-prices-editor__tolls-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.destination-rate-prices-editor__tolls-pending {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.destination-rate-prices-editor__toll-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  &--scroll {
+    /* ~10 filas visibles; el resto con scroll. */
+    max-height: calc(10 * 1.875rem + 9 * 0.3rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.15rem;
+  }
+}
+
+.destination-rate-prices-editor__toll-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.destination-rate-prices-editor__toll-item-main {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr) auto auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.destination-rate-prices-editor__toll-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -103,19 +393,32 @@
   height: 1.5rem;
   margin: 0;
   padding: 0;
-  border: none;
+  border: 1px solid var(--to-color-border, #e2e8f0);
   border-radius: var(--to-radius-md, 6px);
-  background: transparent;
+  background: var(--to-color-surface, #fff);
   color: var(--to-color-text-muted, #64748b);
   cursor: pointer;
 
-  &:hover:not(:disabled) {
+  &:hover {
     color: var(--to-color-danger, #dc2626);
+    border-color: color-mix(in srgb, var(--to-color-danger, #dc2626) 35%, var(--to-color-border, #e2e8f0));
     background: color-mix(in srgb, var(--to-color-danger, #dc2626) 8%, transparent);
   }
+}
 
-  &:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
+.destination-rate-prices-editor__toll-order {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text-muted, #64748b);
+}
+
+.destination-rate-prices-editor__toll-name {
+  min-width: 0;
+  color: var(--to-color-text, #0f172a);
+}
+
+.destination-rate-prices-editor__toll-cost {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--to-color-text, #0f172a);
 }

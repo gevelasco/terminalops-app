@@ -143,6 +143,14 @@ export class ClientsService {
       );
   }
 
+  /** Soft delete (admin en UI). Oculto en Comercial; maniobras conservan referencia. */
+  deleteClient(clientId: string): Observable<{ id: number; deleted: boolean }> {
+    const id = clientId.trim();
+    return this.http
+      .delete<{ id: number; deleted: boolean }>(resourceByIdUrl('clients', id))
+      .pipe(tap(() => this.invalidateClientPickerCache()));
+  }
+
   uploadClientDocument(
     clientId: string,
     slot: ClientDocumentSlot,

@@ -22,15 +22,9 @@
     }
   </div>
   @if (vm.editingSection() !== "operation") {
-    <dl class="fleet-unit-detail__dl">
-      <div class="fleet-unit-detail__row">
-        <dt>Estado</dt>
-        <dd>{{ vm.operationalStatusLabel() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Registro</dt>
-        <dd>{{ vm.resourceVisibilityLabel() }}</dd>
-      </div>
+    <dl
+      class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+    >
       <div class="fleet-unit-detail__row">
         <dt>Fecha de ingreso</dt>
         <dd>{{ vm.companyHireDateLabel() }}</dd>
@@ -213,35 +207,33 @@
       <h3 id="operators-dv-pending-pay" class="fleet-unit-sec__title">
         Pagos pendientes
       </h3>
-      <dl class="fleet-unit-detail__dl">
-        <div class="operators-op-pay-metrics">
-          <div class="operators-op-pay-metrics__item">
-            <dt class="operators-op-pay-metrics__label">Maniobras por pagar</dt>
-            <dd class="operators-op-pay-metrics__value">
-              {{ vm.operationSummary().owedTripCount }}
-            </dd>
-          </div>
-          <div class="operators-op-pay-metrics__item">
-            <dt class="operators-op-pay-metrics__label">Saldo pendiente</dt>
-            <dd class="operators-op-pay-metrics__value operators-op-pay-metrics__value--amount">
-              <div class="operators-op-pay-summary">
-                <span class="operators-op-pay-summary__amount">{{
-                  vm.operationMoney(vm.operationSummary().owedAmount)
-                }}</span>
-                @if (vm.operationSummary().owedTripCount > 0) {
-                  <to-badge
-                    [variant]="
-                      vm.payDueBadgeVariant(
-                        vm.operationSummary().nextPayDueBadgeVariant
-                      )
-                    "
-                    >Próximo pago:
-                    {{ vm.operationSummary().nextPayDueLabel }}</to-badge
-                  >
-                }
-              </div>
-            </dd>
-          </div>
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+      >
+        <div class="fleet-unit-detail__row">
+          <dt>Maniobras por pagar</dt>
+          <dd>{{ vm.operationSummary().owedTripCount }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span">
+          <dt>Saldo pendiente</dt>
+          <dd>
+            <div class="operators-op-pay-summary">
+              <span class="operators-op-pay-summary__amount">{{
+                vm.operationMoney(vm.operationSummary().owedAmount)
+              }}</span>
+              @if (vm.operationSummary().owedTripCount > 0) {
+                <to-badge
+                  [variant]="
+                    vm.payDueBadgeVariant(
+                      vm.operationSummary().nextPayDueBadgeVariant
+                    )
+                  "
+                  >Próximo pago:
+                  {{ vm.operationSummary().nextPayDueLabel }}</to-badge
+                >
+              }
+            </div>
+          </dd>
         </div>
       </dl>
       <div class="operators-op-pay-scroll">
@@ -347,32 +339,26 @@
       aria-labelledby="operators-dv-maneuvers"
     >
       <h3 id="operators-dv-maneuvers" class="fleet-unit-sec__title">
-        Maniobras por estado
+        Resumen del periodo
         <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
       </h3>
-      <dl class="fleet-unit-detail__dl operators-op-status-grid">
-        <div class="fleet-unit-detail__row">
-          <dt>Completadas</dt>
-          <dd>{{ vm.operationSummary().statusCounts.completed }}</dd>
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols operators-op-period-metrics"
+      >
+        <div class="fleet-unit-detail__row operators-op-period-metrics__hours">
+          <dt>Horas trabajadas</dt>
+          <dd>{{ vm.operationWorkedHoursLabel() }}</dd>
         </div>
-        <div class="fleet-unit-detail__row">
-          <dt>En curso</dt>
-          <dd>{{ vm.operationSummary().statusCounts.inTransit }}</dd>
+        <div class="fleet-unit-detail__row operators-op-period-metrics__incidents">
+          <dt>Incidentes</dt>
+          <dd>{{ vm.operationSummary().incidentManeuverCount }}</dd>
         </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Programadas</dt>
-          <dd>{{ vm.operationSummary().statusCounts.scheduled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Canceladas</dt>
-          <dd>{{ vm.operationSummary().statusCounts.cancelled }}</dd>
-        </div>
-        <div class="fleet-unit-detail__row operators-op-status-grid__total">
+        <div class="fleet-unit-detail__row operators-op-period-metrics__total">
           <dt>Total</dt>
-          <dd>{{ vm.operationSummary().statusCounts.total }}</dd>
+          <dd>{{ vm.operationPeriodManeuverTotalLabel() }}</dd>
         </div>
-        <div class="fleet-unit-detail__row">
-          <dt>Km en completadas</dt>
+        <div class="fleet-unit-detail__row operators-op-period-metrics__km">
+          <dt>KM recorridos</dt>
           <dd>
             {{
               vm.operationSummary().completedKm === 0
@@ -393,7 +379,9 @@
         <h3 id="operators-dv-active" class="fleet-unit-sec__title">
           En servicio ahora
         </h3>
-        <dl class="fleet-unit-detail__dl">
+        <dl
+          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+        >
           <div class="fleet-unit-detail__row">
             <dt>Estado</dt>
             <dd>{{ active.statusLabel }}</dd>
@@ -484,7 +472,14 @@
                         "
                         (click)="vm.revertOperatorPayment(row.tripId)"
                       >
-                        <to-icon name="cancelCircle" [size]="16" />
+                        <img
+                          class="operators-op-pay-table__revert-icon"
+                          [src]="revertPaymentIconSrc"
+                          alt=""
+                          width="16"
+                          height="16"
+                          aria-hidden="true"
+                        />
                       </button>
                     } @else {
                       <span class="operators-op-pay-table__action-empty">—</span>

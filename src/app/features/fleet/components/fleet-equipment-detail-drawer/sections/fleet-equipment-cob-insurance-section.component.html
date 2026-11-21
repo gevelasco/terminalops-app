@@ -26,7 +26,9 @@
           }
         </div>
         @if (!vm.isEditing("insurance")) {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Nombre del seguro</dt>
               <dd>{{ vm.meta()?.insuranceCarrierName?.trim() || "—" }}</dd>

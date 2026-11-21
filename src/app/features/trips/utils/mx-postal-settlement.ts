@@ -21,6 +21,28 @@ export function formatSettlementOptionLabel(s: MxPostalSettlement): string {
 }
 
 /** Línea de ciudad/municipio + estado (solo lectura en formulario / snapshot). */
+/** Municipio (o ciudad) SEPOMex para un CP, alineado con la localidad guardada. */
+export function municipalityFromSepomexSettlements(
+  rows: readonly MxPostalSettlement[],
+  locality: string,
+): string {
+  if (rows.length === 0) {
+    return '';
+  }
+  const loc = locality.trim().toLowerCase();
+  const match =
+    (loc
+      ? rows.find((r) => r.settlement.trim().toLowerCase() === loc)
+      : undefined) ??
+    (loc
+      ? rows.find((r) =>
+          formatSettlementOptionLabel(r).trim().toLowerCase() === loc,
+        )
+      : undefined) ??
+    rows[0]!;
+  return (match.municipality.trim() || match.city.trim());
+}
+
 export function cityMunicipalityLineFromSettlement(s: MxPostalSettlement): string {
   const left = s.city.trim() || s.municipality.trim();
   const state = s.state.trim();

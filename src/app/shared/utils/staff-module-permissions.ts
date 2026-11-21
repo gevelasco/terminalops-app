@@ -6,6 +6,7 @@ import {
   type StaffGrantableModuleCode,
   type StaffModuleGrant,
 } from '@shared/models/app-modules.models';
+import { commercialClientsModuleIconSrc } from '@shared/constants/commercial-handshake-icon';
 import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
 
@@ -58,6 +59,9 @@ export function staffModulePermissionDraftFromGrants(
         level: 'write' as ModuleAccessLevel,
       }));
 
+  const hasExplicitRatesGrant = (grants ?? []).some(
+    (grant) => grant.module === APP_MODULE_CODES.DESTINATION_RATES,
+  );
   for (const grant of rows) {
     const code = grant.module;
     if (!(code in draft)) {
@@ -67,6 +71,12 @@ export function staffModulePermissionDraftFromGrants(
       draft[code] = { read: true, write: true };
     } else {
       draft[code] = { read: true, write: false };
+    }
+  }
+  if (!hasExplicitRatesGrant) {
+    const legacyClients = draft[APP_MODULE_CODES.CLIENTS];
+    if (legacyClients.read || legacyClients.write) {
+      draft[APP_MODULE_CODES.DESTINATION_RATES] = { ...legacyClients };
     }
   }
   return draft;
@@ -87,6 +97,7 @@ export interface StaffModulePermissionSummaryRow {
   icon: ToIconName;
   active: boolean;
   summary: string;
+  iconImageSrc?: string;
 }
 
 export function staffModulePermissionSummary(
@@ -113,6 +124,7 @@ export function staffModulePermissionSummary(
       icon: staffModuleIcon(code),
       active,
       summary,
+      iconImageSrc: commercialClientsModuleIconSrc(code),
     };
   });
 }

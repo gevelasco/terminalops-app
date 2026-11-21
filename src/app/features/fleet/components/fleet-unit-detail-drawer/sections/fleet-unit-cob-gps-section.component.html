@@ -28,7 +28,9 @@
             }
           </div>
           @if (!vm.isEditing("gps")) {
-              <dl class="fleet-unit-detail__dl">
+              <dl
+                class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+              >
                 <div class="fleet-unit-detail__row">
                   <dt>Marca o proveedor</dt>
                   <dd>{{ vm.meta()?.gpsProviderBrand?.trim() || "—" }}</dd>

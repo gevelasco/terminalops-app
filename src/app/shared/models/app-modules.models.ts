@@ -4,6 +4,7 @@ export const APP_MODULE_CODES = {
   FLEET: 'fleet',
   OPERATORS: 'operators',
   CLIENTS: 'clients',
+  DESTINATION_RATES: 'destination_rates',
   EXPENSES: 'expenses',
   REPORTS: 'reports',
   ACCOUNT: 'account',
@@ -14,10 +15,12 @@ export type AppModuleCode =
   (typeof APP_MODULE_CODES)[keyof typeof APP_MODULE_CODES];
 
 export const STAFF_GRANTABLE_MODULE_CODES = [
+  APP_MODULE_CODES.DASHBOARD,
   APP_MODULE_CODES.TRIPS,
   APP_MODULE_CODES.FLEET,
   APP_MODULE_CODES.OPERATORS,
   APP_MODULE_CODES.CLIENTS,
+  APP_MODULE_CODES.DESTINATION_RATES,
   APP_MODULE_CODES.EXPENSES,
   APP_MODULE_CODES.REPORTS,
 ] as const satisfies readonly AppModuleCode[];
@@ -27,10 +30,12 @@ export type StaffGrantableModuleCode =
 
 /** Módulos con permisos Lectura / Escritura. */
 export const STAFF_RBAC_MODULE_CODES = [
+  APP_MODULE_CODES.DASHBOARD,
   APP_MODULE_CODES.TRIPS,
   APP_MODULE_CODES.FLEET,
   APP_MODULE_CODES.OPERATORS,
   APP_MODULE_CODES.CLIENTS,
+  APP_MODULE_CODES.DESTINATION_RATES,
   APP_MODULE_CODES.EXPENSES,
   APP_MODULE_CODES.REPORTS,
 ] as const satisfies readonly StaffGrantableModuleCode[];
@@ -53,10 +58,12 @@ export const STAFF_MODULE_OPTIONS: readonly {
   code: StaffGrantableModuleCode;
   label: string;
 }[] = [
+  { code: APP_MODULE_CODES.DASHBOARD, label: 'Dashboard' },
   { code: APP_MODULE_CODES.TRIPS, label: 'Maniobras' },
   { code: APP_MODULE_CODES.FLEET, label: 'Flota' },
   { code: APP_MODULE_CODES.OPERATORS, label: 'Operadores' },
-  { code: APP_MODULE_CODES.CLIENTS, label: 'Comercial' },
+  { code: APP_MODULE_CODES.CLIENTS, label: 'Clientes' },
+  { code: APP_MODULE_CODES.DESTINATION_RATES, label: 'Tarifas' },
   { code: APP_MODULE_CODES.EXPENSES, label: 'Gastos' },
   { code: APP_MODULE_CODES.REPORTS, label: 'Reportes' },
 ];
@@ -81,5 +88,10 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
   { path: '/expenses', label: 'Gastos', module: APP_MODULE_CODES.EXPENSES, placement: 'main' },
   { path: '/reports', label: 'Reportes', module: APP_MODULE_CODES.REPORTS, placement: 'main' },
   { path: '/account', label: 'Cuenta', module: APP_MODULE_CODES.ACCOUNT, placement: 'bottom' },
-  { path: '/users', label: 'Usuarios', module: APP_MODULE_CODES.USERS, placement: 'bottom' },
+  {
+    path: '/settings',
+    label: 'Configuración',
+    module: APP_MODULE_CODES.USERS,
+    placement: 'bottom',
+  },
 ] as const;

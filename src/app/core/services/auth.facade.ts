@@ -109,6 +109,13 @@ export class AuthFacade {
         user.tripAutoControlPaymentMethod ??
         payload.tripAutoControlPaymentMethod ??
         'cash',
+      tripAutoOperationalControlLabel: (() => {
+        const raw =
+          user.tripAutoOperationalControlLabel ??
+          payload.tripAutoOperationalControlLabel;
+        const t = typeof raw === 'string' ? raw.trim() : '';
+        return t || null;
+      })(),
       allowedModules: resolveAllowedModules(
         user.role ?? payload.role,
         user.moduleGrants ?? payload.moduleGrants,

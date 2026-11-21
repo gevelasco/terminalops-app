@@ -1,0 +1,45 @@
+/* Footer fijo y body con scroll en drawers de tarifas por destino. */
+:host ::ng-deep .destination-rates-new-drawer__panel.to-side-drawer__panel,
+:host ::ng-deep .destination-rates-detail-drawer__panel.to-side-drawer__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  .to-side-drawer__form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .to-side-drawer__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .to-side-drawer__footer {
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: auto;
+    background: var(--to-color-surface);
+    border-top: 1px solid var(--to-color-border);
+    box-shadow: 0 -8px 20px color-mix(in srgb, var(--to-color-text) 5%, transparent);
+  }
+}
+
+:host ::ng-deep [toSideDrawerFooter].destination-rates-drawer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-sizing: border-box;
+}

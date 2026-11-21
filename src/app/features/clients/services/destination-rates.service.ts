@@ -9,11 +9,14 @@ import {
   type Observable,
 } from 'rxjs';
 import { DestinationRatesService as DestinationRatesApiService } from '@services/api/destination-rates';
+import { mexicanSepomexGeocodeHints } from '@features/clients/utils/destination-rate-state-resolve.util';
 import type {
   CreateDestinationRatePayload,
   DestinationRate,
   UpdateDestinationRatePayload,
 } from '@shared/models/destination-rate.models';
+import { isValidLatLon } from '@shared/services/lat-lon';
+import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { createRequestGeneration } from '@shared/utils/request-generation';
 
 /**
@@ -25,7 +28,9 @@ import { createRequestGeneration } from '@shared/utils/request-generation';
 export class DestinationRatesFeatureService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(DestinationRatesApiService);
+  private readonly photon = inject(PhotonPlaceSearchService);
   private readonly requestGen = createRequestGeneration();
+  private readonly coordsBackfillQueued = new Set<string>();
   private readonly detailGen = createRequestGeneration();
 
   private readonly _rates = signal<readonly DestinationRate[]>([]);
@@ -231,6 +236,70 @@ export class DestinationRatesFeatureService {
 
   private applyList(list: DestinationRate[]): void {
     this._rates.set(list);
+    this.queueMissingDestinationCoords(list);
+  }
+
+  /** Tarifas guardadas sin lat/lon (geocoder falló al alta): reintento silencioso. */
+  private queueMissingDestinationCoords(list: readonly DestinationRate[]): void {
+    if (this.disposed) {
+      return;
+    }
+    for (const rate of list) {
+      if (this.rateHasDestinationCoords(rate)) {
+        continue;
+      }
+      if (this.coordsBackfillQueued.has(rate.id)) {
+        continue;
+      }
+      if (!rate.postalCode.trim() || !rate.locality.trim()) {
+        continue;
+      }
+      this.coordsBackfillQueued.add(rate.id);
+      this.backfillDestinationCoords(rate)
+        .pipe(catchError(() => of(null)))
+        .subscribe((updated) => {
+          if (!updated || this.disposed) {
+            return;
+          }
+          this._rates.update((rows) =>
+            rows.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
+          );
+        });
+    }
+  }
+
+  private rateHasDestinationCoords(rate: DestinationRate): boolean {
+    const lat = rate.destinationLatitude;
+    const lng = rate.destinationLongitude;
+    return isValidLatLon(
+      lat != null && lng != null ? { lat, lon: lng } : null,
+    );
+  }
+
+  private backfillDestinationCoords(
+    rate: DestinationRate,
+  ): Observable<DestinationRate | null> {
+    const hints = mexicanSepomexGeocodeHints(rate.locality, rate.cityMunicipality);
+    const query = [
+      hints.settlement,
+      hints.municipality,
+      hints.state,
+      rate.postalCode.trim(),
+      'México',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return this.photon.firstCoordinatesForMexicanSepomex(query, hints).pipe(
+      switchMap((coords) => {
+        if (!isValidLatLon(coords)) {
+          return of(null);
+        }
+        return this.api.patchDestinationRateById(rate, {
+          destinationLatitude: coords.lat,
+          destinationLongitude: coords.lon,
+        });
+      }),
+    );
   }
 
   dispose(): void {

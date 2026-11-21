@@ -189,6 +189,9 @@ export class SessionService {
   readonly tripAutoControlPaymentMethod = computed(
     () => this.data()?.tripAutoControlPaymentMethod ?? 'cash',
   );
+  readonly tripAutoOperationalControlLabel = computed(
+    () => this.data()?.tripAutoOperationalControlLabel ?? null,
+  );
   readonly dieselControlEnabled = computed(
     () => this.data()?.dieselControlEnabled ?? true,
   );
@@ -197,6 +200,12 @@ export class SessionService {
   );
   readonly paymentReminderDaysBefore = computed(() =>
     normalizePaymentReminderDays(this.data()?.paymentReminderDaysBefore),
+  );
+  readonly paymentReminderDaysChangedAt = computed(
+    () => this.data()?.paymentReminderDaysChangedAt ?? null,
+  );
+  readonly tripAutoPaymentsChangedAt = computed(
+    () => this.data()?.tripAutoPaymentsChangedAt ?? null,
   );
   readonly maintenanceKmControlEnabled = computed(
     () => this.data()?.maintenanceKmControlEnabled ?? false,
@@ -414,6 +423,7 @@ export class SessionService {
         | 'tripAutoTollsPaymentMethod'
         | 'tripAutoPerDiemPaymentMethod'
         | 'tripAutoControlPaymentMethod'
+        | 'tripAutoOperationalControlLabel'
         | 'dieselControlEnabled'
         | 'paymentReminderDaysBefore'
         | 'maintenanceKmControlEnabled'
@@ -434,6 +444,8 @@ export class SessionService {
       companyName?: string;
       operationalAnalysisChangedAt?: string | null;
       dieselControlChangedAt?: string | null;
+      paymentReminderDaysChangedAt?: string | null;
+      tripAutoPaymentsChangedAt?: string | null;
       maintenanceKmIntervalDefault?: number | null;
       maintenanceDatePeriodDefault?: MaintenanceDatePeriod | null;
       maintenanceKmControlChangedAt?: string | null;
@@ -474,6 +486,11 @@ export class SessionService {
     if (patch.tripAutoControlPaymentMethod !== undefined) {
       next.tripAutoControlPaymentMethod = patch.tripAutoControlPaymentMethod;
     }
+    if (patch.tripAutoOperationalControlLabel !== undefined) {
+      const raw = patch.tripAutoOperationalControlLabel;
+      next.tripAutoOperationalControlLabel =
+        typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+    }
     if (patch.dieselControlEnabled !== undefined) {
       next.dieselControlEnabled = patch.dieselControlEnabled;
     }
@@ -491,6 +508,20 @@ export class SessionService {
     const changedAt = normalizeApiIsoDate(patch.operationalAnalysisChangedAt);
     if (changedAt) {
       next.operationalAnalysisChangedAt = changedAt;
+    }
+    const paymentReminderChangedAt = normalizeApiIsoDate(
+      patch.paymentReminderDaysChangedAt,
+    );
+    if (paymentReminderChangedAt) {
+      next.paymentReminderDaysChangedAt = paymentReminderChangedAt;
+    } else if (patch.paymentReminderDaysChangedAt === null) {
+      next.paymentReminderDaysChangedAt = undefined;
+    }
+    const tripAutoPaymentsChangedAt = normalizeApiIsoDate(patch.tripAutoPaymentsChangedAt);
+    if (tripAutoPaymentsChangedAt) {
+      next.tripAutoPaymentsChangedAt = tripAutoPaymentsChangedAt;
+    } else if (patch.tripAutoPaymentsChangedAt === null) {
+      next.tripAutoPaymentsChangedAt = undefined;
     }
     if (patch.maintenanceKmControlEnabled !== undefined) {
       next.maintenanceKmControlEnabled = patch.maintenanceKmControlEnabled;
@@ -821,6 +852,13 @@ export class SessionService {
         user.tripAutoControlPaymentMethod ??
         payload?.tripAutoControlPaymentMethod ??
         'cash',
+      tripAutoOperationalControlLabel: (() => {
+        const raw =
+          user.tripAutoOperationalControlLabel ??
+          payload?.tripAutoOperationalControlLabel;
+        const t = typeof raw === 'string' ? raw.trim() : '';
+        return t || null;
+      })(),
       dieselControlEnabled:
         user.dieselControlEnabled ?? payload?.dieselControlEnabled ?? true,
       dieselControlChangedAt:
@@ -830,6 +868,14 @@ export class SessionService {
       paymentReminderDaysBefore: normalizePaymentReminderDays(
         user.paymentReminderDaysBefore ?? payload?.paymentReminderDaysBefore,
       ),
+      paymentReminderDaysChangedAt:
+        normalizeApiIsoDate(user.paymentReminderDaysChangedAt) ??
+        normalizeApiIsoDate(payload?.paymentReminderDaysChangedAt) ??
+        undefined,
+      tripAutoPaymentsChangedAt:
+        normalizeApiIsoDate(user.tripAutoPaymentsChangedAt) ??
+        normalizeApiIsoDate(payload?.tripAutoPaymentsChangedAt) ??
+        undefined,
       maintenanceKmControlEnabled:
         user.maintenanceKmControlEnabled ??
         payload?.maintenanceKmControlEnabled ??

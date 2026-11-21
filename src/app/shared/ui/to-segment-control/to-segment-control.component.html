@@ -17,9 +17,14 @@
       [class.to-segment-control__btn--active]="activeId() === tab.id"
       (click)="onSelect(tab.id)"
     >
-      @if (tab.icon || tab.iconPath) {
+      @if (tab.icon || tab.iconPath || tab.iconImageSrc) {
         <span class="to-segment-control__icon" aria-hidden="true">
-          @if (tab.iconPath) {
+          @if (tab.iconImageSrc) {
+            <span
+              class="to-segment-control__icon-img"
+              [style.--to-segment-icon-mask]="'url(' + tab.iconImageSrc + ')'"
+            ></span>
+          } @else if (tab.iconPath) {
             <svg
               width="18"
               height="18"

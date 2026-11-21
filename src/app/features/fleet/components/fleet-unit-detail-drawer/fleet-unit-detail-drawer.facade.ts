@@ -74,9 +74,10 @@ import {
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
 import {
-  attachFleetMaintenanceDocNamesToNewestEntry,
+  mergeFleetMaintenanceDocNamesForDisplay,
   isSubstantiveMaintenanceEntry,
 } from '@features/fleet/utils/fleet-maintenance-entry.util';
+import { findFleetStoredDocumentByFileName } from '@features/fleet/utils/fleet-stored-document-resolve.util';
 import {
   buildFleetMaintenanceExpensePayload,
   FLEET_MAINTENANCE_LEDGER_ERROR,
@@ -130,6 +131,7 @@ import {
   trailerTenureModeLabel,
   trailerTenureModeOrDefault,
 } from '@shared/utils/fleet/trailer-tenure-mode';
+import { buildEquipmentHitchPersistPlan } from '@shared/utils/fleet/equipment-hitch-persist.util';
 import {
   equipmentHitchAddActionLabel,
   equipmentSelectableForUnitHitch,
@@ -137,6 +139,7 @@ import {
   UNIT_HITCH_NOT_TRACTOR_MESSAGE,
   unitCanHitchEquipment,
   unitHasHitchSlot,
+  unitHitchSlotForNewEquipment,
   validateEquipmentHitchAssignment,
 } from '@shared/utils/fleet/equipment-hitch-assignment';
 import {
@@ -149,6 +152,7 @@ import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-build
 import { resourceIdsEqual } from '@shared/utils/resource-id';
 import {
   equipmentAssignedToUnit,
+  mergeEquipmentForUnitHitchContext,
   resolveHitchedEquipmentForUnit,
   equipmentTypeDisplayLabel,
   equipmentHitchPositionDisplayLabel,
@@ -169,6 +173,7 @@ import {
   FLEET_PAYMENT_CADENCE_OPTIONS,
   FLEET_SERVICE_MODALITY_OPTIONS,
   FLEET_TRANSPORT_TYPE_OPTIONS,
+  fleetTransportTypeDisplayLabel,
   FLEET_TRANSMISSION_SPEED_OPTIONS,
   FLEET_TRANSMISSION_TYPE_OPTIONS,
   FLEET_RESOURCE_VISIBILITY_OPTIONS,
@@ -444,7 +449,10 @@ export class FleetUnitDetailDrawerFacade {
         current.hitchedEquipment?.length
           ? current.hitchedEquipment
           : resolved.hitchedEquipment,
-        { catalogAuthoritative: this.equipmentFeature.hydrated() },
+        {
+          catalogAuthoritative: this.equipmentFeature.hydrated(),
+          catalogHydrated: this.equipmentFeature.hydrated(),
+        },
       );
       this.unitSource.set(
         this.domain.mergeUnitListRowIntoDetail(current, resolved, hitched),
@@ -487,7 +495,10 @@ export class FleetUnitDetailDrawerFacade {
       source.id || unit.id,
       catalog,
       source.hitchedEquipment,
-      { catalogAuthoritative },
+      {
+        catalogAuthoritative,
+        catalogHydrated: catalogAuthoritative,
+      },
     );
     this.hitchedEquipmentSource.set(hitched);
     const current = this.unitSource();
@@ -795,10 +806,12 @@ export class FleetUnitDetailDrawerFacade {
   });
 
   private hitchWorkingCatalog(): readonly Equipment[] {
-    if (this.equipmentFeature.hydrated()) {
-      return this.equipmentCatalog();
-    }
-    return this.hitchedEquipment();
+    const catalog = this.equipmentFeature.hydrated() ? this.equipmentCatalog() : [];
+    const embedded =
+      this.hitchedEquipment().length > 0
+        ? this.hitchedEquipment()
+        : (this.unitSource()?.hitchedEquipment ?? []);
+    return mergeEquipmentForUnitHitchContext(catalog, this.unit().id, embedded);
   }
 
   private unitTractorLabel(): string {
@@ -806,17 +819,23 @@ export class FleetUnitDetailDrawerFacade {
   }
 
   readonly hitchAddActionLabel = computed(() =>
-    equipmentHitchAddActionLabel(this.equipmentCatalog(), this.unit().id),
+    equipmentHitchAddActionLabel(this.hitchWorkingCatalog(), this.unit().id),
   );
 
-  readonly hitchAddValidation = computed(() =>
-    validateEquipmentHitchAssignment({
+  readonly hitchAddValidation = computed(() => {
+    const equipmentId = this.hitchAddEquipmentId().trim();
+    const selected = equipmentId
+      ? this.equipmentCatalog().find((e) => resourceIdsEqual(e.id, equipmentId))
+      : undefined;
+    return validateEquipmentHitchAssignment({
       unitId: this.unit().id,
-      catalog: this.equipmentCatalog(),
+      catalog: this.hitchWorkingCatalog(),
+      excludeEquipmentId: equipmentId || undefined,
       isSecondTrailer: this.hitchAddIsSecondTrailer(),
       unitLabel: this.unitTractorLabel(),
-    }),
-  );
+      equipmentType: selected?.type,
+    });
+  });
 
   cancelHitchForms(): void {
     this.hitchAddEquipmentId.set('');
@@ -875,18 +894,48 @@ export class FleetUnitDetailDrawerFacade {
       this.toast.show('Equipo no encontrado.', 'warning');
       return;
     }
-    const draft: EquipmentPersistDraft = {
-      equipment: {
-        unitId: this.unit().id,
-        hitchPosition: hitchPositionForNewEquipmentOnUnit(
-          this.equipmentCatalog(),
-          this.unit().id,
-          equipment.id,
-        ),
+    const unitId = this.unit().id;
+    const plan = buildEquipmentHitchPersistPlan({
+      equipment,
+      unitId,
+      catalog: this.hitchWorkingCatalog(),
+    });
+    if (!plan) {
+      this.toast.show(
+        'No se pudo determinar la posición de enganche. Revise el convoy (dolly entre chasis).',
+        'warning',
+      );
+      return;
+    }
+
+    if (this.saving()) {
+      return;
+    }
+    this.saving.set(true);
+    this.equipmentFeature
+      .updateEquipment(
+        equipment,
+        resolveEquipmentPersistDraft(plan.hitchDraft),
+        { skipListRefresh: true },
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.syncCatalogFromFeature();
+        this.invalidateUnitDetailCacheAfterHitchChange();
+        this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
+        this.toast.show('Equipo enganchado.', 'success');
+        this.cancelEditHitchAdd();
       },
-    };
-    this.persistEquipment('Equipo enganchado.', equipment, draft, () => {
-      this.cancelEditHitchAdd();
+      error: (err) => {
+        this.saving.set(false);
+        const detail = parseHttpApiErrorMessage(err)?.trim();
+        this.toast.show(
+          detail ?? 'No se pudo enganchar el equipo.',
+          'error',
+        );
+      },
     });
   }
 
@@ -1729,12 +1778,7 @@ export class FleetUnitDetailDrawerFacade {
   readonly transportTypeOptions = FLEET_TRANSPORT_TYPE_OPTIONS;
 
   transportTypeLabel(): string {
-    const value = this.effUnit().transportType?.trim();
-    return (
-      this.transportTypeOptions.find((option) => option.value === value)?.label ||
-      value ||
-      '—'
-    );
+    return fleetTransportTypeDisplayLabel(this.effUnit().transportType);
   }
 
   resourceVisibilityLabel(): string {
@@ -2482,8 +2526,8 @@ export class FleetUnitDetailDrawerFacade {
    * se devuelven ordenadas por fecha desc; en caso contrario se sintetiza una
    * sola fila a partir de `lastMaintenance*` y los nombres de archivo legados
    * para que las unidades viejas no se vean vacías.
-   * Docs de storage (`fleetDocuments` kind=maintenance) se muestran en la
-   * entrada más reciente (aún no hay vínculo entry↔documento en API).
+   * Docs: cada fila usa `documentNames` del historial; sin eso (legacy) se
+   * agrupan en la entrada más reciente.
    */
   maintenanceEntries(): MaintenanceEntry[] {
     const m = this.meta();
@@ -2509,7 +2553,7 @@ export class FleetUnitDetailDrawerFacade {
     const sorted = [...base, ...local]
       .filter(isSubstantiveMaintenanceEntry)
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    return attachFleetMaintenanceDocNamesToNewestEntry(
+    return mergeFleetMaintenanceDocNamesForDisplay(
       sorted,
       this.docs('maint').map((d) => d.fileName),
     );
@@ -2566,9 +2610,12 @@ export class FleetUnitDetailDrawerFacade {
     const unitId = this.effUnit().id;
     const resolved =
       typeof doc === 'string'
-        ? this.docs('maint')
-            .concat(this.docs('verif'), this.docs('ownership'), this.docs('policy'))
-            .find((d) => d.fileName === doc)
+        ? findFleetStoredDocumentByFileName(doc, [
+            this.docs('maint'),
+            this.docs('verif'),
+            this.docs('ownership'),
+            this.docs('policy'),
+          ])
         : doc;
     if (!resolved || resolved.id <= 0) {
       this.toast.show(
@@ -2711,8 +2758,16 @@ export class FleetUnitDetailDrawerFacade {
 
     registerFleetHitchSlotSync({
       isActive: () => this.editingSection() === 'hitch',
-      catalog: () => this.equipmentCatalog(),
+      catalog: () => this.hitchWorkingCatalog(),
       unitId: () => this.unit().id,
+      excludeEquipmentId: () => this.hitchAddEquipmentId().trim() || undefined,
+      equipmentType: () => {
+        const id = this.hitchAddEquipmentId().trim();
+        if (!id) {
+          return '';
+        }
+        return this.equipmentCatalog().find((e) => resourceIdsEqual(e.id, id))?.type ?? '';
+      },
       isSecondTrailer: this.hitchAddIsSecondTrailer,
     });
 

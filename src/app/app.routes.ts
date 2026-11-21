@@ -1,6 +1,9 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '@core/guards/auth.guard';
-import { moduleAccessGuard } from '@core/guards/module-access.guard';
+import {
+  comercialAccessGuard,
+  moduleAccessGuard,
+} from '@core/guards/module-access.guard';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { loginPageGuard } from '@core/guards/login-page.guard';
 
@@ -108,7 +111,7 @@ export const routes: Routes = [
       },
       {
         path: 'comercial',
-        canActivate: [moduleAccessGuard(APP_MODULE_CODES.CLIENTS)],
+        canActivate: [comercialAccessGuard],
         loadChildren: () =>
           import('./features/clients/routes').then((m) => m.clientsRoutes),
       },
@@ -136,9 +139,15 @@ export const routes: Routes = [
           import('./features/account/routes').then((m) => m.accountRoutes),
       },
       {
-        path: 'users',
+        path: 'settings',
         canActivate: [moduleAccessGuard(APP_MODULE_CODES.USERS)],
-        loadChildren: () => import('./features/users/routes').then((m) => m.usersRoutes),
+        loadChildren: () =>
+          import('./features/settings/routes').then((m) => m.settingsRoutes),
+      },
+      {
+        path: 'users',
+        redirectTo: 'settings/users',
+        pathMatch: 'full',
       },
     ],
   },

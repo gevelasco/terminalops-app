@@ -1,56 +1,119 @@
 <to-side-drawer
   titleId="destination-rates-detail-title"
   wide
-  headerClass="fleet-unit-detail__header"
-  bodyClass="fleet-unit-body fleet-unit-detail"
+  [formMode]="vm.editing()"
+  [formBusy]="vm.saving()"
+  [headerClass]="vm.editing() ? '' : 'fleet-unit-detail__header'"
+  [bodyClass]="vm.editing() ? 'fleet-unit-body' : 'fleet-unit-body fleet-unit-detail'"
   panelClass="destination-rates-detail-drawer__panel"
   [loading]="vm.drawerLoading()"
-  skeletonVariant="detail"
+  [skeletonVariant]="vm.editing() ? 'form' : 'detail'"
   (dismiss)="vm.requestDismiss()"
+  (formSubmit)="saveEdit()"
 >
-  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+  @if (vm.editing()) {
     <h2
+      toSideDrawerHeader
       id="destination-rates-detail-title"
-      class="to-side-drawer__title fleet-unit-detail__title"
+      class="to-side-drawer__title"
     >
       <to-icon class="to-side-drawer__title-icon" name="sell" [size]="22" />
       {{ vm.headerLabel() }}
     </h2>
-    <to-status-pill
-      [label]="vm.rate().active ? 'Disponible' : 'Inactiva'"
-      [modClass]="
-        vm.rate().active
-          ? 'to-status-pill--available'
-          : 'to-status-pill--operator-inactive'
-      "
-    />
-  </div>
+  } @else {
+    <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+      <h2
+        id="destination-rates-detail-title"
+        class="to-side-drawer__title fleet-unit-detail__title"
+      >
+        <to-icon class="to-side-drawer__title-icon" name="sell" [size]="22" />
+        {{ vm.headerLabel() }}
+      </h2>
+      <to-status-pill
+        [label]="vm.rate().active ? 'Disponible' : 'Inactiva'"
+        [modClass]="
+          vm.rate().active
+            ? 'to-status-pill--available'
+            : 'to-status-pill--operator-inactive'
+        "
+      />
+    </div>
+  }
 
   @if (vm.editing()) {
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="dest-rate-edit-origin"
+      aria-labelledby="dest-rate-edit-route"
     >
-      <h3 id="dest-rate-edit-origin" class="fleet-unit-sec__title">Origen</h3>
-      <app-operational-center-select
-        [selectedCenterId]="vm.originOperationalCenterId()"
-        (selectedCenterIdChange)="vm.originOperationalCenterId.set($event)"
-      />
-    </section>
-
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="dest-rate-edit-location"
-    >
-      <h3 id="dest-rate-edit-location" class="fleet-unit-sec__title">
-        Destino
-      </h3>
-      <app-destination-rate-location-fields
-        [referencePostalCode]="vm.referencePostalCode()"
-        [(postalCode)]="vm.postalCode"
-        [(cityMunicipality)]="vm.cityMunicipality"
-        [(locality)]="vm.locality"
-      />
+      <h3 id="dest-rate-edit-route" class="fleet-unit-sec__title">Origen y destino</h3>
+      <div class="destination-rates-detail-drawer__route-layout">
+        <app-operational-center-select
+          [selectedCenterId]="vm.originOperationalCenterId()"
+          (selectedCenterIdChange)="vm.originOperationalCenterId.set($event)"
+        />
+        <app-destination-rate-location-fields
+          [routeFormLayout]="true"
+          [referencePostalCode]="vm.referencePostalCode()"
+          [(postalCode)]="vm.postalCode"
+          [(cityMunicipality)]="vm.cityMunicipality"
+          [(locality)]="vm.locality"
+        />
+      </div>
+      @if (vm.editShowRouteMetrics()) {
+        <div class="destination-rates-detail-drawer__metrics-grid">
+          <to-input
+            label="Ruta (cliente)"
+            placeholder="OSRM"
+            suffix="km"
+            [groupThousands]="true"
+            [loading]="vm.editRouteMetricsPending()"
+            [value]="vm.routeDistanceKmInput()"
+            (valueChange)="vm.onRouteDistanceKmTyped($event)"
+            (blurNotify)="vm.onRouteDistanceKmBlur()"
+          />
+          <to-input
+            label="Operativa (×2)"
+            placeholder="Ruta × 2"
+            suffix="km"
+            [disabled]="true"
+            [loading]="vm.editRouteMetricsPending()"
+            [displayValue]="vm.editOperationalDistanceDisplay()"
+          />
+          <to-input
+            label="Manejo ida"
+            placeholder="~60 km/h"
+            suffix="hrs"
+            [loading]="vm.editRouteMetricsPending()"
+            [value]="vm.estimatedArrivalTimeValue()"
+            (valueChange)="vm.onEstimatedArrivalTimeTyped($event)"
+          />
+          <to-input
+            label="Manejo retorno"
+            placeholder="~60 km/h"
+            suffix="hrs"
+            [loading]="vm.editRouteMetricsPending()"
+            [value]="vm.estimatedReturnTimeValue()"
+            (valueChange)="vm.onEstimatedReturnTimeTyped($event)"
+          />
+        </div>
+      } @else {
+        <div class="destination-rates-detail-drawer__metrics-grid destination-rates-detail-drawer__metrics-grid--times-only">
+          <to-input
+            label="Manejo ida"
+            placeholder="Horas"
+            suffix="hrs"
+            [value]="vm.estimatedArrivalTimeValue()"
+            (valueChange)="vm.onEstimatedArrivalTimeTyped($event)"
+          />
+          <to-input
+            label="Manejo retorno"
+            placeholder="Horas"
+            suffix="hrs"
+            [value]="vm.estimatedReturnTimeValue()"
+            (valueChange)="vm.onEstimatedReturnTimeTyped($event)"
+          />
+        </div>
+      }
     </section>
 
     <section
@@ -61,77 +124,29 @@
         Tarifas por tipo de maniobra
       </h3>
       <app-destination-rate-prices-editor
+        #pricesEditor
         [priceDrafts]="vm.priceDrafts()"
         (priceDraftsChange)="vm.updatePriceDrafts($event)"
+        [excludedTollPlazaKeys]="vm.excludedTollPlazaKeys()"
+        (excludedTollPlazaKeysChange)="vm.updateExcludedTollPlazaKeys($event)"
+        [routeTollPlazasFromRate]="vm.editRouteTollPlazas()"
+        [routeTollContext]="vm.routeTollContext()"
+        [routeTollBlocked]="!vm.routeTollContext()"
+        [showRouteConfigure]="vm.editShowRouteCustomize()"
+        [routeConfigureDisabled]="!vm.routeTollContext()"
+        [routeCustomizeOpen]="vm.routeCustomizeOpen()"
+        (routeCustomizeOpenChange)="vm.updateRouteCustomizeOpen($event)"
+        [routeDraftWaypoints]="vm.draftRouteWaypoints()"
+        (routeDraftWaypointsChange)="vm.updateDraftRouteWaypoints($event)"
+        [routeAppliedWaypoints]="vm.appliedRouteWaypoints()"
+        (routeAppliedWaypointsChange)="vm.updateAppliedRouteWaypoints($event)"
+        (routeRecalculate)="vm.onRouteWaypointsRecalculate()"
+        (routeResetSuggested)="vm.onRouteWaypointsReset()"
+        (routeMetricsPlazasChange)="vm.updateRouteMetricsPlazas($event)"
+        [routeMapOriginLabel]="vm.routeMapOriginLabel()"
+        [routeMapDestinationLabel]="vm.routeMapDestinationLabel()"
       />
     </section>
-
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="dest-rate-edit-estimated-times"
-    >
-      <h3 id="dest-rate-edit-estimated-times" class="fleet-unit-sec__title">
-        Tiempos estimados (referencia)
-      </h3>
-      <div class="destination-rates-detail-drawer__stack">
-        <to-select
-          label="Unidad"
-          [options]="vm.timeUnitOptions"
-          [(value)]="vm.estimatedTimeUnit"
-        />
-        <div class="destination-rates-detail-drawer__time-grid">
-          <to-input
-            label="Tiempo ida"
-            placeholder="Opcional"
-            [suffix]="vm.estimatedTimeSuffix()"
-            [(value)]="vm.estimatedArrivalTimeValue"
-          />
-          <to-input
-            label="Tiempo retorno"
-            placeholder="Opcional"
-            [suffix]="vm.estimatedTimeSuffix()"
-            [(value)]="vm.estimatedReturnTimeValue"
-          />
-        </div>
-      </div>
-    </section>
-
-    <section
-      class="fleet-unit-sec fleet-unit-sec--boxed"
-      aria-labelledby="dest-rate-edit-meta"
-    >
-      <h3 id="dest-rate-edit-meta" class="fleet-unit-sec__title">Referencia</h3>
-      <div class="destination-rates-detail-drawer__stack">
-        <to-select
-          label="Disponible"
-          [options]="vm.availabilityOptions"
-          [(value)]="vm.active"
-        />
-        <to-input label="Notas" [(value)]="vm.notes" />
-      </div>
-    </section>
-  }
-
-  @if (vm.editing()) {
-    <div toSideDrawerFooter>
-      <to-button
-        type="button"
-        variant="outline"
-        [disabled]="vm.saving()"
-        (click)="vm.cancelEdit()"
-      >
-        Cancelar
-      </to-button>
-      <to-button
-        type="button"
-        variant="primary"
-        [disabled]="vm.saving()"
-        (click)="vm.persist()"
-      >
-        <to-icon name="save" [size]="14" />
-        {{ vm.saving() ? "Guardando…" : "Guardar" }}
-      </to-button>
-    </div>
   } @else {
     <section
       class="fleet-unit-sec fleet-unit-sec--boxed"
@@ -146,7 +161,7 @@
             Última actualización: {{ vm.lastUpdatedLabel() }}
           </p>
         </div>
-        @if (vm.canWriteCommercial()) {
+        @if (vm.canWriteDestinationRates()) {
         <button
           type="button"
           class="fleet-unit-sec__edit-btn"
@@ -160,62 +175,79 @@
 
       <div class="destination-rates-detail-drawer__view-body">
         <h4 class="destination-rates-detail-drawer__subheading">Origen</h4>
-        <dl class="destination-rates-detail-drawer__dl">
-          <div>
+        <dl
+          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+        >
+          <div class="fleet-unit-detail__row">
             <dt>Centro operativo</dt>
             <dd>{{ vm.rate().originOperationalCenterName || "—" }}</dd>
           </div>
-          <div>
+          <div class="fleet-unit-detail__row">
             <dt>Localidad origen</dt>
             <dd>{{ vm.rate().originLocality || "—" }}</dd>
           </div>
         </dl>
 
         <h4 class="destination-rates-detail-drawer__subheading">Destino</h4>
-        <dl class="destination-rates-detail-drawer__dl">
-          <div>
+        <dl
+          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+        >
+          <div class="fleet-unit-detail__row">
             <dt>CP destino</dt>
             <dd>{{ vm.rate().postalCode }}</dd>
           </div>
-          <div>
-            <dt>Ciudad / municipio</dt>
-            <dd>{{ vm.rate().cityMunicipality || "—" }}</dd>
+          <div class="fleet-unit-detail__row">
+            <dt>Estado</dt>
+            <dd>{{ vm.viewDestinationStateLabel() }}</dd>
           </div>
-          <div>
+          <div class="fleet-unit-detail__row">
+            <dt>Ciudad / municipio</dt>
+            <dd>{{ vm.viewCityMunicipalityLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
             <dt>Localidad</dt>
             <dd>{{ vm.rate().locality || "—" }}</dd>
           </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Tiempo de manejo (ida)</dt>
+            <dd>{{ vm.viewEstimatedArrivalTimeLabel() }}</dd>
+          </div>
+          <div class="fleet-unit-detail__row">
+            <dt>Tiempo de manejo (retorno)</dt>
+            <dd>{{ vm.viewEstimatedReturnTimeLabel() }}</dd>
+          </div>
         </dl>
+
+        @if (vm.routeTollContext()) {
+          <h4
+            id="dest-rate-view-route"
+            class="destination-rates-detail-drawer__subheading"
+          >
+            Ruta definida
+          </h4>
+          <app-destination-rate-route-map-dialog
+            class="destination-rates-detail-drawer__route-map"
+            [inline]="true"
+            [open]="true"
+            [rateViewLayout]="true"
+            [routeContext]="vm.routeTollContext()"
+            [tollPlazas]="vm.viewRouteTollPlazas()"
+            [originLabel]="vm.routeMapOriginLabel()"
+            [destinationLabel]="vm.routeMapDestinationLabel()"
+          />
+        }
 
         <h4 class="destination-rates-detail-drawer__subheading">
           Tarifas por tipo de maniobra
         </h4>
-        <div class="destination-rates-detail-drawer__table-wrap">
-          <table class="destination-rates-detail-drawer__table">
-            <thead>
-              <tr>
-                <th scope="col">Tipo de maniobra</th>
-                <th scope="col">Tarifa</th>
-                <th scope="col">Operador</th>
-                <th scope="col">Casetas</th>
-                <th scope="col">Viáticos</th>
-                <th scope="col">Última actualización</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of vm.priceRowsDisplay(); track row.label) {
-                <tr>
-                  <td>{{ row.label }}</td>
-                  <td>{{ row.charge }}</td>
-                  <td>{{ row.operator }}</td>
-                  <td>{{ row.toll }}</td>
-                  <td>{{ row.perDiem }}</td>
-                  <td>{{ row.updatedAt }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        <app-destination-rate-prices-editor
+          [viewOnly]="true"
+          [priceDrafts]="vm.viewPriceDrafts()"
+          [excludedTollPlazaKeys]="vm.rate().excludedTollPlazaKeys ?? []"
+          [routeTollPlazasFromRate]="vm.rate().routeTollPlazas ?? []"
+          [routeTollContext]="vm.routeTollContext()"
+          [routeTollBlocked]="!vm.routeTollContext()"
+        />
 
         @if (vm.rate().notes) {
           <h4 class="destination-rates-detail-drawer__subheading">Notas</h4>
@@ -225,5 +257,22 @@
         }
       </div>
     </section>
+  }
+
+  @if (vm.editing()) {
+    <div toSideDrawerFooter class="destination-rates-drawer__footer">
+      <to-button
+        type="button"
+        variant="outline"
+        [disabled]="vm.saving()"
+        (click)="vm.cancelEdit()"
+      >
+        Cancelar
+      </to-button>
+      <to-button type="submit" variant="primary" [disabled]="vm.saving()">
+        <to-icon name="save" [size]="14" />
+        {{ vm.saving() ? "Guardando…" : "Guardar" }}
+      </to-button>
+    </div>
   }
 </to-side-drawer>

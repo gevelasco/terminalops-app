@@ -56,7 +56,19 @@
   }
 </to-page-header>
 
-@if (loading()) {
+@if (!canReadDashboard()) {
+  <div class="dashboard-restricted" role="status" aria-live="polite">
+    <div class="dashboard-restricted__visual" aria-hidden="true">
+      <span class="dashboard-restricted__ring"></span>
+      <to-icon name="grid" [size]="40" />
+    </div>
+    <h2 class="dashboard-restricted__title">Dashboard</h2>
+    <p class="dashboard-restricted__copy">
+      No tienes permiso de lectura en este módulo. Pide acceso a un administrador
+      para ver el resumen operativo.
+    </p>
+  </div>
+} @else if (loading()) {
   <to-module-skeleton layout="dashboard" />
 } @else if (summary()) {
   <div class="dashboard-kpis">

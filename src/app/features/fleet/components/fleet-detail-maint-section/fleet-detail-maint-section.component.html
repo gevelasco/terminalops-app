@@ -8,7 +8,7 @@
           <div class="fleet-unit-detail__maint-stack">
             @if (showOdometer()) {
               <dl
-                class="fleet-unit-detail__dl fleet-unit-detail__dl--maint-tight fleet-unit-detail__dl--odometer"
+                class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--odometer"
               >
                 <div class="fleet-unit-detail__row">
                   <dt>{{ odometerLabel() }}</dt>
@@ -56,7 +56,7 @@
               </div>
             </div>
             <dl
-              class="fleet-unit-detail__dl fleet-unit-detail__dl--maint-tight"
+              class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
             >
               @if (vm().maintenanceUsesKm()) {
                 <div class="fleet-unit-detail__row fleet-unit-detail__row--maint-km">
@@ -352,40 +352,92 @@
                             {{ vm().formatMaintDateShort(entry.date) }}
                           </td>
                           <td class="fleet-unit-detail__maint-cell--center">
-                            @if ((entry.documentNames?.length ?? 0) > 0) {
-                              <button
-                                type="button"
-                                class="fleet-unit-detail__maint-info"
-                                [attr.aria-label]="
-                                  'Descargar ' +
-                                  (entry.documentNames?.length ?? 0) +
-                                  ' documento(s)'
-                                "
-                                [attr.title]="
-                                  (entry.documentNames?.length ?? 0) === 1
-                                    ? (entry.documentNames?.[0] ?? 'Descargar')
-                                    : 'Descargar ' +
-                                      (entry.documentNames?.length ?? 0) +
-                                      ' documentos'
-                                "
-                                (click)="onMaintDocsClick($event, entry.documentNames ?? [])"
+                            @let maintDocNames =
+                              uniqueMaintEntryDocumentNames(entry.documentNames);
+                            @if (maintDocNames.length > 0) {
+                              <div
+                                class="fleet-unit-detail__maint-docs-anchor"
+                                (click)="$event.stopPropagation()"
                               >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  aria-hidden="true"
+                                <button
+                                  type="button"
+                                  class="fleet-unit-detail__maint-info"
+                                  [attr.aria-expanded]="
+                                    isMaintDocsMenuOpen($index, entry)
+                                  "
+                                  [attr.aria-haspopup]="
+                                    maintDocNames.length > 1 ? 'menu' : null
+                                  "
+                                  [attr.aria-label]="
+                                    maintDocNames.length === 1
+                                      ? 'Descargar ' + maintDocNames[0]
+                                      : 'Elegir documento (' +
+                                        maintDocNames.length +
+                                        ')'
+                                  "
+                                  [attr.title]="
+                                    maintDocNames.length === 1
+                                      ? maintDocNames[0]
+                                      : 'Ver ' +
+                                        maintDocNames.length +
+                                        ' documentos'
+                                  "
+                                  (click)="
+                                    onMaintDocsClick(
+                                      $event,
+                                      $index,
+                                      entry,
+                                      entry.documentNames ?? []
+                                    )
+                                  "
                                 >
-                                  <path
-                                    fill="currentColor"
-                                    d="M6,2C4.9,2,4,2.9,4,4v16c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8l-6-6H6z M13,9V3.5L18.5,9H13z"
-                                  />
-                                </svg>
-                                <span
-                                  class="fleet-unit-detail__maint-badge-count"
-                                  >{{ entry.documentNames?.length }}</span
-                                >
-                              </button>
+                                  <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                  >
+                                    <path
+                                      fill="currentColor"
+                                      d="M6,2C4.9,2,4,2.9,4,4v16c0,1.1,0.89,2,1.99,2H18c1.1,0,2-0.9,2-2V8l-6-6H6z M13,9V3.5L18.5,9H13z"
+                                    />
+                                  </svg>
+                                  <span
+                                    class="fleet-unit-detail__maint-badge-count"
+                                    >{{ maintDocNames.length }}</span
+                                  >
+                                </button>
+                                @if (
+                                  maintDocNames.length > 1 &&
+                                  isMaintDocsMenuOpen($index, entry)
+                                ) {
+                                  <ul
+                                    class="fleet-unit-detail__maint-docs-menu"
+                                    role="menu"
+                                    [attr.aria-label]="'Documentos del mantenimiento'"
+                                  >
+                                    @for (
+                                      name of maintDocNames;
+                                      track name
+                                    ) {
+                                      <li role="none">
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          class="fleet-unit-detail__maint-docs-item"
+                                          [title]="name"
+                                          (click)="downloadSingleMaintDoc($event, name)"
+                                        >
+                                          <span
+                                            class="fleet-unit-detail__maint-docs-item-label"
+                                            >{{ name }}</span
+                                          >
+                                        </button>
+                                      </li>
+                                    }
+                                  </ul>
+                                }
+                              </div>
                             } @else {
                               <span
                                 class="fleet-unit-detail__maint-na"

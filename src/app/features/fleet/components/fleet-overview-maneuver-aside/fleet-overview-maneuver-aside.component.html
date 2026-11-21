@@ -1,0 +1,19 @@
+<dl
+  class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact fleet-overview-maneuver-aside__dl"
+>
+  @for (row of view().rows; track row.label) {
+    <div
+      class="fleet-unit-detail__row"
+      [class.fleet-unit-detail__row--ficha-span]="row.span"
+      [class.fleet-unit-detail__row--ficha-wrap]="row.wrap"
+    >
+      <dt>{{ row.label }}</dt>
+      <dd
+        [class.fleet-overview-maneuver-aside__value--eta]="row.valueTone === 'eta'"
+        [class.fleet-overview-maneuver-aside__value--update]="row.valueTone === 'update'"
+      >
+        {{ row.value }}
+      </dd>
+    </div>
+  }
+</dl>

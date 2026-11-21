@@ -1,9 +1,7 @@
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { formatGroupedNumber } from '@shared/utils/format-grouped-number';
-import {
-  findMexicoStateForPoint,
-  type MexicoStatesGeoJson,
-} from '@features/trips/utils/trips-map-state-activity';
+import { resolveDestinationRateStateName } from '@features/clients/utils/destination-rates-map-search';
+import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
 
 /** Conteo de rutas por estado = CPs distintos con tarifa (heatmap / tooltip). */
 export function countDestinationRateRoutesByState(
@@ -12,12 +10,7 @@ export function countDestinationRateRoutesByState(
 ): Map<string, number> {
   const cpsByState = new Map<string, Set<string>>();
   for (const rate of rates) {
-    const lat = rate.destinationLatitude;
-    const lng = rate.destinationLongitude;
-    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      continue;
-    }
-    const stateName = findMexicoStateForPoint(lng, lat, geoJson.features);
+    const stateName = resolveDestinationRateStateName(rate, geoJson);
     if (!stateName) {
       continue;
     }
@@ -82,12 +75,7 @@ export function destinationRatesInState(
   }
   const matched: DestinationRate[] = [];
   for (const rate of rates) {
-    const lat = rate.destinationLatitude;
-    const lng = rate.destinationLongitude;
-    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      continue;
-    }
-    const state = findMexicoStateForPoint(lng, lat, geoJson.features);
+    const state = resolveDestinationRateStateName(rate, geoJson);
     if (state === target) {
       matched.push(rate);
     }

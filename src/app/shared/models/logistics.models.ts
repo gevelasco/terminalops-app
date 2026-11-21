@@ -673,12 +673,12 @@ export interface Unit {
 }
 
 /** Posición del remolque en el convoy enganchado a la tractora. */
-export type EquipmentHitchPosition = 'lead' | 'rear';
+export type EquipmentHitchPosition = 'lead' | 'middle' | 'rear';
 
 export interface Equipment {
   id: string;
   unitId: string;
-  /** Delantero (tracto) o trasero en configuración full; solo si hay `unitId`. */
+  /** Delantero, intermedio (dolly) o trasero en convoy; solo si hay `unitId`. */
   hitchPosition?: EquipmentHitchPosition | null;
   /** Etiqueta corta opcional (ej. dolly #1). */
   name: string;

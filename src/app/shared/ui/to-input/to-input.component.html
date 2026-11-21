@@ -6,6 +6,7 @@
     class="to-field__control-row"
     [class.to-field__control-row--group]="hasAffix()"
     [class.to-field__control-row--error]="error() && hasAffix()"
+    [class.to-field__control-row--loading]="loading()"
   >
     @switch (prefixIcon()) {
       @case ('search') {
@@ -70,7 +71,7 @@
       [attr.maxlength]="maxLength() != null ? maxLength() : null"
       [attr.inputmode]="digitsOnly() ? 'numeric' : null"
       [attr.pattern]="digitsOnly() ? '[0-9]*' : null"
-      [disabled]="disabled()"
+      [disabled]="disabled() || loading()"
       [value]="shownInputValue()"
       (input)="onInput($event)"
       (keydown)="onKeydown($event)"
@@ -154,7 +155,7 @@
         suffix()
       }}</span>
     }
-    @if (derivedState() !== 'none') {
+    @if (derivedState() !== 'none' && !loading()) {
       <span
         class="to-field__affix to-field__affix--suffix to-field__affix--wand"
         [class.to-field__affix--wand-ready]="derivedState() === 'ready'"
@@ -162,6 +163,9 @@
       >
         <to-derived-wand-icon />
       </span>
+    }
+    @if (loading()) {
+      <span class="to-field__spinner" aria-hidden="true"></span>
     }
   </div>
   @if (error()) {

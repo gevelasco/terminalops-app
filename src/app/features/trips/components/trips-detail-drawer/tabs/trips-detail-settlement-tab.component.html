@@ -140,18 +140,28 @@
           }
         </div>
         @if (vm.showsClientBillingBlock()) {
-          <dl class="maniobra-detail__dl maniobra-settlement__payment-dl">
+          <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols maniobra-settlement__payment-dl">
+            <div class="fleet-unit-detail__row">
             <dt>Cliente</dt>
             <dd>{{ vm.trip().clientName || '—' }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Método de pago</dt>
             <dd>{{ vm.paymentLabel(vm.trip().paymentMethod) }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Días de crédito</dt>
             <dd>{{ vm.creditDaysLabel() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
             <dt>Requiere factura</dt>
             <dd>{{ vm.invoiceLabel() }}</dd>
+            </div>
             @if (summary.collectedAtLabel) {
+              <div class="fleet-unit-detail__row">
               <dt>Fecha de cobro</dt>
               <dd>{{ summary.collectedAtLabel }}</dd>
+              </div>
             }
           </dl>
           @if (vm.canMarkClientCollected()) {

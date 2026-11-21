@@ -7,10 +7,15 @@
   skeletonVariant="detail"
   (dismiss)="dismiss.emit()"
 >
-  <h2 toSideDrawerHeader id="users-detail-drawer-title" class="to-side-drawer__title">
-    <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
-    {{ user().displayName }}
-  </h2>
+  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+    <h2
+      id="users-detail-drawer-title"
+      class="to-side-drawer__title fleet-unit-detail__title"
+    >
+      <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
+      {{ user().displayName }}
+    </h2>
+  </div>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
@@ -107,7 +112,9 @@
     </div>
 
     @if (!isEditing('personal')) {
-      <dl class="fleet-unit-detail__dl">
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact users-detail-drawer__fields"
+      >
         <div class="fleet-unit-detail__row">
           <dt>Nombre</dt>
           <dd>{{ user().displayName }}</dd>
@@ -127,6 +134,32 @@
         <div class="fleet-unit-detail__row">
           <dt>Teléfono</dt>
           <dd>{{ displayOrDash(user().phone) }}</dd>
+        </div>
+      </dl>
+
+      <h4 class="users-detail-drawer__subsection-title">Colaborador</h4>
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact users-detail-drawer__fields"
+      >
+        <div class="fleet-unit-detail__row">
+          <dt>Fecha de ingreso</dt>
+          <dd>{{ memberSinceLine() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Antigüedad</dt>
+          <dd>{{ tenureLine() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Área</dt>
+          <dd>{{ departmentLine() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>Ubicación</dt>
+          <dd>{{ workLocationLine() }}</dd>
+        </div>
+        <div class="fleet-unit-detail__row">
+          <dt>ID colaborador</dt>
+          <dd class="fleet-unit-detail__mono">{{ employeeIdLine() }}</dd>
         </div>
       </dl>
     } @else {
@@ -151,31 +184,71 @@
     }
   </section>
 
-  <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-collab">
-    <h3 id="users-detail-collab" class="fleet-unit-sec__title">Colaborador</h3>
-    <dl class="fleet-unit-detail__dl">
-      <div class="fleet-unit-detail__row">
-        <dt>Fecha de ingreso</dt>
-        <dd>{{ memberSinceLine() }}</dd>
+  @if (canResetPassword()) {
+    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-pwd">
+      <div class="fleet-unit-sec__header">
+        <h3 id="users-detail-pwd" class="fleet-unit-sec__title">Contraseña</h3>
+        @if (!isEditing('password')) {
+          <button
+            type="button"
+            class="fleet-unit-sec__edit-btn"
+            aria-label="Restablecer contraseña"
+            [disabled]="saving()"
+            (click)="startEditSection('password')"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+              />
+            </svg>
+          </button>
+        }
       </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Antigüedad</dt>
-        <dd>{{ tenureLine() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Área</dt>
-        <dd>{{ departmentLine() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>Ubicación</dt>
-        <dd>{{ workLocationLine() }}</dd>
-      </div>
-      <div class="fleet-unit-detail__row">
-        <dt>ID colaborador</dt>
-        <dd class="fleet-unit-detail__mono">{{ employeeIdLine() }}</dd>
-      </div>
-    </dl>
-  </section>
+
+      @if (!isEditing('password')) {
+        <dl
+          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact users-detail-drawer__fields"
+        >
+          <div class="fleet-unit-detail__row">
+            <dt>Estado</dt>
+            <dd>Configurada</dd>
+          </div>
+        </dl>
+        <p class="fleet-unit-sec__docs-hint">
+          Usa editar para establecer una nueva contraseña si el usuario la olvidó.
+        </p>
+      } @else {
+        <div class="fleet-unit-sec__edit-form">
+          <div class="fleet-unit-sec__edit-grid">
+            <to-input
+              label="Nueva contraseña *"
+              type="password"
+              [passwordToggle]="true"
+              autocomplete="new-password"
+              [(value)]="newPassword"
+            />
+            <to-input
+              label="Confirmar contraseña *"
+              type="password"
+              [passwordToggle]="true"
+              autocomplete="new-password"
+              [(value)]="confirmPassword"
+            />
+          </div>
+          <div class="fleet-unit-sec__edit-actions">
+            <to-button type="button" variant="outline" size="sm" [disabled]="saving()" (click)="cancelSectionEdit()">
+              Cancelar
+            </to-button>
+            <to-button type="button" variant="primary" size="sm" [disabled]="saving()" (click)="savePasswordSection()">
+              <to-icon name="save" [size]="14" />
+              {{ saving() ? 'Guardando…' : 'Guardar' }}
+            </to-button>
+          </div>
+        </div>
+      }
+    </section>
+  }
 
   <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-perms">
     <div class="fleet-unit-sec__header">
@@ -199,7 +272,9 @@
     </div>
 
     @if (!isEditing('permissions')) {
-      <dl class="fleet-unit-detail__dl">
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact users-detail-drawer__fields"
+      >
         <div class="fleet-unit-detail__row">
           <dt>Rol</dt>
           <dd>{{ roleLabel() }}</dd>
@@ -217,7 +292,14 @@
             [class.users-module-permission-view-row--active]="item.active"
           >
             <span class="users-module-permission-view-row__icon" aria-hidden="true">
-              <to-icon [name]="item.icon" [size]="16" />
+              @if (item.iconImageSrc) {
+                <span
+                  class="commercial-handshake-icon"
+                  [style.--commercial-handshake-icon-mask]="'url(' + item.iconImageSrc + ')'"
+                ></span>
+              } @else {
+                <to-icon [name]="item.icon" [size]="16" />
+              }
             </span>
             <span class="users-module-permission-view-row__label">{{ item.label }}</span>
             <span class="users-module-permission-view-row__summary">{{ item.summary }}</span>
@@ -287,70 +369,6 @@
       </div>
     }
   </section>
-
-  @if (canResetPassword()) {
-    <section class="fleet-unit-sec fleet-unit-sec--boxed" aria-labelledby="users-detail-pwd">
-      <div class="fleet-unit-sec__header">
-        <h3 id="users-detail-pwd" class="fleet-unit-sec__title">Contraseña</h3>
-        @if (!isEditing('password')) {
-          <button
-            type="button"
-            class="fleet-unit-sec__edit-btn"
-            aria-label="Restablecer contraseña"
-            [disabled]="saving()"
-            (click)="startEditSection('password')"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-              />
-            </svg>
-          </button>
-        }
-      </div>
-
-      @if (!isEditing('password')) {
-        <dl class="fleet-unit-detail__dl">
-          <div class="fleet-unit-detail__row">
-            <dt>Estado</dt>
-            <dd>Configurada</dd>
-          </div>
-        </dl>
-        <p class="fleet-unit-sec__docs-hint">
-          Usa editar para establecer una nueva contraseña si el usuario la olvidó.
-        </p>
-      } @else {
-        <div class="fleet-unit-sec__edit-form">
-          <div class="fleet-unit-sec__edit-grid">
-            <to-input
-              label="Nueva contraseña *"
-              type="password"
-              [passwordToggle]="true"
-              autocomplete="new-password"
-              [(value)]="newPassword"
-            />
-            <to-input
-              label="Confirmar contraseña *"
-              type="password"
-              [passwordToggle]="true"
-              autocomplete="new-password"
-              [(value)]="confirmPassword"
-            />
-          </div>
-          <div class="fleet-unit-sec__edit-actions">
-            <to-button type="button" variant="outline" size="sm" [disabled]="saving()" (click)="cancelSectionEdit()">
-              Cancelar
-            </to-button>
-            <to-button type="button" variant="primary" size="sm" [disabled]="saving()" (click)="savePasswordSection()">
-              <to-icon name="save" [size]="14" />
-              {{ saving() ? 'Guardando…' : 'Guardar' }}
-            </to-button>
-          </div>
-        </div>
-      }
-    </section>
-  }
 
   <div toSideDrawerFooter class="fleet-unit-sec__edit-actions">
     <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">

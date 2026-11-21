@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { fleetRenewalIconClass } from '@features/fleet/utils/fleet-overview-card';
 import {
   overviewAssetAt,
+  overviewDoubleArticulatedLeadIndex,
+  overviewDoubleArticulatedRearIndex,
+  overviewSkipConvoyGraphicSegment,
   overviewTrailerVisualAt,
   overviewTripArrivalLine,
   overviewTripDepartureLine,
@@ -14,12 +16,16 @@ import {
   overviewTripCompletionLine,
   overviewTripProgress,
 } from '@features/fleet/utils/fleet-overview-trip-metrics';
-import type { FleetRenewalBucket } from '@features/fleet/utils/fleet-unit-table-row';
 import type { FleetOverviewTripDto } from '@shared/models/api/fleet-overview.model';
+import { convoyOverviewHitchPositionLabel } from '@features/fleet/utils/unit-hitched-equipment';
+import { FleetOverviewMaintAsideComponent } from '@features/fleet/components/fleet-overview-maint-aside/fleet-overview-maint-aside.component';
+import { FleetOverviewManeuverAsideComponent } from '@features/fleet/components/fleet-overview-maneuver-aside/fleet-overview-maneuver-aside.component';
+import { buildOverviewManeuverAsideView } from '@features/fleet/utils/fleet-overview-maneuver-aside.util';
 
 @Component({
   selector: 'app-fleet-overview-card',
   standalone: true,
+  imports: [FleetOverviewMaintAsideComponent, FleetOverviewManeuverAsideComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'fleet-overview-card-host',
@@ -105,6 +111,9 @@ export class FleetOverviewCardComponent {
     if (entry.kind === 'standalone-equipment') {
       return 'Equipo disponible sin tractora';
     }
+    if (this.convoyUsesDollyLayout(entry)) {
+      return 'Convoy doble articulado: unidad y dos remolques';
+    }
     if (this.isFull(entry)) {
       return 'Convoy: unidad y dos equipos';
     }
@@ -120,26 +129,6 @@ export class FleetOverviewCardComponent {
       return 'Fechas de la maniobra';
     }
     return 'Mantenimiento y cumplimiento del activo';
-  }
-
-  renewalIconClass(bucket: FleetRenewalBucket): string {
-    return fleetRenewalIconClass(bucket);
-  }
-
-  insBucket(): FleetRenewalBucket {
-    return this.entry().compliance?.insBucket ?? 'na';
-  }
-
-  verifBucket(): FleetRenewalBucket {
-    return this.entry().compliance?.verifBucket ?? 'na';
-  }
-
-  insLabel(): string {
-    return this.entry().compliance?.insLabel ?? '—';
-  }
-
-  verifLabel(): string {
-    return this.entry().compliance?.verifLabel ?? '—';
   }
 
   private emitTripSelect(): void {
@@ -173,13 +162,37 @@ export class FleetOverviewCardComponent {
       gondola: 'gondola',
       cama_baja: 'cama-baja',
       tolva: 'tolva',
+      dolly: 'dolly',
       remolque: 'remolque',
     };
-    return `fleet-overview__convoy-part fleet-overview__convoy-part--${modifier[visual] ?? 'remolque'}`;
+    const base = `fleet-overview__convoy-part fleet-overview__convoy-part--${modifier[visual] ?? 'remolque'}`;
+    const leadIx = overviewDoubleArticulatedLeadIndex(entry);
+    const rearIx = overviewDoubleArticulatedRearIndex(entry);
+    if (leadIx != null && index === leadIx) {
+      return `${base} fleet-overview__convoy-part--hitch-right`;
+    }
+    if (rearIx != null && index === rearIx) {
+      return `${base} fleet-overview__convoy-part--hitch-left`;
+    }
+    const hitch = this.isBeforeDolly(entry, index)
+      ? ' fleet-overview__convoy-part--hitch-right'
+      : this.isAfterDolly(entry, index)
+        ? ' fleet-overview__convoy-part--hitch-left'
+        : index === 0
+          ? ' fleet-overview__convoy-part--hitch-right'
+          : '';
+    return base + hitch;
   }
 
-  trailerAlt(entry: FleetOverviewCardEntry, position: 'primary' | 'secondary'): string {
-    const index = position === 'primary' ? 0 : 1;
+  equipmentSegmentTitle(entry: FleetOverviewCardEntry, index: number): string {
+    const total = entry.hitched.length;
+    if (!entry.isFullConvoy && total === 1) {
+      return 'Equipo';
+    }
+    return convoyOverviewHitchPositionLabel(index, total);
+  }
+
+  trailerAltAt(entry: FleetOverviewCardEntry, index: number): string {
     const visual = overviewTrailerVisualAt(entry, index);
     const nameByVisual: Record<string, string> = {
       plataforma: 'Plataforma',
@@ -189,16 +202,65 @@ export class FleetOverviewCardComponent {
       gondola: 'Góndola',
       cama_baja: 'Cama baja',
       tolva: 'Tolva',
+      dolly: 'Dolly',
     };
-    const name = nameByVisual[visual];
-    if (name) {
-      return position === 'primary' ? `${name} (primer equipo)` : `${name} (segundo equipo)`;
-    }
-    return position === 'primary' ? 'Equipo (delantero)' : 'Equipo (trasero)';
+    const name = nameByVisual[visual] ?? 'Equipo';
+    const position = this.equipmentSegmentTitle(entry, index);
+    return `${name} (${position})`;
   }
 
   assetAt(entry: FleetOverviewCardEntry, index: number): string {
     return overviewAssetAt(entry, index);
+  }
+
+  isDollySegment(entry: FleetOverviewCardEntry, index: number): boolean {
+    return overviewTrailerVisualAt(entry, index) === 'dolly';
+  }
+
+  isBeforeDolly(entry: FleetOverviewCardEntry, index: number): boolean {
+    return !this.isDollySegment(entry, index) && this.isDollySegment(entry, index + 1);
+  }
+
+  isAfterDolly(entry: FleetOverviewCardEntry, index: number): boolean {
+    return !this.isDollySegment(entry, index) && this.isDollySegment(entry, index - 1);
+  }
+
+  convoyUsesDollyLayout(entry: FleetOverviewCardEntry): boolean {
+    return entry.hitched.some((_, i) => this.isDollySegment(entry, i));
+  }
+
+  serialDisplay(value: string | undefined | null): string {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : '—';
+  }
+
+  /** Dolly enganchado: ranura invisible entre remolques (tooltip / clic). */
+  dollyConvoySlotSegment(entry: FleetOverviewCardEntry, index: number): boolean {
+    return overviewSkipConvoyGraphicSegment(entry, index);
+  }
+
+  dollySlotHint(): string {
+    return 'Dolly enganchado entre remolques. Pasa el cursor o haz clic para ver detalle.';
+  }
+
+  dollySlotAriaLabel(operationalCode: string): string {
+    return `Dolly enganchado (${operationalCode})`;
+  }
+
+  isLeadTrailerGraphic(entry: FleetOverviewCardEntry, index: number): boolean {
+    if (this.isBeforeDolly(entry, index)) {
+      return true;
+    }
+    const leadIx = overviewDoubleArticulatedLeadIndex(entry);
+    return leadIx != null && index === leadIx;
+  }
+
+  isRearTrailerGraphic(entry: FleetOverviewCardEntry, index: number): boolean {
+    if (this.isAfterDolly(entry, index)) {
+      return true;
+    }
+    const rearIx = overviewDoubleArticulatedRearIndex(entry);
+    return rearIx != null && index === rearIx;
   }
 
   readonly tripDeparture = overviewTripDepartureLine;
@@ -207,6 +269,19 @@ export class FleetOverviewCardComponent {
   readonly tripEtaDays = overviewTripEtaDaysLabel;
   readonly tripEtaKm = overviewTripEtaKmLabel;
   readonly tripProgress = overviewTripProgress;
+
+  maneuverAsideView(trip: NonNullable<FleetOverviewCardEntry['trip']>) {
+    const entry = this.entry();
+    return buildOverviewManeuverAsideView({
+      trip,
+      unitName: entry.unitName,
+      equipmentCodes: this.maneuverEquipmentCodes(entry),
+      operatorName: trip.operatorName?.trim() || '—',
+      etaDays: this.tripEtaDays(trip),
+      etaKm: this.tripEtaKm(trip),
+      showAssignment: this.showAssignmentSummary(),
+    });
+  }
 
   maneuverEquipmentCodes(entry: FleetOverviewCardEntry): string {
     const codes = entry.hitched

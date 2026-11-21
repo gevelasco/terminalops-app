@@ -31,9 +31,16 @@ import {
 } from '@features/fleet/utils/fleet-unit-table-row';
 import { operationConfigBadgeClass } from '@shared/utils/operation-configuration-display.utils';
 import {
+  buildOverviewMaintPanelFallback,
+  buildOverviewMaintPanelFromEquipment,
+  buildOverviewMaintPanelFromUnit,
+  type FleetOverviewMaintPanelView,
+} from '@features/fleet/utils/fleet-overview-maint-panel.util';
+import {
   equipmentTypeDisplayLabelFromRaw,
   fleetUnitConvoyTableLabel,
 } from '@features/fleet/utils/unit-hitched-equipment';
+import type { CompanyMaintenancePolicy } from '@shared/models/company-operational-settings.models';
 import {
   convoyTrailerVisualFromType,
   schemaPrimaryAssetForVisual,
@@ -51,6 +58,7 @@ export type FleetOverviewCardEntry = {
   unitName: string;
   unitAlias: string;
   unitPlate: string;
+  unitSerialNumber?: string;
   /** Tipo de transporte de la unidad; define la imagen del vehículo motriz. */
   unitTransportType?: string;
   operational: FleetOperationalKey;
@@ -67,6 +75,7 @@ export type FleetOverviewCardEntry = {
   daysWithoutManeuver?: number;
   /** Seguro y verificaciones desde fleetMeta + ledger (misma lógica que drawer y tablas). */
   compliance?: FleetComplianceSummary;
+  maintPanel?: FleetOverviewMaintPanelView;
 };
 
 /** Mapas autoritativos desde GET /fleet/overview (incluye maniobras activas). */
@@ -192,14 +201,35 @@ function withOverviewComplianceFallback(
   return compliance ? { ...entry, compliance } : entry;
 }
 
+function enrichOverviewHitchedSerials(
+  hitched: FleetOverviewHitchedEquipmentDto[],
+  equipment: readonly Equipment[],
+): FleetOverviewHitchedEquipmentDto[] {
+  return hitched.map((h) => {
+    const fromApi = h.serialNumber?.trim();
+    if (fromApi) {
+      return h;
+    }
+    const row = equipment.find((e) => e.id === String(h.equipmentId));
+    const serial = row?.serialNumber?.trim();
+    return serial ? { ...h, serialNumber: serial } : h;
+  });
+}
+
 /** Enriquece tarjetas de overview con cumplimiento (listados locales o DTO de overview). */
 export function attachOverviewCompliance(
   entry: FleetOverviewCardEntry,
   units: readonly Unit[],
   equipment: readonly Equipment[],
   insuranceTable?: FleetInsuranceTableComplianceResponseDto | null,
+  policy?: CompanyMaintenancePolicy,
   today?: Date,
 ): FleetOverviewCardEntry {
+  const withSerials: FleetOverviewCardEntry = {
+    ...entry,
+    hitched: enrichOverviewHitchedSerials(entry.hitched, equipment),
+  };
+
   if (entry.kind === 'standalone-equipment') {
     const equipmentId = entry.hitched[0]?.equipmentId;
     if (equipmentId != null) {
@@ -210,27 +240,44 @@ export function attachOverviewCompliance(
           insuranceTable?.equipment[e.id],
         );
         return {
-          ...entry,
+          ...withSerials,
           maintenance:
-            entry.maintenance ?? overviewMaintenanceFromEquipment(e, insuranceTable, today),
+            withSerials.maintenance ??
+            overviewMaintenanceFromEquipment(e, insuranceTable, today),
           compliance,
+          maintPanel: buildOverviewMaintPanelFromEquipment(e, compliance),
         };
       }
     }
-    return withOverviewComplianceFallback(entry);
+    const fallback = withOverviewComplianceFallback(withSerials);
+    return {
+      ...fallback,
+      maintPanel:
+        fallback.maintPanel ?? buildOverviewMaintPanelFallback(fallback),
+    };
   }
 
   const unit = units.find((row) => row.id === entry.unitId);
   if (unit) {
+    const unitSerial =
+      withSerials.unitSerialNumber?.trim() || unit.serialNumber?.trim() || '';
+    const compliance = mergeInsuranceTableCompliance(
+      fleetComplianceFromUnitMeta(unit.fleetMeta, unit.trailerYear, undefined, today),
+      insuranceTable?.units[unit.id],
+    );
     return {
-      ...entry,
-      compliance: mergeInsuranceTableCompliance(
-        fleetComplianceFromUnitMeta(unit.fleetMeta, unit.trailerYear, undefined, today),
-        insuranceTable?.units[unit.id],
-      ),
+      ...withSerials,
+      unitSerialNumber: unitSerial || undefined,
+      compliance,
+      maintPanel: buildOverviewMaintPanelFromUnit(unit, policy, compliance),
     };
   }
-  return withOverviewComplianceFallback(entry);
+  const fallback = withOverviewComplianceFallback(withSerials);
+  return {
+    ...fallback,
+    maintPanel:
+      fallback.maintPanel ?? buildOverviewMaintPanelFallback(fallback),
+  };
 }
 
 function isPlanaType(type: string): boolean {
@@ -289,6 +336,7 @@ export function overviewCardEntryFromDto(item: FleetOverviewItemDto): FleetOverv
     unitName: item.unitName,
     unitAlias: item.unitAlias?.trim() || '',
     unitPlate: item.unitPlate,
+    unitSerialNumber: item.unitSerialNumber?.trim() || undefined,
     unitTransportType: item.unitTransportType,
     operational,
     panelMode,
@@ -323,6 +371,7 @@ export function overviewCardEntryFromEquipmentRow(
       equipmentId: row.equipmentId,
       operationalCode: row.operationalCode,
       alias: row.alias,
+      serialNumber: row.serialNumber?.trim() || undefined,
       equipmentType: row.equipmentType,
       status: overviewAssetStatusFromOperational(row.operationalStatus),
     },
@@ -377,6 +426,71 @@ export function overviewAssetAt(entry: FleetOverviewCardEntry, index: number): s
     return schemaPrimaryAssetForVisual(visual);
   }
   return schemaSecondaryAssetForVisual(visual);
+}
+
+function overviewHitchedVisualAt(
+  entry: FleetOverviewCardEntry,
+  index: number,
+): ConvoyTrailerVisual | null {
+  const type = entry.hitched[index]?.equipmentType;
+  if (!type?.trim()) {
+    return null;
+  }
+  return convoyTrailerVisualFromType(type);
+}
+
+/** Dolly enganchado: en la tira solo tracto + 1.er y 2.do remolque (como referencia visual). */
+export function overviewOmitsDollyInUnitConvoyGraphic(
+  entry: FleetOverviewCardEntry,
+): boolean {
+  if (entry.kind !== 'unit') {
+    return false;
+  }
+  return entry.hitched.some(
+    (_, index) => overviewHitchedVisualAt(entry, index) === 'dolly',
+  );
+}
+
+export function overviewSkipConvoyGraphicSegment(
+  entry: FleetOverviewCardEntry,
+  index: number,
+): boolean {
+  if (!overviewOmitsDollyInUnitConvoyGraphic(entry)) {
+    return false;
+  }
+  return overviewHitchedVisualAt(entry, index) === 'dolly';
+}
+
+export function overviewDoubleArticulatedLeadIndex(
+  entry: FleetOverviewCardEntry,
+): number | null {
+  if (!overviewOmitsDollyInUnitConvoyGraphic(entry)) {
+    return null;
+  }
+  for (let index = 0; index < entry.hitched.length; index++) {
+    if (!overviewSkipConvoyGraphicSegment(entry, index)) {
+      return index;
+    }
+  }
+  return null;
+}
+
+export function overviewDoubleArticulatedRearIndex(
+  entry: FleetOverviewCardEntry,
+): number | null {
+  if (!overviewOmitsDollyInUnitConvoyGraphic(entry)) {
+    return null;
+  }
+  const lead = overviewDoubleArticulatedLeadIndex(entry);
+  if (lead == null) {
+    return null;
+  }
+  for (let index = entry.hitched.length - 1; index >= 0; index--) {
+    if (index !== lead && !overviewSkipConvoyGraphicSegment(entry, index)) {
+      return index;
+    }
+  }
+  return null;
 }
 
 export function overviewPrimaryAsset(entry: FleetOverviewCardEntry): string {

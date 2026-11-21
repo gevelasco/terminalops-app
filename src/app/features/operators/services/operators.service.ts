@@ -133,6 +133,19 @@ export class OperatorsFeatureService {
     );
   }
 
+  deleteOperator(operatorId: string): Observable<void> {
+    const requestId = this.requestGen.next();
+    return this.operatorsApi.deleteOperator(operatorId).pipe(
+      switchMap(() => this.fetchList()),
+      map((list) => {
+        if (this.canApplyResponse(requestId)) {
+          this.applyList(list, null);
+        }
+      }),
+      map(() => void 0),
+    );
+  }
+
   createOperator(payload: Omit<Operator, 'id'>): Observable<Operator> {
     const requestId = this.requestGen.next();
     return this.operatorsApi.postOperator(payload).pipe(

@@ -22,7 +22,9 @@
     }
   </div>
   @if (!vm.isEditing("id")) {
-    <dl class="fleet-unit-detail__dl">
+    <dl
+      class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+    >
       <div class="fleet-unit-detail__row">
         <dt>Marca</dt>
         <dd>{{ vm.brandDisplay() }}</dd>
@@ -176,7 +178,9 @@
     }
   </div>
   @if (!vm.isEditing("tenure")) {
-    <dl class="fleet-unit-detail__dl">
+    <dl
+      class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+    >
       <div class="fleet-unit-detail__row">
         <dt>Situación del activo</dt>
         <dd>{{ vm.tenureModeLabel() }}</dd>
@@ -480,7 +484,9 @@
     }
   </div>
   @if (!vm.isEditing("tech")) {
-    <dl class="fleet-unit-detail__dl">
+    <dl
+      class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+    >
       <div class="fleet-unit-detail__row">
         <dt>Capacidad (toneladas)</dt>
         <dd>{{ vm.meta()?.equipmentCapacityTons?.trim() || "—" }}</dd>
@@ -635,7 +641,9 @@
                 </button>
               </div>
             </div>
-            <dl class="fleet-unit-detail__dl fleet-unit-detail__dl--compact">
+            <dl
+              class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+            >
               <div class="fleet-unit-detail__row">
                 <dt>ID operativo</dt>
                 <dd class="fleet-unit-detail__mono">{{ card.operationalId }}</dd>

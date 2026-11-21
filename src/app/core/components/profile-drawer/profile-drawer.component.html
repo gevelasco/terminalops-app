@@ -307,9 +307,6 @@
       </section>
       </div>
     }
-    @case ('config') {
-      <app-profile-drawer-config-tab />
-    }
     @case ('operacion') {
       <app-profile-drawer-operation-tab />
     }
@@ -317,20 +314,7 @@
   </div>
 
   <footer toSideDrawerFooter class="profile-drawer__footer">
-    @if (profileTab() === 'config' && canViewConfigTab()) {
-      <to-button
-        type="button"
-        variant="primary"
-        size="md"
-        class="profile-drawer__footer-btn"
-        [loading]="configSaving()"
-        [disabled]="configSaving()"
-        (click)="saveCompanyConfiguration()"
-      >
-        <to-icon name="save" [size]="14" />
-        {{ configSaving() ? 'Guardando…' : 'Guardar configuración' }}
-      </to-button>
-    } @else if (profileTab() === 'operacion' && canViewConfigTab()) {
+    @if (profileTab() === 'operacion' && canViewConfigTab()) {
       <to-button
         type="button"
         variant="primary"

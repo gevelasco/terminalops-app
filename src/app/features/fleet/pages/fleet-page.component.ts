@@ -478,6 +478,7 @@ export class FleetPageComponent implements OnInit {
           this.unitList(),
           this.equipmentList(),
           this.fleet.insuranceTableCompliance(),
+          this.companyMaintPolicy(),
         ),
       );
     const standaloneEntries = this.fleet
@@ -490,6 +491,7 @@ export class FleetPageComponent implements OnInit {
           this.unitList(),
           this.equipmentList(),
           this.fleet.insuranceTableCompliance(),
+          this.companyMaintPolicy(),
         ),
       );
 

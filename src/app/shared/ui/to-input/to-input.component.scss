@@ -17,6 +17,36 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
+  position: relative;
+}
+
+.to-field__control-row--loading .to-field__control {
+  padding-right: 2.25rem;
+}
+
+.to-field__control-row--loading.to-field__control-row--group .to-field__control {
+  padding-right: 2.25rem;
+}
+
+.to-field__spinner {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.5rem;
+  border: 2px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  border-top-color: var(--to-color-primary);
+  border-radius: 50%;
+  animation: to-field-spin 0.65s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes to-field-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .to-field__control-row--group {

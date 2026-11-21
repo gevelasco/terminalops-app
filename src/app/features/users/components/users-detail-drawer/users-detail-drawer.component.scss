@@ -1,3 +1,20 @@
+@use '../../../../shared/styles/module-access-icon.scss';
+
+.users-detail-drawer__subsection-title {
+  margin: 1.1rem 0 0.45rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--to-color-text-muted);
+}
+
+.users-detail-drawer__fields {
+  margin: 0;
+}
+
 .users-detail-drawer__meta {
   margin: 0.2rem 0 0;
   font-size: 0.75rem;

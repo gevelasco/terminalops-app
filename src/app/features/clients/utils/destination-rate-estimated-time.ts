@@ -1,5 +1,3 @@
-import type { DestinationRateEstimatedTimeUnit } from '@shared/models/destination-rate.models';
-
 export function parseEstimatedTimeValueInput(raw: string): number | undefined {
   const t = raw.trim().replace(',', '.');
   if (t === '') {
@@ -22,51 +20,32 @@ export function formatEstimatedTimeValueNumber(value: number): string {
   }).format(value);
 }
 
-/** Visualización pura para tabla y detalle: «X hrs» o «X días». */
+/** Visualización en tabla/detalle: horas de manejo. */
 export function formatDestinationRateEstimatedTimeDisplay(
   value: number | undefined,
-  unit: DestinationRateEstimatedTimeUnit | undefined,
 ): string {
-  if (value == null || unit == null || !Number.isFinite(value) || value <= 0) {
+  if (value == null || !Number.isFinite(value) || value <= 0) {
     return '—';
   }
-  const suffix = unit === 'hours' ? 'hrs' : 'días';
-  return `${formatEstimatedTimeValueNumber(value)} ${suffix}`;
-}
-
-export function estimatedTimeUnitSuffix(
-  unit: string,
-): string {
-  if (unit === 'hours') {
-    return 'hrs';
-  }
-  if (unit === 'days') {
-    return 'días';
-  }
-  return '';
+  return `${formatEstimatedTimeValueNumber(value)} hrs`;
 }
 
 export function validateDestinationRateEstimatedTimesInput(params: {
   arrivalRaw: string;
   returnRaw: string;
-  unit: string;
 }): string | null {
   const arrivalRaw = params.arrivalRaw.trim();
   const returnRaw = params.returnRaw.trim();
-  const unit = params.unit.trim();
-  if (!arrivalRaw && !returnRaw && !unit) {
+  if (!arrivalRaw && !returnRaw) {
     return null;
-  }
-  if (!unit || (unit !== 'hours' && unit !== 'days')) {
-    return 'Selecciona la unidad de tiempo (horas o días).';
   }
   const arrival = parseEstimatedTimeValueInput(arrivalRaw);
   const returnValue = parseEstimatedTimeValueInput(returnRaw);
   if (arrival === undefined) {
-    return 'Indica el tiempo de ida (valor mayor a 0).';
+    return 'Indica el tiempo de manejo (ida) en horas.';
   }
   if (returnValue === undefined) {
-    return 'Indica el tiempo de retorno (valor mayor a 0).';
+    return 'Indica el tiempo de manejo (retorno) en horas.';
   }
   return null;
 }
@@ -74,13 +53,10 @@ export function validateDestinationRateEstimatedTimesInput(params: {
 export function estimatedTimesFormStringsFromRate(rate: {
   estimatedArrivalTimeValue?: number;
   estimatedReturnTimeValue?: number;
-  estimatedTimeUnit?: DestinationRateEstimatedTimeUnit;
 }): {
   arrival: string;
   returnValue: string;
-  unit: string;
 } {
-  const unit = rate.estimatedTimeUnit ?? '';
   const arrival =
     rate.estimatedArrivalTimeValue != null && rate.estimatedArrivalTimeValue > 0
       ? formatEstimatedTimeValueNumber(rate.estimatedArrivalTimeValue)
@@ -89,5 +65,31 @@ export function estimatedTimesFormStringsFromRate(rate: {
     rate.estimatedReturnTimeValue != null && rate.estimatedReturnTimeValue > 0
       ? formatEstimatedTimeValueNumber(rate.estimatedReturnTimeValue)
       : '';
-  return { arrival, returnValue, unit };
+  return { arrival, returnValue };
+}
+
+/** ETA redondo en tabla (ida + retorno). */
+export function formatDestinationRateRoundTripDriveTime(
+  rate: Pick<
+    { estimatedArrivalTimeValue?: number; estimatedReturnTimeValue?: number },
+    'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
+  >,
+): string {
+  const arrival =
+    rate.estimatedArrivalTimeValue != null &&
+    Number.isFinite(rate.estimatedArrivalTimeValue) &&
+    rate.estimatedArrivalTimeValue > 0
+      ? rate.estimatedArrivalTimeValue
+      : 0;
+  const ret =
+    rate.estimatedReturnTimeValue != null &&
+    Number.isFinite(rate.estimatedReturnTimeValue) &&
+    rate.estimatedReturnTimeValue > 0
+      ? rate.estimatedReturnTimeValue
+      : 0;
+  const total = arrival + ret;
+  if (total <= 0) {
+    return '—';
+  }
+  return `${formatEstimatedTimeValueNumber(total)} hrs`;
 }

@@ -177,7 +177,6 @@ export function destinationRateHasEstimatedTime(rate: DestinationRate): boolean 
     rate.estimatedArrivalTimeValue != null &&
     rate.estimatedArrivalTimeValue > 0 &&
     rate.estimatedReturnTimeValue != null &&
-    rate.estimatedReturnTimeValue > 0 &&
-    (rate.estimatedTimeUnit === 'hours' || rate.estimatedTimeUnit === 'days')
+    rate.estimatedReturnTimeValue > 0
   );
 }

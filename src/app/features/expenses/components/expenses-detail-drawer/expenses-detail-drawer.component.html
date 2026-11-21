@@ -48,7 +48,9 @@
       }
     </div>
     @if (vm.editingSection() !== "classification") {
-      <dl class="fleet-unit-detail__dl">
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+      >
         <div class="fleet-unit-detail__row">
           <dt>Rubro</dt>
           <dd>{{ vm.rubroLabel() }}</dd>
@@ -57,7 +59,9 @@
           <dt>Concepto</dt>
           <dd>{{ vm.expense()?.category }}</dd>
         </div>
-        <div class="fleet-unit-detail__row">
+        <div
+          class="fleet-unit-detail__row fleet-unit-detail__row--ficha-span fleet-unit-detail__row--ficha-wrap"
+        >
           <dt>Descripción</dt>
           <dd>{{ vm.expense()?.description?.trim() || "—" }}</dd>
         </div>
@@ -209,7 +213,9 @@
       }
     </div>
     @if (vm.editingSection() !== "payment") {
-      <dl class="fleet-unit-detail__dl">
+      <dl
+        class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+      >
         <div class="fleet-unit-detail__row">
           <dt>Monto</dt>
           <dd>{{ vm.amountFormatted() }}</dd>

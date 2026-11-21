@@ -44,6 +44,7 @@ import {
 import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
+import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -170,20 +171,41 @@ export class ClientsPageComponent implements OnInit {
   private readonly pendingClientId = signal<string | null>(null);
 
   readonly pageTab = signal<ClientsPageTab>('clients');
-  readonly viewSegmentTabs: readonly ToSegmentTab<ClientsPageTab>[] = [
-    {
-      id: 'clients',
-      label: 'Clientes',
-      icon: 'client',
-      htmlId: 'clients-tab-clients',
-    },
-    {
-      id: 'destination-rates',
-      label: 'Tarifas',
-      icon: 'sell',
-      htmlId: 'clients-tab-destination-rates',
-    },
-  ];
+  readonly commercialHandshakeIconSrc = COMMERCIAL_HANDSHAKE_ICON_SRC;
+
+  readonly canReadClients = computed(() =>
+    this.session.canReadModule(APP_MODULE_CODES.CLIENTS),
+  );
+  readonly canWriteClients = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
+  );
+  readonly canReadDestinationRates = computed(() =>
+    this.session.canReadModule(APP_MODULE_CODES.DESTINATION_RATES),
+  );
+  readonly canWriteDestinationRates = computed(() =>
+    this.session.canWriteModule(APP_MODULE_CODES.DESTINATION_RATES),
+  );
+
+  readonly viewSegmentTabs = computed((): readonly ToSegmentTab<ClientsPageTab>[] => {
+    const tabs: ToSegmentTab<ClientsPageTab>[] = [];
+    if (this.canReadClients()) {
+      tabs.push({
+        id: 'clients',
+        label: 'Clientes',
+        iconImageSrc: COMMERCIAL_HANDSHAKE_ICON_SRC,
+        htmlId: 'clients-tab-clients',
+      });
+    }
+    if (this.canReadDestinationRates()) {
+      tabs.push({
+        id: 'destination-rates',
+        label: 'Tarifas',
+        icon: 'sell',
+        htmlId: 'clients-tab-destination-rates',
+      });
+    }
+    return tabs;
+  });
 
   readonly loading = computed(() => this.balanceContext.overviewLoading());
 
@@ -197,9 +219,6 @@ export class ClientsPageComponent implements OnInit {
 
   readonly newClientOpen = signal(false);
   readonly newRateOpen = signal(false);
-  readonly canWriteCommercial = computed(() =>
-    this.session.canWriteModule(APP_MODULE_CODES.CLIENTS),
-  );
 
   readonly balanceOverviewCards = computed(() =>
     buildClientBalanceOverviewCards(this.balanceContext.overviewItems()).sort(
@@ -240,7 +259,7 @@ export class ClientsPageComponent implements OnInit {
   }
 
   private applyComercialTabFromRoute(rawTab: string | null): void {
-    const tab = resolveComercialTab(rawTab);
+    const tab = this.resolveAllowedComercialTab(rawTab);
     if (rawTab != null && rawTab.trim() !== tab) {
       void this.router.navigate(['/comercial', tab], {
         replaceUrl: true,
@@ -297,13 +316,36 @@ export class ClientsPageComponent implements OnInit {
     });
   }
 
+  private resolveAllowedComercialTab(raw: string | null | undefined): ClientsPageTab {
+    const requested = resolveComercialTab(raw);
+    if (requested === 'clients' && this.canReadClients()) {
+      return 'clients';
+    }
+    if (requested === 'destination-rates' && this.canReadDestinationRates()) {
+      return 'destination-rates';
+    }
+    if (this.canReadClients()) {
+      return 'clients';
+    }
+    if (this.canReadDestinationRates()) {
+      return 'destination-rates';
+    }
+    return 'clients';
+  }
+
   /** Clientes: un GET de overview para las cards. */
   private ensureClientsTabLoaded(): void {
+    if (!this.canReadClients()) {
+      return;
+    }
     this.balanceContext.ensureOverviewLoaded();
   }
 
   /** Lazy: listado slim al entrar por primera vez a Tarifas. */
   private ensureDestinationRatesTabLoaded(): void {
+    if (!this.canReadDestinationRates()) {
+      return;
+    }
     this.ratesFeature.loadDestinationRates();
   }
 

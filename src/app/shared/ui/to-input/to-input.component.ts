@@ -22,6 +22,8 @@ export class ToInputComponent {
     'text' | 'number' | 'email' | 'search' | 'password' | 'date' | 'datetime-local' | 'url'
   >('text');
   readonly disabled = input(false);
+  /** Muestra spinner y bloquea edición mientras el valor se calcula. */
+  readonly loading = input(false);
   /** Nombre del control para `FormData` / envío de formularios. */
   readonly inputName = input<string>();
   /** Min nativo para inputs numéricos / fecha (acepta ISO `YYYY-MM-DD`). */
@@ -96,6 +98,7 @@ export class ToInputComponent {
       this.prefixIcon() !== 'none' ||
       this.suffixIcon() !== 'none' ||
       this.derivedState() !== 'none' ||
+      this.loading() ||
       this.showPasswordReveal()
     );
 

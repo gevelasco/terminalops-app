@@ -69,6 +69,11 @@ export class OperationalFleetSyncService {
     this._operatorsMutationEpoch.update((n) => n + 1);
   }
 
+  /** Tras alta, baja o cambios de catálogo que afecten listados de operadores. */
+  notifyOperatorsModuleMutation(): void {
+    this._operatorsMutationEpoch.update((n) => n + 1);
+  }
+
   private resetState(): void {
     this._trips.set([]);
     this._tripsEpoch.set(0);

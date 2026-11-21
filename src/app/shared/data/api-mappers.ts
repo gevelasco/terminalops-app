@@ -19,7 +19,7 @@ import type {
 import { normalizeTripContainerType } from '@shared/catalogs/trip-container-type-options';
 import { normalizeTripCargoCategory } from '@shared/catalogs/trip-cargo-category-options';
 import { resourceIdKey } from '@shared/utils/resource-id';
-import { normalizeEquipmentHitchPosition } from '@shared/utils/fleet/equipment-hitch-position';
+import { resolveAppHitchPositionFromApi } from '@shared/utils/fleet/equipment-hitch-position-api.util';
 import { normalizeTrailerTenureMode } from '@shared/utils/fleet/trailer-tenure-mode';
 
 function mapImssSalaryType(value: unknown): '' | 'fixed' | 'variable' | 'mixed' {
@@ -109,6 +109,7 @@ export function mapApiClient(row: Record<string, unknown>): Client {
 
   return {
     id: resourceIdKey(row['id']),
+    isActive: row['isActive'] !== false,
     name: String(row['name']),
     rfc: row['rfc'] as string | undefined,
     relationshipStartedOn: row['relationshipStartedOn'] as string | undefined,
@@ -377,8 +378,9 @@ export function mapApiEquipment(row: Record<string, unknown>): Equipment {
   return {
     id: resourceIdKey(row['id']),
     unitId,
-    hitchPosition: normalizeEquipmentHitchPosition(
+    hitchPosition: resolveAppHitchPositionFromApi(
       row['hitchPosition'] as string | undefined,
+      row['type'] as string | undefined,
     ),
     name: String(row['name'] ?? ''),
     serialNumber: String(row['serialNumber'] ?? ''),

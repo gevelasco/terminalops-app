@@ -1,7 +1,5 @@
 import type { DestinationRate } from '@shared/models/destination-rate.models';
-import {
-  formatDestinationRateEstimatedTimeDisplay,
-} from '@features/clients/utils/destination-rate-estimated-time';
+import { formatDestinationRateRoundTripDriveTime } from '@features/clients/utils/destination-rate-estimated-time';
 import { cityMunicipalityNeedsEnrichment } from '@features/clients/utils/destination-rates-map-activity';
 import { formatMxn } from '@features/reports/utils/reports-money';
 import { operationConfigUserFacingLabel } from '@shared/utils/operation-configuration-display.utils';
@@ -58,13 +56,6 @@ export function municipalityLabelForTable(
   const state = stateName.trim();
 
   if (!raw || cityMunicipalityNeedsEnrichment(raw, state)) {
-    const locality = rate.locality.trim();
-    if (
-      locality &&
-      (!state || normalizePlaceLabel(locality) !== normalizePlaceLabel(state))
-    ) {
-      return locality;
-    }
     return '—';
   }
 
@@ -109,36 +100,14 @@ function costLabel(amount: number): string {
   return formatMxn(amount);
 }
 
-/** ETA redondo: ida + regreso. */
+/** ETA redondo: ida + regreso (horas). */
 export function formatDestinationRateRoundTripEta(
   rate: Pick<
     DestinationRate,
-    | 'estimatedArrivalTimeValue'
-    | 'estimatedReturnTimeValue'
-    | 'estimatedTimeUnit'
+    'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
   >,
 ): string {
-  const unit = rate.estimatedTimeUnit;
-  if (unit !== 'hours' && unit !== 'days') {
-    return '—';
-  }
-  const arrival =
-    rate.estimatedArrivalTimeValue != null &&
-    Number.isFinite(rate.estimatedArrivalTimeValue) &&
-    rate.estimatedArrivalTimeValue > 0
-      ? rate.estimatedArrivalTimeValue
-      : 0;
-  const ret =
-    rate.estimatedReturnTimeValue != null &&
-    Number.isFinite(rate.estimatedReturnTimeValue) &&
-    rate.estimatedReturnTimeValue > 0
-      ? rate.estimatedReturnTimeValue
-      : 0;
-  const total = arrival + ret;
-  if (total <= 0) {
-    return '—';
-  }
-  return formatDestinationRateEstimatedTimeDisplay(total, unit);
+  return formatDestinationRateRoundTripDriveTime(rate);
 }
 
 type FlatRow = Omit<

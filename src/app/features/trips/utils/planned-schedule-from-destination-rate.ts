@@ -1,12 +1,9 @@
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
-import type {
-  DestinationRate,
-  DestinationRateEstimatedTimeUnit,
-} from '@shared/models/destination-rate.models';
+import type { DestinationRate } from '@shared/models/destination-rate.models';
 
 type DestinationRateEstimatedTimeFields = Pick<
   DestinationRate,
-  'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue' | 'estimatedTimeUnit'
+  'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
 >;
 
 function hasEstimatedTimeFields(rate: DestinationRateEstimatedTimeFields): boolean {
@@ -14,21 +11,15 @@ function hasEstimatedTimeFields(rate: DestinationRateEstimatedTimeFields): boole
     rate.estimatedArrivalTimeValue != null &&
     rate.estimatedArrivalTimeValue > 0 &&
     rate.estimatedReturnTimeValue != null &&
-    rate.estimatedReturnTimeValue > 0 &&
-    (rate.estimatedTimeUnit === 'hours' || rate.estimatedTimeUnit === 'days')
+    rate.estimatedReturnTimeValue > 0
   );
 }
 
-export function estimatedTimeUnitToMs(
-  value: number,
-  unit: DestinationRateEstimatedTimeUnit,
-): number {
+export function estimatedHoursToMs(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     return 0;
   }
-  return unit === 'days'
-    ? value * 24 * 60 * 60 * 1000
-    : value * 60 * 60 * 1000;
+  return value * 60 * 60 * 1000;
 }
 
 /** Convierte `Date` local a valor `datetime-local` (`yyyy-mm-ddTHH:mm`). */
@@ -38,7 +29,7 @@ export function dateToDateTimeLocalValue(date: Date): string {
 }
 
 /**
- * Sugiere cita cliente y llegada origen a partir de salida + tiempos referenciales de tarifa.
+ * Sugiere cita cliente y llegada origen a partir de salida + tiempos referenciales de tarifa (horas).
  * Solo UX — no operativo.
  */
 export function computePlannedScheduleSuggestionFromRate(
@@ -52,12 +43,11 @@ export function computePlannedScheduleSuggestionFromRate(
   if (!departureIso) {
     return null;
   }
-  const unit = rate.estimatedTimeUnit!;
   const arrivalMs =
     new Date(departureIso).getTime() +
-    estimatedTimeUnitToMs(rate.estimatedArrivalTimeValue!, unit);
+    estimatedHoursToMs(rate.estimatedArrivalTimeValue!);
   const completionMs =
-    arrivalMs + estimatedTimeUnitToMs(rate.estimatedReturnTimeValue!, unit);
+    arrivalMs + estimatedHoursToMs(rate.estimatedReturnTimeValue!);
   const arrivalDate = new Date(arrivalMs);
   const completionDate = new Date(completionMs);
   if (

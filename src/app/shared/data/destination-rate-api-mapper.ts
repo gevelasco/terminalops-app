@@ -1,6 +1,7 @@
+import { parseRouteTollPlazasFromApi } from '@features/clients/utils/destination-rate-route-toll-plazas.util';
+import { parseRouteWaypointsFromApi } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import type {
   DestinationRate,
-  DestinationRateEstimatedTimeUnit,
   DestinationRatePrice,
 } from '@shared/models/destination-rate.models';
 import { resourceIdKey } from '@shared/utils/resource-id';
@@ -17,14 +18,14 @@ function parseRateAmount(raw: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseEstimatedTimeUnit(
-  raw: unknown,
-): DestinationRateEstimatedTimeUnit | undefined {
-  const unit = String(raw ?? '').trim();
-  if (unit === 'hours' || unit === 'days') {
-    return unit;
+function parseExcludedTollPlazaKeys(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
   }
-  return undefined;
+  const keys = raw
+    .map((v) => String(v ?? '').trim())
+    .filter((k) => k.length > 0);
+  return keys.length > 0 ? keys : [];
 }
 
 function parseOptionalNumber(raw: unknown): number | undefined {
@@ -45,6 +46,10 @@ function mapApiDestinationRatePrice(row: Record<string, unknown>): DestinationRa
     clientCharge: parseRateAmount(row['clientCharge']),
     operatorPaymentEstimate: parseRateAmount(row['operatorPaymentEstimate']),
     estimatedTollAmount: parseRateAmount(row['estimatedTollAmount']),
+    axleCount:
+      typeof row['axleCount'] === 'number' && row['axleCount'] >= 2
+        ? row['axleCount']
+        : undefined,
     perDiemAmount: parseRateAmount(row['perDiemAmount']),
     notes: String(row['notes'] ?? '').trim() || undefined,
     createdAt: row['createdAt'] ? String(row['createdAt']) : undefined,
@@ -84,7 +89,9 @@ export function mapApiDestinationRate(row: Record<string, unknown>): Destination
       : undefined,
     estimatedArrivalTimeValue: parseOptionalNumber(row['estimatedArrivalTimeValue']),
     estimatedReturnTimeValue: parseOptionalNumber(row['estimatedReturnTimeValue']),
-    estimatedTimeUnit: parseEstimatedTimeUnit(row['estimatedTimeUnit']),
+    excludedTollPlazaKeys: parseExcludedTollPlazaKeys(row['excludedTollPlazaKeys']),
+    routeWaypoints: parseRouteWaypointsFromApi(row['routeWaypoints']),
+    routeTollPlazas: parseRouteTollPlazasFromApi(row),
     maneuverCount:
       typeof row['maneuverCount'] === 'number' && Number.isFinite(row['maneuverCount'])
         ? row['maneuverCount']

@@ -1,10 +1,23 @@
+import { isDollyEquipment } from '@features/fleet/utils/equipment-dolly-convoy.util';
 import type { Equipment, EquipmentHitchPosition } from '@shared/models/logistics.models';
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 
-/** Orden convoy: delantero (`lead`) antes que trasero (`rear`). */
+function hitchPositionRank(e: Equipment): number {
+  if (isDollyEquipment(e)) {
+    return 1;
+  }
+  if (e.hitchPosition === 'rear') {
+    return 2;
+  }
+  if (e.hitchPosition === 'middle') {
+    return 1;
+  }
+  return 0;
+}
+
+/** Orden convoy: delantero → dolly → trasero. */
 export function compareEquipmentHitchPosition(a: Equipment, b: Equipment): number {
-  const rank = (e: Equipment): number => (e.hitchPosition === 'rear' ? 1 : 0);
-  const d = rank(a) - rank(b);
+  const d = hitchPositionRank(a) - hitchPositionRank(b);
   if (d !== 0) {
     return d;
   }
@@ -19,7 +32,7 @@ export function normalizeEquipmentHitchPosition(
   raw: string | null | undefined,
 ): EquipmentHitchPosition | undefined {
   const t = raw?.trim();
-  if (t === 'lead' || t === 'rear') {
+  if (t === 'lead' || t === 'middle' || t === 'rear') {
     return t;
   }
   return undefined;
@@ -32,27 +45,47 @@ export function equipmentHitchPositionDisplayLabel(
   total?: number,
 ): string {
   if (e.hitchPosition === 'rear') {
-    return '2.do equipo';
+    return total != null && total > 2 ? '3.er equipo' : '2.do equipo';
+  }
+  if (e.hitchPosition === 'middle') {
+    return 'Dolly (intermedio)';
   }
   if (e.hitchPosition === 'lead') {
     return total != null && total > 1 ? '1.er equipo' : '1.er remolque';
   }
   if (index != null && total != null) {
-    return total <= 1 ? 'Equipo enganchado' : index === 0 ? '1.er equipo' : '2.do equipo';
+    if (total <= 1) {
+      return 'Equipo enganchado';
+    }
+    if (total === 2) {
+      return index === 0 ? '1.er equipo' : '2.do equipo';
+    }
+    return index === 0 ? '1.er equipo' : index === 1 ? 'Equipo intermedio' : '3.er equipo';
   }
   return 'Equipo enganchado';
 }
 
-/** Valor API al guardar según tractora y toggle de segundo remolque. */
+/** Valor API al guardar según tractora y posición deseada. */
 export function hitchPositionForEquipmentWrite(
   unitId: string | undefined,
-  isSecondTrailer: boolean,
+  position: EquipmentHitchPosition | null | undefined,
 ): EquipmentHitchPosition | null | undefined {
   const uid = unitId?.trim();
   if (!uid) {
     return null;
   }
-  return isSecondTrailer ? 'rear' : 'lead';
+  if (!position) {
+    return 'lead';
+  }
+  return position;
+}
+
+/** @deprecated Usar {@link hitchPositionForEquipmentWrite} con posición explícita. */
+export function hitchPositionForLegacySecondTrailerFlag(
+  unitId: string | undefined,
+  isSecondTrailer: boolean,
+): EquipmentHitchPosition | null | undefined {
+  return hitchPositionForEquipmentWrite(unitId, isSecondTrailer ? 'rear' : 'lead');
 }
 
 /** Borrador API al desenganchar un equipo de la tractora. */
@@ -63,6 +96,11 @@ export function equipmentUnhitchPersistDraft(): Pick<Equipment, 'unitId' | 'hitc
 /** Borrador API al promover un 2.do equipo a 1.er en el mismo convoy. */
 export function equipmentPromoteToLeadPersistDraft(): Pick<Equipment, 'hitchPosition'> {
   return { hitchPosition: 'lead' };
+}
+
+/** Borrador API al promover trasero a intermedio (p. ej. al quitar dolly). */
+export function equipmentPromoteToMiddlePersistDraft(): Pick<Equipment, 'hitchPosition'> {
+  return { hitchPosition: 'middle' };
 }
 
 /**
@@ -76,7 +114,17 @@ export function rearEquipmentToPromoteOnLeadUnhitch(
   if (!unitId || equipmentToUnhitch.hitchPosition === 'rear') {
     return null;
   }
+  if (equipmentToUnhitch.hitchPosition === 'middle') {
+    return null;
+  }
   const onUnit = equipmentAssignedToUnit(catalog, unitId);
+  const rearOnly = onUnit.filter(
+    (e) =>
+      e.hitchPosition === 'rear' && !resourceIdsEqual(e.id, equipmentToUnhitch.id),
+  );
+  if (rearOnly.length === 1 && onUnit.length === 2) {
+    return rearOnly[0]!;
+  }
   return (
     onUnit.find(
       (e) =>
@@ -94,6 +142,10 @@ export function unhitchingLeadRequiresRearPromotion(
 
 export function isSecondTrailerHitch(e: Equipment): boolean {
   return e.hitchPosition === 'rear';
+}
+
+export function isMiddleTrailerHitch(e: Equipment): boolean {
+  return e.hitchPosition === 'middle';
 }
 
 /** Equipos enganchados a una tractora, ordenados para convoy/esquema. */

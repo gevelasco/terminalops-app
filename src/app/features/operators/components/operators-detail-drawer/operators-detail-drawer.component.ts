@@ -6,6 +6,8 @@ import {
   inject,
   output,
 } from '@angular/core';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSegmentControlComponent } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -20,6 +22,8 @@ import { OperatorsDetailDrawerFacade } from './operators-detail-drawer.facade';
   providers: [OperatorsDetailDrawerFacade],
   imports: [
     ToSideDrawerComponent,
+    ToButtonComponent,
+    ToConfirmDialogComponent,
     ToIconComponent,
     ToSegmentControlComponent,
     ToStatusPillComponent,

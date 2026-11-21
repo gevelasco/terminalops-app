@@ -7,6 +7,7 @@ import {
   FLEET_DETAIL_DRAWER_SHELL_STYLES,
 } from '@features/fleet/components/fleet-detail-drawer.shared';
 import type { FleetDetailMaintSectionVm } from './fleet-detail-maint-section.vm';
+import { uniqueMaintEntryDocumentNames } from '@features/fleet/utils/fleet-maint-entry-doc-names.util';
 
 @Component({
   selector: 'app-fleet-detail-maint-section',
@@ -29,6 +30,9 @@ export class FleetDetailMaintSectionComponent {
   readonly showOdometer = input(true);
 
   private readonly expandedMaintKey = signal<string | null>(null);
+  private readonly maintDocsMenuKey = signal<string | null>(null);
+
+  readonly uniqueMaintEntryDocumentNames = uniqueMaintEntryDocumentNames;
 
   maintRowKey(index: number, entry: MaintenanceEntry): string {
     return `${index}:${this.vm().trackMaintenanceEntry(index, entry)}`;
@@ -38,8 +42,13 @@ export class FleetDetailMaintSectionComponent {
     return this.expandedMaintKey() === this.maintRowKey(index, entry);
   }
 
+  isMaintDocsMenuOpen(index: number, entry: MaintenanceEntry): boolean {
+    return this.maintDocsMenuKey() === this.maintRowKey(index, entry);
+  }
+
   toggleMaintRow(index: number, entry: MaintenanceEntry): void {
     const key = this.maintRowKey(index, entry);
+    this.maintDocsMenuKey.set(null);
     this.expandedMaintKey.update((current) => (current === key ? null : key));
   }
 
@@ -55,9 +64,34 @@ export class FleetDetailMaintSectionComponent {
     this.toggleMaintRow(index, entry);
   }
 
-  onMaintDocsClick(event: Event, names: readonly string[]): void {
+  onMaintDocsClick(
+    event: Event,
+    index: number,
+    entry: MaintenanceEntry,
+    names: readonly string[],
+  ): void {
     event.stopPropagation();
-    this.downloadMaintDocs(names);
+    const unique = uniqueMaintEntryDocumentNames(names);
+    if (unique.length === 0) {
+      return;
+    }
+    if (unique.length === 1) {
+      this.maintDocsMenuKey.set(null);
+      this.downloadSingleMaintDoc(event, unique[0]);
+      return;
+    }
+    const key = this.maintRowKey(index, entry);
+    this.maintDocsMenuKey.update((current) => (current === key ? null : key));
+  }
+
+  downloadSingleMaintDoc(event: Event, fileName: string): void {
+    event.stopPropagation();
+    const download = this.vm().downloadStoredDocument;
+    if (!download) {
+      return;
+    }
+    download(fileName);
+    this.maintDocsMenuKey.set(null);
   }
 
   maintCountLabel(): string {
@@ -70,19 +104,5 @@ export class FleetDetailMaintSectionComponent {
       const cost = entry.cost;
       return sum + (typeof cost === 'number' && Number.isFinite(cost) ? cost : 0);
     }, 0);
-  }
-
-  /** Descarga todos los comprobantes de la fila (sin popover nativo). */
-  downloadMaintDocs(names: readonly string[]): void {
-    const download = this.vm().downloadStoredDocument;
-    if (!download || names.length === 0) {
-      return;
-    }
-    for (const name of names) {
-      const trimmed = name.trim();
-      if (trimmed) {
-        download(trimmed);
-      }
-    }
   }
 }

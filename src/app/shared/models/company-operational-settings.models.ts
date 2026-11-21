@@ -29,9 +29,13 @@ export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   tripAutoTollsPaymentMethod: string;
   tripAutoPerDiemPaymentMethod: string;
   tripAutoControlPaymentMethod: string;
+  /** Etiqueta del gasto % cobro en gastos; null/ vacío = Control operativo. */
+  tripAutoOperationalControlLabel?: string | null;
   dieselControlEnabled: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore: number;
+  paymentReminderDaysChangedAt?: string;
+  tripAutoPaymentsChangedAt?: string;
   maintenanceKmControlEnabled: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceKmControlChangedAt?: string;

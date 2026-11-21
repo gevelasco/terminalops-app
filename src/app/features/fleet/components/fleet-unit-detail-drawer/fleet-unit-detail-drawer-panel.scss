@@ -469,25 +469,6 @@
   color: var(--to-color-text-muted);
 }
 
-.fleet-unit-hitch__link {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--to-color-accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--to-color-primary);
-    outline: none;
-  }
-}
-
 .fleet-unit-detail__dl--compact {
   gap: 0.35rem;
 
@@ -496,11 +477,86 @@
   }
 }
 
+.fleet-unit-detail__dl--ficha-desktop-cols {
+  gap: 0.35rem;
+
+  dt {
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: var(--to-weight-regular);
+    line-height: 1.25;
+    color: var(--to-color-text-muted);
+  }
+
+  dd {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+    font-size: 0.875rem;
+    font-weight: var(--to-weight-semibold);
+    line-height: 1.3;
+    color: var(--to-color-text);
+  }
+
+  .fleet-unit-detail__row {
+    gap: 0.05rem;
+  }
+
+  @media (min-width: 640px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem 1.25rem;
+    align-items: start;
+
+    .fleet-unit-detail__row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+      align-items: stretch;
+      min-width: 0;
+    }
+
+    .fleet-unit-detail__row--ficha-span,
+    .fleet-unit-detail__row:has(.fleet-unit-detail__maint-km-edit) {
+      grid-column: 1 / -1;
+    }
+
+    dd.fleet-unit-detail__mono {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.015em;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .fleet-unit-detail__row {
+      grid-template-columns: minmax(0, 11.25rem) minmax(0, 1fr);
+      gap: 0.15rem 0.65rem;
+      align-items: baseline;
+    }
+  }
+
+  .fleet-unit-detail__row--ficha-wrap {
+    dt {
+      white-space: nowrap;
+    }
+
+    dd {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+  }
+}
+
 .fleet-unit-hitch__card-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  gap: 0.35rem 0.5rem;
+
+  .fleet-unit-hitch__link {
+    flex-shrink: 0;
+  }
 }
 
 .fleet-unit-hitch__add-form {

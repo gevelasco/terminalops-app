@@ -22,7 +22,41 @@ export { equipmentAssignedToUnit, equipmentHitchPositionDisplayLabel };
 export type ResolveHitchedEquipmentOptions = {
   /** Catálogo GET /equipment ya cargado: fuente de verdad aunque no haya enganches. */
   catalogAuthoritative?: boolean;
+  /** Si el listado GET /equipment ya terminó de cargar (evita borrar refs embebidas en vuelo). */
+  catalogHydrated?: boolean;
 };
+
+/**
+ * Convoy de enganche para reglas y persistencia: unión catálogo GET /equipment
+ * y refs embebidas del detalle de unidad (el catálogo puede ir retrasado).
+ */
+export function mergeEquipmentForUnitHitchContext(
+  catalog: readonly Equipment[],
+  unitId: unknown,
+  embedded?: readonly Equipment[],
+): Equipment[] {
+  const id = resourceIdKey(unitId);
+  if (!id) {
+    return [];
+  }
+  const byId = new Map<string, Equipment>();
+  for (const e of embedded ?? []) {
+    if (!resourceIdKey(e.id)) {
+      continue;
+    }
+    if (e.unitId?.trim() && !resourceIdsEqual(e.unitId, id)) {
+      continue;
+    }
+    const key = resourceIdKey(e.id);
+    byId.set(key, e.unitId?.trim() ? e : { ...e, unitId: id });
+  }
+  for (const e of equipmentAssignedToUnit(catalog, id)) {
+    const key = resourceIdKey(e.id);
+    const prev = byId.get(key);
+    byId.set(key, prev ? { ...prev, ...e, unitId: id } : { ...e, unitId: id });
+  }
+  return sortEquipmentByHitchPosition([...byId.values()]);
+}
 
 export function resolveHitchedEquipmentForUnit(
   unitId: unknown,
@@ -34,18 +68,14 @@ export function resolveHitchedEquipmentForUnit(
   if (!id) {
     return [];
   }
-  const fromDetail = sortEquipmentByHitchPosition(
-    (embedded ?? [])
-      .filter(
-        (e) => !e.unitId?.trim() || resourceIdsEqual(e.unitId, id),
-      )
-      .map((e) => (e.unitId?.trim() ? e : { ...e, unitId: id })),
-  );
   const fromCatalog = equipmentAssignedToUnit(catalog, id);
-  if (fromCatalog.length > 0 || options?.catalogAuthoritative) {
-    return fromCatalog;
+  if (options?.catalogAuthoritative && fromCatalog.length === 0) {
+    if (!options.catalogHydrated && (embedded?.length ?? 0) > 0) {
+      return mergeEquipmentForUnitHitchContext(catalog, id, embedded);
+    }
+    return [];
   }
-  return fromDetail;
+  return mergeEquipmentForUnitHitchContext(catalog, id, embedded);
 }
 
 export type { UnitConvoyKind };
@@ -170,5 +200,14 @@ export function convoyOverviewHitchPositionLabel(index: number, total: number): 
   if (total <= 1) {
     return 'Equipo enganchado';
   }
-  return index === 0 ? '1.er equipo' : '2.do equipo';
+  if (total === 2) {
+    return index === 0 ? '1.er equipo' : '2.do equipo';
+  }
+  if (index === 0) {
+    return '1.er equipo';
+  }
+  if (index === 1) {
+    return 'Dolly (intermedio)';
+  }
+  return '3.er equipo';
 }

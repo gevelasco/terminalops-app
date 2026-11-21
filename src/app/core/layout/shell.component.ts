@@ -116,11 +116,17 @@ export class ShellComponent implements OnDestroy {
   });
 
   readonly mainNav = computed(() =>
-    visibleNavItems(this.session.allowedModules(), 'main', APP_NAV_ITEMS),
+    visibleNavItems(this.session.allowedModules(), 'main', APP_NAV_ITEMS, {
+      role: this.session.role(),
+      grants: this.session.moduleGrants(),
+    }),
   );
 
   readonly bottomNav = computed(() =>
-    visibleNavItems(this.session.allowedModules(), 'bottom', APP_NAV_ITEMS),
+    visibleNavItems(this.session.allowedModules(), 'bottom', APP_NAV_ITEMS, {
+      role: this.session.role(),
+      grants: this.session.moduleGrants(),
+    }),
   );
 
   readonly notificationCount = computed(() => this.notificationsUnread.badgeCount());

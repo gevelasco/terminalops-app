@@ -1,0 +1,68 @@
+<div class="fleet-overview-maint-aside fleet-unit-detail__maint-stack">
+  <div
+    class="fleet-unit-detail__badge-block fleet-unit-detail__badge-block--maint"
+  >
+    <p
+      class="fleet-unit-detail__badge-label fleet-unit-detail__badge-label--sentence"
+    >
+      Último mantenimiento
+    </p>
+    <div
+      class="fleet-unit-detail__badge-row fleet-unit-detail__badge-row--maint-actions"
+    >
+      <span class="fleet-unit-detail__badge fleet-unit-detail__badge--neutral">
+        <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+        {{ panel().lastMaintenanceLabel }}
+      </span>
+      @if (panel().secondaryMaint; as secondary) {
+        <span [class]="badgeClass(secondary.bucket)">
+          <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+          {{ secondary.label }}
+        </span>
+      }
+    </div>
+  </div>
+
+  <dl
+    class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-overview-maint-aside__dl"
+  >
+    @if (panel().showKmCounter) {
+      <div class="fleet-unit-detail__row fleet-unit-detail__row--maint-km">
+        <dt>Kilómetros acumulados (mant.)</dt>
+        <dd>{{ panel().kmCounterLabel ?? '—' }}</dd>
+      </div>
+    }
+    <div class="fleet-unit-detail__row">
+      <dt>Estado de llantas</dt>
+      <dd>{{ panel().tireConditionLabel }}</dd>
+    </div>
+  </dl>
+
+  @for (block of panel().complianceBlocks; track block.title) {
+    <div
+      class="fleet-unit-detail__badge-block fleet-overview-maint-aside__compliance"
+      [class.fleet-overview-maint-aside__compliance--insurance]="
+        block.title === 'Seguro'
+      "
+    >
+      <p class="fleet-unit-detail__badge-label fleet-unit-detail__badge-label--sentence">
+        {{ block.title }}
+      </p>
+      <div class="fleet-unit-detail__badge-row fleet-unit-detail__badge-row--maint-actions">
+        <span [class]="badgeClass(block.bucket)">
+          <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+          Estado: {{ block.statusLabel }}
+        </span>
+        <span class="fleet-unit-detail__badge fleet-unit-detail__badge--neutral">
+          <span class="fleet-unit-detail__dot" aria-hidden="true"></span>
+          {{ block.primaryDetail }}
+        </span>
+      </div>
+      @if (block.secondaryDetail) {
+        <p class="fleet-overview-maint-aside__compliance-meta">
+          {{ block.secondaryDetail }}
+        </p>
+      }
+    </div>
+  }
+</div>

@@ -29,7 +29,9 @@
           }
         </div>
         @if (vm.editingSection() !== "ident") {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Nombre o razón social</dt>
               <dd>{{ vm.client().name }}</dd>
@@ -115,7 +117,9 @@
           }
         </div>
         @if (vm.editingSection() !== "fiscal") {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Razón social en factura</dt>
               <dd>{{ vm.client().billing?.invoiceLegalName?.trim() || "—" }}</dd>
@@ -440,7 +444,7 @@
             >
               Personas de contacto
             </p>
-            @if (vm.canWriteCommercial() && vm.editingSection() === "contacts" && !vm.addingContact()) {
+            @if (vm.canWriteClients() && vm.editingSection() === "contacts" && !vm.addingContact()) {
               <to-button
                 type="button"
                 variant="outline"
@@ -664,7 +668,9 @@
           }
         </div>
         @if (vm.editingSection() !== "pay") {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Crédito otorgado</dt>
               <dd>{{ vm.creditYesNoLabel() }}</dd>

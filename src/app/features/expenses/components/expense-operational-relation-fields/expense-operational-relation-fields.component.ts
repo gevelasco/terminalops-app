@@ -60,7 +60,10 @@ import type { ExpenseRubro } from '@features/expenses/utils/expense-rubro.util';
     ToOperatorLinkInputComponent,
   ],
   templateUrl: './expense-operational-relation-fields.component.html',
-  styleUrl: './expense-operational-relation-fields.component.scss',
+  styleUrls: [
+    './expense-operational-relation-fields.component.scss',
+    '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
+  ],
 })
 export class ExpenseOperationalRelationFieldsComponent {
   private readonly tripsApi = inject(TripsService);

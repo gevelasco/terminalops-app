@@ -168,6 +168,14 @@ export class OperatorsService {
       .pipe(map((r) => mapApiOperator(r)));
   }
 
+  /** Soft delete (solo administrador en UI; conserva historial en maniobras). */
+  deleteOperator(operatorId: string): Observable<{ id: number; deleted: boolean }> {
+    const id = operatorId.trim();
+    return this.http.delete<{ id: number; deleted: boolean }>(
+      resourceByIdUrl('operators', id),
+    );
+  }
+
   /** Marca al operador en vacaciones / descanso (RRHH). */
   startOperatorLeave(operatorId: string): Observable<Operator> {
     const id = operatorId.trim();

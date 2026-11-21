@@ -42,6 +42,8 @@ import { formatFleetYmdMx } from '@features/fleet/utils/fleet-unit-table-row';
 import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
 import { cyclicRenewalHint } from '@features/fleet/utils/fleet-cyclic-renewal-hint';
 import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
+import { equipmentAssignedToUnit } from '@shared/utils/fleet/equipment-hitch-position';
+import { mapAppHitchPositionToApiWrite } from '@shared/utils/fleet/equipment-hitch-position-api.util';
 import { formatUnitTrailerLabel } from '@shared/utils/fleet/unit-label';
 import { Equipment, Unit } from '@shared/models/logistics.models';
 import { EquipmentFeatureService } from '@features/fleet/services/equipment.service';
@@ -211,6 +213,7 @@ export class FleetNewEquipmentDrawerComponent {
       catalog: this.equipmentCatalog(),
       isSecondTrailer: this.isSecondTrailer(),
       unitLabel,
+      equipmentType: this.operationTypeCode(),
     });
   });
 
@@ -235,6 +238,7 @@ export class FleetNewEquipmentDrawerComponent {
       isActive: () => Boolean(this.unitId().trim()),
       catalog: () => this.equipmentCatalog(),
       unitId: () => this.unitId(),
+      equipmentType: () => this.operationTypeCode(),
       isSecondTrailer: this.isSecondTrailer,
     });
     const containerSlotCoercion = effect(
@@ -736,12 +740,23 @@ export class FleetNewEquipmentDrawerComponent {
       typeLabel: maintTypeLabel,
       notes: this.lastMaintenanceNotes().trim() || undefined,
     };
+    const hitchApp = uid
+      ? hitchPositionForNewEquipmentOnUnit(
+          this.equipmentCatalog(),
+          uid,
+          undefined,
+          this.operationTypeCode(),
+        )
+      : null;
+    const hitchApi = uid
+      ? mapAppHitchPositionToApiWrite(hitchApp, this.operationTypeCode(), {
+          peersOnUnit: equipmentAssignedToUnit(this.equipmentCatalog(), uid),
+        })
+      : null;
     this.equipmentFeature
       .createEquipment({
         unitId: uid || undefined,
-        hitchPosition: uid
-          ? hitchPositionForNewEquipmentOnUnit(this.equipmentCatalog(), uid) ?? undefined
-          : undefined,
+        hitchPosition: hitchApi ?? undefined,
         name: this.name().trim() || resolvedSerial,
         serialNumber: resolvedSerial,
         plate,
