@@ -14,14 +14,10 @@ import {
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service';
-import { userTableModuleIcons } from '@shared/utils/staff-module-present';
 import { UsersDetailDrawerComponent } from '@features/users/components/users-detail-drawer/users-detail-drawer.component';
 import { UsersNewDrawerComponent } from '@features/users/components/users-new-drawer/users-new-drawer.component';
+import { UsersOverviewComponent } from '@features/users/components/users-overview/users-overview.component';
 import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
-import {
-  ToTableColumn,
-  ToTableComponent,
-} from '@shared/ui/to-table/to-table.component';
 
 @Component({
   selector: 'app-users-settings-tab',
@@ -29,7 +25,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ToModuleSkeletonComponent,
-    ToTableComponent,
+    UsersOverviewComponent,
     UsersNewDrawerComponent,
     UsersDetailDrawerComponent,
   ],
@@ -46,9 +42,9 @@ export class UsersSettingsTabComponent {
   readonly selectedUserId = signal<number | null>(null);
 
   readonly users = resource({
-    loader: async () => {
-      const companyId = this.session.companyId();
-      if (!companyId) {
+    request: () => this.session.companyId() ?? undefined,
+    loader: async ({ request: companyId }) => {
+      if (companyId == null || companyId === '') {
         return [] as CompanyUserRow[];
       }
       return firstValueFrom(this.api.listUsers(companyId));
@@ -56,6 +52,7 @@ export class UsersSettingsTabComponent {
   });
 
   readonly loading = computed(() => this.users.isLoading());
+  readonly loadError = computed(() => this.users.error());
 
   readonly selectedUser = computed(() => {
     const id = this.selectedUserId();
@@ -65,20 +62,7 @@ export class UsersSettingsTabComponent {
     return (this.users.value() ?? []).find((row) => row.id === id) ?? null;
   });
 
-  readonly columns: ToTableColumn[] = [
-    { key: 'displayName', label: 'Nombre' },
-    { key: 'username', label: 'Usuario' },
-    { key: 'role', label: 'Rol', cell: 'user-role-pill' },
-    { key: 'status', label: 'Estado', cell: 'user-status-pill' },
-    { key: 'moduleAccessIcons', label: 'Módulos', cell: 'module-access-icons' },
-  ];
-
-  readonly tableRows = computed(() =>
-    (this.users.value() ?? []).map((row) => ({
-      ...row,
-      moduleAccessIcons: userTableModuleIcons(row.allowedModules, row.role),
-    })),
-  );
+  readonly userRows = computed(() => this.users.value() ?? []);
 
   openNewUser(): void {
     const rows = this.users.value() ?? [];
@@ -94,8 +78,7 @@ export class UsersSettingsTabComponent {
     this.users.reload();
   }
 
-  onRowClick(row: Record<string, unknown>): void {
-    const id = Number(row['id']);
+  onUserCardSelect(id: number): void {
     if (!Number.isFinite(id) || id <= 0) {
       return;
     }

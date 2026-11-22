@@ -84,7 +84,9 @@ import {
   destinationRateRouteTollContextKey,
   type DestinationRateRouteWaypointDraft,
 } from '@features/clients/utils/destination-rate-route-waypoints.util';
+import { GeoApiService } from '@core/services/api/geo';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
+import { MexicoGeoStateService } from '@shared/services/mexico-geo-state.service';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -117,7 +119,9 @@ export class DestinationRatesNewDrawerComponent {
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly osrm = inject(OsrmDrivingRouteService);
+  private readonly geoApi = inject(GeoApiService);
   private readonly photon = inject(PhotonPlaceSearchService);
+  private readonly mexicoGeo = inject(MexicoGeoStateService);
   private readonly toast = inject(ToastService);
 
   private readonly originSelect = viewChild(OperationalCenterSelectComponent);
@@ -358,6 +362,7 @@ export class DestinationRatesNewDrawerComponent {
   });
 
   constructor() {
+    this.mexicoGeo.preload();
     afterNextRender(() => this.drawerLoading.set(false));
     this.bindRouteDuplicatePipeline();
     this.bindRouteDistancePipeline();
@@ -740,6 +745,46 @@ export class DestinationRatesNewDrawerComponent {
     this.applyRouteDistanceKm(rate.routeDistanceKm ?? null);
   }
 
+  private resolveDestinationCoords(
+    fromCp: LatLon | null,
+    destQuery: string,
+    hints: { state: string; municipality: string; settlement: string },
+  ) {
+    if (
+      isValidLatLon(fromCp) &&
+      this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state)
+    ) {
+      return of(fromCp);
+    }
+    return this.mexicoGeo.whenReady().pipe(
+      switchMap((geo) => {
+        if (
+          isValidLatLon(fromCp) &&
+          this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state, geo)
+        ) {
+          return of(fromCp);
+        }
+        return this.photon.firstCoordinatesForMexicanSepomex(destQuery, hints).pipe(
+          map((fromPhoton) => {
+            if (
+              isValidLatLon(fromPhoton) &&
+              this.mexicoGeo.coordsMatchStateHint(fromPhoton, hints.state, geo)
+            ) {
+              return fromPhoton;
+            }
+            if (
+              isValidLatLon(fromCp) &&
+              this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state, geo)
+            ) {
+              return fromCp;
+            }
+            return fromPhoton ?? fromCp;
+          }),
+        );
+      }),
+    );
+  }
+
   private resolveRouteDistances(input: {
     originId: string;
     cp: string;
@@ -772,7 +817,17 @@ export class DestinationRatesNewDrawerComponent {
       .join(', ');
 
     this.routeLoading.set(true);
-    return this.photon.firstCoordinatesForMexicanSepomex(destQuery, hints).pipe(
+    return this.geoApi
+      .settlementCoordinates({
+        postalCode: input.cp,
+        settlement: hints.settlement,
+        municipality: hints.municipality,
+        state: hints.state,
+      })
+      .pipe(
+        switchMap((fromCp) => this.resolveDestinationCoords(fromCp, destQuery, hints)),
+      )
+      .pipe(
       switchMap((destCoords) => {
         if (this.routeMode() !== 'CREATE_MODE') {
           return of(null);

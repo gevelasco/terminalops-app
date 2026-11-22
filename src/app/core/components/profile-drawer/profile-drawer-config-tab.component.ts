@@ -44,6 +44,7 @@ import {
   ToSegmentControlComponent,
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
+import { ProfileDrawerOperationTabComponent } from './profile-drawer-operation-tab.component';
 
 type DisableConfirmKind = 'maintenance' | 'diesel';
 
@@ -57,6 +58,7 @@ type DisableConfirmKind = 'maintenance' | 'diesel';
     ToInputComponent,
     ToSelectComponent,
     ToSegmentControlComponent,
+    ProfileDrawerOperationTabComponent,
   ],
   templateUrl: './profile-drawer-config-tab.component.html',
   host: {
@@ -69,6 +71,8 @@ type DisableConfirmKind = 'maintenance' | 'diesel';
   ],
 })
 export class ProfileDrawerConfigTabComponent {
+  private readonly operationTabRef = viewChild(ProfileDrawerOperationTabComponent);
+
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
@@ -163,12 +167,10 @@ export class ProfileDrawerConfigTabComponent {
   }
 
   paymentReminderStatusLabel(): string {
-    const days = this.session.paymentReminderDaysBefore();
-    const daysPart = `${days} día${days === 1 ? '' : 's'} de anticipación`;
-    return this.settingUpdatedStatusLabel(
-      daysPart,
-      this.session.paymentReminderDaysChangedAt(),
+    const at = formatOperationalSettingChangedAt(
+      this.session.paymentReminderDaysChangedAt() ?? '',
     );
+    return at === '—' ? '—' : `Actualizado el ${at}`;
   }
 
   autoPaymentsStatusLabel(): string {
@@ -176,17 +178,6 @@ export class ProfileDrawerConfigTabComponent {
       return 'Sin aplicar (provisión del motor en 0%)';
     }
     return this.controlStatusLabel(true, this.session.tripAutoPaymentsChangedAt());
-  }
-
-  private settingUpdatedStatusLabel(
-    summary: string,
-    changedAt: string | null | undefined,
-  ): string {
-    const at = formatOperationalSettingChangedAt(changedAt ?? '');
-    if (at === '—') {
-      return summary;
-    }
-    return `${summary} · Actualizado el ${at}`;
   }
 
   onMaintenancePolicySelect(mode: CompanyMaintenancePolicyMode): void {
@@ -258,30 +249,42 @@ export class ProfileDrawerConfigTabComponent {
       return;
     }
 
-    if (
-      this.draftDieselControlEnabled() &&
-      !this.planEntitlements.canUseDieselAutomatic()
-    ) {
-      this.toast.show(this.planEntitlements.dieselUpgradeMessage(), 'warning');
-      this.draftDieselControlEnabled.set(false);
-      return;
-    }
-    if (
-      this.draftMaintenanceMode() !== 'none' &&
-      !this.planEntitlements.canUseMaintenancePolicy()
-    ) {
-      this.toast.show(this.planEntitlements.maintenanceUpgradeMessage(), 'warning');
-      this.draftMaintenanceMode.set('none');
-      return;
-    }
+    const operationPatch = this.operationTabRef()?.collectOperationPatch() ?? null;
+    const configPatch = this.buildConfigPatch();
 
-    const patch = this.buildConfigPatch();
-    if (!patch) {
+    if (!operationPatch && !configPatch) {
       this.toast.show('No hay cambios en la configuración.', 'warning');
       return;
     }
 
-    if (this.draftMaintenanceMode() === 'km') {
+    if (operationPatch) {
+      const opErr = this.operationTabRef()?.operationPatchError(operationPatch);
+      if (opErr) {
+        this.toast.show(opErr, 'warning');
+        return;
+      }
+    }
+
+    if (configPatch) {
+      if (
+        this.draftDieselControlEnabled() &&
+        !this.planEntitlements.canUseDieselAutomatic()
+      ) {
+        this.toast.show(this.planEntitlements.dieselUpgradeMessage(), 'warning');
+        this.draftDieselControlEnabled.set(false);
+        return;
+      }
+      if (
+        this.draftMaintenanceMode() !== 'none' &&
+        !this.planEntitlements.canUseMaintenancePolicy()
+      ) {
+        this.toast.show(this.planEntitlements.maintenanceUpgradeMessage(), 'warning');
+        this.draftMaintenanceMode.set('none');
+        return;
+      }
+    }
+
+    if (configPatch && this.draftMaintenanceMode() === 'km') {
       const kmRaw = this.draftKmInterval().trim().replace(/,/g, '');
       const kmN = kmRaw === '' ? undefined : Number(kmRaw);
       if (kmN === undefined || !Number.isFinite(kmN) || kmN <= 0) {
@@ -293,49 +296,56 @@ export class ProfileDrawerConfigTabComponent {
       }
     }
 
-    const provisionPercent = this.parseDraftMaintenanceProvisionPercent();
-    if (provisionPercent === null) {
-      this.toast.show(
-        'Indica un porcentaje de provisión entre 0 y 100, o déjalo vacío para control manual.',
-        'warning',
+    if (configPatch) {
+      const provisionPercent = this.parseDraftMaintenanceProvisionPercent();
+      if (provisionPercent === null) {
+        this.toast.show(
+          'Indica un porcentaje de provisión entre 0 y 100, o déjalo vacío para control manual.',
+          'warning',
+        );
+        return;
+      }
+      if (
+        provisionPercent > 0 &&
+        !this.isValidAutoExpensePaymentMethod(this.draftControlPaymentMethod())
+      ) {
+        this.toast.show('Selecciona el método de pago del gasto de provisión.', 'warning');
+        return;
+      }
+
+      if (!this.isValidAutoExpensePaymentMethod(this.draftFuelPaymentMethod())) {
+        this.toast.show('Selecciona el método de pago del diésel.', 'warning');
+        return;
+      }
+      if (!this.isValidAutoExpensePaymentMethod(this.draftTollsPaymentMethod())) {
+        this.toast.show('Selecciona el método de pago de casetas.', 'warning');
+        return;
+      }
+      if (!this.isValidAutoExpensePaymentMethod(this.draftPerDiemPaymentMethod())) {
+        this.toast.show('Selecciona el método de pago de viáticos.', 'warning');
+        return;
+      }
+
+      const reminderDays = Number(
+        this.draftPaymentReminderDays().trim().replace(/,/g, ''),
       );
-      return;
-    }
-    if (
-      provisionPercent > 0 &&
-      !this.isValidAutoExpensePaymentMethod(this.draftControlPaymentMethod())
-    ) {
-      this.toast.show('Selecciona el método de pago del gasto de provisión.', 'warning');
-      return;
+      if (
+        !Number.isFinite(reminderDays) ||
+        reminderDays < PAYMENT_REMINDER_DAYS_MIN ||
+        reminderDays > PAYMENT_REMINDER_DAYS_MAX
+      ) {
+        this.toast.show(
+          `Indica los días de anticipación entre ${PAYMENT_REMINDER_DAYS_MIN} y ${PAYMENT_REMINDER_DAYS_MAX}.`,
+          'warning',
+        );
+        return;
+      }
     }
 
-    if (!this.isValidAutoExpensePaymentMethod(this.draftFuelPaymentMethod())) {
-      this.toast.show('Selecciona el método de pago del diésel.', 'warning');
-      return;
-    }
-    if (!this.isValidAutoExpensePaymentMethod(this.draftTollsPaymentMethod())) {
-      this.toast.show('Selecciona el método de pago de casetas.', 'warning');
-      return;
-    }
-    if (!this.isValidAutoExpensePaymentMethod(this.draftPerDiemPaymentMethod())) {
-      this.toast.show('Selecciona el método de pago de viáticos.', 'warning');
-      return;
-    }
-
-    const reminderDays = Number(
-      this.draftPaymentReminderDays().trim().replace(/,/g, ''),
-    );
-    if (
-      !Number.isFinite(reminderDays) ||
-      reminderDays < PAYMENT_REMINDER_DAYS_MIN ||
-      reminderDays > PAYMENT_REMINDER_DAYS_MAX
-    ) {
-      this.toast.show(
-        `Indica los días de anticipación entre ${PAYMENT_REMINDER_DAYS_MIN} y ${PAYMENT_REMINDER_DAYS_MAX}.`,
-        'warning',
-      );
-      return;
-    }
+    const patch: PatchCompanyOperationalSettings = {
+      ...(operationPatch ?? {}),
+      ...(configPatch ?? {}),
+    };
 
     this.saving.set(true);
     this.companies
@@ -345,12 +355,14 @@ export class ProfileDrawerConfigTabComponent {
         next: (company) => {
           syncCompanySettingsFromProfile(this.session, company);
           this.loadDraftFromSession();
+          this.operationTabRef()?.reloadOperationFromSession();
           this.saving.set(false);
           this.toast.show('Configuración guardada.', 'success');
         },
         error: () => {
           this.saving.set(false);
           this.loadDraftFromSession();
+          this.operationTabRef()?.reloadOperationFromSession();
           this.toast.show('No se pudo guardar la configuración.', 'error');
         },
       });

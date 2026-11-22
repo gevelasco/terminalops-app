@@ -1,0 +1,102 @@
+@if (hasAny()) {
+  <p class="users-overview__hint">
+    Vista resumida del equipo. Haz clic en una tarjeta para abrir el detalle del usuario.
+  </p>
+
+  @for (section of sections(); track section.id) {
+    <section
+      class="users-overview__section"
+      [attr.aria-labelledby]="'users-overview-' + section.id + '-heading'"
+    >
+      <header class="users-overview__section-head">
+        <h2
+          [id]="'users-overview-' + section.id + '-heading'"
+          class="users-overview__section-title"
+        >
+          {{ section.title }}
+        </h2>
+        <span class="users-overview__section-count" aria-hidden="true">{{
+          section.cards.length
+        }}</span>
+      </header>
+      <div class="users-overview__grid" role="list" [attr.aria-label]="section.title">
+        @for (card of section.cards; track card.id) {
+          <article
+            class="users-overview__card"
+            role="listitem"
+            tabindex="0"
+            [attr.aria-label]="'Ver usuario ' + card.name"
+            (click)="onCardClick(card.id)"
+            (keydown)="onCardKeydown($event, card.id)"
+          >
+            <header class="users-overview__head">
+              @if (card.photoUrl) {
+                <img
+                  class="users-overview__avatar"
+                  [src]="card.photoUrl"
+                  [alt]="'Foto de ' + card.name"
+                  width="48"
+                  height="48"
+                  loading="lazy"
+                  decoding="async"
+                />
+              } @else {
+                <span
+                  class="users-overview__avatar users-overview__avatar--initials"
+                  aria-hidden="true"
+                  >{{ card.photoInitials }}</span
+                >
+              }
+              <div class="users-overview__title-block">
+                <div class="users-overview__title-row">
+                  <h3 class="users-overview__name">{{ card.name }}</h3>
+                  <span [class]="card.statusPillClass + ' users-overview__status-pill'">
+                    <span class="to-table-pill__dot" aria-hidden="true"></span>
+                    <span class="to-table-pill__label">{{ card.statusLabel }}</span>
+                  </span>
+                </div>
+                <p class="users-overview__subtitle">{{ card.subtitle }}</p>
+                <p class="users-overview__username">&#64;{{ card.username }}</p>
+              </div>
+            </header>
+
+            <div class="users-overview__modules" role="list" aria-label="Módulos con acceso">
+              @for (item of card.moduleIcons; track item.label) {
+                <span
+                  class="module-access-icon"
+                  [class.module-access-icon--on]="item.active"
+                  role="listitem"
+                  [attr.title]="item.label + (item.active ? '' : ' (sin acceso)')"
+                  [attr.aria-label]="
+                    item.label + (item.active ? ': con acceso' : ': sin acceso')
+                  "
+                >
+                  @if (item.iconImageSrc) {
+                    <span
+                      class="commercial-handshake-icon"
+                      [style.--commercial-handshake-icon-mask]="
+                        'url(' + item.iconImageSrc + ')'
+                      "
+                    ></span>
+                  } @else {
+                    <to-icon [name]="moduleAccessIconName(item.icon)" [size]="16" />
+                  }
+                </span>
+              }
+            </div>
+
+            <footer class="users-overview__footer">
+              <span [class]="card.rolePillClass + ' users-overview__role-pill'">
+                <to-icon [name]="roleIcon(card.role)" [size]="13" aria-hidden="true" />
+                <span class="to-table-pill__label">{{ card.roleLabel }}</span>
+              </span>
+              <p class="users-overview__access-summary">{{ card.accessSummary }}</p>
+            </footer>
+          </article>
+        }
+      </div>
+    </section>
+  }
+} @else {
+  <p class="users-overview__empty">No hay usuarios registrados en la empresa.</p>
+}

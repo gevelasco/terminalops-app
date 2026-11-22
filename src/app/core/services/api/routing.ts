@@ -12,6 +12,10 @@ export type RouteTollPlazaRow = {
   inegiPoint?: string;
   name: string;
   costMxn: number | null;
+  /** Municipio aproximado (OSM/Photon o persistido con la tarifa). */
+  municipality?: string;
+  /** Estado MX (geoestado o persistido con la tarifa). */
+  state?: string;
 };
 
 export type RouteTollsResult = {

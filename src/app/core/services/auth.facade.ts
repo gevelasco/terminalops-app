@@ -150,6 +150,10 @@ export class AuthFacade {
         user.operationalCenterLatitude ?? payload.operationalCenterLatitude,
       operationalCenterLongitude:
         user.operationalCenterLongitude ?? payload.operationalCenterLongitude,
+      operationalCenterChangedAt:
+        normalizeApiIsoDate(user.operationalCenterChangedAt) ??
+        normalizeApiIsoDate(payload.operationalCenterChangedAt) ??
+        user.operationalCenterChangedAt,
       openChecklistCount: normalizeOpenChecklistCount(
         user.openChecklistCount ?? payload.openChecklistCount,
       ),

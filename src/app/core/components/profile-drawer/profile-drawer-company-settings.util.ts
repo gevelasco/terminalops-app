@@ -32,5 +32,6 @@ export function syncCompanySettingsFromProfile(
     operationalCenterSettlementConsId: result.operationalCenterSettlementConsId,
     operationalCenterLatitude: result.operationalCenterLatitude,
     operationalCenterLongitude: result.operationalCenterLongitude,
+    operationalCenterChangedAt: result.operationalCenterChangedAt,
   });
 }

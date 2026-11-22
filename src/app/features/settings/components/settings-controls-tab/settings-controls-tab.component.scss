@@ -5,6 +5,16 @@
 }
 
 .settings-controls-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   width: 100%;
   max-width: 100%;
+}
+
+.settings-controls-tab__hint {
+  margin: 0 0 1.1rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
 }

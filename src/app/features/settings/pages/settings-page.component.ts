@@ -12,6 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SessionService } from '@core/services/state/session';
 import { SettingsControlsTabComponent } from '@features/settings/components/settings-controls-tab/settings-controls-tab.component';
+import { SettingsDataImportTabComponent } from '@features/settings/components/settings-data-import-tab/settings-data-import-tab.component';
 import { UsersSettingsTabComponent } from '@features/users/components/users-settings-tab/users-settings-tab.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
@@ -21,9 +22,9 @@ import {
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 
-export type SettingsPageTab = 'controles' | 'users';
+export type SettingsPageTab = 'controles' | 'users' | 'datos';
 
-const SETTINGS_TABS = new Set<SettingsPageTab>(['controles', 'users']);
+const SETTINGS_TABS = new Set<SettingsPageTab>(['controles', 'users', 'datos']);
 
 function resolveSettingsTab(
   raw: string | null | undefined,
@@ -31,7 +32,7 @@ function resolveSettingsTab(
 ): SettingsPageTab {
   const tab = raw?.trim() as SettingsPageTab | undefined;
   if (tab && SETTINGS_TABS.has(tab)) {
-    if (tab === 'controles' && !canViewControls) {
+    if ((tab === 'controles' || tab === 'datos') && !canViewControls) {
       return 'users';
     }
     return tab;
@@ -52,6 +53,7 @@ function resolveSettingsTab(
     ToIconComponent,
     ToSegmentControlComponent,
     SettingsControlsTabComponent,
+    SettingsDataImportTabComponent,
     UsersSettingsTabComponent,
   ],
   templateUrl: './settings-page.component.html',
@@ -77,19 +79,25 @@ export class SettingsPageComponent implements OnInit {
     (): readonly ToSegmentTab<SettingsPageTab>[] => {
       const tabs: ToSegmentTab<SettingsPageTab>[] = [];
       if (this.canViewControls()) {
-        tabs.push({
-          id: 'controles',
-          label: 'Controles',
-          icon: 'maintenance',
-          htmlId: 'settings-tab-controles',
-        });
-      }
       tabs.push({
-        id: 'users',
-        label: 'Usuarios',
-        icon: 'person',
-        htmlId: 'settings-tab-users',
+        id: 'controles',
+        label: 'Controles',
+        icon: 'maintenance',
+        htmlId: 'settings-tab-controles',
       });
+      tabs.push({
+        id: 'datos',
+        label: 'Datos',
+        icon: 'upload',
+        htmlId: 'settings-tab-datos',
+      });
+    }
+    tabs.push({
+      id: 'users',
+      label: 'Usuarios',
+      icon: 'person',
+      htmlId: 'settings-tab-users',
+    });
       return tabs;
     },
   );

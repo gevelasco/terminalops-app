@@ -1,18 +1,18 @@
 <to-side-drawer
   titleId="profile-drawer-title"
   wide
-  panelClass="profile-drawer__panel"
-  bodyClass="fleet-unit-body fleet-unit-detail profile-drawer__body"
+  headerClass="fleet-unit-detail__header"
+  bodyClass="fleet-unit-body fleet-unit-detail"
   [loading]="drawerLoading()"
   skeletonVariant="detail"
   (dismiss)="dismiss.emit()"
 >
-  <h2 toSideDrawerHeader id="profile-drawer-title" class="to-side-drawer__title">
-    <svg class="to-side-drawer__title-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M12 12.75c1.63 0 3.07.39 4.24.9 1.08.48 1.76 1.56 1.76 2.73V18H6v-1.61c0-1.18.68-2.26 1.76-2.73 1.17-.52 2.61-.91 4.24-.91zM4 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm1.13 1.1c-.37-.06-.74-.1-1.13-.1-.99 0-1.93.21-2.78.58C.48 14.9 0 15.62 0 16.43V18h4.5v-1.61c0-.83.23-1.61.63-2.29zM20 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm4 3.43c0-.81-.48-1.53-1.22-1.85-.85-.37-1.79-.58-2.78-.58-.39 0-.76.04-1.13.1.4.68.63 1.46.63 2.29V18H24v-1.57zM12 6c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z" />
-    </svg>
-    Mi perfil
-  </h2>
+  <div toSideDrawerHeader class="fleet-unit-detail__header-text">
+    <h2 id="profile-drawer-title" class="to-side-drawer__title fleet-unit-detail__title">
+      <to-icon class="to-side-drawer__title-icon" name="person" [size]="22" />
+      Mi perfil
+    </h2>
+  </div>
 
   <section
     class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__account"
@@ -93,24 +93,9 @@
       />
     </div>
 
-    @if (profileDrawerTabs().length > 1) {
-      <div class="profile-drawer__section-nav">
-        <span id="profile-section-label" class="profile-drawer__theme-label">Sección</span>
-        <to-segment-control
-          layout="fill"
-          ariaLabel="Secciones de mi perfil"
-          [tabs]="profileDrawerTabs()"
-          [activeId]="profileTab()"
-          (tabSelect)="selectProfileTab($event)"
-        />
-      </div>
-    }
   </section>
 
-  <div class="profile-drawer__scroll fleet-unit-body">
-  @switch (profileTab()) {
-    @case ('perfil') {
-      <div class="profile-drawer__sections">
+  <div class="fleet-unit-detail__section-stack">
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
         aria-labelledby="profile-personal-heading"
@@ -136,7 +121,9 @@
         </div>
 
         @if (!isEditing('personal')) {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact profile-drawer__fields"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Nombre</dt>
               <dd>{{ displayName() }}</dd>
@@ -156,6 +143,32 @@
             <div class="fleet-unit-detail__row">
               <dt>Teléfono</dt>
               <dd>{{ phone().trim() || '—' }}</dd>
+            </div>
+          </dl>
+
+          <h4 class="profile-drawer__subsection-title">Colaborador</h4>
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact profile-drawer__fields"
+          >
+            <div class="fleet-unit-detail__row">
+              <dt>Fecha de ingreso</dt>
+              <dd>{{ memberSinceLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Antigüedad</dt>
+              <dd>{{ tenureLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Área</dt>
+              <dd>{{ departmentLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>Ubicación</dt>
+              <dd>{{ workLocationLine() }}</dd>
+            </div>
+            <div class="fleet-unit-detail__row">
+              <dt>ID colaborador</dt>
+              <dd class="fleet-unit-detail__mono">{{ employeeIdLine() }}</dd>
             </div>
           </dl>
         } @else {
@@ -194,36 +207,6 @@
 
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="profile-collab-heading"
-      >
-        <h3 id="profile-collab-heading" class="fleet-unit-sec__title">Colaborador</h3>
-
-        <dl class="fleet-unit-detail__dl">
-          <div class="fleet-unit-detail__row">
-            <dt>Fecha de ingreso</dt>
-            <dd>{{ memberSinceLine() }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Antigüedad</dt>
-            <dd>{{ tenureLine() }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Área</dt>
-            <dd>{{ departmentLine() }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Ubicación</dt>
-            <dd>{{ workLocationLine() }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>ID colaborador</dt>
-            <dd class="fleet-unit-detail__mono">{{ employeeIdLine() }}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
         aria-labelledby="profile-pwd-heading"
       >
         <div class="fleet-unit-sec__header">
@@ -247,7 +230,9 @@
         </div>
 
         @if (!isEditing('password')) {
-          <dl class="fleet-unit-detail__dl">
+          <dl
+            class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols fleet-unit-detail__dl--compact profile-drawer__fields"
+          >
             <div class="fleet-unit-detail__row">
               <dt>Estado</dt>
               <dd>{{ passwordStatusLabel() }}</dd>
@@ -305,36 +290,17 @@
           </div>
         }
       </section>
-      </div>
-    }
-    @case ('operacion') {
-      <app-profile-drawer-operation-tab />
-    }
-  }
   </div>
 
-  <footer toSideDrawerFooter class="profile-drawer__footer">
-    @if (profileTab() === 'operacion' && canViewConfigTab()) {
-      <to-button
-        type="button"
-        variant="primary"
-        size="md"
-        class="profile-drawer__footer-btn"
-        [loading]="operationSaving()"
-        [disabled]="operationSaving()"
-        (click)="saveOperationSettings()"
-      >
-        <to-icon name="save" [size]="14" />
-        {{ operationSaving() ? 'Guardando…' : 'Guardar operación' }}
-      </to-button>
-    } @else if (profileTab() === 'perfil') {
+  <div toSideDrawerFooter class="maniobra-detail__footer">
+    <div class="maniobra-detail__footer-start">
       <button
         type="button"
-        class="profile-drawer__logout-btn"
+        class="maniobra-detail__delete-maniobra-btn"
         [disabled]="saving()"
         (click)="logout()"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
             d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
@@ -342,6 +308,9 @@
         </svg>
         Cerrar sesión
       </button>
-    }
-  </footer>
+    </div>
+    <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">
+      Cerrar
+    </to-button>
+  </div>
 </to-side-drawer>

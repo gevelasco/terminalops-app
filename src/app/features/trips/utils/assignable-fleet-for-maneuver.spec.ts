@@ -101,6 +101,33 @@ describe('buildManeuverAssignableUnitRows', () => {
     expect(rows[0]!.displayLabel).toMatch(/Volteo$/);
   });
 
+  it('allows unit in transit when new schedule starts after current trip ends', () => {
+    const busyUnit = unit({
+      id: 'u-busy',
+      status: 'in_use',
+      hitchedEquipment: [equipment({ id: 'e-busy', unitId: 'u-busy' })],
+    });
+    const activeTrip = {
+      id: 't1',
+      unitId: 'u-busy',
+      operatorId: 'op-1',
+      status: 'in_transit',
+      plannedDepartureAt: '2026-06-01T08:00:00.000Z',
+      plannedCompletionAt: '2026-06-02T08:00:00.000Z',
+      departureAt: null,
+      arrivedAt: null,
+      returnAt: null,
+    } as Trip;
+
+    const rows = buildManeuverAssignableUnitRows([busyUnit], [activeTrip], {
+      candidateSchedule: {
+        startMs: new Date('2026-06-02T08:00:00.000Z').getTime(),
+        endMs: new Date('2026-06-03T08:00:00.000Z').getTime(),
+      },
+    });
+    expect(rows.map((r) => r.unit.id)).toEqual(['u-busy']);
+  });
+
   it('excludes units already on an active trip unless the maneuver is historical', () => {
     const busyUnit = unit({
       id: 'u-busy',

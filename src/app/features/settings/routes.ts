@@ -5,6 +5,7 @@ import { Routes } from '@angular/router';
  * - /settings → /settings/controles
  * - /settings/controles
  * - /settings/users
+ * - /settings/datos
  */
 export const settingsRoutes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'controles' },

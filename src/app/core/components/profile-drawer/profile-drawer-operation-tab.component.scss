@@ -1,3 +1,14 @@
+@use '../../../features/fleet/components/styles/fleet-drawer-privacy-hint.shared' as privacy;
+
+@include privacy.fleet-drawer-privacy-hint('profile-drawer__center-embed');
+
+.profile-drawer__center-embed-title {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.4rem;
+}
+
 .profile-drawer__config-sections {
   display: flex;
   flex-direction: column;
@@ -8,20 +19,67 @@
   margin-top: 0;
 }
 
+.profile-drawer__center--embedded {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.profile-drawer__center-embed-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.profile-drawer__center-embed-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--to-color-text);
+  flex-shrink: 0;
+}
+
+.profile-drawer__center-embed-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+  min-width: 0;
+}
+
 .profile-drawer__cp-stack {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  min-width: 0;
 }
 
-.profile-drawer__center-ident-row {
+.profile-drawer__center-fields-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
+  grid-template-columns: 1fr;
+  gap: 0.55rem 0.65rem;
+  min-width: 0;
 
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.profile-drawer__cp-stack--wide .profile-drawer__center-fields-grid {
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.profile-drawer__field {
+  min-width: 0;
+}
+
+.profile-drawer__field-span {
+  grid-column: 1 / -1;
 }
 
 .profile-drawer__cp-hint {
@@ -30,16 +88,13 @@
   color: var(--to-color-text-muted);
 }
 
-.profile-drawer__coords-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
+.profile-drawer__center-note {
+  margin-top: 0.15rem;
 }
 
-.profile-drawer__center-note {
-  margin-top: 0.65rem;
+:host ::ng-deep .profile-drawer__field > to-input,
+:host ::ng-deep .profile-drawer__field > to-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
 }

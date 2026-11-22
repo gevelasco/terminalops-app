@@ -41,6 +41,7 @@ import {
 import { formatFleetYmdMx } from '@features/fleet/utils/fleet-unit-table-row';
 import { fleetUnitIdIsOnRoute } from '@features/fleet/utils/fleet-operational-status';
 import { cyclicRenewalHint } from '@features/fleet/utils/fleet-cyclic-renewal-hint';
+import { isDollyEquipmentType } from '@features/fleet/utils/equipment-dolly-convoy.util';
 import { validateEquipmentHitchAssignment, hitchPositionForNewEquipmentOnUnit, unitsEligibleForEquipmentHitch } from '@shared/utils/fleet/equipment-hitch-assignment';
 import { equipmentAssignedToUnit } from '@shared/utils/fleet/equipment-hitch-position';
 import { mapAppHitchPositionToApiWrite } from '@shared/utils/fleet/equipment-hitch-position-api.util';
@@ -334,6 +335,9 @@ export class FleetNewEquipmentDrawerComponent {
   readonly containerSlotFieldLabel = computed(() =>
     containerSlotFieldLabel(this.operationTypeCode()),
   );
+  readonly equipmentPlateInputLabel = computed(() =>
+    isDollyEquipmentType(this.operationTypeCode()) ? 'Placa' : 'Placa *',
+  );
 
   readonly maintenanceTypeOptions = FLEET_MAINTENANCE_TYPE_OPTIONS;
 
@@ -527,9 +531,21 @@ export class FleetNewEquipmentDrawerComponent {
     const plate = this.plate().trim().toUpperCase();
     const serial = this.serialNumber().trim().toUpperCase();
 
-    if (!brandName || !opType || !plate) {
+    const isDolly = isDollyEquipmentType(opType);
+    if (!brandName || !opType) {
+      this.toast.show('Marca, modelo y tipo de equipo son obligatorios.', 'warning');
+      return;
+    }
+    if (!isDolly && !plate) {
       this.toast.show(
         'Marca, modelo, tipo de equipo y placa son obligatorios.',
+        'warning',
+      );
+      return;
+    }
+    if (isDolly && !plate && !serial && !this.name().trim()) {
+      this.toast.show(
+        'Para dolly sin placa indica número de serie o nombre.',
         'warning',
       );
       return;
@@ -759,7 +775,7 @@ export class FleetNewEquipmentDrawerComponent {
         hitchPosition: hitchApi ?? undefined,
         name: this.name().trim() || resolvedSerial,
         serialNumber: resolvedSerial,
-        plate,
+        plate: plate || undefined,
         type: this.operationTypeLabel(opType),
         trailerBrandAbbr: brandAbbr || undefined,
         trailerYear: year,

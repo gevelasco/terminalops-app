@@ -118,6 +118,7 @@
   <div
     class="dashboard-body"
     [class.dashboard-body--with-upcoming]="showAsideList()"
+    [class.dashboard-body--with-transactions]="canReadClientCollections()"
   >
     @if (!isMobileViewport()) {
     <section class="dashboard-panel dashboard-panel--flow">
@@ -298,6 +299,60 @@
         </table>
       </div>
     </section>
+
+    @if (canReadClientCollections()) {
+      <section
+        class="dashboard-panel dashboard-panel--transactions"
+        aria-labelledby="dashboard-transactions-title"
+      >
+        <header class="dashboard-panel__head">
+          <div>
+            <h2 id="dashboard-transactions-title" class="dashboard-panel__title">
+              Transacciones
+            </h2>
+            <p class="dashboard-panel__subtitle">{{ clientTransactionsSubtitle() }}</p>
+          </div>
+        </header>
+        <ul class="dashboard-tx-list">
+          @for (row of clientTransactions(); track row.id) {
+            <li
+              class="dashboard-tx-row"
+              [class.dashboard-tx-row--overdue]="row.kind === 'overdue'"
+              [class.dashboard-tx-row--collected]="row.kind === 'collected'"
+            >
+              <div class="dashboard-tx-row__top">
+                <span class="dashboard-tx-row__icon" aria-hidden="true">
+                  @if (row.iconImageSrc) {
+                    <span
+                      class="dashboard-tx-row__handshake"
+                      [style.--dashboard-tx-handshake-mask]="'url(' + row.iconImageSrc + ')'"
+                    ></span>
+                  } @else if (row.icon) {
+                    <to-icon [name]="row.icon" [size]="14" />
+                  }
+                </span>
+                <div class="dashboard-tx-row__copy">
+                  <span class="dashboard-tx-row__client" [title]="row.clientName">{{
+                    row.clientName
+                  }}</span>
+                  @if (row.maneuverCode) {
+                    <span class="dashboard-tx-row__code">{{ row.maneuverCode }}</span>
+                  }
+                </div>
+                <span class="dashboard-tx-row__amount">{{
+                  clientTransactionAmountLabel(row)
+                }}</span>
+              </div>
+              <p class="dashboard-tx-row__status">{{ row.statusLabel }}</p>
+            </li>
+          } @empty {
+            <li class="dashboard-tx-list__empty">
+              Sin cobros en los últimos 30 días ni saldos por cobrar vigentes.
+            </li>
+          }
+        </ul>
+      </section>
+    }
 
     <section class="dashboard-panel dashboard-panel--mix">
       <header class="dashboard-panel__head">

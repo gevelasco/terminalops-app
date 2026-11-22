@@ -1,4 +1,8 @@
-import type { MexicoStateGeoFeature } from '@features/trips/utils/trips-map-state-activity';
+import {
+  findMexicoStateForPoint,
+  type MexicoStateGeoFeature,
+  type MexicoStatesGeoJson,
+} from '@features/trips/utils/trips-map-state-activity';
 
 function normalizePlaceLabel(value: string): string {
   return value
@@ -48,6 +52,27 @@ export function matchMexicoStateLabelToGeoName(
     }
   }
   return partial;
+}
+
+/** Rechaza homónimos (p. ej. Colima geocodificado al norte de MX). */
+export function coordsMatchMexicanStateHint(
+  lat: number,
+  lon: number,
+  stateHint: string,
+  geo: MexicoStatesGeoJson,
+): boolean {
+  const hint = stateHint.trim();
+  if (!hint) {
+    return true;
+  }
+  const resolved = findMexicoStateForPoint(lon, lat, geo.features);
+  if (!resolved) {
+    return true;
+  }
+  const expected = matchMexicoStateLabelToGeoName(hint, geo.features) ?? hint;
+  const a = normalizePlaceLabel(resolved);
+  const b = normalizePlaceLabel(expected);
+  return a === b || a.includes(b) || b.includes(a);
 }
 
 export function mexicanSepomexGeocodeHints(

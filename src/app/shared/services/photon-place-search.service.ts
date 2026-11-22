@@ -1,8 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 
+import { environment } from '../../../environments/environment';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 
 /** Sugerencia para mostrar y guardar como texto de origen/destino. */
@@ -12,6 +13,11 @@ export interface PlaceSuggestion {
   lat: number;
   lon: number;
 }
+
+export type PhotonMexicanAdminLabels = {
+  municipality: string;
+  state: string;
+};
 
 interface PhotonFeature {
   geometry: { type: string; coordinates: [number, number] };
@@ -23,21 +29,78 @@ interface PhotonResponse {
 }
 
 /**
- * Búsqueda de lugares vía API pública Photon (datos OpenStreetMap).
- * Sin API key; uso razonable según política del servidor público (no para alto volumen).
- * @see https://photon.komoot.io
+ * Geocodificación Photon (OSM) vía proxy en terminalops-api (sin CORS ni bloqueos del navegador).
  */
 @Injectable({ providedIn: 'root' })
 export class PhotonPlaceSearchService {
   private readonly http = inject(HttpClient);
 
-  private readonly endpoint = 'https://photon.komoot.io/api/';
+  private readonly searchUrl = `${environment.apiUrl}/geo/photon/search`;
+  private readonly reverseUrl = `${environment.apiUrl}/geo/photon/reverse`;
+  private readonly reverseCache = new Map<string, PhotonMexicanAdminLabels | null>();
+  private readonly searchPickCache = new Map<string, LatLon | null>();
 
   /** Photon solo admite `default`, `de`, `en`, `fr` (no `es`). */
   private readonly photonLang = 'default';
 
   /** Bounding box México (WGS84): minLon, minLat, maxLon, maxLat — acota resultados Photon. */
   private readonly mexicoBbox = '-118.5,14.5,-86.5,32.75';
+
+  /**
+   * Municipio y estado aproximados por coordenada (OSM vía Photon).
+   * Caché en memoria por sesión; no usa INEGI.
+   */
+  reverseMexicanAdminLabels(
+    lat: number,
+    lon: number,
+  ): Observable<PhotonMexicanAdminLabels | null> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return of(null);
+    }
+    const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    if (this.reverseCache.has(key)) {
+      return of(this.reverseCache.get(key) ?? null);
+    }
+    const params = new HttpParams()
+      .set('lat', String(lat))
+      .set('lon', String(lon))
+      .set('lang', this.photonLang);
+    return this.http
+      .get<PhotonResponse>(this.reverseUrl, { params })
+      .pipe(
+        map((body) => {
+          const features = body?.features ?? [];
+          const feature = features.find((f) => this.isMexico(f.properties)) ?? features[0];
+          if (!feature) {
+            this.reverseCache.set(key, null);
+            return null;
+          }
+          const p = feature.properties;
+          const municipality = (
+            p['city'] ??
+            p['town'] ??
+            p['village'] ??
+            p['county'] ??
+            ''
+          ).trim();
+          const state = (p['state'] ?? '').trim();
+          if (!municipality && !state) {
+            this.reverseCache.set(key, null);
+            return null;
+          }
+          const labels: PhotonMexicanAdminLabels = {
+            municipality,
+            state,
+          };
+          this.reverseCache.set(key, labels);
+          return labels;
+        }),
+        catchError(() => {
+          this.reverseCache.set(key, null);
+          return of(null);
+        }),
+      );
+  }
 
   /** Primera coincidencia en México (geocodificación rápida para CP / colonia). */
   firstCoordinates(query: string): Observable<LatLon | null> {
@@ -53,52 +116,26 @@ export class PhotonPlaceSearchService {
   }
 
   /**
-   * Geocodificación acotada a SEPOMex: elige el hit de Photon que mejor coincida
-   * con estado, municipio y nombre de asentamiento (evita homónimos y el primer
-   * resultado irrelevante).
+   * Una consulta acotada (máx. 2 con/sin bbox). Resultados cacheados por query en sesión.
    */
   firstCoordinatesForMexicanSepomex(
     query: string,
     hints: { state: string; municipality: string; settlement: string },
   ): Observable<LatLon | null> {
-    const q = query.trim();
-    if (q.length < 3) {
-      return of(null);
-    }
     const h = {
       state: hints.state.trim(),
       municipality: hints.municipality.trim(),
       settlement: hints.settlement.trim(),
     };
-    const qColoniaMuni = [h.settlement, h.municipality, h.state, 'México']
+    const primary = [h.settlement, h.municipality, h.state, 'México']
       .filter((x) => x.length > 0)
       .join(', ');
-    const qMuniState = [h.municipality, h.state, 'México']
-      .filter((x) => x.length > 0)
-      .join(', ');
-
+    const q = primary.length >= 3 ? primary : query.trim();
+    if (q.length < 3) {
+      return of(null);
+    }
     return this.photonGetAndPick(q, h, true).pipe(
       switchMap((picked) => (picked ? of(picked) : this.photonGetAndPick(q, h, false))),
-      switchMap((picked) => {
-        if (picked || qColoniaMuni.length < 3 || qColoniaMuni === q) {
-          return of(picked);
-        }
-        return this.photonGetAndPick(qColoniaMuni, h, true).pipe(
-          switchMap((p2) =>
-            p2 ? of(p2) : this.photonGetAndPick(qColoniaMuni, h, false),
-          ),
-        );
-      }),
-      switchMap((picked) => {
-        if (picked || qMuniState.length < 3 || qMuniState === qColoniaMuni) {
-          return of(picked);
-        }
-        return this.photonGetAndPick(qMuniState, h, true).pipe(
-          switchMap((p3) =>
-            p3 ? of(p3) : this.photonGetAndPick(qMuniState, h, false),
-          ),
-        );
-      }),
     );
   }
 
@@ -108,6 +145,11 @@ export class PhotonPlaceSearchService {
     hints: { state: string; municipality: string; settlement: string },
     useBbox: boolean,
   ): Observable<LatLon | null> {
+    const cacheKey = `${useBbox ? 'b' : 'o'}|${q}`;
+    const cached = this.searchPickCache.get(cacheKey);
+    if (cached !== undefined) {
+      return of(cached);
+    }
     let params = new HttpParams()
       .set('q', q)
       .set('limit', '20')
@@ -115,8 +157,13 @@ export class PhotonPlaceSearchService {
     if (useBbox) {
       params = params.set('bbox', this.mexicoBbox);
     }
-    return this.http.get<PhotonResponse>(this.endpoint, { params }).pipe(
+    return this.http.get<PhotonResponse>(this.searchUrl, { params }).pipe(
       map((res) => this.pickBestLatLonForSettlement(res.features ?? [], hints)),
+      tap((picked) => this.searchPickCache.set(cacheKey, picked)),
+      catchError(() => {
+        this.searchPickCache.set(cacheKey, null);
+        return of(null);
+      }),
     );
   }
 
@@ -130,12 +177,13 @@ export class PhotonPlaceSearchService {
       .set('limit', '15')
       .set('lang', this.photonLang)
       .set('bbox', this.mexicoBbox);
-    return this.http.get<PhotonResponse>(this.endpoint, { params }).pipe(
+    return this.http.get<PhotonResponse>(this.searchUrl, { params }).pipe(
       map((res) =>
         (res.features ?? [])
           .filter((f) => this.isMexico(f.properties))
           .map((f) => this.toSuggestion(f)),
       ),
+      catchError(() => of([])),
     );
   }
 
@@ -242,6 +290,10 @@ export class PhotonPlaceSearchService {
 
     if (best && best.score >= 12) {
       return { lat: best.lat, lon: best.lon };
+    }
+
+    if (stateH) {
+      return null;
     }
 
     const fallback = features.find((x) => this.isMexico(x.properties));

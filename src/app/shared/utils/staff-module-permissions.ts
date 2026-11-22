@@ -8,7 +8,10 @@ import {
 } from '@shared/models/app-modules.models';
 import { commercialClientsModuleIconSrc } from '@shared/constants/commercial-handshake-icon';
 import type { ToIconName } from '@shared/ui/to-icon/to-icon-paths';
-import { staffModuleIcon } from '@shared/utils/staff-module-present';
+import {
+  staffModuleIcon,
+  type UserTableModuleIcon,
+} from '@shared/utils/staff-module-present';
 
 export interface StaffModulePermissionDraft {
   read: boolean;
@@ -98,6 +101,20 @@ export interface StaffModulePermissionSummaryRow {
   active: boolean;
   summary: string;
   iconImageSrc?: string;
+}
+
+/** Iconos de módulo para tarjetas/tabla: misma lógica que el drawer de permisos. */
+export function userStaffModuleDisplayIcons(
+  grants: readonly StaffModuleGrant[] | undefined,
+  legacyModuleCodes: readonly StaffGrantableModuleCode[] | undefined,
+  role: string,
+): UserTableModuleIcon[] {
+  return staffModulePermissionSummary(grants, legacyModuleCodes, role).map((row) => ({
+    label: row.label,
+    icon: row.icon,
+    active: row.active,
+    iconImageSrc: row.iconImageSrc,
+  }));
 }
 
 export function staffModulePermissionSummary(

@@ -101,7 +101,12 @@
         [uppercase]="true"
         [(value)]="serialNumber"
       />
-      <to-input label="Placa *" placeholder="Ej. 12-AB-3C" [uppercase]="true" [(value)]="plate" />
+      <to-input
+        [label]="equipmentPlateInputLabel()"
+        placeholder="Ej. 12-AB-3C"
+        [uppercase]="true"
+        [(value)]="plate"
+      />
     </div>
     <div class="fleet-unit-sec__grid2">
       <to-input

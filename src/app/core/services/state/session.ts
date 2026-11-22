@@ -249,6 +249,9 @@ export class SessionService {
   readonly operationalCenterLongitude = computed(
     () => this.data()?.operationalCenterLongitude ?? null,
   );
+  readonly operationalCenterChangedAt = computed(
+    () => this.data()?.operationalCenterChangedAt ?? null,
+  );
   readonly subscriptionPlanId = computed(
     () => this.data()?.subscriptionPlanId ?? null,
   );
@@ -439,6 +442,7 @@ export class SessionService {
         | 'operationalCenterSettlementConsId'
         | 'operationalCenterLatitude'
         | 'operationalCenterLongitude'
+        | 'operationalCenterChangedAt'
       >
     > & {
       companyName?: string;
@@ -458,6 +462,7 @@ export class SessionService {
       operationalCenterSettlementConsId?: string | null;
       operationalCenterLatitude?: number | null;
       operationalCenterLongitude?: number | null;
+      operationalCenterChangedAt?: string | null;
     },
   ): void {
     const current = this.data();
@@ -600,6 +605,14 @@ export class SessionService {
         patch.operationalCenterLongitude === null
           ? undefined
           : patch.operationalCenterLongitude;
+    }
+    const operationalCenterChangedAt = normalizeApiIsoDate(
+      patch.operationalCenterChangedAt,
+    );
+    if (operationalCenterChangedAt) {
+      next.operationalCenterChangedAt = operationalCenterChangedAt;
+    } else if (patch.operationalCenterChangedAt === null) {
+      next.operationalCenterChangedAt = undefined;
     }
     this.data.set(next);
     saveEncryptedSession(next);
@@ -915,6 +928,10 @@ export class SessionService {
         user.operationalCenterLatitude ?? payload?.operationalCenterLatitude,
       operationalCenterLongitude:
         user.operationalCenterLongitude ?? payload?.operationalCenterLongitude,
+      operationalCenterChangedAt:
+        normalizeApiIsoDate(user.operationalCenterChangedAt) ??
+        normalizeApiIsoDate(payload?.operationalCenterChangedAt) ??
+        undefined,
       openChecklistCount: normalizeOpenChecklistCount(
         user.openChecklistCount ?? payload?.openChecklistCount,
       ),

@@ -54,6 +54,10 @@ import {
   type DestinationRateManeuverValue,
 } from './destination-rate-maneuver-combobox.component';
 import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
+import { TollPlazaPlaceLabelService } from '@features/clients/services/toll-plaza-place-label.service';
+import { formatTollPlazaListLabel } from '@features/clients/utils/destination-rate-toll-plaza-display.util';
+import { tollPlazaListLocationSuffix } from '@features/clients/utils/destination-rate-toll-plaza-place.util';
+import { take } from 'rxjs/operators';
 
 export type DestinationRateRouteTollContext = Pick<
   RouteTollsQuery,
@@ -94,6 +98,7 @@ export class DestinationRatePricesEditorComponent {
   private readonly toast = inject(ToastService);
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly routingApi = inject(RoutingApiService);
+  private readonly tollPlazaPlaceLabels = inject(TollPlazaPlaceLabelService);
 
   private lastTollContextKey = '';
   private tollFetchGeneration = 0;
@@ -104,6 +109,12 @@ export class DestinationRatePricesEditorComponent {
 
   constructor() {
     this.operationConfigs.loadOperationConfigurations();
+    effect(() => {
+      if (this.viewOnly()) {
+        return;
+      }
+      this.tollPlazaPlaceLabels.preloadMexicoGeo();
+    });
     effect(() => {
       const stored = this.routeTollPlazasFromRate();
       if (this.viewOnly() || stored.length === 0 || this.persistedTollsBootstrapped) {
@@ -227,10 +238,6 @@ export class DestinationRatePricesEditorComponent {
     );
   });
 
-  readonly viewTollPlazas = computed(() =>
-    enrichTollPlazaRowsForMap(this.routeTollPlazasFromRate()),
-  );
-
   readonly composerTollsLoading = computed(() => {
     const axle = parseDestinationRateAxleCount(this.composerRow().axleCount);
     return this.tollLoadingAxles().has(axle);
@@ -292,16 +299,29 @@ export class DestinationRatePricesEditorComponent {
     return formatMxn(costMxn);
   }
 
+  tollPlazaListLabel(plaza: RouteTollPlazaRow): string {
+    return formatTollPlazaListLabel(plaza);
+  }
+
+  tollPlazaListLocation(plaza: RouteTollPlazaRow): string {
+    return tollPlazaListLocationSuffix(plaza);
+  }
+
   tollPlazasForComposer(): RouteTollPlazaRow[] {
     return this.tollPlazasForRow(this.composerRow());
   }
 
   tollPlazasForRow(row: DestinationRatePriceDraft): RouteTollPlazaRow[] {
     if (this.viewOnly()) {
-      return this.viewTollPlazas();
+      return activeTollPlazas(
+        enrichTollPlazaRowsForMap(this.routeTollPlazasFromRate()),
+        new Set(this.excludedTollPlazaKeys()),
+      );
     }
     const axle = parseDestinationRateAxleCount(row.axleCount);
-    const plazas = this.tollByAxle().get(axle)?.plazas ?? [];
+    const plazas = this.tollPlazaPlaceLabels.withStateFromGeo(
+      this.tollByAxle().get(axle)?.plazas ?? [],
+    );
     return activeTollPlazas(plazas, new Set(this.excludedTollPlazaKeys()));
   }
 
@@ -543,7 +563,31 @@ export class DestinationRatePricesEditorComponent {
     });
   }
 
+  private enrichAxlePlazasInPlace(axle: number, plazas: readonly RouteTollPlazaRow[]): void {
+    this.tollPlazaPlaceLabels
+      .enrichPlazas(plazas)
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((enriched) => {
+        const snap = this.tollByAxle().get(axle);
+        if (!snap) {
+          return;
+        }
+        this.tollByAxle.update((map) => {
+          const next = new Map(map);
+          next.set(axle, { ...snap, plazas: enriched });
+          return next;
+        });
+      });
+  }
+
   private seedTollsFromPersisted(stored: readonly RouteTollPlazaRow[]): void {
+    this.tollPlazaPlaceLabels
+      .enrichPlazas(stored)
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((enriched) => this.applyPersistedTollsSnapshot(enriched));
+  }
+
+  private applyPersistedTollsSnapshot(stored: readonly RouteTollPlazaRow[]): void {
     const excluded = new Set(this.excludedTollPlazaKeys());
     const roundTrip = tollRoundTripMxnFromPlazas(stored, excluded);
     const axles = new Set(
@@ -621,21 +665,52 @@ export class DestinationRatePricesEditorComponent {
           if (generation !== this.tollFetchGeneration) {
             return;
           }
-          this.tollByAxle.update((map) => {
-            const next = new Map(map);
-            next.set(axle, {
-              roundTripMxn: res.totalRoundTripMxn,
-              plazas: res.plazas ?? [],
+          const plazas = res.plazas ?? [];
+          this.tollPlazaPlaceLabels
+            .enrichPlazas(plazas)
+            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: (enriched) => {
+                if (generation !== this.tollFetchGeneration) {
+                  return;
+                }
+                this.tollByAxle.update((map) => {
+                  const next = new Map(map);
+                  next.set(axle, {
+                    roundTripMxn: res.totalRoundTripMxn,
+                    plazas: enriched,
+                  });
+                  return next;
+                });
+                this.tollLoadingAxles.update((set) => {
+                  const next = new Set(set);
+                  next.delete(axle);
+                  return next;
+                });
+                this.applyTollSuggestionsForAxle(axle);
+                this.scheduleRouteMetricsPlazasEmit();
+              },
+              error: () => {
+                if (generation !== this.tollFetchGeneration) {
+                  return;
+                }
+                this.tollByAxle.update((map) => {
+                  const next = new Map(map);
+                  next.set(axle, {
+                    roundTripMxn: res.totalRoundTripMxn,
+                    plazas,
+                  });
+                  return next;
+                });
+                this.tollLoadingAxles.update((set) => {
+                  const next = new Set(set);
+                  next.delete(axle);
+                  return next;
+                });
+                this.applyTollSuggestionsForAxle(axle);
+                this.scheduleRouteMetricsPlazasEmit();
+              },
             });
-            return next;
-          });
-          this.tollLoadingAxles.update((set) => {
-            const next = new Set(set);
-            next.delete(axle);
-            return next;
-          });
-          this.applyTollSuggestionsForAxle(axle);
-          this.scheduleRouteMetricsPlazasEmit();
         },
         error: () => {
           if (generation !== this.tollFetchGeneration) {

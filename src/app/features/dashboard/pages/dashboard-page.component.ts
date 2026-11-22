@@ -12,9 +12,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError, firstValueFrom, forkJoin, of } from 'rxjs';
 import { finalize, map } from 'rxjs/operators';
+import { ClientsService } from '@services/api/clients';
 import { DashboardService } from '@services/api/dashboard';
 import { CompaniesService } from '@services/api/companies';
 import { ExpensesService } from '@services/api/expenses';
+import { ReportsService } from '@services/api/reports';
 import { TripsService } from '@services/api/trips';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
@@ -24,6 +26,11 @@ import { buildDashboardOperationalFlowOption } from '@features/dashboard/utils/d
 import { buildDashboardTopDestinationsOption } from '@features/dashboard/utils/dashboard-top-destinations-option';
 import { buildDashboardTripActivityOption } from '@features/dashboard/utils/dashboard-trip-activity-option';
 import { buildReportsGeneralOperationMixPieOption } from '@features/reports/utils/charts/general/reports-general-operation-mix-pie-option';
+import {
+  buildDashboardClientTransactions,
+  dashboardClientTransactionsRange,
+  type DashboardClientTransactionRow,
+} from '@features/dashboard/utils/dashboard-client-transactions.util';
 import {
   buildDashboardUpcomingDepartures,
   type DashboardUpcomingDepartureRow,
@@ -82,8 +89,10 @@ function formatDeltaPercent(value: number | null | undefined): string {
 export class DashboardPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly dashboardApi = inject(DashboardService);
+  private readonly clientsApi = inject(ClientsService);
   private readonly companiesApi = inject(CompaniesService);
   private readonly expensesApi = inject(ExpensesService);
+  private readonly reportsApi = inject(ReportsService);
   private readonly tripsApi = inject(TripsService);
   private readonly session = inject(SessionService);
   private readonly router = inject(Router);
@@ -107,6 +116,15 @@ export class DashboardPageComponent {
     return canAccessModule(this.session.allowedModules(), APP_MODULE_CODES.EXPENSES);
   });
 
+  /** Cobros de clientes (cartera), distinto de gastos en «Próximos pagos». */
+  readonly canReadClientCollections = computed(
+    () => this.canReadDashboard() && this.session.canReadModule(APP_MODULE_CODES.CLIENTS),
+  );
+
+  readonly canReadReportsForCollections = computed(() =>
+    this.session.canReadModule(APP_MODULE_CODES.REPORTS),
+  );
+
   private readonly pageResource = resource({
     // Incluir companyId: al logout el request queda undefined y no re-fetcha
     // (evita throw síncrono "No hay empresa en sesión" que rompía cerrar sesión).
@@ -118,6 +136,7 @@ export class DashboardPageComponent {
       return {
         companyId,
         financial: this.showFinancialInsights(),
+        clientCollections: this.canReadClientCollections(),
       };
     },
     loader: async ({ request }) => {
@@ -134,6 +153,9 @@ export class DashboardPageComponent {
           upcomingDepartures: request.financial
             ? of([] as DashboardUpcomingDepartureRow[])
             : this.loadUpcomingDepartures(),
+          clientTransactions: request.clientCollections
+            ? this.loadClientTransactions()
+            : of([] as DashboardClientTransactionRow[]),
         }).pipe(
           catchError(() =>
             of({
@@ -141,6 +163,7 @@ export class DashboardPageComponent {
               insights: null,
               upcomingPayments: [] as DashboardUpcomingPaymentRow[],
               upcomingDepartures: [] as DashboardUpcomingDepartureRow[],
+              clientTransactions: [] as DashboardClientTransactionRow[],
             }),
           ),
         ),
@@ -163,6 +186,12 @@ export class DashboardPageComponent {
   );
   readonly upcomingDepartures = computed(
     () => this.pageResource.value()?.upcomingDepartures ?? [],
+  );
+  readonly clientTransactions = computed(
+    () => this.pageResource.value()?.clientTransactions ?? [],
+  );
+  readonly clientTransactionsSubtitle = computed(
+    () => 'Últimos 30 días · ingresos confirmados y cartera por cobrar',
   );
   readonly showUpcomingPayments = computed(
     () => this.showFinancialInsights() && this.upcomingPayments().length > 0,
@@ -434,6 +463,10 @@ export class DashboardPageComponent {
     return this.currencyMx.transform(row.amount, row.currency);
   }
 
+  clientTransactionAmountLabel(row: DashboardClientTransactionRow): string {
+    return this.currencyMx.transform(row.amount);
+  }
+
   private loadUpcomingPayments() {
     const range = dashboardUpcomingPaymentsRange();
     return this.expensesApi
@@ -451,6 +484,40 @@ export class DashboardPageComponent {
     return this.tripsApi.getTripsPage({ status: 'scheduled', limit: 50 }).pipe(
       map((res) => buildDashboardUpcomingDepartures(res.items)),
       catchError(() => of([] as DashboardUpcomingDepartureRow[])),
+    );
+  }
+
+  private loadClientTransactions() {
+    const range = dashboardClientTransactionsRange();
+    const fromParts = range.from.split('-').map(Number);
+    const toParts = range.to.split('-').map(Number);
+    const filter = {
+      fromMonth: fromParts[1] ?? 1,
+      fromYear: fromParts[0] ?? 2026,
+      toMonth: toParts[1] ?? 1,
+      toYear: toParts[0] ?? 2026,
+      from: range.from,
+      to: range.to,
+      clientIds: [] as string[],
+      clientPaymentMethods: [] as [],
+    };
+    const balance$ = this.canReadReportsForCollections()
+      ? this.reportsApi.getBalance(filter).pipe(catchError(() => of(null)))
+      : of(null);
+
+    return forkJoin({
+      overview: this.clientsApi
+        .getClientsBalanceOverview()
+        .pipe(catchError(() => of({ asOf: '', items: [] }))),
+      balance: balance$,
+    }).pipe(
+      map(({ overview, balance }) =>
+        buildDashboardClientTransactions(
+          overview.items ?? [],
+          balance?.insights.dailyActivity ?? [],
+          range,
+        ),
+      ),
     );
   }
 

@@ -9,7 +9,6 @@ import {
   model,
   output,
   signal,
-  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { UserProfile } from '@core/models/user-profile.models';
@@ -38,10 +37,8 @@ import {
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
-import { ProfileDrawerOperationTabComponent } from './profile-drawer-operation-tab.component';
 
 type ProfileEditSection = 'personal' | 'password';
-type ProfileDrawerTab = 'perfil' | 'operacion';
 
 @Component({
   selector: 'app-profile-drawer',
@@ -53,12 +50,12 @@ type ProfileDrawerTab = 'perfil' | 'operacion';
     ToIconComponent,
     ToButtonComponent,
     ToInputComponent,
-    ProfileDrawerOperationTabComponent,
   ],
   templateUrl: './profile-drawer.component.html',
   styleUrls: [
     '../../../features/fleet/components/fleet-drawer.shared.scss',
     '../../../features/fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
+    '../../../features/fleet/components/styles/fleet-detail-drawer-footer.shared.scss',
     '../../../features/fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
     './profile-drawer.component.scss',
   ],
@@ -84,7 +81,6 @@ export class ProfileDrawerComponent {
   readonly editingSection = signal<ProfileEditSection | null>(null);
   readonly saving = signal(false);
   readonly photoSaving = signal(false);
-  readonly profileTab = signal<ProfileDrawerTab>('perfil');
 
   readonly displayName = model('');
   readonly username = model('');
@@ -96,43 +92,9 @@ export class ProfileDrawerComponent {
   readonly currentPassword = model('');
   readonly photoDataUrl = signal('');
 
-  readonly canViewConfigTab = computed(() => {
-    const role = this.session.role();
-    return role === 'admin' || role === 'superadmin';
-  });
-
-  readonly profileDrawerTabs = computed((): readonly ToSegmentTab<ProfileDrawerTab>[] => {
-    const tabs: ToSegmentTab<ProfileDrawerTab>[] = [
-      { id: 'perfil', label: 'Perfil', icon: 'person', htmlId: 'profile-tab-perfil' },
-    ];
-    if (this.canViewConfigTab()) {
-      tabs.push({
-        id: 'operacion',
-        label: 'Operación',
-        icon: 'route',
-        htmlId: 'profile-tab-operacion',
-      });
-    }
-    return tabs;
-  });
-
-  readonly operationTabRef = viewChild(ProfileDrawerOperationTabComponent);
-  readonly operationSaving = computed(() => this.operationTabRef()?.saving() ?? false);
-
   constructor() {
     this.reloadFromStore();
     afterNextRender(() => this.drawerLoading.set(false));
-  }
-
-  selectProfileTab(tab: ProfileDrawerTab): void {
-    this.profileTab.set(tab);
-    if (this.editingSection()) {
-      this.cancelSectionEdit();
-    }
-  }
-
-  saveOperationSettings(): void {
-    this.operationTabRef()?.saveOperationSettings();
   }
 
   isEditing(section: ProfileEditSection): boolean {

@@ -97,7 +97,6 @@ export type DestinationRateRouteCard = {
   stateName: string;
   originLabel: string;
   active: boolean;
-  maneuverCount: number;
   prices: readonly DestinationRateRoutePriceLine[];
 };
 
@@ -197,7 +196,6 @@ export function buildDestinationRateRouteCards(
         stateName: stateByRateId?.get(rate.id)?.trim() ?? '',
         originLabel: origin,
         active: rate.active,
-        maneuverCount: rate.maneuverCount ?? 0,
         prices: rate.prices.map((price) => ({
           label: priceLabel(price),
           amount: price.clientCharge,

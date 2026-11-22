@@ -126,7 +126,6 @@ export class ClientDeliveryLocationFieldsComponent {
 
   constructor() {
     this.centersFeature.loadOperationalCenters();
-    this.ratesFeature.loadDestinationRates();
 
     effect(() => {
       const refCp = this.referencePostalCode().trim();
@@ -207,20 +206,27 @@ export class ClientDeliveryLocationFieldsComponent {
       toObservable(this.postalCode),
       toObservable(this.locality),
       toObservable(this.settlementConsId),
+      toObservable(this.centersFeature.centers),
     ])
       .pipe(
         debounceTime(300),
-        map(([postalCode, locality, settlementConsId]) => ({
-          postalCode,
-          locality,
-          settlementConsId,
-        })),
+        map(([postalCode, locality, settlementConsId, centers]) => {
+          const primary =
+            centers.find((c) => c.isDefault) ?? centers[0] ?? null;
+          return {
+            postalCode,
+            locality,
+            settlementConsId,
+            originCenterId: primary?.id?.trim() ?? '',
+          };
+        }),
         distinctUntilChanged(
           (a, b) =>
             normalizeMxPostalCodeDigits(a.postalCode) ===
               normalizeMxPostalCodeDigits(b.postalCode) &&
             a.locality.trim().toLowerCase() === b.locality.trim().toLowerCase() &&
-            a.settlementConsId.trim() === b.settlementConsId.trim(),
+            a.settlementConsId.trim() === b.settlementConsId.trim() &&
+            a.originCenterId === b.originCenterId,
         ),
         tap((input) => {
           if (!isClientDeliveryRouteLookupReady(input)) {
@@ -235,8 +241,14 @@ export class ClientDeliveryLocationFieldsComponent {
           this.isUnpricedRoute.set(false);
         }),
         filter(
-          (input): input is { postalCode: string; locality: string; settlementConsId: string } =>
-            isClientDeliveryRouteLookupReady(input),
+          (
+            input,
+          ): input is {
+            postalCode: string;
+            locality: string;
+            settlementConsId: string;
+            originCenterId: string;
+          } => isClientDeliveryRouteLookupReady(input),
         ),
         switchMap((input) => this.resolveRouteLink(input)),
         takeUntilDestroyed(this.destroyRef),
@@ -244,19 +256,23 @@ export class ClientDeliveryLocationFieldsComponent {
       .subscribe();
   }
 
-  private resolveRouteLink(input: { postalCode: string; locality: string }) {
-    const primaryOriginCenterId = this.centersFeature.defaultCenter()?.id ?? null;
-    const localPreview = resolveClientDeliveryRoutePreview(
-      this.ratesFeature.rates(),
-      {
-        postalCode: input.postalCode,
-        locality: input.locality,
-        primaryOriginCenterId,
-      },
-    );
-    this.suggestedRouteCount.set(localPreview.matches.length);
+  private resolveRouteLink(input: {
+    postalCode: string;
+    locality: string;
+    originCenterId: string;
+  }) {
+    const primaryOriginCenterId = input.originCenterId || null;
+    const cachedRates = this.ratesFeature.rates();
 
     if (!primaryOriginCenterId) {
+      const localPreview =
+        cachedRates.length > 0
+          ? resolveClientDeliveryRoutePreview(cachedRates, {
+              postalCode: input.postalCode,
+              locality: input.locality,
+              primaryOriginCenterId: null,
+            })
+          : { rateId: null, matches: [] as const };
       this.applyRouteLinkPreview(localPreview.rateId, localPreview.matches.length);
       return of(undefined);
     }
@@ -268,10 +284,23 @@ export class ClientDeliveryLocationFieldsComponent {
         locality: input.locality,
       })
       .pipe(
-        map((check) => check.destinationRateId ?? localPreview.rateId),
-        tap((rateId) => this.applyRouteLinkPreview(rateId, localPreview.matches.length)),
+        map((check) => check.destinationRateId ?? null),
+        tap((rateId) =>
+          this.applyRouteLinkPreview(
+            rateId,
+            this.matchCountHint(input, primaryOriginCenterId, rateId),
+          ),
+        ),
         catchError(() => {
-          this.applyRouteLinkPreview(localPreview.rateId, localPreview.matches.length);
+          const fallback =
+            cachedRates.length > 0
+              ? resolveClientDeliveryRoutePreview(cachedRates, {
+                  postalCode: input.postalCode,
+                  locality: input.locality,
+                  primaryOriginCenterId,
+                })
+              : { rateId: null, matches: [] as const };
+          this.applyRouteLinkPreview(fallback.rateId, fallback.matches.length);
           return of(undefined);
         }),
         finalize(() => {
@@ -281,6 +310,22 @@ export class ClientDeliveryLocationFieldsComponent {
         }),
         map(() => undefined),
       );
+  }
+
+  private matchCountHint(
+    input: { postalCode: string; locality: string },
+    primaryOriginCenterId: string | null,
+    rateId: string | null,
+  ): number {
+    const cachedRates = this.ratesFeature.rates();
+    if (cachedRates.length > 0) {
+      return resolveClientDeliveryRoutePreview(cachedRates, {
+        postalCode: input.postalCode,
+        locality: input.locality,
+        primaryOriginCenterId,
+      }).matches.length;
+    }
+    return rateId ? 1 : 0;
   }
 
   private applyRouteLinkPreview(rateId: string | null, matchCount: number): void {

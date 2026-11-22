@@ -79,7 +79,7 @@ export class DestinationRatesFeatureService {
       return;
     }
     this._selectedRateId.set(id);
-    if (rate?.id === id) {
+    if (rate?.id === id && this.isRateDetailHydrated(rate)) {
       this._selectedDetail.set(rate);
       this._detailLoading.set(false);
       this.detailSub?.unsubscribe();
@@ -88,6 +88,16 @@ export class DestinationRatesFeatureService {
     }
     this._selectedDetail.set(null);
     this.loadSelectedDetail(id);
+  }
+
+  /** Filas slim del listado no incluyen ruta/casetas; no sirven como detalle del drawer. */
+  private isRateDetailHydrated(rate: DestinationRate): boolean {
+    return (
+      Array.isArray(rate.routeTollPlazas) ||
+      Array.isArray(rate.routeWaypoints) ||
+      rate.originLatitude != null ||
+      rate.originLongitude != null
+    );
   }
 
   clearSelection(): void {

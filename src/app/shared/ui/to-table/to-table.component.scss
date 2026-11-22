@@ -4,6 +4,7 @@
  */
 @use '../../styles/trip-maneuver-status-pill.scss';
 @use '../../styles/trip-operation-type-badge.scss';
+@use '../../styles/user-account-pill.scss';
 @use '../../styles/module-access-icon.scss';
 
 .to-table-wrap {
@@ -445,35 +446,6 @@
   min-width: 9.5rem;
 }
 
-.to-table-pill--with-icon {
-  gap: 0.3rem;
-}
-
-.to-table-pill--user-owner {
-  color: #92400e;
-  background: color-mix(in srgb, #f59e0b 20%, var(--to-color-surface, #fff));
-}
-
-.to-table-pill--user-admin {
-  color: #1d4ed8;
-  background: color-mix(in srgb, #3b82f6 16%, var(--to-color-surface, #fff));
-}
-
-.to-table-pill--user-staff {
-  color: #475569;
-  background: color-mix(in srgb, #94a3b8 18%, var(--to-color-surface, #fff));
-}
-
-.to-table-pill--user-active {
-  color: #166534;
-  background: color-mix(in srgb, #22c55e 18%, var(--to-color-surface, #fff));
-}
-
-.to-table-pill--user-inactive {
-  color: #b91c1c;
-  background: color-mix(in srgb, #f87171 16%, var(--to-color-surface, #fff));
-}
-
 /* Fecha en primera línea, hora en segunda (tabla maniobras, etc.) */
 .to-table-datetime {
   display: flex;
@@ -640,31 +612,6 @@
   .to-table-pill--rate-inactive {
     color: #d4d4d8;
     background: color-mix(in srgb, #71717a 20%, var(--to-color-surface));
-  }
-
-  .to-table-pill--user-owner {
-    color: #fcd34d;
-    background: color-mix(in srgb, #f59e0b 22%, var(--to-color-surface));
-  }
-
-  .to-table-pill--user-admin {
-    color: #93c5fd;
-    background: color-mix(in srgb, #3b82f6 22%, var(--to-color-surface));
-  }
-
-  .to-table-pill--user-staff {
-    color: #cbd5e1;
-    background: color-mix(in srgb, #64748b 22%, var(--to-color-surface));
-  }
-
-  .to-table-pill--user-active {
-    color: #86efac;
-    background: color-mix(in srgb, #22c55e 20%, var(--to-color-surface));
-  }
-
-  .to-table-pill--user-inactive {
-    color: #fca5a5;
-    background: color-mix(in srgb, #f87171 18%, var(--to-color-surface));
   }
 
   .to-table-fleet-icon {

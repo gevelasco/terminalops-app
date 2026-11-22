@@ -27,6 +27,8 @@ function parseRouteTollPlazasArray(raw: unknown): RouteTollPlazaRow[] {
           : null;
     const source = String(row['plazaKeySource'] ?? '').trim();
     const inegiPoint = String(row['inegiPoint'] ?? row['inegi_point'] ?? '').trim();
+    const municipality = String(row['municipality'] ?? '').trim();
+    const state = String(row['state'] ?? '').trim();
     rows.push({
       order,
       plazaKey,
@@ -34,6 +36,8 @@ function parseRouteTollPlazasArray(raw: unknown): RouteTollPlazaRow[] {
         ? { plazaKeySource: source as 'inegi' | 'fallback' }
         : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(municipality ? { municipality } : {}),
+      ...(state ? { state } : {}),
       name,
       costMxn,
     });
@@ -80,11 +84,15 @@ export function routeTollPlazasForApi(
         inegiPoint = `${ll.lat},${ll.lon}`;
       }
     }
+    const municipality = p.municipality?.trim() ?? '';
+    const state = p.state?.trim() ?? '';
     return {
       order: p.order,
       plazaKey: p.plazaKey,
       ...(p.plazaKeySource ? { plazaKeySource: p.plazaKeySource } : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(municipality ? { municipality } : {}),
+      ...(state ? { state } : {}),
       name: p.name.trim(),
       costMxn: p.costMxn,
     };

@@ -1,80 +1,96 @@
-<div class="profile-drawer__config-sections">
-<section
-  class="fleet-unit-sec fleet-unit-sec--boxed profile-drawer__center"
+<div
+  class="profile-drawer__center profile-drawer__center--embedded"
   aria-labelledby="profile-center-heading"
 >
-  <h3 id="profile-center-heading" class="fleet-unit-sec__title">Centro operativo</h3>
-  <p class="fleet-unit-sec__docs-hint">
-    Ubicación base de la empresa para referencia operativa y cálculos de distancia.
-  </p>
-  <div class="profile-drawer__cp-stack">
-    <div class="profile-drawer__center-ident-row">
-      <to-input
-        label="Código postal"
-        placeholder="Ej. 64000"
-        [maxLength]="5"
-        [digitsOnly]="true"
-        inputName="operationalCenterCp"
-        autocomplete="postal-code"
-        suffixIcon="search"
-        suffixIconAriaLabel="Buscar código postal"
-        [(value)]="centerCp"
-        [disabled]="saving() || centerCpLoading()"
-        (suffixIconClick)="onCenterCpSearch()"
-      />
-      <to-input
-        label="Nombre del centro"
-        placeholder="Ej. Patio Colima"
-        inputName="operationalCenterName"
-        [(value)]="centerName"
-        [disabled]="saving()"
-      />
-    </div>
+  <div class="profile-drawer__center-embed-head">
+    <h4 id="profile-center-heading" class="profile-drawer__center-embed-title">
+      Centro operativo
+      <span
+        class="profile-drawer__center-embed__privacy-hint"
+        tabindex="0"
+        aria-label="Qué es el centro operativo"
+        [attr.data-tooltip]="operationalCenterTooltip"
+      >
+        <to-icon name="info" [size]="16" />
+      </span>
+    </h4>
+    <p class="profile-drawer__center-embed-meta">{{ operationalCenterStatusLabel() }}</p>
+  </div>
+
+  <div class="profile-drawer__cp-stack profile-drawer__cp-stack--wide">
     @if (centerCpLoading()) {
-      <p class="profile-drawer__cp-hint" aria-live="polite">Consultando catálogo postal…</p>
+      <p class="profile-drawer__cp-hint profile-drawer__field-span" aria-live="polite">
+        Consultando catálogo postal…
+      </p>
     }
-    <to-input
-      label="Ciudad / municipio"
-      placeholder="—"
-      [disabled]="true"
-      [displayValue]="centerCityLine()"
-    />
-    @if (centerCpEditing() && centerLocalityOptions().length > 0) {
-      <to-select
-        label="Localidad"
-        placeholder="Elige localidad en la lista"
-        [options]="centerLocalityOptions()"
-        [value]="centerLocalityKey()"
-        [disabled]="saving()"
-        (valueChange)="onCenterLocalityChange($event)"
-      />
-    } @else if (centerLocalityLabel()) {
-      <to-input
-        label="Localidad"
-        [disabled]="true"
-        [displayValue]="centerLocalityLabel()"
-      />
-    } @else {
-      <to-input label="Localidad" [disabled]="true" displayValue="—" />
-    }
-    @if (showCenterCoords()) {
-      <div class="profile-drawer__coords-grid">
+    <div class="profile-drawer__center-fields-grid">
+      <div class="profile-drawer__field profile-drawer__field--name">
         <to-input
-          label="Latitud"
-          [disabled]="true"
-          [displayValue]="centerLatDisplay()"
-        />
-        <to-input
-          label="Longitud"
-          [disabled]="true"
-          [displayValue]="centerLonDisplay()"
+          label="Nombre del centro"
+          placeholder="Ej. Patio Colima"
+          inputName="operationalCenterName"
+          [(value)]="centerName"
+          [disabled]="externalSaving()"
         />
       </div>
-    }
+      <div class="profile-drawer__field profile-drawer__field--cp">
+        <to-input
+          label="Código postal"
+          placeholder="Ej. 64000"
+          [maxLength]="5"
+          [digitsOnly]="true"
+          inputName="operationalCenterCp"
+          autocomplete="postal-code"
+          suffixIcon="search"
+          suffixIconAriaLabel="Buscar código postal"
+          [(value)]="centerCp"
+          [disabled]="fieldsDisabled()"
+          (suffixIconClick)="onCenterCpSearch()"
+        />
+      </div>
+      <div class="profile-drawer__field profile-drawer__field--lat">
+        <to-input label="Latitud" [disabled]="true" [displayValue]="centerLatDisplay()" />
+      </div>
+      <div class="profile-drawer__field profile-drawer__field--lon">
+        <to-input label="Longitud" [disabled]="true" [displayValue]="centerLonDisplay()" />
+      </div>
+      <div class="profile-drawer__field profile-drawer__field--locality">
+        @if (centerCpEditing() && centerLocalityOptions().length > 0) {
+          <to-select
+            label="Localidad"
+            placeholder="Elige localidad en la lista"
+            [options]="centerLocalityOptions()"
+            [value]="centerLocalityKey()"
+            [disabled]="externalSaving()"
+            (valueChange)="onCenterLocalityChange($event)"
+          />
+        } @else if (centerLocalityLabel()) {
+          <to-input label="Localidad" [disabled]="true" [displayValue]="centerLocalityLabel()" />
+        } @else {
+          <to-input label="Localidad" [disabled]="true" displayValue="—" />
+        }
+      </div>
+      <div class="profile-drawer__field profile-drawer__field--city">
+        <to-input
+          label="Municipio"
+          placeholder="—"
+          [disabled]="true"
+          [displayValue]="centerMunicipalityDisplay()"
+        />
+      </div>
+      <div class="profile-drawer__field profile-drawer__field--state">
+        <to-input
+          label="Estado"
+          placeholder="—"
+          [disabled]="true"
+          [displayValue]="centerStateDisplay()"
+        />
+      </div>
+    </div>
   </div>
+
   <p class="fleet-unit-sec__docs-hint profile-drawer__center-note">
     Las coordenadas guardadas se muestran desde la configuración de empresa. Solo se recalculan si
     cambias el CP o la localidad.
   </p>
-</section>
 </div>

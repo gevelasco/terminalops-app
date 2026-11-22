@@ -34,6 +34,7 @@ import { PlanEntitlementService } from '@shared/billing/plan-entitlement.service
 import type { CreateTripPayload } from '@shared/models/api/api-trips.model';
 import { trackFileEntry } from '@features/fleet/utils/list-trackers';
 import { dateTimeLocalValueToIso } from '@features/trips/utils/datetime-local';
+import { tripScheduleWindowFromPlannedIso } from '@features/trips/utils/trip-schedule-overlap.util';
 import {
   isHistoricalManeuverAssignment,
   isPlannedScheduleValid,
@@ -356,6 +357,17 @@ export class TripsNewDrawerComponent {
       completionLocal: this.plannedCompletionDateTime(),
     }),
   );
+  readonly candidateAssignmentSchedule = computed(() => {
+    if (this.historicalAssignment()) {
+      return null;
+    }
+    const dep = dateTimeLocalValueToIso(this.plannedDepartureDateTime().trim());
+    const end = dateTimeLocalValueToIso(this.plannedCompletionDateTime().trim());
+    if (!dep || !end) {
+      return null;
+    }
+    return tripScheduleWindowFromPlannedIso(dep, end);
+  });
   private assignmentWasHistorical = false;
 
   /** Copia mutable para pickers (`to-operator-input` / `to-unit-input`). */
@@ -920,7 +932,8 @@ export class TripsNewDrawerComponent {
 
     effect(() => {
       const historical = this.historicalAssignment();
-      const available = !historical;
+      // Catálogo completo; disponibilidad por solape de fechas en los pickers.
+      const available = false;
       if (this.assignmentWasHistorical && !historical) {
         this.clearAssignmentForLiveSchedule();
       }
@@ -1995,12 +2008,12 @@ export class TripsNewDrawerComponent {
   } {
     return {
       ...(this.currentUnitAssignmentQuery() ?? {}),
-      available: !this.historicalAssignment(),
+      available: false,
     };
   }
 
   onOperatorInputFocus(): void {
-    this.catalog.reloadOperators({ available: !this.historicalAssignment() });
+    this.catalog.reloadOperators({ available: false });
   }
 
   private clearAssignmentForLiveSchedule(): void {

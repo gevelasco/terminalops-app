@@ -24,6 +24,10 @@ import {
 import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 import { unitCanHitchEquipment } from '@shared/utils/fleet/equipment-hitch-assignment';
+import {
+  tripConflictsWithActiveSchedule,
+  type TripScheduleWindow,
+} from '@features/trips/utils/trip-schedule-overlap.util';
 
 const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
 
@@ -135,19 +139,29 @@ export function unitMatchesManeuverAssignment(
   return unitMatchesManeuverOperationCode(unit, filter.operationCode);
 }
 
-export function busyUnitIdsFromTrips(trips: readonly Trip[]): Set<string> {
-  const busy = new Set<string>();
-  for (const t of trips) {
-    if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
-      busy.add(t.unitId);
-    }
+function unitBlockedByTripSchedule(
+  unitId: string,
+  trips: readonly Trip[],
+  candidate: TripScheduleWindow | null | undefined,
+): boolean {
+  if (!candidate) {
+    return trips.some(
+      (t) =>
+        ACTIVE_MANEUVER_STATUSES.includes(t.status) &&
+        resourceIdsEqual(t.unitId, unitId),
+    );
   }
-  return busy;
+  return trips.some(
+    (t) =>
+      resourceIdsEqual(t.unitId, unitId) && tripConflictsWithActiveSchedule(t, candidate),
+  );
 }
 
 export type ManeuverAssignableOptions = {
   /** Maniobra histórica: no excluir quien hoy está en viaje. */
   ignoreCurrentAvailability?: boolean;
+  /** Ventana planificada de la maniobra nueva (encadenar tras fin de viaje actual). */
+  candidateSchedule?: TripScheduleWindow | null;
 };
 
 export function buildManeuverAssignableUnitRows(
@@ -156,13 +170,13 @@ export function buildManeuverAssignableUnitRows(
   options?: ManeuverAssignableOptions,
 ): ManeuverAssignableUnitRow[] {
   const ignoreCurrent = options?.ignoreCurrentAvailability === true;
-  const busy = ignoreCurrent ? new Set<string>() : busyUnitIdsFromTrips(trips);
+  const candidate = options?.candidateSchedule ?? null;
   return units
     .filter(
       (u) =>
         isFleetResourceActive(u) &&
         PICKABLE_UNIT_STATUSES.has(u.status) &&
-        !busy.has(u.id),
+        (ignoreCurrent || !unitBlockedByTripSchedule(u.id, trips, candidate)),
     )
     .map((unit) => {
       const hitched = unitHitchedEquipment(unit);

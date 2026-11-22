@@ -1,6 +1,6 @@
 <to-page-header
   title="Configuración"
-  subtitle="Controles operativos, usuarios y ajustes de la empresa."
+  subtitle="Controles operativos, carga de datos, usuarios y ajustes de la empresa."
 >
   @if (pageTab() === 'controles' && canViewControls()) {
     <to-button
@@ -48,6 +48,9 @@
     }
     @case ('users') {
       <app-users-settings-tab />
+    }
+    @case ('datos') {
+      <app-settings-data-import-tab />
     }
   }
 </div>

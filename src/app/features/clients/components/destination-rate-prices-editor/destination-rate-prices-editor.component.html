@@ -123,7 +123,14 @@
                     <li class="destination-rate-prices-editor__toll-item">
                       <div class="destination-rate-prices-editor__toll-item-main">
                         <span class="destination-rate-prices-editor__toll-order">{{ plaza.order }}</span>
-                        <span class="destination-rate-prices-editor__toll-name">{{ plaza.name }}</span>
+                        <span class="destination-rate-prices-editor__toll-name">
+                          <span class="destination-rate-prices-editor__toll-name-peaje"
+                            >Peaje {{ plaza.name }}</span
+                          >@if (tollPlazaListLocation(plaza); as loc) {<span
+                            class="destination-rate-prices-editor__toll-name-loc"
+                            >, {{ loc }}</span
+                          >}</span
+                        >
                         <span class="destination-rate-prices-editor__toll-cost">
                           {{ formatPlazaCost(plaza.costMxn) }}
                         </span>

@@ -18,14 +18,14 @@
 }
 
 @if (loading()) {
-  <to-module-skeleton layout="table" [rows]="8" />
+  <to-module-skeleton layout="overview-grid" [rows]="6" />
+} @else if (loadError()) {
+  <p class="users-settings-tab__error" role="alert">
+    No se pudo cargar la lista de usuarios.
+    <button type="button" class="users-settings-tab__retry" (click)="reloadUsers()">
+      Reintentar
+    </button>
+  </p>
 } @else {
-  <div class="users-settings-tab__table">
-    <to-table
-      [columns]="columns"
-      [rows]="tableRows()"
-      [interactiveRows]="true"
-      (rowClick)="onRowClick($event)"
-    />
-  </div>
+  <app-users-overview [users]="userRows()" (cardSelect)="onUserCardSelect($event)" />
 }

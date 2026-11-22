@@ -1,0 +1,311 @@
+<div class="settings-data-import-tab">
+  <section class="settings-data-import-tab__intro-card">
+    <p class="settings-data-import-tab__hint">
+      Cada módulo usa su propio archivo Excel. Orden sugerido:
+      <strong>clientes → operadores → unidades → equipos</strong>.
+    </p>
+    <div class="settings-data-import-tab__notice" role="note">
+      <p class="settings-data-import-tab__notice-title">Importación sumativa</p>
+      <p class="settings-data-import-tab__notice-text">
+        La carga <strong>agrega</strong> registros; no reemplaza lo existente. Validamos
+        duplicados en el archivo y en la base (RFC, placas, series, etc.).
+      </p>
+    </div>
+    <p class="settings-data-import-tab__ephemeral">
+      El Excel solo se lee en tu navegador: <strong>no se sube a S3 ni se archiva</strong>. Se
+      extraen las filas, se crean los registros en la base y el archivo se descarta al importar
+      o al quitarlo.
+    </p>
+  </section>
+
+  <div class="settings-data-import-tab__split">
+  <aside class="settings-data-import-tab__nav-shell" aria-label="Módulos de importación">
+    <p class="settings-data-import-tab__nav-shell-label">Módulos</p>
+    <nav class="settings-data-import-tab__nav">
+      @for (kind of kindOrder; track kind) {
+        <button
+          type="button"
+          class="settings-data-import-tab__nav-item"
+          [class.settings-data-import-tab__nav-item--active]="selectedKind() === kind"
+          [class.settings-data-import-tab__nav-item--busy]="isProcessing(kind) || slot(kind).importing"
+          (click)="selectKind(kind)"
+        >
+          <span class="settings-data-import-tab__nav-step">Paso {{ moduleStep(kind) }}</span>
+          <span class="settings-data-import-tab__nav-title">{{ kindLabel[kind] }}</span>
+          <span class="settings-data-import-tab__nav-status">{{ moduleStatusLine(kind) }}</span>
+        </button>
+      }
+    </nav>
+  </aside>
+
+  <section class="settings-data-import-tab__detail" aria-live="polite">
+    @let kind = selectedKind();
+    @let active = slot(kind);
+
+    <to-card
+      class="settings-data-import-tab__detail-card"
+      [title]="kindLabel[kind]"
+      [titleIcon]="kindIcon[kind]"
+      [subtitle]="kindBlurb[kind]"
+    >
+      @if (isProcessing(kind)) {
+        <div class="settings-data-import-tab__card-overlay" role="status" aria-live="polite">
+          <div class="settings-data-import-tab__card-spinner" aria-hidden="true"></div>
+          <p class="settings-data-import-tab__card-overlay-text">
+            {{ active.processingMessage ?? 'Cargando…' }}
+          </p>
+        </div>
+      }
+
+      <div
+        class="settings-data-import-tab__module-body"
+        [class.settings-data-import-tab__module-body--muted]="isProcessing(kind)"
+      >
+        <div class="settings-data-import-tab__module-toolbar">
+          <div class="settings-data-import-tab__module-actions">
+            <to-button
+              type="button"
+              variant="secondary"
+              [disabled]="detailActionsDisabled(kind)"
+              (click)="downloadTemplate(kind)"
+            >
+              <to-icon name="download" [size]="16" />
+              Plantilla
+            </to-button>
+
+            <label
+              class="settings-data-import-tab__upload"
+              [class.settings-data-import-tab__upload--disabled]="detailActionsDisabled(kind)"
+            >
+              <input
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                class="settings-data-import-tab__upload-input"
+                [disabled]="detailActionsDisabled(kind)"
+                (change)="onFileChange(kind, $event)"
+              />
+              <span class="settings-data-import-tab__upload-btn">
+                <to-icon name="upload" [size]="16" />
+                {{ active.fileName ? 'Reemplazar archivo' : 'Subir archivo' }}
+              </span>
+            </label>
+
+            <div class="settings-data-import-tab__import-action">
+              <to-button
+                type="button"
+                variant="primary"
+                [loading]="active.importing"
+                [disabled]="!canImportKind(kind)"
+                (click)="runImport(kind)"
+              >
+                <to-icon name="save" [size]="18" />
+                Importar {{ kindLabel[kind].toLowerCase() }}
+              </to-button>
+            </div>
+          </div>
+          @if (active.progress) {
+            <p class="settings-data-import-tab__progress" aria-live="polite">{{ active.progress }}</p>
+          }
+        </div>
+
+        <div class="settings-data-import-tab__module-content">
+        @if (active.fileName; as fname) {
+          <div class="settings-data-import-tab__file-chip">
+            <to-icon name="document" [size]="14" />
+            <span class="settings-data-import-tab__file-chip-name" [title]="fname">{{ fname }}</span>
+            <button
+              type="button"
+              class="settings-data-import-tab__file-clear"
+              [disabled]="active.importing || detailActionsDisabled(kind)"
+              (click)="clearFile(kind, $event)"
+            >
+              Quitar
+            </button>
+          </div>
+        } @else {
+          <p class="settings-data-import-tab__module-empty">{{ lastImportDetailLine(kind) }}</p>
+        }
+
+        <details class="settings-data-import-tab__example" open>
+          <summary>Cómo llenar el Excel</summary>
+          @if (kind === 'clients') {
+            <p class="settings-data-import-tab__example-hint">
+              La plantilla incluye <strong>todos</strong> los campos del expediente (fiscal, entrega,
+              contacto y crédito); solo «Nombre o razón social» es obligatorio. Límite de crédito:
+              solo número. Borra la fila <code>(ejemplo)</code>. Fechas:
+              <code>dd/mm/aaaa</code> o <code>AAAA-MM-DD</code>.
+            </p>
+            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
+              <table class="settings-data-import-tab__table">
+                <thead>
+                  <tr>
+                    @for (col of clientExampleColumns; track col.header) {
+                      <th>{{ col.header }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    @for (col of clientExampleColumns; track col.header) {
+                      <td>{{ col.example }}</td>
+                    }
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          } @else if (kind === 'units') {
+            <p class="settings-data-import-tab__example-hint">
+              Expediente completo de la unidad (identificación, tenencia, tren motriz, mantenimiento,
+              verificaciones, seguro y GPS). Obligatorios: <strong>placa, marca, versión y año</strong>.
+              Montos: solo número. Borra la fila <code>(ejemplo)</code>.
+            </p>
+            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
+              <table class="settings-data-import-tab__table">
+                <thead>
+                  <tr>
+                    @for (col of unitExampleColumns; track col.header) {
+                      <th>{{ col.header }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    @for (col of unitExampleColumns; track col.header) {
+                      <td>{{ col.example || '—' }}</td>
+                    }
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          } @else if (kind === 'equipment') {
+            <p class="settings-data-import-tab__example-hint">
+              Expediente del equipo (identificación, tenencia, ficha técnica, mantenimiento,
+              verificaciones y seguro). Obligatorios:
+              <strong>placa, marca, tipo de equipo y año</strong>. Montos: solo número. Borra la
+              fila <code>(ejemplo)</code>. El enganche a unidad se asigna en Flota.
+            </p>
+            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
+              <table class="settings-data-import-tab__table">
+                <thead>
+                  <tr>
+                    @for (col of equipmentExampleColumns; track col.header) {
+                      <th>{{ col.header }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    @for (col of equipmentExampleColumns; track col.header) {
+                      <td>{{ col.example || '—' }}</td>
+                    }
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          } @else if (kind === 'operators') {
+            <p class="settings-data-import-tab__example-hint">
+              Incluye identificación, operación, emergencia e IMSS/seguro privado. Solo
+              <strong>«Número de licencia»</strong> es obligatorio y debe ser único. Montos
+              (prima, cantidad diaria IMSS): <strong>solo número</strong>. Borra las filas
+              <code>(ejemplo)</code>. Fechas: <code>dd/mm/aaaa</code> o <code>AAAA-MM-DD</code>.
+            </p>
+            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
+              <table class="settings-data-import-tab__table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="settings-data-import-tab__example-scenario">Caso</th>
+                    @for (col of operatorExampleColumns; track col.header) {
+                      <th>{{ col.header }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of operatorExampleRows; track row.label) {
+                    <tr>
+                      <th scope="row" class="settings-data-import-tab__example-scenario">
+                        {{ row.label }}
+                      </th>
+                      @for (cell of row.cells; track $index) {
+                        <td>{{ cell || '—' }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </details>
+
+        @if (active.preview; as preview) {
+          <div class="settings-data-import-tab__summary">
+            <span class="settings-data-import-tab__summary-ok">{{ readyCount(kind) }} listo(s)</span>
+            @if (errorCount(kind) > 0) {
+              <span class="settings-data-import-tab__summary-warn">{{ errorCount(kind) }} con error</span>
+            }
+          </div>
+
+          <div class="settings-data-import-tab__table-wrap">
+            <table class="settings-data-import-tab__table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Resumen</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of preview.rows; track row.rowNumber) {
+                  <tr [class]="rowStatusClass(row)">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>
+                      {{ row.summary }}
+                      @if (row.errors.length) {
+                        <ul class="settings-data-import-tab__msg-list">
+                          @for (err of row.errors; track err) {
+                            <li>{{ err }}</li>
+                          }
+                        </ul>
+                      }
+                    </td>
+                    <td>{{ row.status === 'error' ? 'Error' : 'Listo' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <details class="settings-data-import-tab__columns">
+          <summary>Columnas de la plantilla</summary>
+          <ul>
+            @for (col of sheetMeta[kind].columns; track col.key) {
+              <li>
+                <code>{{ col.header }}</code>@if (col.required) {<span>*</span>}@if (col.hint) {
+                  <span class="settings-data-import-tab__col-hint"> — {{ col.hint }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </details>
+
+        @if (active.lastImportFailures.length > 0) {
+          <div class="settings-data-import-tab__import-report" role="status">
+            <p class="settings-data-import-tab__import-report-title">
+              {{ active.lastImportCreated }} guardado(s), {{ active.lastImportFailures.length }}
+              no guardado(s)
+            </p>
+            <ul class="settings-data-import-tab__import-report-list">
+              @for (f of active.lastImportFailures; track f.rowNumber) {
+                <li>
+                  <strong>Fila {{ f.rowNumber }} · {{ f.summary }}</strong> — {{ f.reason }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+        </div>
+      </div>
+    </to-card>
+  </section>
+  </div>
+</div>

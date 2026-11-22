@@ -117,7 +117,11 @@ export class ManiobraRouteMapComponent implements AfterViewInit, OnDestroy {
 
       const subs: Subscription[] = [];
       for (const pair of pairs) {
-        const sub = this.osrm.drivingRoute(pair.from, pair.to).subscribe((route) => {
+        const request$ =
+          pair.points.length > 2
+            ? this.osrm.drivingRouteThrough(pair.points)
+            : this.osrm.drivingRoute(pair.points[0], pair.points[1]);
+        const sub = request$.subscribe((route) => {
           const coords = route?.coordinates;
           if (!coords || coords.length < 2) {
             return;

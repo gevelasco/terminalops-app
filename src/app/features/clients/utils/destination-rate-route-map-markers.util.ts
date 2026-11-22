@@ -5,6 +5,7 @@ type RouteMapContext = Pick<
   'originLat' | 'originLon' | 'destinationLat' | 'destinationLon' | 'waypoints'
 >;
 import { latLonFromTollPlazaRow } from '@features/clients/utils/destination-rate-inegi-point.util';
+import { formatTollPlazaListLabel } from '@features/clients/utils/destination-rate-toll-plaza-display.util';
 import type { DestinationRateMapMarker } from '@features/clients/utils/destination-rate-route-map-echarts.util';
 
 export function buildDestinationRateRouteMapMarkers(params: {
@@ -43,7 +44,10 @@ export function buildDestinationRateRouteMapMarkers(params: {
       kind: 'toll',
       lng: point.lon,
       lat: point.lat,
-      label: plaza.name.trim() || `Caseta ${plaza.order}`,
+      label:
+        formatTollPlazaListLabel(plaza).trim() ||
+        plaza.name.trim() ||
+        `Caseta ${plaza.order}`,
     });
   }
   return markers;

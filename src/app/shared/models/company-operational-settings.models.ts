@@ -19,6 +19,7 @@ export interface CompanyOperationalCenter {
   operationalCenterSettlementConsId?: string;
   operationalCenterLatitude?: number;
   operationalCenterLongitude?: number;
+  operationalCenterChangedAt?: string;
 }
 
 export interface CompanyOperationalSettings extends CompanyOperationalCenter {

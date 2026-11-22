@@ -42,7 +42,11 @@ export interface UserTableModuleIcon {
   iconImageSrc?: string;
 }
 
-/** Iconos de módulos para la tabla de usuarios: todos visibles, activos si hay acceso. */
+/**
+ * Iconos desde `allowedModules` (navegación efectiva). Para UI de permisos usar
+ * `userStaffModuleDisplayIcons` (grants), porque `resolveAllowedModules` incluye
+ * Dashboard implícito en staff aunque no esté asignado en el drawer.
+ */
 export function userTableModuleIcons(
   allowedModules: readonly string[] | undefined,
   role: string,

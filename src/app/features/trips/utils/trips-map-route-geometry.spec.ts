@@ -36,7 +36,21 @@ describe('uniqueTripMapRoutePairs', () => {
 
     expect(pairs.length).toBe(2);
     expect(pairs[0]?.tripIds).toEqual(['a', 'b']);
+    expect(pairs[0]?.points.length).toBe(2);
     expect(pairs[1]?.tripIds).toEqual(['c']);
+  });
+
+  it('splits routes when tariff waypoints differ', () => {
+    const pairs = uniqueTripMapRoutePairs([
+      item('a', [19.43, -99.13], [25.68, -100.31]),
+      {
+        ...item('b', [19.43, -99.13], [25.68, -100.31]),
+        routeWaypoints: [{ lat: 21.0, lon: -101.0 }],
+      },
+    ]);
+    expect(pairs.length).toBe(2);
+    expect(pairs.find((p) => p.tripIds.includes('a'))?.points.length).toBe(2);
+    expect(pairs.find((p) => p.tripIds.includes('b'))?.points.length).toBe(3);
   });
 
   it('skips trips without both coordinates', () => {

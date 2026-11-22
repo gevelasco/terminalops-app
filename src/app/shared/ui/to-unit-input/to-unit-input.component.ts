@@ -27,6 +27,7 @@ import {
 import { Trip, TripOperationType, Unit } from '@shared/models/logistics.models';
 import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
 import { resolveUnitOperationalKey } from '@shared/utils/fleet/fleet-status.resolver';
+import type { TripScheduleWindow } from '@features/trips/utils/trip-schedule-overlap.util';
 
 let seq = 0;
 
@@ -60,6 +61,7 @@ export class ToUnitInputComponent {
   readonly prefetchMode = input(false);
   readonly unitsData = input<readonly Unit[]>([]);
   readonly tripsData = input<readonly Trip[]>([]);
+  readonly candidateSchedule = input<TripScheduleWindow | null>(null);
   /** En prefetch: el padre aún está cargando el catálogo (muestra spinner). */
   readonly dataLoading = input(false);
 
@@ -102,6 +104,7 @@ export class ToUnitInputComponent {
         this.rows.set(
           buildManeuverAssignableUnitRows(this.unitsData(), this.tripsData(), {
             ignoreCurrentAvailability: this.ignoreCurrentAvailability(),
+            candidateSchedule: this.candidateSchedule(),
           }),
         );
         this.syncInputFromUnitId();

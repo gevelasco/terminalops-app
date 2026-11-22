@@ -182,15 +182,16 @@
   gap: 0.35rem;
   min-width: 0;
   font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-weight: var(--to-weight-regular, 400);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
-  color: var(--to-color-text, #0f172a);
+  color: color-mix(in srgb, var(--to-color-text, #0f172a) 82%, var(--to-color-text-muted, #64748b));
 
   to-icon {
     flex-shrink: 0;
-    margin-top: 0.1rem;
-    color: var(--to-color-text-muted, #64748b);
+    margin-top: 0.12rem;
+    color: color-mix(in srgb, var(--to-color-text-muted, #64748b) 88%, transparent);
   }
 
   span {
@@ -202,11 +203,13 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding-top: 0.15rem;
-  font-size: 0.875rem;
-  font-weight: 700;
+  padding-top: 0.2rem;
+  font-size: 0.8125rem;
+  font-weight: var(--to-weight-medium, 500);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
-  color: var(--to-color-text, #0f172a);
+  color: color-mix(in srgb, var(--to-color-text, #0f172a) 86%, var(--to-color-text-muted, #64748b));
   border-top: 1px solid color-mix(in srgb, var(--to-color-border, #e2e8f0) 45%, transparent);
 
   .destination-rate-prices-editor__handshake-icon {
@@ -414,7 +417,17 @@
 
 .destination-rate-prices-editor__toll-name {
   min-width: 0;
+  line-height: 1.35;
   color: var(--to-color-text, #0f172a);
+  overflow-wrap: anywhere;
+}
+
+.destination-rate-prices-editor__toll-name-peaje {
+  font-weight: 600;
+}
+
+.destination-rate-prices-editor__toll-name-loc {
+  font-weight: 400;
 }
 
 .destination-rate-prices-editor__toll-cost {

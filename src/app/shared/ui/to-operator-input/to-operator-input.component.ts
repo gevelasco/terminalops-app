@@ -25,6 +25,11 @@ import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outsi
 import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 import { resolveOperatorOperationalStatus } from '@shared/utils/fleet/fleet-status.resolver';
 import { operatorOperationalPillClass } from '@shared/utils/operator-operational-pill';
+import {
+  tripConflictsWithActiveSchedule,
+  type TripScheduleWindow,
+} from '@features/trips/utils/trip-schedule-overlap.util';
+import { resourceIdsEqual } from '@shared/utils/resource-id';
 
 /** Puede asignarse a maniobra si no está ya en una activa. */
 const PICKABLE_OPERATOR_STATUSES: OperatorOperationalStatus[] = [
@@ -37,24 +42,37 @@ let seq = 0;
 
 const ACTIVE_MANEUVER_STATUSES: TripStatus[] = ['scheduled', 'in_transit'];
 
+function operatorBlockedByTripSchedule(
+  operatorId: string,
+  trips: readonly Trip[],
+  candidate: TripScheduleWindow | null | undefined,
+): boolean {
+  if (!candidate) {
+    return trips.some(
+      (t) =>
+        ACTIVE_MANEUVER_STATUSES.includes(t.status) &&
+        resourceIdsEqual(t.operatorId, operatorId),
+    );
+  }
+  return trips.some(
+    (t) =>
+      resourceIdsEqual(t.operatorId, operatorId) &&
+      tripConflictsWithActiveSchedule(t, candidate),
+  );
+}
+
 function pickAvailableOperators(
   operators: readonly Operator[],
   trips: readonly Trip[],
   ignoreCurrentAvailability = false,
+  candidateSchedule: TripScheduleWindow | null = null,
 ): Operator[] {
-  const busy = new Set<string>();
-  if (!ignoreCurrentAvailability) {
-    for (const t of trips) {
-      if (ACTIVE_MANEUVER_STATUSES.includes(t.status)) {
-        busy.add(t.operatorId);
-      }
-    }
-  }
   const avail = operators.filter(
     (o) =>
       isFleetResourceActive(o) &&
       PICKABLE_OPERATOR_STATUSES.includes(o.status) &&
-      !busy.has(o.id),
+      (ignoreCurrentAvailability ||
+        !operatorBlockedByTripSchedule(o.id, trips, candidateSchedule)),
   );
   avail.sort((a, b) => a.name.localeCompare(b.name));
   return avail;
@@ -84,6 +102,7 @@ export class ToOperatorInputComponent {
   readonly prefetchMode = input(false);
   readonly operatorsData = input<readonly Operator[]>([]);
   readonly tripsData = input<readonly Trip[]>([]);
+  readonly candidateSchedule = input<TripScheduleWindow | null>(null);
   /** En prefetch: el padre aún está cargando el catálogo (muestra spinner). */
   readonly dataLoading = input(false);
 
@@ -132,6 +151,7 @@ export class ToOperatorInputComponent {
             this.operatorsData(),
             this.tripsData(),
             this.ignoreCurrentAvailability(),
+            this.candidateSchedule(),
           ),
         );
         this.syncInputFromOperatorId();
