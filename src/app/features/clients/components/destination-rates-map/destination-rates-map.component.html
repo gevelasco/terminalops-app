@@ -1,7 +1,19 @@
 <section
   class="destination-rates-map"
+  [class.destination-rates-map--mobile-map-only]="mobileMapOnlyMode()"
+  [class.destination-rates-map--mobile-state-list]="mobileStateListMode()"
   aria-label="Tarifas por destino"
 >
+  @if (mobileStateListMode()) {
+    <div class="destination-rates-map__mobile-bar">
+      <p class="destination-rates-map__mobile-bar-title">
+        Tarifas en <strong>{{ selectedState() }}</strong>
+      </p>
+      <to-button type="button" variant="outline" size="sm" (click)="showMapOnMobile()">
+        Ver mapa
+      </to-button>
+    </div>
+  }
   <aside
     class="destination-rates-map__table-panel"
     aria-label="Catálogo de tarifas"

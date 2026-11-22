@@ -31,7 +31,7 @@ import {
 import {
   STAFF_MODULE_OPTIONS,
 } from '@shared/models/app-modules.models';
-import { roleDisplayLabel } from '@shared/utils/access-control';
+import { canManageUsers, roleDisplayLabel } from '@shared/utils/access-control';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
 import {
@@ -50,6 +50,7 @@ import {
   ToSegmentControlComponent,
   type ToSegmentTab,
 } from '@shared/ui/to-segment-control/to-segment-control.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 
 type UserEditSection = 'personal' | 'password' | 'permissions';
@@ -65,9 +66,11 @@ type UserEditSection = 'personal' | 'password' | 'permissions';
     ToInputComponent,
     ToSegmentControlComponent,
     UsersModulePermissionsFieldsComponent,
+    ToConfirmDialogComponent,
   ],
   templateUrl: './users-detail-drawer.component.html',
   styleUrls: [
+    '../../../fleet/components/styles/fleet-detail-drawer-footer.shared.scss',
     '../../../fleet/components/fleet-drawer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
@@ -85,10 +88,13 @@ export class UsersDetailDrawerComponent {
   readonly user = input.required<CompanyUserRow>();
   readonly dismiss = output<void>();
   readonly saved = output<CompanyUserRow>();
+  readonly deleted = output<void>();
 
   readonly drawerLoading = signal(true);
   readonly saving = signal(false);
   readonly photoSaving = signal(false);
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteSubmitting = signal(false);
   readonly editingSection = signal<UserEditSection | null>(null);
   readonly moduleOptions = [...STAFF_MODULE_OPTIONS];
   readonly staffModuleIcon = staffModuleIcon;
@@ -113,6 +119,10 @@ export class UsersDetailDrawerComponent {
   readonly canEditPersonal = () => this.user().role !== 'superadmin';
   readonly canEditAccess = () => this.user().role !== 'superadmin';
   readonly canResetPassword = () => this.canEditPersonal() && !this.isSelf();
+  readonly canDeleteUser = () =>
+    canManageUsers(this.session.role()) &&
+    this.canEditPersonal() &&
+    !this.isSelf();
 
   readonly viewModulePermissions = computed(() => {
     const row = this.user();
@@ -373,6 +383,52 @@ export class UsersDetailDrawerComponent {
 
   onRoleTab(value: 'admin' | 'staff'): void {
     this.draftRole.set(value);
+  }
+
+  openDeleteConfirm(): void {
+    if (!this.canDeleteUser() || this.deleteSubmitting() || this.saving()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDeleteUser(): void {
+    if (!this.canDeleteUser() || this.deleteSubmitting() || this.saving()) {
+      return;
+    }
+    const companyId = this.session.companyId();
+    if (!companyId) {
+      return;
+    }
+    const row = this.user();
+    const label = row.displayName?.trim() || row.username;
+    this.deleteSubmitting.set(true);
+    this.api
+      .deleteUser(companyId, row.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
+          this.toast.show(`${label} dado de baja.`, 'success');
+          this.deleted.emit();
+        },
+        error: (err: unknown) => {
+          this.deleteSubmitting.set(false);
+          const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
+          this.toast.show(
+            detail || 'No se pudo dar de baja al usuario.',
+            'error',
+          );
+        },
+      });
   }
 
   savePermissionsSection(): void {

@@ -170,7 +170,7 @@
 .operators-overview__maneuver-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.22rem;
   min-width: 0;
   padding: 0.55rem 0.6rem;
   border-radius: calc(var(--to-radius-md) - 2px);
@@ -224,6 +224,14 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--to-color-text-muted);
+
+  &--mono {
+    font-family: var(--to-font-mono, ui-monospace, monospace);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+    color: var(--to-color-text);
+  }
 }
 
 .operators-overview__maneuver-empty {

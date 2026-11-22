@@ -35,34 +35,26 @@
 </to-page-header>
 
 @if (newClientOpen()) {
-  @defer {
-    <app-clients-new-drawer
-      (dismiss)="newClientOpen.set(false)"
-      (saved)="onClientCreated($event)"
-    />
-  }
+  <app-clients-new-drawer
+    (dismiss)="newClientOpen.set(false)"
+    (saved)="onClientCreated($event)"
+  />
 }
 
 @if (newRateOpen()) {
-  @defer {
-    <app-destination-rates-new-drawer
-      (dismiss)="newRateOpen.set(false)"
-      (saved)="onRateCreated($event)"
-      (openExisting)="onOpenExistingRate($event)"
-    />
-  }
+  <app-destination-rates-new-drawer
+    (dismiss)="newRateOpen.set(false)"
+    (saved)="onRateCreated($event)"
+    (openExisting)="onOpenExistingRate($event)"
+  />
 }
 
 @if (clientsFeature.selectedClient()) {
-  @defer {
-    <app-clients-detail-drawer (dismiss)="onClientDetailDismiss()" />
-  }
+  <app-clients-detail-drawer (dismiss)="onClientDetailDismiss()" />
 }
 
 @if (ratesFeature.selectedRateId()) {
-  @defer {
-    <app-destination-rates-detail-drawer (dismiss)="onRateDetailDismiss()" />
-  }
+  <app-destination-rates-detail-drawer (dismiss)="onRateDetailDismiss()" />
 }
 
 <div

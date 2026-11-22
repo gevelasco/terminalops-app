@@ -37,6 +37,15 @@ import {
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
+import { UsersService as UsersApiService } from '@core/services/api/users';
+import { APP_MODULE_CODES, type AppModuleCode } from '@shared/models/app-modules.models';
+import { COMMERCIAL_HANDSHAKE_ICON_MASK } from '@shared/constants/commercial-handshake-icon';
+import { staffModuleIcon } from '@shared/utils/staff-module-present';
+import {
+  enabledModulesToPatch,
+  notificationModuleOptionsForUser,
+  resolveEffectiveNotificationFeedModules,
+} from '@core/utils/notification-feed-modules.util';
 
 type ProfileEditSection = 'personal' | 'password';
 
@@ -64,8 +73,20 @@ export class ProfileDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly profileStore = inject(UserProfileStore);
+  private readonly usersApi = inject(UsersApiService);
   private readonly session = inject(SessionService);
   readonly theme = inject(ThemeService);
+
+  readonly notificationModuleOptions = computed(() =>
+    notificationModuleOptionsForUser(this.session.allowedModules()),
+  );
+  private readonly notificationModulesEnabled = signal<Set<AppModuleCode>>(
+    new Set(),
+  );
+  readonly notificationPrefsSaving = signal(false);
+  readonly clientsModuleCode = APP_MODULE_CODES.CLIENTS;
+  readonly commercialHandshakeIconMask = COMMERCIAL_HANDSHAKE_ICON_MASK;
+  readonly notificationStaffModuleIcon = staffModuleIcon;
 
   readonly themeSegmentTabs: readonly ToSegmentTab<ThemePreset>[] = [
     { id: 'light', label: 'Claro', icon: 'themeLight' },
@@ -94,7 +115,76 @@ export class ProfileDrawerComponent {
 
   constructor() {
     this.reloadFromStore();
-    afterNextRender(() => this.drawerLoading.set(false));
+    afterNextRender(() => {
+      this.drawerLoading.set(false);
+      this.loadNotificationFeedPreferences();
+    });
+  }
+
+  notificationModuleEnabled(code: AppModuleCode): boolean {
+    return this.notificationModulesEnabled().has(code);
+  }
+
+  toggleNotificationModule(code: AppModuleCode): void {
+    if (this.notificationPrefsSaving()) {
+      return;
+    }
+    const next = new Set(this.notificationModulesEnabled());
+    if (next.has(code)) {
+      next.delete(code);
+    } else {
+      next.add(code);
+    }
+    this.notificationModulesEnabled.set(next);
+    this.notificationPrefsSaving.set(true);
+    this.profileStore
+      .patchProfile({
+        notificationFeedModules: enabledModulesToPatch(next),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.notificationPrefsSaving.set(false);
+          this.toast.show('Preferencias de notificaciones actualizadas.', 'success');
+        },
+        error: (err: unknown) => {
+          this.notificationPrefsSaving.set(false);
+          this.loadNotificationFeedPreferences();
+          this.toast.show(
+            parseHttpApiErrorMessage(err) ??
+              'No se pudieron guardar las preferencias de notificaciones.',
+            'warning',
+          );
+        },
+      });
+  }
+
+  private loadNotificationFeedPreferences(): void {
+    this.usersApi
+      .getMe()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (row) => {
+          const allowed = row.allowedNotificationFeedModules?.length
+            ? row.allowedNotificationFeedModules
+            : notificationModuleOptionsForUser(this.session.allowedModules()).map(
+                (o) => o.code,
+              );
+          const enabled = resolveEffectiveNotificationFeedModules(
+            row.notificationFeedModules ?? null,
+            allowed,
+          );
+          this.notificationModulesEnabled.set(enabled);
+        },
+        error: () => {
+          const allowed = notificationModuleOptionsForUser(
+            this.session.allowedModules(),
+          ).map((o) => o.code);
+          this.notificationModulesEnabled.set(
+            resolveEffectiveNotificationFeedModules(null, allowed),
+          );
+        },
+      });
   }
 
   isEditing(section: ProfileEditSection): boolean {

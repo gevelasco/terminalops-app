@@ -707,11 +707,15 @@
   }
 }
 
-/* Móvil (<768): mismo corte que isMobileViewport. Sin charts, el body
-   no debe estirarse a 1fr (tarjeta enorme vacía) ni anidar scroll. */
+/* Móvil (<768): mismo corte que isMobileViewport. Scroll en .shell-main
+   (altura natural), sin paneles flex recortados ni scroll anidado. */
 @media (max-width: 767px) {
   :host {
+    flex: 0 0 auto;
+    align-self: stretch;
+    min-height: auto;
     height: auto;
+    max-height: none;
     overflow: visible;
     gap: 0.7rem;
   }
@@ -719,15 +723,33 @@
   .dashboard-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .dashboard-body {
     flex: 0 0 auto;
+    min-height: auto;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
-  .dashboard-panel--upcoming {
-    min-height: 0;
+  .dashboard-panel {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  .dashboard-panel--upcoming,
+  .dashboard-panel--transactions {
+    min-height: auto;
+  }
+
+  .dashboard-upcoming-list,
+  .dashboard-tx-list {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
   }
 
   .dashboard-diesel {

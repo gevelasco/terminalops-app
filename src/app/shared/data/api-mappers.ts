@@ -281,12 +281,34 @@ export function mapApiOperator(row: Record<string, unknown>): Operator {
         ? row['maneuverCount']
         : undefined,
     lastManeuver: mapApiOperatorLastManeuver(row['lastManeuver']),
+    activeService: mapApiOperatorActiveService(row['activeService']),
     nextPayDueOn: parseOptionalIsoDate(row['nextPayDueOn']),
     nextPayDueVariant: parseOperatorPayDueVariant(row['nextPayDueVariant']),
     owedAmount:
       typeof row['owedAmount'] === 'number' && Number.isFinite(row['owedAmount'])
         ? row['owedAmount']
         : undefined,
+  };
+}
+
+function mapApiOperatorActiveService(
+  value: unknown,
+): Operator['activeService'] {
+  if (value == null || typeof value !== 'object') {
+    return undefined;
+  }
+  const row = value as Record<string, unknown>;
+  const code = String(row['maneuverCode'] ?? '').trim();
+  if (!code) {
+    return undefined;
+  }
+  const unitCode = String(row['unitCode'] ?? '').trim();
+  return {
+    tripId: row['tripId'] != null ? resourceIdKey(row['tripId']) : undefined,
+    maneuverCode: code,
+    origin: parseOptionalRouteLabel(row['origin']),
+    destination: parseOptionalRouteLabel(row['destination']),
+    unitCode: unitCode || '—',
   };
 }
 

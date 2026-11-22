@@ -90,6 +90,13 @@
   min-width: 0;
 }
 
+.operators-op-pay-scroll--capped {
+  max-height: calc(2.05rem * 10 + 2.15rem);
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
 .operators-op-pay-table {
   width: 100%;
   border-collapse: collapse;
@@ -116,6 +123,13 @@
 .operators-op-pay-table td {
   font-size: 0.875rem;
   line-height: 1.35;
+}
+
+.operators-op-pay-table--compact th,
+.operators-op-pay-table--compact td {
+  padding-top: 0.38rem;
+  padding-bottom: 0.38rem;
+  line-height: 1.28;
 }
 
 .operators-op-pay-table__amount {

@@ -371,45 +371,6 @@
       </dl>
     </section>
 
-    @if (vm.operationSummary().activeAssignment; as active) {
-      <section
-        class="fleet-unit-sec fleet-unit-sec--boxed"
-        aria-labelledby="operators-dv-active"
-      >
-        <h3 id="operators-dv-active" class="fleet-unit-sec__title">
-          En servicio ahora
-        </h3>
-        <dl
-          class="fleet-unit-detail__dl fleet-unit-detail__dl--ficha-desktop-cols"
-        >
-          <div class="fleet-unit-detail__row">
-            <dt>Estado</dt>
-            <dd>{{ active.statusLabel }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Maniobra</dt>
-            <dd>{{ active.maneuverCode }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Ruta</dt>
-            <dd>{{ active.routeLabel }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Cliente</dt>
-            <dd>{{ active.clientName }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Unidad</dt>
-            <dd>{{ active.unitLabel }}</dd>
-          </div>
-          <div class="fleet-unit-detail__row">
-            <dt>Equipo</dt>
-            <dd>{{ active.equipmentLabel }}</dd>
-          </div>
-        </dl>
-      </section>
-    }
-
     @if (vm.operationSummary().recentPaymentRows.length > 0) {
       <section
         class="fleet-unit-sec fleet-unit-sec--boxed"
@@ -419,9 +380,9 @@
           Pagos al operador
           <span class="fleet-unit-sec__subtitle">· {{ vm.periodLabel() }}</span>
         </h3>
-        <div class="operators-op-pay-scroll">
+        <div class="operators-op-pay-scroll operators-op-pay-scroll--capped">
           <table
-            class="operators-op-pay-table"
+            class="operators-op-pay-table operators-op-pay-table--compact"
             aria-label="Pagos al operador por maniobra"
           >
             <thead>

@@ -212,4 +212,14 @@ export class CompanyUsersApiService {
       payload,
     );
   }
+
+  /** Baja lógica: inactiva la cuenta y la oculta del listado (conserva historial). */
+  deleteUser(
+    companyId: string | number,
+    userId: number,
+  ): Observable<{ id: number; deleted: boolean }> {
+    return this.http.delete<{ id: number; deleted: boolean }>(
+      `${environment.apiUrl}/companies/${companyId}/users/${userId}`,
+    );
+  }
 }

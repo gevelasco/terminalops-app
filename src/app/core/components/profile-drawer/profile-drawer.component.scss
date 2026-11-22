@@ -1,3 +1,5 @@
+@use '../../../shared/styles/module-access-icon.scss';
+
 :host ::ng-deep .to-side-drawer {
   z-index: 130;
 }
@@ -149,6 +151,106 @@
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+.profile-drawer__notifications {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--to-color-border) 55%, transparent);
+}
+
+.profile-drawer__notifications-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.profile-drawer__notifications-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--to-color-text-muted);
+}
+
+.profile-drawer__notifications-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  background: color-mix(in srgb, var(--to-color-border) 6%, var(--to-color-surface));
+}
+
+.profile-drawer__notifications-item {
+  margin: 0;
+  min-width: 0;
+}
+
+.profile-drawer__notifications-row {
+  min-height: 2rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--to-radius-sm, 6px);
+  background: color-mix(in srgb, var(--to-color-surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 45%, transparent);
+  transition: border-color 0.12s ease, background 0.12s ease;
+
+  &:has(.fleet-unit-toggle--on) {
+    border-color: color-mix(in srgb, var(--to-color-primary) 35%, var(--to-color-border));
+    background: color-mix(in srgb, var(--to-color-primary) 7%, var(--to-color-surface));
+
+    .profile-drawer__notifications-icon {
+      color: var(--to-color-primary);
+      border-color: color-mix(in srgb, var(--to-color-primary) 40%, transparent);
+      background: color-mix(in srgb, var(--to-color-primary) 12%, var(--to-color-surface));
+    }
+  }
+}
+
+.profile-drawer__notifications-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-drawer__notifications-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 70%, transparent);
+  background: color-mix(in srgb, var(--to-color-text) 2.5%, transparent);
+  color: color-mix(in srgb, var(--to-color-text-muted) 88%, var(--to-color-border));
+  transition:
+    color 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+
+  .commercial-handshake-icon {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+}
+
+.profile-drawer__notifications-label {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .profile-drawer__notifications-list {
+    grid-template-columns: 1fr;
   }
 }
 

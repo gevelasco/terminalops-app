@@ -5,6 +5,11 @@ import {
   isoToDateTimeLocalValue,
   sameScheduleInstant,
 } from '@features/trips/utils/datetime-local';
+import {
+  tripArrivalIso,
+  tripCompletionIso,
+  tripDepartureIso,
+} from '@features/trips/utils/trip-schedule-accessors';
 
 export type ActualScheduleFieldKey = 'departureAt' | 'arrivedAt' | 'returnAt';
 
@@ -26,6 +31,60 @@ export function isActualScheduleFieldEditable(
   field: ActualScheduleFieldKey,
 ): boolean {
   return editableActualScheduleFields(status).includes(field);
+}
+
+const MILESTONE_OPERATIVE_ISO: Record<
+  ActualScheduleFieldKey,
+  (trip: Parameters<typeof tripDepartureIso>[0]) => string | null
+> = {
+  departureAt: tripDepartureIso,
+  arrivedAt: tripArrivalIso,
+  returnAt: tripCompletionIso,
+};
+
+/** El hito ya pasó (ejecución real o, si no hay, plan operativo). */
+export function isRealScheduleMilestoneElapsed(
+  trip: Parameters<typeof tripDepartureIso>[0],
+  field: ActualScheduleFieldKey,
+  nowMs: number = Date.now(),
+): boolean {
+  const iso = MILESTONE_OPERATIVE_ISO[field](trip)?.trim();
+  if (!iso) {
+    return false;
+  }
+  const ms = new Date(iso).getTime();
+  if (!Number.isFinite(ms)) {
+    return false;
+  }
+  return ms <= nowMs;
+}
+
+const ELAPSED_FIELD_ERROR: Record<ActualScheduleFieldKey, string> = {
+  departureAt: 'La salida ya ocurrió; no puedes modificar su fecha real.',
+  arrivedAt: 'La cita cliente ya ocurrió; no puedes modificar su fecha real.',
+  returnAt: 'La llegada origen ya ocurrió; no puedes modificar su fecha real.',
+};
+
+export function realScheduleElapsedChangeError(
+  trip: Pick<
+    Trip,
+    ActualScheduleFieldKey | 'plannedDepartureAt' | 'plannedArrivalAt' | 'plannedCompletionAt' | 'status'
+  >,
+  drafts: ActualScheduleDrafts,
+  nowMs: number = Date.now(),
+): string | null {
+  if (trip.status !== 'in_transit') {
+    return null;
+  }
+  for (const field of editableActualScheduleFields(trip.status)) {
+    if (
+      actualScheduleFieldHasChange(trip, field, drafts[field]) &&
+      isRealScheduleMilestoneElapsed(trip, field, nowMs)
+    ) {
+      return ELAPSED_FIELD_ERROR[field];
+    }
+  }
+  return null;
 }
 
 const FIELD_PLANNED: Record<
@@ -82,10 +141,17 @@ export function actualScheduleHasAnyChange(
     ActualScheduleFieldKey | 'plannedDepartureAt' | 'plannedArrivalAt' | 'plannedCompletionAt' | 'status'
   >,
   drafts: ActualScheduleDrafts,
+  nowMs: number = Date.now(),
 ): boolean {
-  return editableActualScheduleFields(trip.status).some((field) =>
-    actualScheduleFieldHasChange(trip, field, drafts[field]),
-  );
+  return editableActualScheduleFields(trip.status).some((field) => {
+    if (
+      trip.status === 'in_transit' &&
+      isRealScheduleMilestoneElapsed(trip, field, nowMs)
+    ) {
+      return false;
+    }
+    return actualScheduleFieldHasChange(trip, field, drafts[field]);
+  });
 }
 
 export function effectiveActualScheduleIso(
@@ -142,14 +208,21 @@ export function buildActualSchedulePayload(
   >,
   drafts: ActualScheduleDrafts,
   justification: string,
+  nowMs: number = Date.now(),
 ): UpdateActualSchedulePayload | null {
-  if (!actualScheduleHasAnyChange(trip, drafts)) {
+  if (!actualScheduleHasAnyChange(trip, drafts, nowMs)) {
     return null;
   }
 
   const payload: UpdateActualSchedulePayload = { justification: justification.trim() };
 
   for (const field of editableActualScheduleFields(trip.status)) {
+    if (
+      trip.status === 'in_transit' &&
+      isRealScheduleMilestoneElapsed(trip, field, nowMs)
+    ) {
+      continue;
+    }
     if (!actualScheduleFieldHasChange(trip, field, drafts[field])) {
       continue;
     }
@@ -170,13 +243,19 @@ export function validateActualScheduleBeforeSave(
   >,
   drafts: ActualScheduleDrafts,
   justification: string,
+  nowMs: number = Date.now(),
 ): { payload: UpdateActualSchedulePayload } | { error: string } {
-  if (!actualScheduleHasAnyChange(trip, drafts)) {
+  if (!actualScheduleHasAnyChange(trip, drafts, nowMs)) {
     return { error: 'no_changes' };
   }
 
   if (!justification.trim()) {
     return { error: 'Indica la justificación del cambio en fechas reales.' };
+  }
+
+  const elapsedError = realScheduleElapsedChangeError(trip, drafts, nowMs);
+  if (elapsedError) {
+    return { error: elapsedError };
   }
 
   for (const field of editableActualScheduleFields(trip.status)) {
@@ -200,7 +279,7 @@ export function validateActualScheduleBeforeSave(
     return { error: chronologyError };
   }
 
-  const payload = buildActualSchedulePayload(trip, drafts, justification);
+  const payload = buildActualSchedulePayload(trip, drafts, justification, nowMs);
   if (!payload) {
     return { error: 'No se pudo preparar la actualización de fechas reales.' };
   }

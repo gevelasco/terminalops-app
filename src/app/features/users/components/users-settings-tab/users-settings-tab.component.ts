@@ -62,7 +62,11 @@ export class UsersSettingsTabComponent {
     return (this.users.value() ?? []).find((row) => row.id === id) ?? null;
   });
 
-  readonly userRows = computed(() => this.users.value() ?? []);
+  readonly userRows = computed(() =>
+    (this.users.value() ?? []).filter(
+      (row) => row.status === 'active' || row.status === 'pending',
+    ),
+  );
 
   openNewUser(): void {
     const rows = this.users.value() ?? [];
@@ -95,6 +99,11 @@ export class UsersSettingsTabComponent {
   }
 
   onUserCreated(): void {
+    this.reloadUsers();
+  }
+
+  onUserDeleted(): void {
+    this.selectedUserId.set(null);
     this.reloadUsers();
   }
 }

@@ -93,6 +93,60 @@
       />
     </div>
 
+    @if (notificationModuleOptions().length > 0) {
+      <div
+        class="profile-drawer__notifications"
+        aria-labelledby="profile-notifications-heading"
+      >
+        <h4 id="profile-notifications-heading" class="profile-drawer__notifications-title">
+          Notificaciones por módulo
+        </h4>
+        <p class="profile-drawer__notifications-hint">
+          Elige qué módulos ves en la campana (el sistema sigue generando el resto).
+        </p>
+        <ul class="profile-drawer__notifications-list" role="list">
+          @for (opt of notificationModuleOptions(); track opt.code) {
+            <li class="profile-drawer__notifications-item">
+              <div class="profile-drawer__notifications-row fleet-unit-toggle-row">
+                <div class="profile-drawer__notifications-head">
+                  <span class="profile-drawer__notifications-icon" aria-hidden="true">
+                    @if (opt.code === clientsModuleCode) {
+                      <span
+                        class="commercial-handshake-icon"
+                        [style.--commercial-handshake-icon-mask]="commercialHandshakeIconMask"
+                      ></span>
+                    } @else {
+                      <to-icon
+                        [name]="notificationStaffModuleIcon($any(opt.code))"
+                        [size]="14"
+                      />
+                    }
+                  </span>
+                  <span
+                    class="profile-drawer__notifications-label fleet-unit-toggle-row__label"
+                    [id]="'profile-notif-' + opt.code"
+                    >{{ opt.label }}</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="fleet-unit-toggle"
+                  [class.fleet-unit-toggle--on]="notificationModuleEnabled(opt.code)"
+                  role="switch"
+                  [attr.aria-checked]="notificationModuleEnabled(opt.code)"
+                  [attr.aria-labelledby]="'profile-notif-' + opt.code"
+                  [disabled]="notificationPrefsSaving()"
+                  (click)="toggleNotificationModule(opt.code)"
+                >
+                  <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
   </section>
 
   <div class="fleet-unit-detail__section-stack">

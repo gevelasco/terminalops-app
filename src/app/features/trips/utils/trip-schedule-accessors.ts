@@ -168,4 +168,35 @@ export function tripActualCompletionIso(
   return exposedActualIso(trip, 'returnAt');
 }
 
+const PLANNED_FOR_ACTUAL: Record<
+  ActualScheduleFieldKey,
+  'plannedDepartureAt' | 'plannedArrivalAt' | 'plannedCompletionAt'
+> = {
+  departureAt: 'plannedDepartureAt',
+  arrivedAt: 'plannedArrivalAt',
+  returnAt: 'plannedCompletionAt',
+};
+
+/**
+ * Columna «Actualización en …» del timeline: solo si hay ejecución real
+ * distinta del plan (evita confundir cita planificada con entrega de vacío u otra fase).
+ */
+export function actualScheduleUpdateVisible(
+  trip: TripScheduleRecord,
+  field: ActualScheduleFieldKey,
+): boolean {
+  if (trip.status === 'scheduled') {
+    return false;
+  }
+  const actual = exposedActualIso(trip, field);
+  if (!actual) {
+    return false;
+  }
+  const planned = String(trip[PLANNED_FOR_ACTUAL[field]] ?? '').trim();
+  if (!planned) {
+    return true;
+  }
+  return !sameScheduleInstant(actual, planned);
+}
+
 export { hasSpuriousActualScheduleCluster };

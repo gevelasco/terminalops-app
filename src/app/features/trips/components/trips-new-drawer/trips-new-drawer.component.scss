@@ -1,3 +1,8 @@
+/* +15% vs panel-wide (36rem → 41.4rem) */
+:host ::ng-deep .trips-new-drawer__panel.to-side-drawer__panel--wide {
+  width: min(41.4rem, 100vw);
+}
+
 .maniobra-drawer__body {
   flex: 1;
   min-height: 0;

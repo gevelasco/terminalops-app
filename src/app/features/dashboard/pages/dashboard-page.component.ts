@@ -100,8 +100,8 @@ export class DashboardPageComponent {
   private readonly toast = inject(ToastService);
 
   /**
-   * En mobile solo se muestran KPIs y la lista lateral (pagos o salidas);
-   * las gráficas quedan ocultas. Insights se pide siempre por los KPIs.
+   * En mobile: KPIs, próximos pagos/salidas y transacciones (sin gráficas).
+   * Insights se pide siempre por los KPIs.
    */
   readonly isMobileViewport = injectIsMobileViewport();
 

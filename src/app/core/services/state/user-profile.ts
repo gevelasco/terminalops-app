@@ -115,6 +115,7 @@ export class UserProfileStore {
   patchProfile(
     patch: Partial<UserProfile> & {
       theme?: ThemeScheme;
+      notificationFeedModules?: string[] | null;
     },
   ): Observable<UserProfile> {
     return this.usersApi.patchMe(profileToPatchBody(patch)).pipe(

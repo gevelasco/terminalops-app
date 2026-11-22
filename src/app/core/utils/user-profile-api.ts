@@ -19,9 +19,11 @@ export function mapUserMeToProfile(row: UserMeResponse): UserProfile {
 export function profileToPatchBody(
   patch: Partial<UserProfile> & {
     theme?: 'light' | 'dark';
+    notificationFeedModules?: string[] | null;
   },
-): Record<string, string | boolean | undefined> {
-  const body: Record<string, string | boolean | undefined> = {};
+): Record<string, string | boolean | string[] | null | undefined> {
+  const body: Record<string, string | boolean | string[] | null | undefined> =
+    {};
   if (patch.displayName !== undefined) {
     body['displayName'] = patch.displayName;
   }
@@ -42,6 +44,9 @@ export function profileToPatchBody(
   }
   if (patch.theme !== undefined) {
     body['theme'] = patch.theme;
+  }
+  if (patch.notificationFeedModules !== undefined) {
+    body['notificationFeedModules'] = patch.notificationFeedModules;
   }
   return body;
 }

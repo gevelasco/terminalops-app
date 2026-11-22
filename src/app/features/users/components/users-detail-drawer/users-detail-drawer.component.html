@@ -323,7 +323,8 @@
           <div>
             <p class="users-detail-drawer__label">Cuenta activa</p>
             <p class="users-detail-drawer__hint">
-              Los usuarios inactivos no pueden iniciar sesión.
+              Los usuarios inactivos no pueden iniciar sesión y dejan de mostrarse en
+              el listado al guardar.
             </p>
           </div>
           <button
@@ -370,9 +371,46 @@
     }
   </section>
 
-  <div toSideDrawerFooter class="fleet-unit-sec__edit-actions">
+  <div toSideDrawerFooter class="maniobra-detail__footer">
+    <div class="maniobra-detail__footer-start">
+      @if (canDeleteUser()) {
+        <button
+          type="button"
+          class="maniobra-detail__delete-maniobra-btn"
+          [disabled]="deleteSubmitting() || saving()"
+          (click)="openDeleteConfirm()"
+        >
+          <to-icon name="delete" [size]="16" />
+          Eliminar usuario
+        </button>
+      }
+    </div>
     <to-button type="button" variant="outline" [disabled]="saving()" (click)="dismiss.emit()">
       Cerrar
     </to-button>
   </div>
 </to-side-drawer>
+
+<to-confirm-dialog
+  titleId="users-delete-title"
+  icon="warning"
+  title="Eliminar usuario"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar usuario"
+  confirmIcon="delete"
+  confirmVariant="primary"
+  [open]="deleteConfirmOpen()"
+  [confirmLoading]="deleteSubmitting()"
+  [confirmDisabled]="deleteSubmitting()"
+  (cancel)="closeDeleteConfirm()"
+  (confirm)="confirmDeleteUser()"
+>
+  <p class="maniobra-detail__delete-copy">
+    Estás a punto de dar de baja al usuario
+    <strong>{{ user().displayName }}</strong>.
+  </p>
+  <p class="maniobra-detail__delete-copy">
+    Dejará de aparecer en Usuarios y no podrá iniciar sesión. Los registros que ya
+    creó o modificó (maniobras, gastos, etc.) se conservan con el mismo identificador.
+  </p>
+</to-confirm-dialog>

@@ -199,3 +199,78 @@
     grid-column: 1;
   }
 }
+
+.destination-rates-map__mobile-bar {
+  display: none;
+}
+
+/* Móvil: mapa a pantalla completa o lista del estado (sin mapa). */
+@media (max-width: 767px) {
+  :host {
+    min-height: 0;
+  }
+
+  .destination-rates-map {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: min(72dvh, 40rem);
+    height: auto;
+  }
+
+  .destination-rates-map__mobile-bar {
+    grid-row: 1;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    padding: 0.35rem 0 0.55rem;
+  }
+
+  .destination-rates-map__mobile-bar-title {
+    margin: 0;
+    flex: 1 1 8rem;
+    min-width: 0;
+    font-size: 0.875rem;
+    color: var(--to-color-text-muted);
+    line-height: 1.35;
+
+    strong {
+      color: var(--to-color-text);
+      font-weight: 600;
+    }
+  }
+
+  .destination-rates-map--mobile-map-only {
+    grid-template-rows: minmax(0, 1fr) auto;
+
+    .destination-rates-map__table-panel {
+      display: none;
+    }
+
+    .destination-rates-map__canvas-wrap {
+      grid-row: 1;
+      grid-column: 1;
+      min-height: min(68dvh, 36rem);
+    }
+  }
+
+  .destination-rates-map--mobile-state-list {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+
+    .destination-rates-map__canvas-wrap {
+      display: none;
+    }
+
+    .destination-rates-map__table-panel {
+      grid-row: 2;
+      grid-column: 1;
+      display: flex;
+      min-height: min(68dvh, 36rem);
+    }
+
+    .destination-rates-map__footnote {
+      grid-row: 3;
+    }
+  }
+}

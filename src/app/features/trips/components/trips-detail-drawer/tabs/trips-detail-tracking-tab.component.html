@@ -258,7 +258,7 @@
         @if (vm.canEditRealScheduleField('departureAt')) {
           <div class="maniobra-detail__schedule-input">
             <to-input
-              label="Actualización en salida"
+              [label]="vm.realScheduleEditLabel('departureAt')"
               type="datetime-local"
               [value]="vm.realDepartureDraft()"
               (valueChange)="vm.realDepartureDraft.set($event)"
@@ -268,7 +268,7 @@
         @if (vm.canEditRealScheduleField('arrivedAt')) {
           <div class="maniobra-detail__schedule-input">
             <to-input
-              label="Actualización en cita"
+              [label]="vm.realScheduleEditLabel('arrivedAt')"
               type="datetime-local"
               [value]="vm.realArrivalDraft()"
               (valueChange)="vm.realArrivalDraft.set($event)"
@@ -278,7 +278,7 @@
         @if (vm.canEditRealScheduleField('returnAt')) {
           <div class="maniobra-detail__schedule-input">
             <to-input
-              label="Actualización en origen"
+              [label]="vm.realScheduleEditLabel('returnAt')"
               type="datetime-local"
               [min]="vm.realCompletionMinLocal()"
               [value]="vm.realCompletionDraft()"

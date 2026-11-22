@@ -18,6 +18,9 @@ export type UserMeResponse = {
   department: string;
   workLocation: string;
   employeeId: string;
+  /** null = todas las del permiso del usuario. */
+  notificationFeedModules?: string[] | null;
+  allowedNotificationFeedModules?: string[];
 };
 
 export type UpdateUserProfileRequest = {
@@ -28,6 +31,7 @@ export type UpdateUserProfileRequest = {
   jobTitle?: string;
   photoDataUrl?: string;
   theme?: ThemeScheme;
+  notificationFeedModules?: string[] | null;
 };
 
 export type UpdateUserPasswordRequest = {

@@ -61,7 +61,7 @@
 
           <div class="operators-overview__maneuver-panel">
             <div class="operators-overview__maneuver-head">
-              <span class="operators-overview__maneuver-label">Última maniobra</span>
+              <span class="operators-overview__maneuver-label">{{ card.maneuverPanelLabel }}</span>
               @if (card.lastManeuverCode !== "—") {
                 <span class="operators-overview__maneuver-code">{{
                   card.lastManeuverCode
@@ -72,8 +72,13 @@
               <p class="operators-overview__maneuver-route">
                 {{ card.lastManeuverRoute }}
               </p>
-              <p class="operators-overview__maneuver-date">
-                {{ card.lastManeuverDateLabel }}
+              <p
+                class="operators-overview__maneuver-date"
+                [class.operators-overview__maneuver-date--mono]="
+                  card.maneuverPanelLabel === 'En servicio ahora'
+                "
+              >
+                {{ card.maneuverMetaLabel }}
               </p>
             } @else {
               <p class="operators-overview__maneuver-empty">

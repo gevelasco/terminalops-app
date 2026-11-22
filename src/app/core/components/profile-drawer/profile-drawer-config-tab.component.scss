@@ -457,3 +457,64 @@
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+@media (max-width: 767px) {
+  .company-controls {
+    padding: 0.85rem 0.75rem 1rem;
+  }
+
+  .co-setting {
+    padding: 0.85rem 0.75rem;
+    gap: 0.55rem 0.65rem;
+  }
+
+  .co-setting__panel--motor-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .co-setting__panel--policy-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .co-setting__control-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+
+    .co-setting__switch {
+      justify-content: flex-start;
+      padding-top: 0;
+    }
+  }
+
+  .co-setting__aside-field {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  :host ::ng-deep .co-setting__policy-segment .to-segment-control--toolbar {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  :host ::ng-deep .co-setting__policy-segment .to-segment-control--toolbar .to-segment-control__btn {
+    flex: 1 1 calc(33.333% - 0.15rem);
+    min-width: 0;
+    white-space: normal;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    font-size: 0.75rem;
+  }
+
+  .profile-drawer__confirm-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+
+    ::ng-deep .to-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

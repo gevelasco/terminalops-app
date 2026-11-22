@@ -20,6 +20,7 @@ import {
   seedActualScheduleDrafts,
   validateActualScheduleBeforeSave,
   isActualScheduleFieldEditable,
+  isRealScheduleMilestoneElapsed,
   arrivalIsoForCompletionValidation,
   type ActualScheduleDrafts,
   type ActualScheduleFieldKey,
@@ -39,6 +40,7 @@ import {
 } from '@features/trips/utils/empty-delivery-original.util';
 import { canRegisterTripEmptyDelivery } from '@features/trips/utils/empty-delivery-eligibility';
 import {
+  actualScheduleUpdateVisible,
   tripActualArrivalIso,
   tripActualCompletionIso,
   tripActualDepartureIso,
@@ -519,17 +521,26 @@ export class TripsDetailDrawerFacade {
 
   showRealScheduleField(field: ActualScheduleFieldKey): boolean {
     const t = this.trip();
-    if (t.status === 'scheduled') {
-      return false;
-    }
-    const actualIso = this.actualScheduleIso(field);
-    if (!actualIso) {
+    if (!actualScheduleUpdateVisible(t, field)) {
       return false;
     }
     if (!this.realDatesEditEnabled()) {
       return true;
     }
     return !isActualScheduleFieldEditable(t.status, field);
+  }
+
+  /** Etiqueta del input al editar fechas reales (no confundir con entrega de vacío). */
+  realScheduleEditLabel(field: ActualScheduleFieldKey): string {
+    const hasUpdate = actualScheduleUpdateVisible(this.trip(), field);
+    switch (field) {
+      case 'departureAt':
+        return hasUpdate ? 'Actualización en salida' : 'Salida (ejecución real)';
+      case 'arrivedAt':
+        return hasUpdate ? 'Actualización en cita' : 'Cita cliente (ejecución real)';
+      case 'returnAt':
+        return hasUpdate ? 'Actualización en origen' : 'Llegada origen (ejecución real)';
+    }
   }
 
   actualScheduleIso(field: ActualScheduleFieldKey): string | null {
@@ -545,11 +556,13 @@ export class TripsDetailDrawerFacade {
   }
 
   canEditRealScheduleField(field: ActualScheduleFieldKey): boolean {
+    const trip = this.trip();
     return (
       this.realDatesEditEnabled() &&
       // Programada: aún no hay fechas reales; se editan las planeadas.
       !this.editingPlannedDates() &&
-      isActualScheduleFieldEditable(this.trip().status, field)
+      isActualScheduleFieldEditable(trip.status, field) &&
+      !isRealScheduleMilestoneElapsed(trip, field)
     );
   }
 
@@ -767,7 +780,9 @@ export class TripsDetailDrawerFacade {
   }
 
   showEmptyDeliveryTimelineStep(): boolean {
-    return Boolean(this.emptyDeliveryPrimaryAt() || this.emptyDeliveryTimelinePlace());
+    return Boolean(
+      this.emptyDeliveryPrimaryAt()?.trim() && this.emptyDeliveryTimelinePlace(),
+    );
   }
 
   /** Piso del datepicker: la mayor entre llegada origen planeada y real. */

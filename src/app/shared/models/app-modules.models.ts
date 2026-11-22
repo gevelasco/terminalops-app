@@ -72,6 +72,24 @@ export const STAFF_RBAC_MODULE_OPTIONS = STAFF_MODULE_OPTIONS.filter((option) =>
   (STAFF_RBAC_MODULE_CODES as readonly string[]).includes(option.code),
 );
 
+/** Módulos con avisos en campana / feed (excluye dashboard, reportes, tarifas, etc.). */
+export const NOTIFICATION_FEED_MODULE_CODES = [
+  APP_MODULE_CODES.TRIPS,
+  APP_MODULE_CODES.FLEET,
+  APP_MODULE_CODES.OPERATORS,
+  APP_MODULE_CODES.CLIENTS,
+  APP_MODULE_CODES.DESTINATION_RATES,
+  APP_MODULE_CODES.EXPENSES,
+] as const satisfies readonly StaffGrantableModuleCode[];
+
+export type NotificationFeedModuleCode =
+  (typeof NOTIFICATION_FEED_MODULE_CODES)[number];
+
+export const NOTIFICATION_FEED_MODULE_OPTIONS = STAFF_MODULE_OPTIONS.filter(
+  (option) =>
+    (NOTIFICATION_FEED_MODULE_CODES as readonly string[]).includes(option.code),
+);
+
 export interface AppNavItem {
   path: string;
   label: string;

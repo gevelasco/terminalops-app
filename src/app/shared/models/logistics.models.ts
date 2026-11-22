@@ -310,6 +310,15 @@ export interface OperatorLastManeuver {
   occurredOn?: string;
 }
 
+/** Maniobra activa del operador (card cuando está en curso). */
+export interface OperatorActiveService {
+  tripId?: string;
+  maneuverCode: string;
+  origin?: string;
+  destination?: string;
+  unitCode: string;
+}
+
 export interface Operator {
   id: string;
   name: string;
@@ -359,6 +368,8 @@ export interface Operator {
   maneuverCount?: number;
   /** Última maniobra asignada (agregado del backend). */
   lastManeuver?: OperatorLastManeuver;
+  /** Maniobra en curso / programada (agregado del backend, cards). */
+  activeService?: OperatorActiveService;
   /** Próximo vencimiento de pago (ISO `YYYY-MM-DD`). */
   nextPayDueOn?: string;
   nextPayDueVariant?: 'success' | 'warning' | 'danger';

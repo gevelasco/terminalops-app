@@ -111,10 +111,18 @@ export function resolveNotificationNavigation(
         ? { commands: ['/comercial/clients'], queryParams }
         : { commands: ['/comercial/clients'] };
     }
-    case 'trip':
-      return entityId
-        ? { commands: ['/trips'], queryParams: { tripId: entityId } }
-        : null;
+    case 'trip': {
+      if (!entityId) {
+        return null;
+      }
+      const queryParams: Record<string, string> = { tripId: entityId };
+      if (item.kind.startsWith('trip.reminder.')) {
+        queryParams['detailTab'] = 'tracking';
+      } else if (item.entityTab?.trim() === 'tracking') {
+        queryParams['detailTab'] = 'tracking';
+      }
+      return { commands: ['/trips'], queryParams };
+    }
     case 'expense':
       return entityId
         ? { commands: ['/expenses'], queryParams: { expenseId: entityId } }

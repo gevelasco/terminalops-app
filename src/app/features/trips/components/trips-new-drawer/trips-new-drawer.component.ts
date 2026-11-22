@@ -259,6 +259,7 @@ export class TripsNewDrawerComponent {
   private lastAutoDieselPricePerLiter: number | null = null;
   private applyingDieselEstimate = false;
   private applyingDieselAmountFromLiters = false;
+  private applyingDieselLitersFromAmount = false;
   /** Precio MXN/L de la empresa (BD) para mostrar y recalcular monto desde litros. */
   private readonly dieselPricePerLiter = signal<number | null>(null);
 
@@ -1401,7 +1402,11 @@ export class TripsNewDrawerComponent {
     });
 
     effect(() => {
-      if (this.applyingDieselEstimate || this.applyingDieselAmountFromLiters) {
+      if (
+        this.applyingDieselEstimate ||
+        this.applyingDieselAmountFromLiters ||
+        this.applyingDieselLitersFromAmount
+      ) {
         return;
       }
       const price = this.dieselPricePerLiter();
@@ -1419,6 +1424,31 @@ export class TripsNewDrawerComponent {
       this.applyingDieselAmountFromLiters = true;
       this.dieselAmount.set(nextAmount);
       this.applyingDieselAmountFromLiters = false;
+    });
+
+    effect(() => {
+      if (
+        this.applyingDieselEstimate ||
+        this.applyingDieselLitersFromAmount ||
+        this.applyingDieselAmountFromLiters
+      ) {
+        return;
+      }
+      const price = this.dieselPricePerLiter();
+      if (price == null || !Number.isFinite(price) || price <= 0) {
+        return;
+      }
+      const amount = parseNonNegativeNumber(this.dieselAmount());
+      if (amount == null) {
+        return;
+      }
+      const nextLiters = formatFuelEstimateLiters(amount / price);
+      if (stripGroupedNumberInput(this.dieselLiters()) === stripGroupedNumberInput(nextLiters)) {
+        return;
+      }
+      this.applyingDieselLitersFromAmount = true;
+      this.dieselLiters.set(nextLiters);
+      this.applyingDieselLitersFromAmount = false;
     });
 
     effect(() => {

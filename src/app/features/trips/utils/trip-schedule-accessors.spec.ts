@@ -1,4 +1,5 @@
 import {
+  actualScheduleUpdateVisible,
   tripArrivalIso,
   tripCompletionIso,
   tripDepartureIso,
@@ -89,5 +90,27 @@ describe('trip-schedule-accessors', () => {
     expect(tripDepartureIso(trip)).toBe(trip.plannedDepartureAt);
     expect(tripArrivalIso(trip)).toBe(trip.arrivedAt);
     expect(tripCompletionIso(trip)).toBe(trip.plannedCompletionAt);
+  });
+
+  it('hides timeline update when actual cita equals planned', () => {
+    const trip = {
+      status: 'in_transit' as const,
+      departureAt: '2026-06-17T22:39:00.000Z',
+      arrivedAt: '2026-06-23T22:39:00.000Z',
+      returnAt: null,
+      ...planned,
+    };
+    expect(actualScheduleUpdateVisible(trip, 'arrivedAt')).toBe(false);
+  });
+
+  it('shows timeline update when actual cita differs from planned', () => {
+    const trip = {
+      status: 'in_transit' as const,
+      departureAt: '2026-06-17T22:39:00.000Z',
+      arrivedAt: '2026-06-24T10:00:00.000Z',
+      returnAt: null,
+      ...planned,
+    };
+    expect(actualScheduleUpdateVisible(trip, 'arrivedAt')).toBe(true);
   });
 });

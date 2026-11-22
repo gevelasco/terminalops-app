@@ -21,9 +21,10 @@ export interface OperatorsOverviewCardView {
   statusPillClass: string;
   photoUrl: string | null;
   photoInitials: string;
+  maneuverPanelLabel: string;
   lastManeuverCode: string;
   lastManeuverRoute: string;
-  lastManeuverDateLabel: string;
+  maneuverMetaLabel: string;
   companyTenureLabel: string;
   owedAmountLabel: string | null;
   nextPayDueLabel: string | null;
@@ -85,10 +86,36 @@ function formatOperatorLastManeuverRoute(
   return `${origin} → ${destination}`;
 }
 
+function formatManeuverRouteFromParts(
+  origin: string | undefined,
+  destination: string | undefined,
+): string {
+  if (!origin?.trim() && !destination?.trim()) {
+    return '—';
+  }
+  return formatOperatorLastManeuverRoute({
+    maneuverCode: '',
+    origin,
+    destination,
+  });
+}
+
 export function buildOperatorsOverviewCard(operator: Operator): OperatorsOverviewCardView {
   const status = operator.status;
   const last = operator.lastManeuver;
-  const route = formatOperatorLastManeuverRoute(last);
+  const onActiveService = status === 'in_use' && operator.activeService != null;
+  const active = onActiveService ? operator.activeService : undefined;
+  const route = onActiveService
+    ? formatManeuverRouteFromParts(active?.origin, active?.destination)
+    : formatOperatorLastManeuverRoute(last);
+  const maneuverCode = onActiveService
+    ? active?.maneuverCode?.trim() || '—'
+    : last?.maneuverCode?.trim() || '—';
+  const maneuverMetaLabel = onActiveService
+    ? active?.unitCode?.trim() || '—'
+    : last?.occurredOn
+      ? formatIsoDateEs(last.occurredOn)
+      : '—';
   const nextPayDueYmd = operator.nextPayDueOn?.trim() || null;
 
   return {
@@ -103,11 +130,10 @@ export function buildOperatorsOverviewCard(operator: Operator): OperatorsOvervie
     // Las cards siempre muestran iniciales; la foto solo vive en el drawer.
     photoUrl: null,
     photoInitials: operatorPhotoInitials(operator.name),
-    lastManeuverCode: last?.maneuverCode?.trim() || '—',
+    maneuverPanelLabel: onActiveService ? 'En servicio ahora' : 'Última maniobra',
+    lastManeuverCode: maneuverCode,
     lastManeuverRoute: route,
-    lastManeuverDateLabel: last?.occurredOn
-      ? formatIsoDateEs(last.occurredOn)
-      : '—',
+    maneuverMetaLabel,
     companyTenureLabel: `${companyTenureMonthsDaysLabelEs(operator.companyHireDate)} en la empresa`,
     owedAmountLabel: formatOwedAmount(operator.owedAmount),
     nextPayDueLabel: nextPayDueYmd ? formatIsoDateSlash(nextPayDueYmd) : null,
@@ -133,7 +159,8 @@ export function operatorOverviewMatchesQuery(
     card.statusLabel,
     card.lastManeuverCode,
     card.lastManeuverRoute,
-    card.lastManeuverDateLabel,
+    card.maneuverMetaLabel,
+    card.maneuverPanelLabel,
     card.companyTenureLabel,
     card.owedAmountLabel,
     card.nextPayDueLabel,

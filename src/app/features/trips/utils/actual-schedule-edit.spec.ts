@@ -4,6 +4,7 @@ import {
   actualScheduleHasAnyChange,
   editableActualScheduleFields,
   isActualScheduleFieldEditable,
+  isRealScheduleMilestoneElapsed,
   seedActualScheduleDrafts,
   validateActualScheduleBeforeSave,
 } from './actual-schedule-edit';
@@ -100,6 +101,33 @@ describe('actual-schedule-edit', () => {
     const result = validateActualScheduleBeforeSave(trip, drafts, 'Ajuste');
     expect(result).toEqual({
       error: 'La llegada origen real no puede ser anterior a la cita cliente.',
+    });
+  });
+
+  it('marks client appointment elapsed when operative cita is in the past', () => {
+    const nowMs = new Date('2026-01-22T07:01:00.000Z').getTime();
+    const inTransit = tripFixture({
+      plannedDepartureAt: '2026-01-20T16:00:00.000Z',
+      plannedArrivalAt: '2026-01-21T17:00:00.000Z',
+      plannedCompletionAt: '2026-01-22T18:00:00.000Z',
+      returnAt: '2026-01-23T11:00:00.000Z',
+    });
+    expect(isRealScheduleMilestoneElapsed(inTransit, 'arrivedAt', nowMs)).toBe(true);
+    expect(isRealScheduleMilestoneElapsed(inTransit, 'returnAt', nowMs)).toBe(false);
+  });
+
+  it('rejects edits to elapsed client appointment while in transit', () => {
+    const nowMs = new Date('2026-01-22T07:01:00.000Z').getTime();
+    const inTransit = tripFixture({
+      plannedDepartureAt: '2026-01-20T16:00:00.000Z',
+      plannedArrivalAt: '2026-01-21T17:00:00.000Z',
+      plannedCompletionAt: '2026-01-22T18:00:00.000Z',
+    });
+    const drafts = seedActualScheduleDrafts(inTransit);
+    drafts.arrivedAt = '2026-01-21T20:00';
+    const result = validateActualScheduleBeforeSave(inTransit, drafts, 'Tarde', nowMs);
+    expect(result).toEqual({
+      error: 'La cita cliente ya ocurrió; no puedes modificar su fecha real.',
     });
   });
 });

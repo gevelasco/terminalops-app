@@ -18,7 +18,9 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { ECElementEvent, EChartsType } from 'echarts/core';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
+import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import { ensureTripsMapEchartsModules } from '@features/trips/utils/trips-map-chart-modules';
 import { TRIPS_MAP_GEO_NAME } from '@features/trips/utils/trips-map-echarts-option';
 import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
@@ -40,7 +42,7 @@ import {
   selector: 'app-destination-rates-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToModuleSkeletonComponent],
+  imports: [ToModuleSkeletonComponent, ToButtonComponent],
   templateUrl: './destination-rates-map.component.html',
   styleUrls: [
     '../../../../shared/ui/to-table/to-table.component.scss',
@@ -50,6 +52,7 @@ import {
 export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
+  readonly isMobileViewport = injectIsMobileViewport();
 
   @ViewChild('chartHost', { static: true })
   private readonly chartHost!: ElementRef<HTMLDivElement>;
@@ -83,6 +86,22 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
   );
 
   readonly selectedState = signal<string | null>(null);
+
+  /** Móvil: lista del estado elegido en el mapa (mapa oculto). */
+  readonly mobileStateListMode = computed(
+    () =>
+      this.isMobileViewport() &&
+      this.selectedState() != null &&
+      !this.hasActiveFilter(),
+  );
+
+  /** Móvil sin búsqueda: solo mapa hasta elegir estado. */
+  readonly mobileMapOnlyMode = computed(
+    () =>
+      this.isMobileViewport() &&
+      !this.mobileStateListMode() &&
+      !this.hasActiveFilter(),
+  );
 
   readonly tableSourceRates = computed(() => {
     const filtered = this.filteredRates();
@@ -127,6 +146,16 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
         this.selectedState.set(null);
       }
     });
+
+    effect(() => {
+      if (!this.mobileStateListMode() && this.chart) {
+        queueMicrotask(() => this.chart?.resize());
+      }
+    });
+  }
+
+  showMapOnMobile(): void {
+    this.selectedState.set(null);
   }
 
   ngAfterViewInit(): void {
