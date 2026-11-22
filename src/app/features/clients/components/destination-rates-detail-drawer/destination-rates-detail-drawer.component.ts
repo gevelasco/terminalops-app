@@ -12,6 +12,7 @@ import { OperationalCenterSelectComponent } from '@features/clients/components/o
 import { DestinationRatePricesEditorComponent } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
 import { DestinationRateRouteMapDialogComponent } from '@features/clients/components/destination-rate-route-map-dialog/destination-rate-route-map-dialog.component';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
@@ -27,6 +28,7 @@ import { DestinationRatesDetailDrawerFacade } from './destination-rates-detail-d
     ToSideDrawerComponent,
     ToIconComponent,
     ToButtonComponent,
+    ToConfirmDialogComponent,
     ToInputComponent,
     ToStatusPillComponent,
     OperationalCenterSelectComponent,

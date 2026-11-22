@@ -41,6 +41,7 @@ import type {
   DestinationRate,
   DestinationRatePriceDraft,
 } from '@shared/models/destination-rate.models';
+import { isAdminRole } from '@shared/utils/access-control';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
 import { MexicoPostalCodeService } from '@shared/services/mexico-postal-code.service';
@@ -101,8 +102,19 @@ export class DestinationRatesDetailDrawerFacade {
   );
   readonly editing = signal(false);
   readonly saving = signal(false);
+  readonly deleteConfirmOpen = signal(false);
+  readonly deleteSubmitting = signal(false);
   readonly canWriteDestinationRates = computed(() =>
     this.session.canWriteModule(APP_MODULE_CODES.DESTINATION_RATES),
+  );
+  readonly canDeleteDestinationRate = computed(() =>
+    isAdminRole(this.session.role()),
+  );
+  readonly linkedManeuverCount = computed(
+    () => this.rate().maneuverCount ?? 0,
+  );
+  readonly canConfirmDeleteDestinationRate = computed(
+    () => this.linkedManeuverCount() === 0,
   );
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
@@ -477,23 +489,48 @@ export class DestinationRatesDetailDrawerFacade {
       });
   }
 
-  remove(): void {
-    if (this.saving()) {
+  openDeleteConfirm(): void {
+    if (
+      !this.canDeleteDestinationRate() ||
+      this.deleteSubmitting() ||
+      this.saving() ||
+      this.editing()
+    ) {
+      return;
+    }
+    this.deleteConfirmOpen.set(true);
+  }
+
+  closeDeleteConfirm(): void {
+    if (this.deleteSubmitting()) {
+      return;
+    }
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDeleteDestinationRate(): void {
+    if (
+      !this.canDeleteDestinationRate() ||
+      !this.canConfirmDeleteDestinationRate() ||
+      this.deleteSubmitting() ||
+      this.saving()
+    ) {
       return;
     }
     const id = this.rate().id;
-    this.saving.set(true);
+    this.deleteSubmitting.set(true);
     this.ratesFeature
       .deleteDestinationRate(id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.saving.set(false);
+          this.deleteSubmitting.set(false);
+          this.deleteConfirmOpen.set(false);
           this.toast.show('Tarifa eliminada.', 'success');
           this.requestDismiss();
         },
         error: (err: unknown) => {
-          this.saving.set(false);
+          this.deleteSubmitting.set(false);
           const detail = parseHttpApiErrorMessage(err)?.trim() ?? '';
           this.toast.show(
             detail || 'No se pudo eliminar la tarifa.',

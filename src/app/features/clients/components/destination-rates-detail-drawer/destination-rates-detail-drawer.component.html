@@ -274,5 +274,58 @@
         {{ vm.saving() ? "Guardando…" : "Guardar" }}
       </to-button>
     </div>
+  } @else {
+    <div toSideDrawerFooter class="maniobra-detail__footer">
+      <div class="maniobra-detail__footer-start">
+        @if (vm.canDeleteDestinationRate()) {
+          <button
+            type="button"
+            class="maniobra-detail__delete-maniobra-btn"
+            [disabled]="vm.deleteSubmitting() || vm.drawerLoading()"
+            (click)="vm.openDeleteConfirm()"
+          >
+            <to-icon name="delete" [size]="16" />
+            Eliminar tarifa
+          </button>
+        }
+      </div>
+      <to-button type="button" variant="outline" (click)="vm.requestDismiss()">
+        Cerrar
+      </to-button>
+    </div>
   }
 </to-side-drawer>
+
+<to-confirm-dialog
+  titleId="destination-rate-delete-title"
+  icon="warning"
+  title="Eliminar tarifa"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar tarifa"
+  confirmIcon="delete"
+  confirmVariant="primary"
+  [open]="vm.deleteConfirmOpen()"
+  [confirmLoading]="vm.deleteSubmitting()"
+  [confirmDisabled]="vm.deleteSubmitting() || !vm.canConfirmDeleteDestinationRate()"
+  (cancel)="vm.closeDeleteConfirm()"
+  (confirm)="vm.confirmDeleteDestinationRate()"
+>
+  <p class="maniobra-detail__delete-copy">
+    Estás a punto de eliminar la tarifa
+    <strong>{{ vm.headerLabel() }}</strong>.
+  </p>
+  @if (vm.canConfirmDeleteDestinationRate()) {
+    <p class="maniobra-detail__delete-copy">
+      Se quitará del catálogo de tarifas. Los lugares de entrega que la
+      referenciaban quedarán sin tarifa asignada. Esta acción no se puede
+      deshacer.
+    </p>
+  } @else {
+    <p class="maniobra-detail__delete-copy">
+      No se puede eliminar: hay
+      <strong>{{ vm.linkedManeuverCount() }}</strong>
+      maniobra(s) vinculada(s). Desactiva la tarifa (estado Inactiva) si ya no
+      debe usarse en nuevas operaciones.
+    </p>
+  }
+</to-confirm-dialog>
