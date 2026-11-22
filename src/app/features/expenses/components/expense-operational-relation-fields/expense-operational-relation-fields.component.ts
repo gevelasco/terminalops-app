@@ -122,22 +122,24 @@ export class ExpenseOperationalRelationFieldsComponent {
       }
 
       let cancelled = false;
-      const sub = this.tripsApi.getTripById(tripId).subscribe({
-        next: (trip) => {
-          if (cancelled || !trip) {
-            return;
-          }
-          this.linkedTrip.set(trip);
-          if (this.mode() === 'edit') {
-            untracked(() => this.applyTripRelations(trip, tripId));
-          }
-        },
-        error: () => {
-          if (!cancelled) {
-            this.linkedTrip.set(null);
-          }
-        },
-      });
+      const sub = this.tripsApi
+        .getTripById(tripId, { view: 'expense-relations' })
+        .subscribe({
+          next: (trip) => {
+            if (cancelled || !trip) {
+              return;
+            }
+            this.linkedTrip.set(trip);
+            if (this.mode() === 'edit') {
+              untracked(() => this.applyTripRelations(trip, tripId));
+            }
+          },
+          error: () => {
+            if (!cancelled) {
+              this.linkedTrip.set(null);
+            }
+          },
+        });
       onCleanup(() => {
         cancelled = true;
         sub.unsubscribe();

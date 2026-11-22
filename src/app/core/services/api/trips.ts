@@ -157,9 +157,18 @@ export class TripsService {
       .pipe(map((raw) => mapApiTripsMapResponse(raw)));
   }
 
-  getTripById(id: string): Observable<Trip | undefined> {
+  getTripById(
+    id: string,
+    options?: { view?: 'expense-relations' },
+  ): Observable<Trip | undefined> {
+    let params = new HttpParams();
+    if (options?.view) {
+      params = params.set('view', options.view);
+    }
     return this.http
-      .get<Record<string, unknown>>(resourceByIdUrl('trips', id))
+      .get<Record<string, unknown>>(resourceByIdUrl('trips', id), {
+        ...(params.keys().length > 0 ? { params } : {}),
+      })
       .pipe(map((r) => mapApiTrip(r)));
   }
 
