@@ -19,13 +19,6 @@ export const DESTINATION_RATE_AXLE_OPTIONS: ToSelectOption[] = [
   { value: '8', label: '8 ejes' },
 ];
 
-/** Unidad para tiempos estimados de referencia en tarifas por ruta. */
-export const DESTINATION_RATE_TIME_UNIT_OPTIONS: ToSelectOption[] = [
-  { value: '', label: 'Sin especificar' },
-  { value: 'hours', label: 'Horas' },
-  { value: 'days', label: 'Días' },
-];
-
 /** Etiquetas del estatus comercial calculado (maniobras + cartera). */
 export const CLIENT_COMMERCIAL_HEALTH_OPTIONS: ToSelectOption[] = [
   { value: 'not_evaluated', label: 'Sin evaluar' },
