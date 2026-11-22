@@ -28,6 +28,7 @@ import {
 } from '@features/clients/utils/client-deliveries';
 import { clientDeliveryRouteStatusLabel } from '@features/clients/utils/client-delivery-route-link';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
+import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
 import { CLIENT_YES_NO_OPTIONS } from '@shared/catalogs/client-form-options';
 import { TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/trip-client-payment-options';
 import type {
@@ -71,6 +72,8 @@ import { ToSelectOption } from '@shared/ui/to-select/to-select.component';
   ],
 })
 export class ClientsNewDrawerComponent {
+  protected readonly commercialHandshakeIconSrc = COMMERCIAL_HANDSHAKE_ICON_SRC;
+
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsFeature = inject(ClientsFeatureService);
   private readonly clientsApi = inject(ClientsApiService);

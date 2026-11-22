@@ -31,6 +31,23 @@
   -webkit-mask-size: contain;
 }
 
+.clients-page__empty-handshake {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  background-color: currentColor;
+  mask-image: var(--clients-handshake-icon-mask);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--clients-handshake-icon-mask);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
 .clients-table-block {
   display: flex;
   flex-direction: column;

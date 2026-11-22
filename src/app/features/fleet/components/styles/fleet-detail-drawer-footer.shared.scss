@@ -35,7 +35,7 @@
   justify-content: center;
   gap: 0.35rem;
   margin: 0;
-  padding: 0.46rem 0.85rem;
+  padding: var(--to-button-padding-y, 0.46rem) var(--to-button-padding-x, 0.85rem);
   border-radius: var(--to-radius-md, 8px);
   border: 1px solid color-mix(in srgb, var(--to-color-danger, #c62828) 52%, transparent);
   background: transparent;
@@ -67,7 +67,7 @@
   justify-content: center;
   gap: 0.35rem;
   margin: 0;
-  padding: 0.46rem 0.85rem;
+  padding: var(--to-button-padding-y, 0.46rem) var(--to-button-padding-x, 0.85rem);
   border-radius: var(--to-radius-md, 8px);
   border: 1px solid color-mix(in srgb, var(--to-color-primary) 45%, transparent);
   background: transparent;
@@ -160,9 +160,3 @@
   color: var(--to-color-text-muted);
 }
 
-:host ::ng-deep .maniobra-detail__footer to-button .to-button {
-  padding: 0.46rem 0.85rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.25;
-}

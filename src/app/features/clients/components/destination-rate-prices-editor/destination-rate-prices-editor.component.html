@@ -6,7 +6,22 @@
     @if (tollsSectionLoading()) {
       <div class="destination-rate-prices-editor__loading" role="status" aria-live="polite">
         <span class="destination-rate-prices-editor__spinner" aria-hidden="true"></span>
-        <span class="destination-rate-prices-editor__loading-text">Consultando casetas (INEGI)…</span>
+        <span class="destination-rate-prices-editor__loading-text"
+          >Consultando casetas en el catálogo del INEGI…</span
+        >
+        <p class="destination-rate-prices-editor__loading-hint">
+          Sé que está un poquito lento: ya no depende de nosotros, es el servicio gubernamental
+          haciendo de las suyas. Gracias por la paciencia.
+        </p>
+        <to-button
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="destination-rate-prices-editor__loading-skip"
+          (click)="skipInegiTolls()"
+        >
+          Prefiero saltarme esa parte
+        </to-button>
       </div>
     }
 
@@ -60,7 +75,7 @@
           />
           <to-input
             label="Casetas (ida y vuelta)"
-            placeholder="Sugerido INEGI"
+            [placeholder]="tollsInegiSkipped() ? 'Captura tu monto' : 'Sugerido INEGI'"
             prefix="$"
             inputMode="decimal"
             [groupThousands]="true"
@@ -79,6 +94,18 @@
             (valueChange)="updateField(composerRowKey(), 'perDiemAmount', $event)"
           />
         </div>
+
+        @if (tollsInegiSkipped() && routeTollContext() && !routeTollBlocked()) {
+          <aside class="destination-rate-prices-editor__inegi-skip-banner">
+            <p class="destination-rate-prices-editor__inegi-skip-copy">
+              Capturaste el monto de casetas a mano. Al guardar no enlazamos la lista de peajes;
+              después puedes consultar el INEGI aquí o con «Configurar ruta».
+            </p>
+            <to-button type="button" variant="outline" size="sm" (click)="resumeInegiTolls()">
+              Consultar casetas (INEGI)
+            </to-button>
+          </aside>
+        }
 
         @if (showComposerTolls()) {
           <div class="destination-rate-prices-editor__tolls">

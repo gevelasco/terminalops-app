@@ -25,6 +25,8 @@ export interface OperatorsOverviewCardView {
   lastManeuverCode: string;
   lastManeuverRoute: string;
   maneuverMetaLabel: string;
+  /** Código operativo de unidad cuando está en servicio. */
+  activeUnitCodeBadge: string | null;
   companyTenureLabel: string;
   owedAmountLabel: string | null;
   nextPayDueLabel: string | null;
@@ -111,11 +113,14 @@ export function buildOperatorsOverviewCard(operator: Operator): OperatorsOvervie
   const maneuverCode = onActiveService
     ? active?.maneuverCode?.trim() || '—'
     : last?.maneuverCode?.trim() || '—';
+  const unitCode = active?.unitCode?.trim() || '';
   const maneuverMetaLabel = onActiveService
-    ? active?.unitCode?.trim() || '—'
+    ? unitCode || '—'
     : last?.occurredOn
       ? formatIsoDateEs(last.occurredOn)
       : '—';
+  const activeUnitCodeBadge =
+    onActiveService && unitCode && unitCode !== '—' ? unitCode : null;
   const nextPayDueYmd = operator.nextPayDueOn?.trim() || null;
 
   return {
@@ -134,6 +139,7 @@ export function buildOperatorsOverviewCard(operator: Operator): OperatorsOvervie
     lastManeuverCode: maneuverCode,
     lastManeuverRoute: route,
     maneuverMetaLabel,
+    activeUnitCodeBadge,
     companyTenureLabel: `${companyTenureMonthsDaysLabelEs(operator.companyHireDate)} en la empresa`,
     owedAmountLabel: formatOwedAmount(operator.owedAmount),
     nextPayDueLabel: nextPayDueYmd ? formatIsoDateSlash(nextPayDueYmd) : null,

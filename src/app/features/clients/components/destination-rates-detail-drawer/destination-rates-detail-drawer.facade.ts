@@ -25,7 +25,10 @@ import {
   CLIENT_YES_NO_OPTIONS,
   DESTINATION_RATE_AVAILABILITY_OPTIONS,
 } from '@shared/catalogs/client-form-options';
-import type { DestinationRateRouteTollContext } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
+import {
+  DestinationRatePricesEditorComponent,
+  type DestinationRateRouteTollContext,
+} from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
 import { destinationRateSakbeSearchLabel } from '@features/clients/utils/destination-rate-sakbe-search.util';
 import {
   routeWaypointDraftsFromStored,
@@ -218,9 +221,26 @@ export class DestinationRatesDetailDrawerFacade {
     enrichTollPlazaRowsForMap(this.rate().routeTollPlazas ?? []),
   );
 
-  readonly editRouteTollPlazas = computed(() =>
-    enrichTollPlazaRowsForMap(this.rate().routeTollPlazas ?? []),
-  );
+  readonly editRouteLocationStale = computed(() => {
+    if (!this.editing()) {
+      return false;
+    }
+    const r = this.rate();
+    const norm = (value: string) => value.trim();
+    return (
+      norm(this.postalCode()) !== norm(r.postalCode) ||
+      norm(this.locality()) !== norm(r.locality) ||
+      norm(this.cityMunicipality()) !== norm(r.cityMunicipality) ||
+      norm(this.originOperationalCenterId()) !== norm(r.originOperationalCenterId)
+    );
+  });
+
+  readonly editRouteTollPlazas = computed(() => {
+    if (this.editRouteLocationStale()) {
+      return [];
+    }
+    return enrichTollPlazaRowsForMap(this.rate().routeTollPlazas ?? []);
+  });
 
   readonly editRouteMetricsPending = computed(() => this.definedRouteMetricsLoading());
 
@@ -257,6 +277,9 @@ export class DestinationRatesDetailDrawerFacade {
   });
 
   readonly routeTollContext = computed((): DestinationRateRouteTollContext | null => {
+    if (this.editing() && this.editRouteLocationStale()) {
+      return null;
+    }
     const r = this.rate();
     const oLat = r.originLatitude;
     const oLon = r.originLongitude;
@@ -293,6 +316,27 @@ export class DestinationRatesDetailDrawerFacade {
       ...(waypoints.length > 0 ? { waypoints } : {}),
     };
   });
+
+  onPostalRouteReset(
+    editor: DestinationRatePricesEditorComponent | undefined,
+  ): void {
+    this.excludedTollPlazaKeys.set([]);
+    this.draftRouteWaypoints.set([]);
+    this.appliedRouteWaypoints.set([]);
+    this.routeCustomizeOpen.set(false);
+    this.routeMetricsPlazas.set([]);
+    this.lastDefinedRouteMetricsKey = '';
+    this.definedRouteMetricsGeneration += 1;
+    if (!this.routeDistanceTouched()) {
+      this.routeDistanceKm.set(null);
+      this.routeDistanceKmInput.set('');
+      this.applySuggestedDriveTimesIfUntouched(null);
+    }
+    this.priceDrafts.update((rows) =>
+      rows.map((row) => ({ ...row, estimatedTollAmount: '' })),
+    );
+    editor?.resetRouteDerivedState();
+  }
 
   bindDismiss(cb: () => void): void {
     this.dismissCallback = cb;

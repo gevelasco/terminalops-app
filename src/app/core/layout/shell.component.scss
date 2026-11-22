@@ -479,6 +479,17 @@
 }
 
 @media (max-width: 639px) {
+  .shell-icon-text-btn {
+    justify-content: center;
+    gap: 0;
+    width: 2.5rem;
+    padding: 0;
+  }
+
+  .shell-icon-text-btn__label {
+    display: none;
+  }
+
   .shell-icon-text-btn__badge {
     top: -0.25rem;
     right: -0.4rem;

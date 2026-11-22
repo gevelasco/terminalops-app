@@ -645,13 +645,6 @@
   @extend .maniobra-detail__cancel-maniobra-btn;
 }
 
-:host ::ng-deep .maniobra-detail__footer to-button .to-button {
-  padding: 0.46rem 0.85rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
 .maniobra-detail__delete-impact-list {
   margin: 0 0 0.85rem;
   padding-left: 1.15rem;

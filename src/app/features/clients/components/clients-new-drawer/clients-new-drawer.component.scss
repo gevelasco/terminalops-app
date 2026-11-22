@@ -140,6 +140,14 @@
   color: color-mix(in srgb, var(--to-color-text-muted) 85%, transparent);
 }
 
+.clients-new-drawer__title-handshake {
+  flex-shrink: 0;
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .clients-new-drawer__panel {
   overflow: visible;
 }

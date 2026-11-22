@@ -424,6 +424,24 @@ export class DestinationRatesNewDrawerComponent {
     this.excludedTollPlazaKeys.set([]);
   }
 
+  onPostalRouteReset(): void {
+    this.invalidateRouteResolution();
+    this.draftRouteWaypoints.set([]);
+    this.appliedRouteWaypoints.set([]);
+    this.excludedTollPlazaKeys.set([]);
+    this.routeCustomizeOpen.set(false);
+    this.routeMetricsPlazas.set([]);
+    this.lastDefinedRouteMetricsKey = '';
+    this.lastRouteBaseKey = '';
+    this.routeDistanceTouched.set(false);
+    this.arrivalTimeTouched.set(false);
+    this.returnTimeTouched.set(false);
+    this.priceDrafts.update((rows) =>
+      rows.map((row) => ({ ...row, estimatedTollAmount: '' })),
+    );
+    this.pricesEditor()?.resetRouteDerivedState();
+  }
+
   submit(): void {
     if (this.saving()) {
       return;

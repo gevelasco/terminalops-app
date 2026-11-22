@@ -11,7 +11,12 @@
       (click)="saveControls()"
     >
       <to-icon name="save" [size]="18" />
-      {{ controlsSaving() ? 'Guardando…' : 'Guardar configuración' }}
+      <span class="settings-page-header__save-label settings-page-header__save-label--long">
+        {{ controlsSaving() ? 'Guardando…' : 'Guardar configuración' }}
+      </span>
+      <span class="settings-page-header__save-label settings-page-header__save-label--short">
+        {{ controlsSaving() ? 'Guardando…' : 'Guardar' }}
+      </span>
     </to-button>
   } @else if (pageTab() === 'users' && !usersTabLoading()) {
     <to-button type="button" variant="primary" (click)="openNewUser()">

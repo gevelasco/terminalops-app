@@ -222,13 +222,30 @@
     grid-column: 1;
   }
 
-  /* Estado seleccionado: el mapa se compacta a una altura fija (sigue siendo tocable)
-     y las tarjetas ocupan el resto con scroll propio. */
+  /* Estado seleccionado: mapa oculto; solo encabezado + tarjetas a pantalla completa. */
   .maniobra-route-map--state-open {
-    grid-template-rows: 12rem minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
+
+    .maniobra-route-map__canvas-wrap {
+      display: none;
+    }
+
+    .maniobra-route-map__sidebar {
+      grid-row: 1;
+      height: 100%;
+      min-height: 0;
+    }
 
     .maniobra-route-map__kpis {
       display: none;
+    }
+
+    .maniobra-route-map__fleet-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding-bottom: 0.35rem;
+      background: var(--to-color-surface);
     }
 
     .maniobra-route-map__fleet-close {

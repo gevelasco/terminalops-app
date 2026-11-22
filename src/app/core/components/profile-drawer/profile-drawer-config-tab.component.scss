@@ -469,13 +469,43 @@
   }
 
   .co-setting__panel--motor-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+    width: 100%;
   }
 
   .co-setting__panel--policy-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+    width: 100%;
+  }
+
+  :host ::ng-deep .co-setting__panel--motor-row > .co-setting__field-block,
+  :host ::ng-deep .co-setting__panel--motor-row > to-input,
+  :host ::ng-deep .co-setting__panel--motor-row > to-select,
+  :host ::ng-deep .co-setting__panel--policy-row > to-input,
+  :host ::ng-deep .co-setting__panel--policy-row > to-select,
+  :host ::ng-deep .co-setting__panel--policy-row .co-setting__policy-types,
+  :host ::ng-deep .co-setting__panel--policy-row .co-setting__policy-field {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  :host ::ng-deep .co-setting__panel--motor-row .to-field,
+  :host ::ng-deep .co-setting__panel--policy-row .to-field {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  :host ::ng-deep .co-setting__panel--motor-row .to-field__control,
+  :host ::ng-deep .co-setting__panel--policy-row .to-field__control,
+  :host ::ng-deep .co-setting__panel--policy-row select.to-field__control {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .co-setting__control-row {

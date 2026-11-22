@@ -6,7 +6,9 @@ import {
   inject,
   input,
   model,
+  output,
   signal,
+  effect,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
@@ -53,6 +55,22 @@ export class DestinationRateLocationFieldsComponent {
   readonly settlements = signal<MxPostalSettlement[]>([]);
   readonly cpLoading = signal(false);
   readonly cpEditing = signal(false);
+  /** CP + localidad con los que la ruta quedó resuelta (para detectar cambios dígito a dígito). */
+  private readonly routeAnchorCp = signal('');
+
+  /** El padre debe invalidar ruta, casetas INEGI, métricas y borradores de precios. */
+  readonly postalCodeRouteReset = output<void>();
+
+  constructor() {
+    effect(() => {
+      const cp = normalizeMxPostalCodeDigits(this.postalCode());
+      const ref = normalizeMxPostalCodeDigits(this.referencePostalCode());
+      const locality = this.locality().trim();
+      if (cp.length === 5 && locality && ref.length === 5 && cp === ref) {
+        this.routeAnchorCp.set(cp);
+      }
+    });
+  }
 
   readonly localityOptions = computed(() =>
     this.settlements().map((s) => ({
@@ -90,6 +108,33 @@ export class DestinationRateLocationFieldsComponent {
   resetCpEditUi(): void {
     this.settlements.set([]);
     this.cpEditing.set(false);
+  }
+
+  onPostalCodeInput(raw: string): void {
+    const digits = normalizeMxPostalCodeDigits(raw);
+    if (digits !== this.postalCode()) {
+      this.postalCode.set(digits);
+    }
+  }
+
+  onPostalCodeValueChange(raw: string): void {
+    this.onPostalCodeInput(raw);
+    const digits = normalizeMxPostalCodeDigits(raw);
+    const anchor = this.routeAnchorCp();
+    const hadPlace =
+      Boolean(this.locality().trim()) ||
+      Boolean(this.cityMunicipality().trim()) ||
+      this.settlements().length > 0 ||
+      this.cpEditing();
+    const breaksAnchor = anchor
+      ? digits !== anchor
+      : hadPlace && digits.length > 0;
+    if (!breaksAnchor) {
+      return;
+    }
+    this.clearCpFields();
+    this.routeAnchorCp.set('');
+    this.postalCodeRouteReset.emit();
   }
 
   onCpSearch(): void {
@@ -160,6 +205,12 @@ export class DestinationRateLocationFieldsComponent {
     }
     this.locality.set(settlement.settlement);
     this.cityMunicipality.set(cityMunicipalityLineFromSettlement(settlement));
+    const cp = normalizeMxPostalCodeDigits(this.postalCode());
+    if (cp.length === 5) {
+      this.routeAnchorCp.set(cp);
+    }
+    this.cpEditing.set(false);
+    this.settlements.set([]);
   }
 
   private clearCpFields(): void {

@@ -30,13 +30,14 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 2.625rem;
+  min-height: var(--to-control-min-height);
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: var(--to-control-padding-y) var(--to-control-padding-x);
   border: 1px solid var(--to-color-border, #e2e8f0);
   border-radius: var(--to-radius-md, 6px);
   font: inherit;
-  font-size: inherit;
+  font-size: var(--to-text-md);
+  line-height: var(--to-leading-snug);
   background: var(--to-color-surface, #fff);
   color: var(--to-color-text, #0f172a);
 

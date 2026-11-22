@@ -57,6 +57,7 @@
           [(postalCode)]="vm.postalCode"
           [(cityMunicipality)]="vm.cityMunicipality"
           [(locality)]="vm.locality"
+          (postalCodeRouteReset)="onPostalRouteReset()"
         />
       </div>
       @if (vm.editShowRouteMetrics()) {

@@ -52,9 +52,12 @@ export class NotificationsDrawerComponent implements OnInit, OnDestroy {
   }
 
   iconName(icon: string): ToIconName {
+    if (icon === 'client') {
+      return 'enterprise';
+    }
     const map: Record<string, ToIconName> = {
       bell: 'updates',
-      clients: 'client',
+      clients: 'enterprise',
       trip: 'route',
     };
     if (map[icon]) {
@@ -66,7 +69,6 @@ export class NotificationsDrawerComponent implements OnInit, OnDestroy {
       'warning',
       'unit',
       'equipment',
-      'client',
       'settlement',
       'route',
       'person',

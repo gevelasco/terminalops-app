@@ -106,6 +106,14 @@ export class ManiobraRouteMapComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    effect(() => {
+      const mapFullScreen = !this.stateFleet.hasSelection();
+      if (!mapFullScreen || !this.chart) {
+        return;
+      }
+      queueMicrotask(() => this.chart?.resize());
+    });
+
     effect((onCleanup) => {
       const items = this.items();
       const pairs = uniqueTripMapRoutePairs(items);

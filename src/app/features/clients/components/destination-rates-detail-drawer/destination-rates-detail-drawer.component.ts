@@ -57,6 +57,10 @@ export class DestinationRatesDetailDrawerComponent {
     this.vm.persist(routeTollPlazas);
   }
 
+  onPostalRouteReset(): void {
+    this.vm.onPostalRouteReset(this.pricesEditor());
+  }
+
   constructor() {
     this.vm.bindDismiss(() => this.dismiss.emit());
     afterNextRender(() => this.vm.markReady());

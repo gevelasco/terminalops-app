@@ -220,7 +220,8 @@ export class OperatorsFeatureService {
 
   /**
    * Lista no trae `photoDataUrl`; el drawer necesita el GET por id.
-   * Conserva métricas de lista (owedAmount, etc.) si el detalle no las incluye.
+   * Conserva métricas de lista (activeService, lastManeuver, pagos, etc.) si el
+   * detalle no las incluye — el GET por id no ejecuta applyListMetrics.
    */
   private hydrateSelectedDetail(operatorId: string): void {
     const id = operatorId.trim();
@@ -253,6 +254,7 @@ export class OperatorsFeatureService {
           ...detail,
           maneuverCount: detail.maneuverCount ?? current?.maneuverCount,
           lastManeuver: detail.lastManeuver ?? current?.lastManeuver,
+          activeService: detail.activeService ?? current?.activeService,
           nextPayDueOn: detail.nextPayDueOn ?? current?.nextPayDueOn,
           nextPayDueVariant:
             detail.nextPayDueVariant ?? current?.nextPayDueVariant,

@@ -12,15 +12,11 @@
 
 .operators-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fill, min(100%, 21rem));
-  justify-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
   gap: 0.75rem;
   padding: 0.35rem 0 0.5rem;
   min-width: 0;
-
-  @media (max-width: 767px) {
-    justify-content: center;
-  }
+  align-items: stretch;
 }
 
 .operators-overview__card {
@@ -224,14 +220,21 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--to-color-text-muted);
+}
 
-  &--mono {
-    font-family: var(--to-font-mono, ui-monospace, monospace);
-    font-weight: 600;
-    font-size: 0.8125rem;
-    letter-spacing: 0.02em;
-    color: var(--to-color-text);
-  }
+.operators-overview__unit-badge {
+  align-self: flex-start;
+  flex-shrink: 0;
+  padding: 0.14rem 0.45rem;
+  border-radius: var(--to-radius-sm, 0.25rem);
+  font-family: var(--to-font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--to-color-text) 72%, var(--to-color-text-muted));
+  background: color-mix(in srgb, var(--to-color-text-muted) 14%, var(--to-color-surface-muted));
+  border: 1px solid color-mix(in srgb, var(--to-color-border) 85%, transparent);
 }
 
 .operators-overview__maneuver-empty {

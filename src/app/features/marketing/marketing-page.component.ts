@@ -78,7 +78,7 @@ export class MarketingPageComponent {
       description: 'Clasifica, aprueba y audita egresos con el detalle que exige tu operación.',
     },
     {
-      icon: 'client',
+      icon: 'enterprise',
       title: 'Clientes y cartera',
       description: 'Administra relaciones comerciales con la flexibilidad que tu negocio necesita.',
     },

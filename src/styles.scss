@@ -52,6 +52,9 @@
     --to-control-padding-y: 0.5625rem;
     --to-control-padding-x: 0.75rem;
     --to-control-min-height: 2.625rem;
+    /* Misma altura que acciones de drawer (p. ej. Cerrar sesión). */
+    --to-button-padding-y: 0.46rem;
+    --to-button-padding-x: 0.85rem;
 
     --to-color-bg: #f9f9f9;
     --to-color-surface: #ffffff;

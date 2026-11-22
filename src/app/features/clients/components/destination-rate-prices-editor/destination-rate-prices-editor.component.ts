@@ -104,6 +104,8 @@ export class DestinationRatePricesEditorComponent {
   private tollFetchGeneration = 0;
   /** Mientras es true, se muestran casetas guardadas en la tarifa (sin refetch INEGI). */
   private readonly preferPersistedTolls = signal(false);
+  /** El usuario omitió la consulta INEGI y captura el monto de casetas a mano. */
+  readonly tollsInegiSkipped = signal(false);
   private persistedTollsBootstrapped = false;
   private routeMetricsPlazasEmitScheduled = false;
 
@@ -139,7 +141,13 @@ export class DestinationRatePricesEditorComponent {
           this.seedTollsFromPersisted(stored);
         }
       }
-      if (blocked || !ctx || this.routeCustomizeOpen() || this.viewOnly()) {
+      if (
+        blocked ||
+        !ctx ||
+        this.routeCustomizeOpen() ||
+        this.viewOnly() ||
+        this.tollsInegiSkipped()
+      ) {
         return;
       }
       if (this.preferPersistedTolls() && this.routeTollPlazasFromRate().length > 0) {
@@ -227,7 +235,7 @@ export class DestinationRatePricesEditorComponent {
 
   /** Lista visible cuando hay ruta y datos INEGI (no depende del tipo de maniobra). */
   readonly showComposerTolls = computed(() => {
-    if (this.routeCustomizeOpen()) {
+    if (this.routeCustomizeOpen() || this.tollsInegiSkipped()) {
       return false;
     }
     if (this.routeTollBlocked() || !this.routeTollContext()) {
@@ -328,6 +336,9 @@ export class DestinationRatePricesEditorComponent {
   /** Snapshot para persistir con la tarifa (ejes del compositor). */
   /** Casetas activas en ruta al guardar la tarifa. */
   routeTollPlazasForPersist(): RouteTollPlazaRow[] | undefined {
+    if (this.tollsInegiSkipped()) {
+      return undefined;
+    }
     const axle = parseDestinationRateAxleCount(this.composerRow().axleCount);
     const plazas = this.tollByAxle().get(axle)?.plazas ?? [];
     const active = activeTollPlazas(plazas, new Set(this.excludedTollPlazaKeys()));
@@ -383,11 +394,49 @@ export class DestinationRatePricesEditorComponent {
     );
   }
 
+  skipInegiTolls(): void {
+    this.tollFetchGeneration += 1;
+    this.tollsInegiSkipped.set(true);
+    this.tollLoadingAxles.set(new Set());
+    this.tollByAxle.set(new Map());
+    this.preferPersistedTolls.set(false);
+    this.scheduleRouteMetricsPlazasEmit();
+  }
+
+  resumeInegiTolls(): void {
+    if (this.routeTollBlocked() || !this.routeTollContext()) {
+      return;
+    }
+    this.tollsInegiSkipped.set(false);
+    this.tollFetchGeneration += 1;
+    this.scheduleTollRefresh();
+  }
+
+  /** Tras cambiar CP u origen: casetas, sugerencias INEGI y modo «omitir». */
+  resetRouteDerivedState(): void {
+    if (this.tollRefreshTimer != null) {
+      clearTimeout(this.tollRefreshTimer);
+      this.tollRefreshTimer = null;
+    }
+    this.tollRefreshScheduled = false;
+    this.tollFetchGeneration += 1;
+    this.tollsInegiSkipped.set(false);
+    this.tollByAxle.set(new Map());
+    this.tollLoadingAxles.set(new Set());
+    this.tollTouchedRowKeys.set(new Set());
+    this.preferPersistedTolls.set(false);
+    this.persistedTollsBootstrapped = false;
+    this.lastTollContextKey = '';
+    this.routeMapOpen.set(false);
+    this.scheduleRouteMetricsPlazasEmit();
+  }
+
   openRouteConfigure(): void {
     if (this.routeConfigureDisabled()) {
       return;
     }
     this.routeMapOpen.set(false);
+    this.tollsInegiSkipped.set(false);
     this.preferPersistedTolls.set(false);
     this.tollFetchGeneration += 1;
     this.tollLoadingAxles.set(new Set());
@@ -608,7 +657,13 @@ export class DestinationRatePricesEditorComponent {
 
   private refreshTollsForCurrentRows(): void {
     const ctx = this.routeTollContext();
-    if (!ctx || this.routeTollBlocked() || this.disabled() || this.routeCustomizeOpen()) {
+    if (
+      !ctx ||
+      this.routeTollBlocked() ||
+      this.disabled() ||
+      this.routeCustomizeOpen() ||
+      this.tollsInegiSkipped()
+    ) {
       this.tollLoadingAxles.set(new Set());
       return;
     }

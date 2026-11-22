@@ -72,14 +72,15 @@
               <p class="operators-overview__maneuver-route">
                 {{ card.lastManeuverRoute }}
               </p>
-              <p
-                class="operators-overview__maneuver-date"
-                [class.operators-overview__maneuver-date--mono]="
-                  card.maneuverPanelLabel === 'En servicio ahora'
-                "
-              >
-                {{ card.maneuverMetaLabel }}
-              </p>
+              @if (card.activeUnitCodeBadge) {
+                <span class="operators-overview__unit-badge">{{
+                  card.activeUnitCodeBadge
+                }}</span>
+              } @else {
+                <p class="operators-overview__maneuver-date">
+                  {{ card.maneuverMetaLabel }}
+                </p>
+              }
             } @else {
               <p class="operators-overview__maneuver-empty">
                 Sin maniobras registradas

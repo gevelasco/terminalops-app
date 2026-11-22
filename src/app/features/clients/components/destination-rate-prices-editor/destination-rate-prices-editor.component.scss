@@ -95,6 +95,39 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--to-color-text-muted, #64748b);
+  text-align: center;
+}
+
+.destination-rate-prices-editor__loading-hint {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  font-weight: 500;
+  text-align: center;
+  color: color-mix(in srgb, var(--to-color-text-muted, #64748b) 88%, var(--to-color-text, #0f172a));
+}
+
+.destination-rate-prices-editor__loading-skip {
+  margin-top: 0.15rem;
+}
+
+.destination-rate-prices-editor__inegi-skip-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--to-radius-md, 8px);
+  border: 1px dashed color-mix(in srgb, var(--to-color-border, #e2e8f0) 85%, var(--to-color-primary, #2563eb));
+  background: color-mix(in srgb, var(--to-color-surface, #fff) 92%, var(--to-color-primary, #2563eb) 8%);
+}
+
+.destination-rate-prices-editor__inegi-skip-copy {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--to-color-text-muted, #64748b);
 }
 
 @keyframes dr-price-spin {
@@ -303,15 +336,13 @@
     min-width: 0;
   }
 
-  ::ng-deep .to-field__control {
+  ::ng-deep .to-field__control,
+  ::ng-deep .dr-maneuver-combobox__control {
+    min-height: var(--to-control-min-height);
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
     font-size: 0.8125rem;
-  }
-
-  ::ng-deep .dr-maneuver-combobox__control {
-    min-height: 2.15rem;
-    font-size: 0.8125rem;
+    line-height: var(--to-leading-snug);
   }
 }
 

@@ -126,7 +126,12 @@
       <div class="to-feature-empty" role="status">
         <div class="to-feature-empty__visual" aria-hidden="true">
           <span class="to-feature-empty__ring"></span>
-          <to-icon name="client" [size]="36" />
+          <span
+            class="clients-page__empty-handshake"
+            [style.--clients-handshake-icon-mask]="
+              'url(' + commercialHandshakeIconSrc + ')'
+            "
+          ></span>
         </div>
         <h3 class="to-feature-empty__title">No hay clientes aún</h3>
         <p class="to-feature-empty__copy">

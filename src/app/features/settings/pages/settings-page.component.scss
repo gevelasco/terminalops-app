@@ -13,6 +13,10 @@
   flex-shrink: 0;
 }
 
+.settings-page-header__save-label--short {
+  display: none;
+}
+
 .settings-table-block {
   display: flex;
   flex-direction: column;
@@ -83,6 +87,15 @@
     .to-button {
       width: 100%;
       justify-content: center;
+      white-space: nowrap;
     }
+  }
+
+  .settings-page-header__save-label--long {
+    display: none;
+  }
+
+  .settings-page-header__save-label--short {
+    display: inline;
   }
 }

@@ -12,9 +12,10 @@
       autocomplete="postal-code"
       suffixIcon="search"
       suffixIconAriaLabel="Buscar código postal"
-      [(value)]="postalCode"
+      [value]="postalCode()"
       [loading]="cpLoading()"
       [disabled]="disabled() || cpLoading()"
+      (valueChange)="onPostalCodeValueChange($event)"
       (suffixIconClick)="onCpSearch()"
     />
   </div>

@@ -31,6 +31,7 @@
         [(postalCode)]="postalCode"
         [(cityMunicipality)]="cityMunicipality"
         [(locality)]="locality"
+        (postalCodeRouteReset)="onPostalRouteReset()"
       />
     </div>
     @if (routeMode() === 'EXISTING_ROUTE') {
