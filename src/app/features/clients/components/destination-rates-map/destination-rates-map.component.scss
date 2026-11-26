@@ -186,7 +186,7 @@
 @media (max-width: 960px) {
   .destination-rates-map {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(18rem, 1.2fr) minmax(16rem, 0.9fr) auto;
+    grid-template-rows: minmax(16rem, 1fr) minmax(14rem, 0.85fr) auto;
   }
 
   .destination-rates-map__table-panel {
@@ -204,16 +204,22 @@
   display: none;
 }
 
-/* Móvil: mapa a pantalla completa o lista del estado (sin mapa). */
+/* Móvil: una vista a la vez (mapa o lista) llenando el alto disponible. */
 @media (max-width: 767px) {
   :host {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
   }
 
   .destination-rates-map {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    min-height: min(72dvh, 40rem);
-    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .destination-rates-map__mobile-bar {
@@ -224,7 +230,7 @@
     justify-content: space-between;
     gap: 0.65rem;
     flex-wrap: wrap;
-    padding: 0.35rem 0 0.55rem;
+    padding: 0.15rem 0 0.5rem;
   }
 
   .destination-rates-map__mobile-bar-title {
@@ -251,7 +257,8 @@
     .destination-rates-map__canvas-wrap {
       grid-row: 1;
       grid-column: 1;
-      min-height: min(68dvh, 36rem);
+      min-height: 0;
+      height: 100%;
     }
   }
 
@@ -266,11 +273,39 @@
       grid-row: 2;
       grid-column: 1;
       display: flex;
-      min-height: min(68dvh, 36rem);
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .destination-rates-map__table-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+      max-height: none;
+      overflow-x: auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    .destination-rates-map__panel-hint {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
     }
 
     .destination-rates-map__footnote {
       grid-row: 3;
+    }
+  }
+
+  .destination-rates-map__table {
+    th,
+    td {
+      font-size: 0.75rem;
+      padding: 0.65rem 0.5rem;
     }
   }
 }

@@ -70,6 +70,9 @@
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
   .clients-toolbar {
     position: relative;
@@ -83,6 +86,27 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
+  }
+}
+
+@media (max-width: 767px) {
+  .clients-table-block--rates {
+    /* Llena el alto del shell; el scroll vive dentro del mapa o la tabla. */
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+
+    .clients-toolbar {
+      margin-bottom: 0.65rem;
+    }
+
+    app-destination-rates-map {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
   }
 }
 

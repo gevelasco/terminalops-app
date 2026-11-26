@@ -31,6 +31,8 @@
 }
 
 .maniobra-table-block--route {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -49,6 +51,21 @@
   app-maniobra-route-map {
     flex: 1 1 auto;
     min-height: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .maniobra-table-block--route {
+    height: 100%;
+
+    .maniobra-toolbar {
+      margin-bottom: 0.65rem;
+    }
+
+    app-maniobra-route-map {
+      height: 100%;
+      overflow: hidden;
+    }
   }
 }
 

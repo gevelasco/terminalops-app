@@ -110,20 +110,19 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
 
   readonly selectedState = signal<string | null>(null);
 
-  /** Móvil: lista del estado elegido en el mapa (mapa oculto). */
+  /**
+   * Móvil: lista a pantalla completa (estado tocado o búsqueda activa).
+   * Evita apilar tabla+mapa sin altura/scroll en el viewport.
+   */
   readonly mobileStateListMode = computed(
     () =>
       this.isMobileViewport() &&
-      this.selectedState() != null &&
-      !this.hasActiveFilter(),
+      (this.selectedState() != null || this.hasActiveFilter()),
   );
 
-  /** Móvil sin búsqueda: solo mapa hasta elegir estado. */
+  /** Móvil sin lista: solo mapa hasta elegir estado o filtrar. */
   readonly mobileMapOnlyMode = computed(
-    () =>
-      this.isMobileViewport() &&
-      !this.mobileStateListMode() &&
-      !this.hasActiveFilter(),
+    () => this.isMobileViewport() && !this.mobileStateListMode(),
   );
 
   readonly tableSourceRates = computed(() => {

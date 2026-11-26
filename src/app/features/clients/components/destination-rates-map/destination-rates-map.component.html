@@ -7,11 +7,17 @@
   @if (mobileStateListMode()) {
     <div class="destination-rates-map__mobile-bar">
       <p class="destination-rates-map__mobile-bar-title">
-        Tarifas en <strong>{{ selectedState() }}</strong>
+        @if (hasActiveFilter()) {
+          Resultados del filtro
+        } @else {
+          Tarifas en <strong>{{ selectedState() }}</strong>
+        }
       </p>
-      <to-button type="button" variant="outline" size="sm" (click)="showMapOnMobile()">
-        Ver mapa
-      </to-button>
+      @if (!hasActiveFilter()) {
+        <to-button type="button" variant="outline" size="sm" (click)="showMapOnMobile()">
+          Ver mapa
+        </to-button>
+      }
     </div>
   }
   <aside
