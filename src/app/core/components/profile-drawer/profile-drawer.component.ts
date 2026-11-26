@@ -42,6 +42,7 @@ import { WebPushDeviceService } from '@core/services/web-push-device.service';
 import { APP_MODULE_CODES, type AppModuleCode } from '@shared/models/app-modules.models';
 import { COMMERCIAL_HANDSHAKE_ICON_MASK } from '@shared/constants/commercial-handshake-icon';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
+import { injectIsMobileViewport } from '@shared/utils/viewport';
 import {
   enabledModulesToPatch,
   notificationModuleOptionsForUser,
@@ -86,7 +87,11 @@ export class ProfileDrawerComponent {
     new Set(),
   );
   readonly notificationPrefsSaving = signal(false);
-  /** Push en este dispositivo (independiente de notificationFeedModules). */
+  /**
+   * Push solo en viewport móvil: en escritorio no aplica (ni se muestra el control).
+   * Independiente de `notificationFeedModules` (qué módulos).
+   */
+  readonly showPushDeviceToggle = injectIsMobileViewport();
   readonly pushEnabledOnThisDevice = this.webPush.enabledOnThisDevice;
   readonly pushBusy = this.webPush.busy;
   readonly pushUnsupportedReason = this.webPush.unsupportedReason;
@@ -124,10 +129,12 @@ export class ProfileDrawerComponent {
     afterNextRender(() => {
       this.drawerLoading.set(false);
       this.loadNotificationFeedPreferences();
-      this.webPush
-        .refreshLocalState()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe();
+      if (this.showPushDeviceToggle()) {
+        this.webPush
+          .refreshLocalState()
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe();
+      }
     });
   }
 

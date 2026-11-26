@@ -4,7 +4,7 @@ const TITLE_BY_KIND: Record<string, string> = {
   'trip.updated': 'Datos de maniobra',
   'trip.expense_added': 'Gasto agregado',
   'trip.document_added': 'Documento agregado',
-  'trip.tracking_updated': 'Seguimiento',
+  'trip.tracking_updated': 'Actualización de fechas',
   'unit.ficha_updated': 'Ficha técnica',
   'unit.coverage_updated': 'Cobertura',
   'unit.maintenance_updated': 'Mantenimiento',

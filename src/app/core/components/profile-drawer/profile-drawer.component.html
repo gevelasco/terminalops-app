@@ -101,46 +101,43 @@
         Notificaciones
       </h4>
 
-      <div class="profile-drawer__notifications-item profile-drawer__notifications-item--push">
-        <div class="profile-drawer__notifications-row fleet-unit-toggle-row">
-          <div class="profile-drawer__notifications-head">
-            <span class="profile-drawer__notifications-icon" aria-hidden="true">
-              <to-icon name="info" [size]="14" />
-            </span>
-            <div class="profile-drawer__push-copy">
-              <span
-                class="profile-drawer__notifications-label fleet-unit-toggle-row__label"
-                id="profile-push-device"
-              >
-                Push en este dispositivo
+      @if (showPushDeviceToggle()) {
+        <div class="profile-drawer__notifications-item profile-drawer__notifications-item--push">
+          <div class="profile-drawer__notifications-row fleet-unit-toggle-row">
+            <div class="profile-drawer__notifications-head">
+              <span class="profile-drawer__notifications-icon" aria-hidden="true">
+                <to-icon name="info" [size]="14" />
               </span>
-              <p class="profile-drawer__notifications-hint profile-drawer__notifications-hint--inline">
-                Dónde recibir avisos del sistema. No cambia qué módulos tienes activos abajo.
-              </p>
-              @if (pushUnsupportedReason(); as reason) {
-                <p class="profile-drawer__push-unsupported">{{ reason }}</p>
-              }
+              <div class="profile-drawer__push-copy">
+                <span
+                  class="profile-drawer__notifications-label fleet-unit-toggle-row__label"
+                  id="profile-push-device"
+                >
+                  Ver notificaciones en este dispositivo
+                </span>
+              </div>
             </div>
+            <button
+              type="button"
+              class="fleet-unit-toggle"
+              [class.fleet-unit-toggle--on]="pushEnabledOnThisDevice()"
+              role="switch"
+              [attr.aria-checked]="pushEnabledOnThisDevice()"
+              aria-labelledby="profile-push-device"
+              [disabled]="pushBusy() || !!pushUnsupportedReason()"
+              (click)="togglePushOnThisDevice()"
+            >
+              <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
+            </button>
           </div>
-          <button
-            type="button"
-            class="fleet-unit-toggle"
-            [class.fleet-unit-toggle--on]="pushEnabledOnThisDevice()"
-            role="switch"
-            [attr.aria-checked]="pushEnabledOnThisDevice()"
-            aria-labelledby="profile-push-device"
-            [disabled]="pushBusy() || !!pushUnsupportedReason()"
-            (click)="togglePushOnThisDevice()"
-          >
-            <span class="fleet-unit-toggle__thumb" aria-hidden="true"></span>
-          </button>
         </div>
-      </div>
+      }
 
       @if (notificationModuleOptions().length > 0) {
         <p class="profile-drawer__notifications-hint">
-          Elige qué módulos ves en la campana (el sistema sigue generando el resto). Las mismas
-          preferencias aplicarán a Push cuando estén activas.
+          Elige qué módulos ves en la campana (el sistema sigue generando el resto).@if (showPushDeviceToggle()) {
+            Las mismas preferencias aplicarán a Push cuando estén activas.
+          }
         </p>
         <ul class="profile-drawer__notifications-list" role="list">
           @for (opt of notificationModuleOptions(); track opt.code) {

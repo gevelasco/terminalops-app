@@ -38,7 +38,7 @@ describe('resolveNotificationTitle', () => {
     ).toBe('Documento agregado');
     expect(
       resolveNotificationTitle(item({ id: '4', kind: 'trip.tracking_updated' })),
-    ).toBe('Seguimiento');
+    ).toBe('Actualización de fechas');
   });
 
   it('labels fleet mutations by drawer section', () => {

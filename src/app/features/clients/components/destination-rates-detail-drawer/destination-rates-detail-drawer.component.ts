@@ -39,6 +39,7 @@ import { DestinationRatesDetailDrawerFacade } from './destination-rates-detail-d
   templateUrl: './destination-rates-detail-drawer.component.html',
   styleUrls: [
     '../../../fleet/components/fleet-drawer.shared.scss',
+    '../../../fleet/components/styles/fleet-detail-drawer-footer.shared.scss',
     '../../../fleet/components/styles/fleet-drawer-unit-sec.shared.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-panel.scss',
     '../../../fleet/components/fleet-unit-detail-drawer/fleet-unit-detail-drawer-tables.scss',
