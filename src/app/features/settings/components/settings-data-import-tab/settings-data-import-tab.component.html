@@ -8,7 +8,8 @@
       <p class="settings-data-import-tab__notice-title">Importación sumativa</p>
       <p class="settings-data-import-tab__notice-text">
         La carga <strong>agrega</strong> registros; no reemplaza lo existente. Validamos
-        duplicados en el archivo y en la base (RFC, placas, series, etc.).
+        duplicados en el archivo y en la base (RFC, placas, series, etc.). Tras subir el Excel
+        vinculas cada columna al campo correcto de TerminalOps (el sistema sugiere coincidencias).
       </p>
     </div>
     <p class="settings-data-import-tab__ephemeral">
@@ -48,25 +49,29 @@
       [titleIcon]="kindIcon[kind]"
       [subtitle]="kindBlurb[kind]"
     >
-      @if (isProcessing(kind)) {
+      @if (isProcessing(kind) || active.importing) {
         <div class="settings-data-import-tab__card-overlay" role="status" aria-live="polite">
           <div class="settings-data-import-tab__card-spinner" aria-hidden="true"></div>
           <p class="settings-data-import-tab__card-overlay-text">
-            {{ active.processingMessage ?? 'Cargando…' }}
+            @if (active.importing) {
+              {{ active.progress ?? 'Importando en la base de datos…' }}
+            } @else {
+              {{ active.processingMessage ?? 'Cargando…' }}
+            }
           </p>
         </div>
       }
 
       <div
         class="settings-data-import-tab__module-body"
-        [class.settings-data-import-tab__module-body--muted]="isProcessing(kind)"
+        [class.settings-data-import-tab__module-body--muted]="isProcessing(kind) || active.importing"
       >
         <div class="settings-data-import-tab__module-toolbar">
           <div class="settings-data-import-tab__module-actions">
             <to-button
               type="button"
               variant="secondary"
-              [disabled]="detailActionsDisabled(kind)"
+              [disabled]="detailActionsDisabled(kind) || moduleBusy(kind)"
               (click)="downloadTemplate(kind)"
             >
               <to-icon name="download" [size]="16" />
@@ -75,13 +80,15 @@
 
             <label
               class="settings-data-import-tab__upload"
-              [class.settings-data-import-tab__upload--disabled]="detailActionsDisabled(kind)"
+              [class.settings-data-import-tab__upload--disabled]="
+                detailActionsDisabled(kind) || moduleBusy(kind)
+              "
             >
               <input
                 type="file"
                 accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 class="settings-data-import-tab__upload-input"
-                [disabled]="detailActionsDisabled(kind)"
+                [disabled]="detailActionsDisabled(kind) || moduleBusy(kind)"
                 (change)="onFileChange(kind, $event)"
               />
               <span class="settings-data-import-tab__upload-btn">
@@ -103,7 +110,7 @@
               </to-button>
             </div>
           </div>
-          @if (active.progress) {
+          @if (active.progress && active.importing) {
             <p class="settings-data-import-tab__progress" aria-live="polite">{{ active.progress }}</p>
           }
         </div>
@@ -116,7 +123,7 @@
             <button
               type="button"
               class="settings-data-import-tab__file-clear"
-              [disabled]="active.importing || detailActionsDisabled(kind)"
+              [disabled]="active.importing || detailActionsDisabled(kind) || isProcessing(kind)"
               (click)="clearFile(kind, $event)"
             >
               Quitar
@@ -126,7 +133,7 @@
           <p class="settings-data-import-tab__module-empty">{{ lastImportDetailLine(kind) }}</p>
         }
 
-        <details class="settings-data-import-tab__example" open>
+        <details class="settings-data-import-tab__example">
           <summary>Cómo llenar el Excel</summary>
           @if (kind === 'clients') {
             <p class="settings-data-import-tab__example-hint">
@@ -236,42 +243,123 @@
           }
         </details>
 
-        @if (active.preview; as preview) {
-          <div class="settings-data-import-tab__summary">
-            <span class="settings-data-import-tab__summary-ok">{{ readyCount(kind) }} listo(s)</span>
-            @if (errorCount(kind) > 0) {
-              <span class="settings-data-import-tab__summary-warn">{{ errorCount(kind) }} con error</span>
-            }
-          </div>
-
-          <div class="settings-data-import-tab__table-wrap">
-            <table class="settings-data-import-tab__table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Resumen</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of preview.rows; track row.rowNumber) {
-                  <tr [class]="rowStatusClass(row)">
-                    <td>{{ row.rowNumber }}</td>
-                    <td>
-                      {{ row.summary }}
-                      @if (row.errors.length) {
-                        <ul class="settings-data-import-tab__msg-list">
-                          @for (err of row.errors; track err) {
-                            <li>{{ err }}</li>
-                          }
-                        </ul>
-                      }
-                    </td>
-                    <td>{{ row.status === 'error' ? 'Error' : 'Listo' }}</td>
-                  </tr>
+        @if (active.draft; as draft) {
+          <div class="settings-data-import-tab__map-block">
+            <p class="settings-data-import-tab__summary">
+              <span class="settings-data-import-tab__summary-ok">
+                <strong>{{ estimatedInsertCount(kind) }}</strong>
+                {{
+                  estimatedInsertCount(kind) === 1
+                    ? 'entrada detectada'
+                    : 'entradas detectadas'
+                }}
+              </span>
+              @if (active.preview) {
+                <span class="settings-data-import-tab__summary-ok">
+                  · {{ readyCount(kind) }} listo(s) para insertar
+                </span>
+                @if (errorCount(kind) > 0) {
+                  <span class="settings-data-import-tab__summary-warn"
+                    >· {{ errorCount(kind) }} con error</span
+                  >
                 }
-              </tbody>
-            </table>
+              }
+            </p>
+
+            @if (missingRequiredFields(kind); as missing) {
+              @if (missing.length > 0) {
+                <p class="settings-data-import-tab__map-warn">
+                  Falta vincular:
+                  @for (field of missing; track field; let last = $last) {
+                    {{ fieldLabel(kind, field) }}@if (!last) {, }
+                  }
+                </p>
+              }
+            }
+
+            <p class="settings-data-import-tab__map-hint">
+              Cada campo de TerminalOps solo puede asignarse a una columna (excepto «Ignorar»). El
+              sistema sugiere coincidencias por el nombre del encabezado; ajusta lo que haga falta
+              antes de importar.
+            </p>
+
+            <div class="settings-data-import-tab__map-wrap">
+              <table class="settings-data-import-tab__map">
+                <thead>
+                  <tr>
+                    <th scope="col">Columna en Excel</th>
+                    <th scope="col">Ejemplo</th>
+                    <th scope="col">Campo en TerminalOps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (col of draft.columns; track col.header) {
+                    <tr [class]="importColumnRowClass(kind, col)">
+                      <td>{{ col.header }}</td>
+                      <td class="settings-data-import-tab__map-samples">
+                        @if (col.samples.length) {
+                          {{ col.samples.join(' · ') }}
+                        } @else {
+                          —
+                        }
+                      </td>
+                      <td>
+                        <select
+                          class="settings-data-import-tab__map-select"
+                          [class.settings-data-import-tab__map-select--linked]="
+                            !!importColumnEffectiveField(kind, col)
+                          "
+                          [disabled]="moduleBusy(kind)"
+                          [ngModel]="importColumnEffectiveField(kind, col)"
+                          [ngModelOptions]="{ standalone: true }"
+                          (ngModelChange)="onImportColumnMappingChange(kind, col.header, $event)"
+                        >
+                          <option value="">Sin asignar</option>
+                          @for (field of importFieldOptionsForColumn(kind, col.header); track field.id) {
+                            <option [value]="field.id">{{ field.label }}</option>
+                          }
+                        </select>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        @if (active.preview; as preview) {
+          <div class="settings-data-import-tab__preview-block">
+            <p class="settings-data-import-tab__preview-title">Vista previa de filas</p>
+            <div class="settings-data-import-tab__table-wrap">
+              <table class="settings-data-import-tab__table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Resumen</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of preview.rows; track row.rowNumber) {
+                    <tr [class]="rowStatusClass(row)">
+                      <td>{{ row.rowNumber }}</td>
+                      <td>
+                        {{ row.summary }}
+                        @if (row.errors.length) {
+                          <ul class="settings-data-import-tab__msg-list">
+                            @for (err of row.errors; track err) {
+                              <li>{{ err }}</li>
+                            }
+                          </ul>
+                        }
+                      </td>
+                      <td>{{ row.status === 'error' ? 'Error' : 'Listo' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         }
 

@@ -18,6 +18,7 @@ const MIME_BY_EXT = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
   '.ico': 'image/x-icon',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
@@ -29,7 +30,8 @@ const MIME_BY_EXT = {
 };
 
 /** Rutas de assets: si faltan en disco, 404 (no index.html). */
-const ASSET_PATH = /\.(js|mjs|css|map|json|ico|png|svg|webp|woff2?)$/i;
+const ASSET_PATH =
+  /\.(js|mjs|css|map|json|webmanifest|ico|png|svg|webp|woff2?)$/i;
 
 function resolveFilePath(urlPath) {
   const normalized = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, '');

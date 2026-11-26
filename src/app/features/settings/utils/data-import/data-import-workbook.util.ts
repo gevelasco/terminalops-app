@@ -4,7 +4,16 @@ import { clientTemplateExampleRow } from './data-import-client-fields.util';
 import { operatorTemplateExampleRows } from './data-import-operator-fields.util';
 import { equipmentTemplateExampleRows } from './data-import-equipment-fields.util';
 import { unitTemplateExampleRows } from './data-import-unit-fields.util';
-import { dataImportHeaderToFieldKey } from './data-import-header-map.util';
+import {
+  applyDataImportColumnMapping,
+  buildSuggestedDataImportMapping,
+  dataImportAvailableFields,
+  dataImportHeaderToKnownFieldKey,
+  uniqueDataImportHeaders,
+  type DataImportColumnMapping,
+  type DataImportExcelColumn,
+  type DataImportWorkbookDraft,
+} from './data-import-column-map.util';
 import { DATA_IMPORT_SHEET_META } from './data-import-sheet-meta';
 import type { DataImportEntityKind } from './data-import.types';
 import { prepareDataImportRows } from './data-import-prepare-rows.util';
@@ -21,49 +30,6 @@ function cellString(value: unknown): string {
     return `${y}-${m}-${d}`;
   }
   return String(value).trim();
-}
-
-function sheetToRecords(
-  sheet: XLSX.WorkSheet,
-  kind: DataImportEntityKind,
-): Record<string, string>[] {
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: '',
-    raw: false,
-  }) as unknown[][];
-  if (matrix.length < 2) {
-    return [];
-  }
-  const headerRow = matrix[0] ?? [];
-  const columnKeys: (string | null)[] = headerRow.map((h) => {
-    const key = dataImportHeaderToFieldKey(kind, h);
-    return key || null;
-  });
-  if (!columnKeys.some((k) => k != null)) {
-    return [];
-  }
-  const out: Record<string, string>[] = [];
-  for (let r = 1; r < matrix.length; r++) {
-    const row = matrix[r] ?? [];
-    const record: Record<string, string> = {};
-    let any = false;
-    for (let c = 0; c < columnKeys.length; c++) {
-      const key = columnKeys[c];
-      if (!key) {
-        continue;
-      }
-      const val = cellString(row[c]);
-      if (val) {
-        any = true;
-      }
-      record[key] = val;
-    }
-    if (any) {
-      out.push(record);
-    }
-  }
-  return out;
 }
 
 function buildSingleKindWorkbook(kind: DataImportEntityKind): XLSX.WorkBook {
@@ -105,11 +71,26 @@ export function downloadDataImportTemplateForKind(kind: DataImportEntityKind): v
   saveAs(blob, fileName);
 }
 
-/** Un archivo = un módulo: se lee la primera hoja con datos. */
-export function parseDataImportWorkbookForKind(
+function sheetMatrix(sheet: XLSX.WorkSheet): unknown[][] {
+  return XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+  }) as unknown[][];
+}
+
+function isBlankRow(cells: string[]): boolean {
+  return cells.every((c) => !c.trim());
+}
+
+/**
+ * Lee el Excel sin aplicar aún el mapeo a filas listas para API.
+ * Expone columnas + muestras + sugerencias para el UI de vínculo.
+ */
+export function parseDataImportWorkbookDraft(
   buffer: ArrayBuffer,
   kind: DataImportEntityKind,
-): DataImportSheetPreview | null {
+): DataImportWorkbookDraft | null {
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
   const sheetName =
     wb.SheetNames.find((n) => !/instrucciones/i.test(n)) ?? wb.SheetNames[0];
@@ -120,10 +101,97 @@ export function parseDataImportWorkbookForKind(
   if (!sheet) {
     return null;
   }
-  const records = sheetToRecords(sheet, kind);
-  const rows = prepareDataImportRows(kind, sheetName, records);
+  const matrix = sheetMatrix(sheet);
+  if (matrix.length < 2) {
+    return null;
+  }
+  const headerRow = matrix[0] ?? [];
+  if (!headerRow.some((h) => String(h ?? '').trim())) {
+    return null;
+  }
+
+  const uniqueHeaders = uniqueDataImportHeaders(headerRow);
+  const colCount = uniqueHeaders.length;
+  const dataRows: string[][] = [];
+  for (let r = 1; r < matrix.length; r++) {
+    const row = matrix[r] ?? [];
+    const cells: string[] = [];
+    for (let c = 0; c < colCount; c++) {
+      cells.push(cellString(row[c]));
+    }
+    if (!isBlankRow(cells)) {
+      dataRows.push(cells);
+    }
+  }
+  if (dataRows.length === 0) {
+    return null;
+  }
+
+  const columns: DataImportExcelColumn[] = uniqueHeaders.map((header, index) => {
+    const rawHeader = String(headerRow[index] ?? '').trim() || header;
+    const samples: string[] = [];
+    for (const row of dataRows) {
+      const val = (row[index] ?? '').trim();
+      if (!val) {
+        continue;
+      }
+      if (samples.includes(val)) {
+        continue;
+      }
+      samples.push(val);
+      if (samples.length >= 3) {
+        break;
+      }
+    }
+    return {
+      header,
+      rawHeader,
+      index,
+      suggestedField: dataImportHeaderToKnownFieldKey(kind, rawHeader) ?? '',
+      samples,
+    };
+  });
+
+  const suggestedMapping = buildSuggestedDataImportMapping(kind, columns);
+
+  return {
+    kind,
+    sheetName,
+    columns,
+    dataRows,
+    estimatedRows: dataRows.length,
+    suggestedMapping,
+    availableFields: dataImportAvailableFields(kind),
+  };
+}
+
+/** Aplica el mapeo del usuario y prepara filas (validación de campos, no unicidad DB). */
+export function buildDataImportPreviewFromDraft(
+  draft: DataImportWorkbookDraft,
+  mapping: DataImportColumnMapping,
+): DataImportSheetPreview | null {
+  const records = applyDataImportColumnMapping(draft, mapping);
+  if (records.length === 0) {
+    return null;
+  }
+  const rows = prepareDataImportRows(draft.kind, draft.sheetName, records);
   if (rows.length === 0) {
     return null;
   }
-  return { kind, sheetName, rows };
+  return { kind: draft.kind, sheetName: draft.sheetName, rows };
+}
+
+/**
+ * @deprecated Preferir `parseDataImportWorkbookDraft` + mapeo + `buildDataImportPreviewFromDraft`.
+ * Conservado para compatibilidad: auto-mapea y prepara en un solo paso.
+ */
+export function parseDataImportWorkbookForKind(
+  buffer: ArrayBuffer,
+  kind: DataImportEntityKind,
+): DataImportSheetPreview | null {
+  const draft = parseDataImportWorkbookDraft(buffer, kind);
+  if (!draft) {
+    return null;
+  }
+  return buildDataImportPreviewFromDraft(draft, draft.suggestedMapping);
 }

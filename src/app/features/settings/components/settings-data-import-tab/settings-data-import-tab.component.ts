@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { finalize, map, of, switchMap } from 'rxjs';
 import { GeoApiService } from '@core/services/api/geo';
 import { ToastService } from '@core/notifications/toast.service';
@@ -30,8 +31,18 @@ import { DATA_IMPORT_EQUIPMENT_EXAMPLE_COLUMNS } from '@features/settings/utils/
 import { DATA_IMPORT_UNIT_EXAMPLE_COLUMNS } from '@features/settings/utils/data-import/data-import-unit-example-preview';
 import { enrichClientImportRowsWithGeo } from '@features/settings/utils/data-import/data-import-client-enrich.util';
 import {
+  DATA_IMPORT_IGNORE_FIELD,
+  dataImportFieldLabel,
+  dataImportMissingRequiredFields,
+  type DataImportColumnMapping,
+  type DataImportExcelColumn,
+  type DataImportFieldOption,
+  type DataImportWorkbookDraft,
+} from '@features/settings/utils/data-import/data-import-column-map.util';
+import {
+  buildDataImportPreviewFromDraft,
   downloadDataImportTemplateForKind,
-  parseDataImportWorkbookForKind,
+  parseDataImportWorkbookDraft,
 } from '@features/settings/utils/data-import/data-import-workbook.util';
 import type { KpiTitleIcon } from '@shared/models/logistics.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
@@ -73,6 +84,8 @@ const DATA_IMPORT_LAST_AT_STORAGE = 'to-data-import-last-at';
 
 type ModuleSlot = {
   fileName: string | null;
+  draft: DataImportWorkbookDraft | null;
+  columnMapping: DataImportColumnMapping;
   preview: DataImportSheetPreview | null;
   importing: boolean;
   progress: string | null;
@@ -87,6 +100,8 @@ type ModuleSlot = {
 function emptySlot(preserve?: Pick<ModuleSlot, 'lastImportedAt'>): ModuleSlot {
   return {
     fileName: null,
+    draft: null,
+    columnMapping: {},
     preview: null,
     importing: false,
     progress: null,
@@ -162,7 +177,7 @@ function initialSlots(companyId: string | null): Record<DataImportEntityKind, Mo
   host: {
     class: 'settings-data-import-tab-host',
   },
-  imports: [ToButtonComponent, ToIconComponent, ToCardComponent],
+  imports: [FormsModule, ToButtonComponent, ToIconComponent, ToCardComponent],
   templateUrl: './settings-data-import-tab.component.html',
   styleUrl: './settings-data-import-tab.component.scss',
 })
@@ -173,6 +188,16 @@ export class SettingsDataImportTabComponent {
   private readonly geo = inject(GeoApiService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
+
+  private readonly validateGeneration: Record<DataImportEntityKind, number> = {
+    clients: 0,
+    operators: 0,
+    units: 0,
+    equipment: 0,
+  };
+  private readonly remapTimers: Partial<
+    Record<DataImportEntityKind, ReturnType<typeof setTimeout>>
+  > = {};
 
   readonly sheetMeta = DATA_IMPORT_SHEET_META;
   readonly kindOrder = DATA_IMPORT_KIND_ORDER;
@@ -211,12 +236,29 @@ export class SettingsDataImportTabComponent {
     return (this.slot(kind).preview?.rows ?? []).filter((r) => r.status === 'error').length;
   }
 
+  estimatedInsertCount(kind: DataImportEntityKind): number {
+    return this.slot(kind).draft?.estimatedRows ?? this.readyCount(kind);
+  }
+
+  missingRequiredFields(kind: DataImportEntityKind): string[] {
+    const s = this.slot(kind);
+    if (!s.draft) {
+      return [];
+    }
+    return dataImportMissingRequiredFields(kind, s.columnMapping);
+  }
+
+  fieldLabel(kind: DataImportEntityKind, fieldId: string): string {
+    return dataImportFieldLabel(kind, fieldId);
+  }
+
   canImportKind(kind: DataImportEntityKind): boolean {
     const s = this.slot(kind);
     return (
       !this.anyImporting() &&
       !s.processing &&
       !s.importing &&
+      this.missingRequiredFields(kind).length === 0 &&
       this.readyCount(kind) > 0
     );
   }
@@ -236,15 +278,24 @@ export class SettingsDataImportTabComponent {
     );
   }
 
+  moduleBusy(kind: DataImportEntityKind): boolean {
+    const s = this.slot(kind);
+    return s.processing || s.importing || this.catalogLoadingKind() === kind;
+  }
+
   moduleStatusLine(kind: DataImportEntityKind): string {
     const s = this.slot(kind);
     if (s.importing) {
       return 'Importando…';
     }
     if (s.processing || this.catalogLoadingKind() === kind) {
-      return 'Validando archivo…';
+      return 'Analizando archivo…';
     }
-    if (s.fileName && s.preview) {
+    if (s.fileName && s.draft) {
+      const missing = this.missingRequiredFields(kind).length;
+      if (missing > 0) {
+        return `Mapear campos (${missing} obligatorio(s))`;
+      }
       const ready = this.readyCount(kind);
       const err = this.errorCount(kind);
       if (ready === 0 && err > 0) {
@@ -297,11 +348,13 @@ export class SettingsDataImportTabComponent {
 
   clearFile(kind: DataImportEntityKind, ev?: Event): void {
     ev?.stopPropagation();
+    this.cancelRemapTimer(kind);
+    this.validateGeneration[kind] += 1;
     this.patchSlot(kind, emptySlot({ lastImportedAt: this.slot(kind).lastImportedAt }));
   }
 
   onFileChange(kind: DataImportEntityKind, ev: Event): void {
-    if (this.anyImporting()) {
+    if (this.anyImporting() || this.moduleBusy(kind)) {
       return;
     }
     const input = ev.target as HTMLInputElement;
@@ -310,89 +363,131 @@ export class SettingsDataImportTabComponent {
     if (!file) {
       return;
     }
+    this.cancelRemapTimer(kind);
+    const lastImportedAt = this.slot(kind).lastImportedAt;
+    this.patchSlot(kind, {
+      ...emptySlot({ lastImportedAt }),
+      fileName: file.name,
+      processing: true,
+      processingMessage: 'Analizando archivo y detectando columnas…',
+    });
+
     void file.arrayBuffer().then((buf) => {
-      const parsed = parseDataImportWorkbookForKind(buf, kind);
-      if (!parsed) {
+      const draft = parseDataImportWorkbookDraft(buf, kind);
+      if (!draft) {
         this.toast.show(
           `No hay filas con datos para ${KIND_LABEL[kind]}. Revisa encabezados y plantilla.`,
           'warning',
         );
-        this.patchSlot(kind, emptySlot({ lastImportedAt: this.slot(kind).lastImportedAt }));
+        this.patchSlot(kind, emptySlot({ lastImportedAt }));
         return;
       }
-      const count = parsed.rows.length;
       const entity = KIND_LABEL[kind].toLowerCase();
-      const lastImportedAt = this.slot(kind).lastImportedAt;
       this.patchSlot(kind, {
         fileName: file.name,
-        preview: parsed,
+        draft,
+        columnMapping: { ...draft.suggestedMapping },
+        preview: null,
         importing: false,
         progress: null,
         processing: true,
-        processingMessage: `${count} ${entity} detectados, cargando…`,
+        processingMessage: `${draft.estimatedRows} ${entity} detectados, validando vínculos…`,
         lastImportCreated: 0,
         lastImportFailures: [],
         lastImportedAt,
       });
-      this.catalogLoadingKind.set(kind);
-      this.catalogLoader
-        .loadSnapshot()
-        .pipe(
-          switchMap((catalog) => {
-            const label = `${count} ${entity} detectados`;
-            this.patchSlot(kind, {
-              ...this.slots()[kind],
-              processingMessage: `${label}, validando con la base de datos…`,
-            });
-            let rows = applyDataImportUniquenessRules(parsed.rows, catalog);
-            if (kind !== 'clients') {
-              return of(rows);
-            }
-            return enrichClientImportRowsWithGeo(rows, this.geo, (cur, tot) => {
-              this.patchSlot(kind, {
-                ...this.slots()[kind],
-                processingMessage: `${tot} clientes detectados, validando entregas (${cur}/${tot})…`,
-              });
-            }).pipe(map((enriched) => applyDataImportUniquenessRules(enriched, catalog)));
-          }),
-          finalize(() => this.catalogLoadingKind.set(null)),
-          takeUntilDestroyed(this.destroyRef),
-        )
-        .subscribe({
-          next: (rows) => {
-            this.patchSlot(kind, {
-              fileName: file.name,
-              preview: { ...parsed, rows },
-              importing: false,
-              progress: null,
-              processing: false,
-              processingMessage: null,
-              lastImportCreated: 0,
-              lastImportFailures: [],
-              lastImportedAt: this.slot(kind).lastImportedAt,
-            });
-            const errors = rows.filter((r) => r.status === 'error').length;
-            if (errors > 0) {
-              this.toast.show(
-                `${KIND_LABEL[kind]}: ${errors} fila(s) con error o duplicado; no se importarán.`,
-                'warning',
-              );
-            } else {
-              this.toast.show(
-                `${KIND_LABEL[kind]}: vista previa lista.`,
-                'success',
-              );
-            }
-          },
-          error: () => {
-            this.toast.show(
-              'No se pudo validar el archivo contra la base de datos; intenta de nuevo.',
-              'error',
-            );
-            this.patchSlot(kind, emptySlot({ lastImportedAt: this.slot(kind).lastImportedAt }));
-          },
-        });
+      this.validateMappedPreview(kind, true);
     });
+  }
+
+  importColumnEffectiveField(kind: DataImportEntityKind, col: DataImportExcelColumn): string {
+    const mapping = this.slot(kind).columnMapping;
+    return mapping[col.header] ?? col.suggestedField ?? '';
+  }
+
+  importColumnRowClass(kind: DataImportEntityKind, col: DataImportExcelColumn): string {
+    const field = this.importColumnEffectiveField(kind, col);
+    if (!field) {
+      return '';
+    }
+    return field === DATA_IMPORT_IGNORE_FIELD
+      ? 'settings-data-import-tab__map-row--ignored'
+      : 'settings-data-import-tab__map-row--assigned';
+  }
+
+  onImportColumnMappingChange(
+    kind: DataImportEntityKind,
+    header: string,
+    fieldId: string,
+  ): void {
+    if (this.moduleBusy(kind)) {
+      return;
+    }
+    const next = { ...this.slot(kind).columnMapping };
+    if (!fieldId) {
+      delete next[header];
+    } else {
+      next[header] = fieldId;
+    }
+    this.patchSlot(kind, {
+      ...this.slot(kind),
+      columnMapping: next,
+      preview: null,
+    });
+    this.scheduleValidateMappedPreview(kind);
+  }
+
+  /** Opciones: cada campo TerminalOps (salvo Ignorar) solo en una columna. */
+  importFieldOptionsForColumn(
+    kind: DataImportEntityKind,
+    excelHeader: string,
+  ): DataImportFieldOption[] {
+    const draft = this.slot(kind).draft;
+    if (!draft) {
+      return [];
+    }
+    const mapping = this.slot(kind).columnMapping;
+    const effective = (header: string): string =>
+      mapping[header] ??
+      draft.columns.find((col) => col.header === header)?.suggestedField ??
+      '';
+    const current = effective(excelHeader);
+    const usedElsewhere = new Set(
+      draft.columns
+        .map((col) => col.header)
+        .filter((header) => header !== excelHeader)
+        .map((header) => effective(header))
+        .filter((fieldId) => fieldId && fieldId !== DATA_IMPORT_IGNORE_FIELD),
+    );
+    const sorted = draft.availableFields
+      .filter((field) => {
+        if (field.id === DATA_IMPORT_IGNORE_FIELD) {
+          return true;
+        }
+        if (field.id === current) {
+          return true;
+        }
+        return !usedElsewhere.has(field.id);
+      })
+      .sort((a, b) => {
+        if (a.id === DATA_IMPORT_IGNORE_FIELD) {
+          return 1;
+        }
+        if (b.id === DATA_IMPORT_IGNORE_FIELD) {
+          return -1;
+        }
+        return a.label.localeCompare(b.label, 'es');
+      });
+    if (current && !sorted.some((field) => field.id === current)) {
+      const known = draft.availableFields.find((field) => field.id === current);
+      sorted.unshift(
+        known ?? {
+          id: current,
+          label: dataImportFieldLabel(kind, current),
+        },
+      );
+    }
+    return sorted;
   }
 
   runImport(kind: DataImportEntityKind): void {
@@ -424,7 +519,7 @@ export class SettingsDataImportTabComponent {
               importing: false,
             });
             this.toast.show(
-              `Hay ${blocked} fila(s) con duplicados o errores; corrige el archivo.`,
+              `Hay ${blocked} fila(s) con duplicados o errores; corrige el archivo o el mapeo.`,
               'warning',
             );
             throw new Error('import-blocked');
@@ -477,6 +572,8 @@ export class SettingsDataImportTabComponent {
                   importing: false,
                   progress: null,
                   fileName: null,
+                  draft: null,
+                  columnMapping: {},
                   preview: null,
                   lastImportCreated: created,
                   lastImportFailures: failures,
@@ -497,6 +594,141 @@ export class SettingsDataImportTabComponent {
 
   rowStatusClass(row: DataImportPreparedRow): string {
     return row.status === 'error' ? 'is-error' : 'is-ready';
+  }
+
+  private scheduleValidateMappedPreview(kind: DataImportEntityKind): void {
+    this.cancelRemapTimer(kind);
+    this.remapTimers[kind] = setTimeout(() => {
+      delete this.remapTimers[kind];
+      this.validateMappedPreview(kind, false);
+    }, 280);
+  }
+
+  private cancelRemapTimer(kind: DataImportEntityKind): void {
+    const t = this.remapTimers[kind];
+    if (t != null) {
+      clearTimeout(t);
+      delete this.remapTimers[kind];
+    }
+  }
+
+  private validateMappedPreview(kind: DataImportEntityKind, fromUpload: boolean): void {
+    const s = this.slot(kind);
+    const draft = s.draft;
+    if (!draft) {
+      return;
+    }
+    const missing = dataImportMissingRequiredFields(kind, s.columnMapping);
+    if (missing.length > 0) {
+      this.patchSlot(kind, {
+        ...this.slot(kind),
+        preview: null,
+        processing: false,
+        processingMessage: null,
+      });
+      if (fromUpload) {
+        this.toast.show(
+          `${KIND_LABEL[kind]}: vincula los campos obligatorios antes de importar.`,
+          'warning',
+        );
+      }
+      return;
+    }
+
+    const built = buildDataImportPreviewFromDraft(draft, s.columnMapping);
+    if (!built) {
+      this.patchSlot(kind, {
+        ...this.slot(kind),
+        preview: null,
+        processing: false,
+        processingMessage: null,
+      });
+      this.toast.show(
+        `No se pudieron preparar filas para ${KIND_LABEL[kind]} con el mapeo actual.`,
+        'warning',
+      );
+      return;
+    }
+
+    const generation = ++this.validateGeneration[kind];
+    const entity = KIND_LABEL[kind].toLowerCase();
+    const count = built.rows.length;
+    this.patchSlot(kind, {
+      ...this.slot(kind),
+      processing: true,
+      processingMessage: `${count} ${entity} detectados, validando con la base de datos…`,
+    });
+    this.catalogLoadingKind.set(kind);
+
+    this.catalogLoader
+      .loadSnapshot()
+      .pipe(
+        switchMap((catalog) => {
+          let rows = applyDataImportUniquenessRules(built.rows, catalog);
+          if (kind !== 'clients') {
+            return of(rows);
+          }
+          return enrichClientImportRowsWithGeo(rows, this.geo, (cur, tot) => {
+            if (generation !== this.validateGeneration[kind]) {
+              return;
+            }
+            this.patchSlot(kind, {
+              ...this.slots()[kind],
+              processingMessage: `${tot} clientes detectados, validando entregas (${cur}/${tot})…`,
+            });
+          }).pipe(map((enriched) => applyDataImportUniquenessRules(enriched, catalog)));
+        }),
+        finalize(() => {
+          if (generation === this.validateGeneration[kind]) {
+            this.catalogLoadingKind.set(null);
+          }
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (rows) => {
+          if (generation !== this.validateGeneration[kind]) {
+            return;
+          }
+          this.patchSlot(kind, {
+            ...this.slot(kind),
+            preview: { ...built, rows },
+            importing: false,
+            progress: null,
+            processing: false,
+            processingMessage: null,
+            lastImportCreated: 0,
+            lastImportFailures: [],
+          });
+          const errors = rows.filter((r) => r.status === 'error').length;
+          if (errors > 0) {
+            this.toast.show(
+              `${KIND_LABEL[kind]}: ${errors} fila(s) con error o duplicado; no se importarán.`,
+              'warning',
+            );
+          } else if (fromUpload) {
+            this.toast.show(
+              `${KIND_LABEL[kind]}: ${count} fila(s) listas. Revisa el mapeo e importa.`,
+              'success',
+            );
+          }
+        },
+        error: () => {
+          if (generation !== this.validateGeneration[kind]) {
+            return;
+          }
+          this.toast.show(
+            'No se pudo validar el archivo contra la base de datos; intenta de nuevo.',
+            'error',
+          );
+          this.patchSlot(kind, {
+            ...this.slot(kind),
+            preview: null,
+            processing: false,
+            processingMessage: null,
+          });
+        },
+      });
   }
 
   private patchSlot(kind: DataImportEntityKind, patch: ModuleSlot): void {

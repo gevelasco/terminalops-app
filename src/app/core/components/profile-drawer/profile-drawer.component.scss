@@ -172,6 +172,29 @@
   font-size: 0.72rem;
   line-height: 1.35;
   color: var(--to-color-text-muted);
+
+  &--inline {
+    margin: 0.15rem 0 0;
+  }
+}
+
+.profile-drawer__notifications-item--push {
+  margin-bottom: 0.65rem;
+}
+
+.profile-drawer__push-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.profile-drawer__push-unsupported {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--to-color-warning, #b45309);
 }
 
 .profile-drawer__notifications-list {

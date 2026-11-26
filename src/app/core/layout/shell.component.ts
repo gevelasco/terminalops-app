@@ -29,6 +29,7 @@ import {
   initialsFromDisplayName,
   UserProfileStore,
 } from '@core/services/state/user-profile';
+import { WebPushDeviceService } from '@core/services/web-push-device.service';
 import { APP_NAV_ITEMS } from '@shared/models/app-modules.models';
 import { roleDisplayLabel, visibleNavItems } from '@shared/utils/access-control';
 
@@ -54,6 +55,7 @@ export class ShellComponent implements OnDestroy {
   private readonly profiles = inject(UserProfileStore);
   private readonly notificationsUnread = inject(NotificationsUnreadStore);
   private readonly checklist = inject(ChecklistTodosStore);
+  private readonly webPush = inject(WebPushDeviceService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -172,6 +174,7 @@ export class ShellComponent implements OnDestroy {
     }
     this.notificationsUnread.start();
     this.sessionLifecycle.start();
+    this.webPush.bindNotificationClicks();
     this.router.events
       .pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),

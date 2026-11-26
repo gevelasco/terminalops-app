@@ -38,6 +38,7 @@ import {
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToSideDrawerComponent } from '@shared/ui/to-side-drawer/to-side-drawer.component';
 import { UsersService as UsersApiService } from '@core/services/api/users';
+import { WebPushDeviceService } from '@core/services/web-push-device.service';
 import { APP_MODULE_CODES, type AppModuleCode } from '@shared/models/app-modules.models';
 import { COMMERCIAL_HANDSHAKE_ICON_MASK } from '@shared/constants/commercial-handshake-icon';
 import { staffModuleIcon } from '@shared/utils/staff-module-present';
@@ -75,6 +76,7 @@ export class ProfileDrawerComponent {
   private readonly profileStore = inject(UserProfileStore);
   private readonly usersApi = inject(UsersApiService);
   private readonly session = inject(SessionService);
+  private readonly webPush = inject(WebPushDeviceService);
   readonly theme = inject(ThemeService);
 
   readonly notificationModuleOptions = computed(() =>
@@ -84,6 +86,10 @@ export class ProfileDrawerComponent {
     new Set(),
   );
   readonly notificationPrefsSaving = signal(false);
+  /** Push en este dispositivo (independiente de notificationFeedModules). */
+  readonly pushEnabledOnThisDevice = this.webPush.enabledOnThisDevice;
+  readonly pushBusy = this.webPush.busy;
+  readonly pushUnsupportedReason = this.webPush.unsupportedReason;
   readonly clientsModuleCode = APP_MODULE_CODES.CLIENTS;
   readonly commercialHandshakeIconMask = COMMERCIAL_HANDSHAKE_ICON_MASK;
   readonly notificationStaffModuleIcon = staffModuleIcon;
@@ -118,11 +124,42 @@ export class ProfileDrawerComponent {
     afterNextRender(() => {
       this.drawerLoading.set(false);
       this.loadNotificationFeedPreferences();
+      this.webPush
+        .refreshLocalState()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe();
     });
   }
 
   notificationModuleEnabled(code: AppModuleCode): boolean {
     return this.notificationModulesEnabled().has(code);
+  }
+
+  async togglePushOnThisDevice(): Promise<void> {
+    if (this.pushBusy()) {
+      return;
+    }
+    try {
+      const next = await this.webPush.toggle();
+      this.toast.show(
+        next === 'enabled'
+          ? 'Notificaciones push activadas en este dispositivo.'
+          : 'Notificaciones push desactivadas en este dispositivo.',
+        'success',
+      );
+    } catch (err: unknown) {
+      this.toast.show(
+        parseHttpApiErrorMessage(err) ??
+          (err instanceof Error
+            ? err.message
+            : 'No se pudo actualizar las notificaciones push.'),
+        'warning',
+      );
+      this.webPush
+        .refreshLocalState()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe();
+    }
   }
 
   toggleNotificationModule(code: AppModuleCode): void {
