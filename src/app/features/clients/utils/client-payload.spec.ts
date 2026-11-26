@@ -2,7 +2,7 @@ import { buildClientApiWriteBody } from './client-payload';
 import type { Client } from '@shared/models/client.models';
 
 describe('buildClientApiWriteBody deliveries', () => {
-  it('sends deliveries array and legacy singular first item', () => {
+  it('sends only the deliveries array', () => {
     const client: Client = {
       id: '1',
       name: 'Agencia',
@@ -33,21 +33,6 @@ describe('buildClientApiWriteBody deliveries', () => {
         cityMunicipality: 'Guadalajara, Jalisco',
       },
     ]);
-    expect(body['delivery']).toEqual({
-      postalCode: '77560',
-      locality: 'Centro',
-      cityMunicipality: 'Cancún, Quintana Roo',
-    });
-  });
-
-  it('falls back to legacy singular delivery', () => {
-    const client: Client = {
-      id: '1',
-      name: 'Acme',
-      delivery: { postalCode: '44100', locality: 'Americana' },
-    };
-    const body = buildClientApiWriteBody(client);
-    expect(body['deliveries']).toEqual([{ postalCode: '44100', locality: 'Americana' }]);
-    expect(body['delivery']).toEqual({ postalCode: '44100', locality: 'Americana' });
+    expect(body['delivery']).toBeUndefined();
   });
 });

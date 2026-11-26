@@ -85,16 +85,12 @@ function mapApiClientDelivery(
 
 function mapApiClientDeliveries(row: Record<string, unknown>): ClientDelivery[] {
   const rawList = row['deliveries'];
-  if (Array.isArray(rawList) && rawList.length > 0) {
-    return rawList
-      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-      .map((item, index) => mapApiClientDelivery(item, index));
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return [];
   }
-  const singular = row['delivery'];
-  if (singular && typeof singular === 'object') {
-    return [mapApiClientDelivery(singular as Record<string, unknown>, 0)];
-  }
-  return [];
+  return rawList
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item, index) => mapApiClientDelivery(item, index));
 }
 
 /** Respuesta API → modelo `Client` del frontend. */
@@ -125,7 +121,6 @@ export function mapApiClient(row: Record<string, unknown>): Client {
         }
       : undefined,
     deliveries,
-    delivery: deliveries[0],
     payment: paymentTerms
       ? {
           hasCredit: Boolean(paymentTerms['hasCredit']),

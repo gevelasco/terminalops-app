@@ -46,6 +46,11 @@ yarn-error.log
 testem.log
 /typings
 
+# Accidental local Python envs (no pertenecen a esta app)
+/venv/
+/.venv/
+__pycache__/
+
 # System files
 .DS_Store
 Thumbs.db

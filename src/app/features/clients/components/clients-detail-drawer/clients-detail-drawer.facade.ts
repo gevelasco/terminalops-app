@@ -15,6 +15,8 @@ import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
 import { ClientsBalanceContextService } from '@features/clients/services/clients-balance-context.service';
+import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
@@ -26,7 +28,9 @@ import {
 } from '@features/clients/utils/client-payload';
 import {
   clientDeliveries,
+  deliveryMunicipalityLabel as formatDeliveryMunicipalityLabel,
   deliveryPlaceLabel,
+  deliveryStateLabel as formatDeliveryStateLabel,
   isSameClientDeliveryLocation,
   withClientDeliveries,
 } from '@features/clients/utils/client-deliveries';
@@ -49,6 +53,7 @@ import type {
   ClientContactPerson,
   ClientDelivery,
 } from '@shared/models/client.models';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 import { isAdminRole } from '@shared/utils/access-control';
 import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import { type ToBadgeVariant } from '@shared/ui/to-badge/to-badge.component';
@@ -65,6 +70,8 @@ export class ClientsDetailDrawerFacade {
   private readonly clientsFeature = inject(ClientsFeatureService);
   private readonly clientsApi = inject(ClientsApiService);
   private readonly balanceContext = inject(ClientsBalanceContextService);
+  private readonly ratesFeature = inject(DestinationRatesFeatureService);
+  private readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
@@ -136,11 +143,22 @@ export class ClientsDetailDrawerFacade {
     this.editDocuments().filter((d) => d.slot === 'fiscal'),
   );
 
+  readonly rateScope = computed(() =>
+    normalizeDestinationRateScope(this.session.destinationRateScope()),
+  );
+  readonly showDeliveryPostalCodeColumn = computed(
+    () => this.rateScope() === 'postal_code',
+  );
+  readonly showDeliveryMunicipalityColumn = computed(
+    () => this.rateScope() !== 'state',
+  );
   readonly savedDeliveryPostalCode = signal('');
   readonly deliveryCp = signal('');
   readonly deliveryCity = signal('');
   readonly deliveryLocality = signal('');
   readonly deliverySettlementConsId = signal('');
+  readonly deliveryMunicipalityName = signal('');
+  readonly deliveryStateName = signal('');
   readonly deliveryLatitude = signal<number | null>(null);
   readonly deliveryLongitude = signal<number | null>(null);
   readonly deliveryDestinationRateId = signal<string | null>(null);
@@ -687,10 +705,13 @@ export class ClientsDetailDrawerFacade {
       return;
     }
     const err = validateClientDelivery({
+      scope: this.rateScope(),
       postalCode: this.deliveryCp(),
       cityMunicipality: this.deliveryCity(),
       locality: this.deliveryLocality(),
       settlementConsId: this.deliverySettlementConsId(),
+      municipalityName: this.deliveryMunicipalityName(),
+      stateName: this.deliveryStateName(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
     });
@@ -699,17 +720,20 @@ export class ClientsDetailDrawerFacade {
       return;
     }
     const delivery = buildClientDeliveryPayload({
+      scope: this.rateScope(),
       postalCode: this.deliveryCp(),
       cityMunicipality: this.deliveryCity(),
       locality: this.deliveryLocality(),
       settlementConsId: this.deliverySettlementConsId(),
+      municipalityName: this.deliveryMunicipalityName(),
+      stateName: this.deliveryStateName(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
       destinationRateId: this.deliveryDestinationRateId(),
       isUnpricedRoute: this.deliveryIsUnpricedRoute(),
     });
     if (!delivery) {
-      this.toast.show('Indica el código postal de entrega.', 'warning');
+      this.toast.show('Indica el destino de entrega.', 'warning');
       return;
     }
     const duplicate = this.deliveries().some((row) =>
@@ -749,6 +773,8 @@ export class ClientsDetailDrawerFacade {
     this.deliveryCity.set('');
     this.deliveryLocality.set('');
     this.deliverySettlementConsId.set('');
+    this.deliveryMunicipalityName.set('');
+    this.deliveryStateName.set('');
     this.deliveryLatitude.set(null);
     this.deliveryLongitude.set(null);
     this.deliveryDestinationRateId.set(null);
@@ -900,11 +926,28 @@ export class ClientsDetailDrawerFacade {
   }
 
   deliveryRouteLinkLabel(delivery: ClientDelivery): string {
-    return clientDeliveryRouteStatusLabel(delivery);
+    const centers = this.centersFeature.centers();
+    const primary = centers.find((c) => c.isDefault) ?? centers[0] ?? null;
+    return clientDeliveryRouteStatusLabel(delivery, {
+      scope: this.rateScope(),
+      rates: this.ratesFeature.rates(),
+      primaryOriginCenterId: primary?.id?.trim() ?? null,
+    });
+  }
+
+  deliveryStateLabel(delivery: ClientDelivery): string {
+    return formatDeliveryStateLabel(delivery);
+  }
+
+  deliveryMunicipalityLabel(delivery: ClientDelivery): string {
+    return formatDeliveryMunicipalityLabel(delivery);
   }
 
   hasClientDelivery(): boolean {
-    return clientDeliveries(this.client()).some((row) => !!row.postalCode?.trim());
+    return clientDeliveries(this.client()).some(
+      (row) =>
+        !!row.postalCode?.trim() || !!row.cityMunicipality?.trim(),
+    );
   }
 
   clientDeliveriesList(): ClientDelivery[] {

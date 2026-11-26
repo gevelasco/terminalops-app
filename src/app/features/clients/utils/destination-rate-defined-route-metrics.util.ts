@@ -4,9 +4,10 @@ import { buildDestinationRateRouteMapDrivingPoints } from '@features/clients/uti
 import { destinationRateRouteTollContextKey } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 
+/** Puntos OSRM para km: origen → casetas (o waypoints) → destino. */
 export function definedRouteDrivingPoints(params: {
   ctx: DestinationRateRouteTollContext;
-  plazas: readonly RouteTollPlazaRow[];
+  plazas?: readonly RouteTollPlazaRow[];
 }): LatLon[] {
   return buildDestinationRateRouteMapDrivingPoints({
     ctx: {
@@ -20,18 +21,17 @@ export function definedRouteDrivingPoints(params: {
   });
 }
 
-/** Firma estable para re-calcular km OSRM cuando cambia la ruta definida. */
+/** Firma estable de la geometría usada para km (incluye casetas manuales). */
 export function definedRouteMetricsKey(
   ctx: DestinationRateRouteTollContext | null,
-  plazas: readonly RouteTollPlazaRow[],
-  excludedPlazaKeys: readonly string[],
+  plazas: readonly RouteTollPlazaRow[] = [],
 ): string {
   if (!ctx) {
     return '';
   }
   const plazaSig = plazas
-    .map((p) => `${p.order}:${p.plazaKey}`)
-    .join(',');
-  const excl = [...excludedPlazaKeys].sort().join(',');
-  return `${destinationRateRouteTollContextKey(ctx)}|${plazaSig}|${excl}`;
+    .map((p) => p.plazaKey.trim())
+    .filter(Boolean)
+    .join('|');
+  return `${destinationRateRouteTollContextKey(ctx)}::plazas:${plazaSig}`;
 }

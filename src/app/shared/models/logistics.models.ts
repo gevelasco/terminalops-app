@@ -174,11 +174,6 @@ export interface Trip {
   clientCharge?: string;
   paymentMethod?: TripClientPaymentMethod;
   requiresInvoice?: boolean;
-  /**
-   * @deprecated Preferir `tripDocuments` (persistidos con kind).
-   * Nombres legacy sin storage.
-   */
-  attachedDocumentFileNames?: string[];
   /** Documentos de maniobra (carga / costos / cobro). */
   tripDocuments?: TripStoredDocument[];
   /**
@@ -467,29 +462,8 @@ export interface UnitFleetMeta {
   /** Historial de mantenimientos (la entrada más reciente va primero al presentarse). */
   maintenanceEntries?: MaintenanceEntry[];
   tireCondition?: string;
-  /**
-   * @deprecated Control global en configuración operativa; usar `maintenanceKmCounter`.
-   */
-  maintenanceAlertByKm?: boolean;
-  /**
-   * @deprecated No se persiste desde el FE; el próximo mantenimiento se calcula en vivo
-   * con la política de empresa (fecha o km).
-   */
-  maintenanceNextDateOverride?: string;
   /** Historial de verificaciones (físico-mecánica, emisiones, etc.). */
   verificationEntries?: VerificationEntry[];
-  /**
-   * @deprecated Intervalo definido en configuración operativa de la empresa.
-   */
-  maintenanceKmInterval?: number | null;
-  /**
-   * @deprecated Sustituido por `maintenanceKmCounter` + intervalo global.
-   */
-  maintenanceTripKmAtLastService?: number | null;
-  /**
-   * @deprecated Se calcula: intervalo global − `maintenanceKmCounter`.
-   */
-  maintenanceKmRemaining?: number | null;
   verificationPhysMechDate?: string;
   /** Costo, precio pagado o cantidad asociada a la última verificación (seguimiento). */
   verificationPhysMechCost?: number;
@@ -536,14 +510,6 @@ export interface UnitFleetMeta {
    * Si el GPS consta como endoso o anexo en la póliza del remolque (cobertura o listado del activo).
    */
   gpsCoveredByInsuranceEndorsement?: boolean;
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentMaintenanceNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentVerificationNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentPolicyNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentOwnershipNames?: string[];
   /** Documentos persistidos (id + nombre) para descarga/borrado. */
   fleetDocuments?: FleetStoredDocument[];
 }
@@ -645,14 +611,6 @@ export interface EquipmentFleetMeta {
   insuranceLastPaymentDate?: string;
   insurancePaymentMethod?: string;
   insuranceCost?: number;
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentMaintenanceNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentVerificationNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentPolicyNames?: string[];
-  /** @deprecated Prefer `fleetDocuments`; kept for display fallback. */
-  documentOwnershipNames?: string[];
   /** Documentos persistidos (id + nombre) para descarga/borrado. */
   fleetDocuments?: FleetStoredDocument[];
 }
@@ -713,10 +671,6 @@ export interface Equipment {
    * abrir la unidad sigue haciendo GET /units/:id.
    */
   assignedUnit?: Unit;
-  /**
-   * @deprecated Preferir `fleetMeta.equipmentAxleCount` y bloque técnico.
-   */
-  axleConfiguration?: string;
 }
 
 /** Clasificación de gasto para relaciones y reportes. */

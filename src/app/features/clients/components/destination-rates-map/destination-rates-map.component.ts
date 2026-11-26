@@ -35,8 +35,11 @@ import {
 } from '@features/clients/utils/destination-rates-map-search';
 import {
   buildDestinationRateTableRows,
+  pickStateScopeSurvivorRates,
   type DestinationRateTableRow,
 } from '@features/clients/utils/destination-rates-table-rows';
+import { SessionService } from '@core/services/state/session';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 
 @Component({
   selector: 'app-destination-rates-map',
@@ -52,7 +55,18 @@ import {
 export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly session = inject(SessionService);
   readonly isMobileViewport = injectIsMobileViewport();
+
+  readonly rateScope = computed(() =>
+    normalizeDestinationRateScope(this.session.destinationRateScope()),
+  );
+  readonly showMunicipalityColumn = computed(
+    () => this.rateScope() !== 'state',
+  );
+  readonly showPostalCodeColumn = computed(
+    () => this.rateScope() === 'postal_code',
+  );
 
   @ViewChild('chartHost', { static: true })
   private readonly chartHost!: ElementRef<HTMLDivElement>;
@@ -76,8 +90,17 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
       this.filterQuery(),
       this.geoJsonSignal(),
       this.stateByRateId(),
-    ),
+    ).filter((rate) => rate.active !== false),
   );
+
+  /** Una tarifa por estado para colorear el mapa (sin perder tipos en la tabla). */
+  readonly mapRates = computed(() => {
+    const filtered = this.filteredRates();
+    if (this.rateScope() === 'state') {
+      return pickStateScopeSurvivorRates(filtered, this.stateByRateId());
+    }
+    return filtered;
+  });
 
   readonly hasActiveFilter = computed(() => this.filterQuery().trim().length > 0);
 
@@ -114,7 +137,12 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
   });
 
   readonly tableRows = computed(() =>
-    buildDestinationRateTableRows(this.tableSourceRates(), this.stateByRateId()),
+    buildDestinationRateTableRows(
+      this.tableSourceRates(),
+      this.stateByRateId(),
+      undefined,
+      this.rateScope(),
+    ),
   );
 
   readonly geoReady = signal(false);
@@ -129,7 +157,7 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
 
   constructor() {
     effect(() => {
-      this.filteredRates();
+      this.mapRates();
       if (this.chart && this.geoRegistered) {
         this.renderChart();
       }
@@ -171,6 +199,16 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
 
   onTableRowClick(row: DestinationRateTableRow): void {
     this.rateSelect.emit(row.rateId);
+  }
+
+  rowAriaLabel(row: DestinationRateTableRow): string {
+    if (this.showPostalCodeColumn() && row.postalCode) {
+      return `Ver tarifa CP ${row.postalCode}`;
+    }
+    if (this.showMunicipalityColumn() && row.municipality) {
+      return `Ver tarifa ${row.municipality}${row.state ? `, ${row.state}` : ''}`;
+    }
+    return `Ver tarifa ${row.state || row.maneuver || ''}`.trim();
   }
 
   onTableRowKeydown(event: KeyboardEvent, row: DestinationRateTableRow): void {
@@ -227,7 +265,7 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.chart.setOption(
-      buildDestinationRatesMapEchartsOption(this.filteredRates(), this.geoJson),
+      buildDestinationRatesMapEchartsOption(this.mapRates(), this.geoJson),
       true,
     );
     this.chart.off('click');

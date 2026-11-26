@@ -47,6 +47,7 @@ export interface AuthUser {
   maintenanceDatePeriodDefault?: 'monthly' | 'quarterly' | 'semiannual' | 'annual';
   maintenanceKmControlChangedAt?: string;
   maintenanceDateControlChangedAt?: string;
+  destinationRateScope?: 'postal_code' | 'municipality' | 'state';
   /** ID del centro operativo principal (viene en login; hoy solo hay uno por empresa). */
   operationalCenterId?: string;
   operationalCenterName?: string;
@@ -134,6 +135,7 @@ export interface SessionData {
   maintenanceDatePeriodDefault?: 'monthly' | 'quarterly' | 'semiannual' | 'annual';
   maintenanceKmControlChangedAt?: string;
   maintenanceDateControlChangedAt?: string;
+  destinationRateScope?: 'postal_code' | 'municipality' | 'state';
   operationalCenterId?: string;
   operationalCenterName?: string;
   operationalCenterPostalCode?: string;

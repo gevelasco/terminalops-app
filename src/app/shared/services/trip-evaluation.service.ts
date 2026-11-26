@@ -17,7 +17,6 @@ import {
 
 export type {
   TripDieselCostBasis,
-  TripEvaluation,
   TripEvaluationContext,
   TripEvaluationPick,
   TripEvaluationResult,

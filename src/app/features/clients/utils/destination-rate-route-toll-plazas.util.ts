@@ -27,17 +27,29 @@ function parseRouteTollPlazasArray(raw: unknown): RouteTollPlazaRow[] {
           : null;
     const source = String(row['plazaKeySource'] ?? '').trim();
     const inegiPoint = String(row['inegiPoint'] ?? row['inegi_point'] ?? '').trim();
+    const section = String(row['section'] ?? '').trim();
     const municipality = String(row['municipality'] ?? '').trim();
     const state = String(row['state'] ?? '').trim();
+    const latRaw = Number(row['lat']);
+    const lngRaw = Number(row['lng'] ?? row['lon']);
+    const costsByAxleRaw = row['costsByAxle'];
+    const costsByAxle =
+      costsByAxleRaw && typeof costsByAxleRaw === 'object'
+        ? (costsByAxleRaw as Record<string, number | null>)
+        : undefined;
     rows.push({
       order,
       plazaKey,
-      ...(source === 'inegi' || source === 'fallback'
-        ? { plazaKeySource: source as 'inegi' | 'fallback' }
+      ...(source === 'catalog' || source === 'inegi' || source === 'fallback'
+        ? { plazaKeySource: source as 'catalog' | 'inegi' | 'fallback' }
         : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(section ? { section } : {}),
       ...(municipality ? { municipality } : {}),
       ...(state ? { state } : {}),
+      ...(Number.isFinite(latRaw) ? { lat: latRaw } : {}),
+      ...(Number.isFinite(lngRaw) ? { lng: lngRaw } : {}),
+      ...(costsByAxle ? { costsByAxle } : {}),
       name,
       costMxn,
     });
@@ -84,6 +96,7 @@ export function routeTollPlazasForApi(
         inegiPoint = `${ll.lat},${ll.lon}`;
       }
     }
+    const section = p.section?.trim() ?? '';
     const municipality = p.municipality?.trim() ?? '';
     const state = p.state?.trim() ?? '';
     return {
@@ -91,8 +104,12 @@ export function routeTollPlazasForApi(
       plazaKey: p.plazaKey,
       ...(p.plazaKeySource ? { plazaKeySource: p.plazaKeySource } : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(section ? { section } : {}),
       ...(municipality ? { municipality } : {}),
       ...(state ? { state } : {}),
+      ...(p.lat != null && Number.isFinite(p.lat) ? { lat: p.lat } : {}),
+      ...(p.lng != null && Number.isFinite(p.lng) ? { lng: p.lng } : {}),
+      ...(p.costsByAxle ? { costsByAxle: p.costsByAxle } : {}),
       name: p.name.trim(),
       costMxn: p.costMxn,
     };

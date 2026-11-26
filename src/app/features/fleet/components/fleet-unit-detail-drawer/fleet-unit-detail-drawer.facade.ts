@@ -73,10 +73,7 @@ import {
 } from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { fleetUnitDetailSegmentTabs } from '@app/features/fleet/utils/fleet-unit-detail-segment-tabs';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
-import {
-  mergeFleetMaintenanceDocNamesForDisplay,
-  isSubstantiveMaintenanceEntry,
-} from '@features/fleet/utils/fleet-maintenance-entry.util';
+import { isSubstantiveMaintenanceEntry } from '@features/fleet/utils/fleet-maintenance-entry.util';
 import { findFleetStoredDocumentByFileName } from '@features/fleet/utils/fleet-stored-document-resolve.util';
 import {
   buildFleetMaintenanceExpensePayload,
@@ -474,10 +471,6 @@ export class FleetUnitDetailDrawerFacade {
       meta?.maintenanceEntries?.length ||
       meta?.verificationEntries?.length ||
       meta?.fleetDocuments?.length ||
-      meta?.documentMaintenanceNames?.length ||
-      meta?.documentVerificationNames?.length ||
-      meta?.documentPolicyNames?.length ||
-      meta?.documentOwnershipNames?.length ||
       meta?.trailerTenureMode !== undefined
     );
   }
@@ -2521,42 +2514,14 @@ export class FleetUnitDetailDrawerFacade {
     return `https://${t}`;
   }
 
-  /**
-   * Historial visible en la tabla. Si la unidad ya tiene `maintenanceEntries`,
-   * se devuelven ordenadas por fecha desc; en caso contrario se sintetiza una
-   * sola fila a partir de `lastMaintenance*` y los nombres de archivo legados
-   * para que las unidades viejas no se vean vacías.
-   * Docs: cada fila usa `documentNames` del historial; sin eso (legacy) se
-   * agrupan en la entrada más reciente.
-   */
+  /** Historial de mantenimiento: solo `maintenanceEntries` (+ filas locales de edición). */
   maintenanceEntries(): MaintenanceEntry[] {
     const m = this.meta();
     const local = this.localMaintEntries();
-    let base: MaintenanceEntry[] = [];
-    if (m) {
-      const explicit = (m.maintenanceEntries ?? []).filter(isSubstantiveMaintenanceEntry);
-      if (explicit.length > 0) {
-        base = explicit;
-      } else {
-        const fallback: MaintenanceEntry = {
-          date: m.lastMaintenanceDate,
-          type: m.lastMaintenanceType,
-          cost: m.lastMaintenanceCost,
-          notes: m.lastMaintenanceNotes,
-          documentNames: m.documentMaintenanceNames,
-        };
-        if (isSubstantiveMaintenanceEntry(fallback)) {
-          base = [fallback];
-        }
-      }
-    }
-    const sorted = [...base, ...local]
+    const base = (m?.maintenanceEntries ?? []).filter(isSubstantiveMaintenanceEntry);
+    return [...base, ...local]
       .filter(isSubstantiveMaintenanceEntry)
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    return mergeFleetMaintenanceDocNamesForDisplay(
-      sorted,
-      this.docs('maint').map((d) => d.fileName),
-    );
   }
 
   docs(which: 'maint' | 'verif' | 'policy' | 'ownership'): FleetStoredDocument[] {
@@ -2566,43 +2531,15 @@ export class FleetUnitDetailDrawerFacade {
         : which === 'verif'
           ? 'verification'
           : which;
-    const fromApi = (this.meta()?.fleetDocuments ?? []).filter(
+    return (this.meta()?.fleetDocuments ?? []).filter(
       (d) => d.documentKind === kind && Number.isFinite(d.id) && d.id > 0,
     );
-    if (fromApi.length > 0) {
-      return fromApi;
-    }
-    // Fallback legacy: solo nombres (sin id → no descargables).
-    return this.legacyDocNames(which).map((fileName, index) => ({
-      id: -(index + 1),
-      fileName,
-      documentKind: kind,
-    }));
   }
 
   docNames(which: 'maint' | 'verif' | 'policy' | 'ownership'): string[] {
     return this.docs(which)
       .map((d) => d.fileName)
       .filter(Boolean);
-  }
-
-  private legacyDocNames(
-    which: 'maint' | 'verif' | 'policy' | 'ownership',
-  ): string[] {
-    const m = this.meta();
-    if (!m) {
-      return [];
-    }
-    if (which === 'maint') {
-      return m.documentMaintenanceNames ?? [];
-    }
-    if (which === 'verif') {
-      return m.documentVerificationNames ?? [];
-    }
-    if (which === 'ownership') {
-      return m.documentOwnershipNames ?? [];
-    }
-    return m.documentPolicyNames ?? [];
   }
 
   /** Arrow: se pasa a secciones hijas sin perder `this`. */

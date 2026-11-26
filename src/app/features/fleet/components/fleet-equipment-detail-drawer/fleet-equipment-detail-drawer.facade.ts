@@ -57,7 +57,6 @@ import {
 } from '@features/fleet/utils/fleet-tenure-schedule.util';
 import { formatFleetStoredKmLabel } from '@features/fleet/utils/fleet-stored-km.util';
 import {
-  mergeFleetMaintenanceDocNamesForDisplay,
   isSubstantiveMaintenanceEntry,
 } from '@features/fleet/utils/fleet-maintenance-entry.util';
 import { findFleetStoredDocumentByFileName } from '@features/fleet/utils/fleet-stored-document-resolve.util';
@@ -410,10 +409,6 @@ export class FleetEquipmentDetailDrawerFacade {
       meta?.maintenanceEntries?.length ||
       meta?.verificationEntries?.length ||
       meta?.fleetDocuments?.length ||
-      meta?.documentMaintenanceNames?.length ||
-      meta?.documentVerificationNames?.length ||
-      meta?.documentPolicyNames?.length ||
-      meta?.documentOwnershipNames?.length ||
       meta?.trailerTenureMode !== undefined
     );
   }
@@ -2130,31 +2125,10 @@ export class FleetEquipmentDetailDrawerFacade {
   maintenanceEntries(): MaintenanceEntry[] {
     const m = this.meta();
     const local = this.localMaintEntries();
-    let base: MaintenanceEntry[] = [];
-    if (m) {
-      const explicit = (m.maintenanceEntries ?? []).filter(isSubstantiveMaintenanceEntry);
-      if (explicit.length > 0) {
-        base = explicit;
-      } else {
-        const fallback: MaintenanceEntry = {
-          date: m.lastMaintenanceDate,
-          type: m.lastMaintenanceType,
-          cost: m.lastMaintenanceCost,
-          notes: m.lastMaintenanceNotes,
-          documentNames: m.documentMaintenanceNames,
-        };
-        if (isSubstantiveMaintenanceEntry(fallback)) {
-          base = [fallback];
-        }
-      }
-    }
-    const sorted = [...base, ...local]
+    const base = (m?.maintenanceEntries ?? []).filter(isSubstantiveMaintenanceEntry);
+    return [...base, ...local]
       .filter(isSubstantiveMaintenanceEntry)
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    return mergeFleetMaintenanceDocNamesForDisplay(
-      sorted,
-      this.docs('maint').map((d) => d.fileName),
-    );
   }
 
   docs(which: 'maint' | 'verif' | 'policy' | 'ownership' | 'verification'): FleetStoredDocument[] {
@@ -2164,42 +2138,15 @@ export class FleetEquipmentDetailDrawerFacade {
         : which === 'verif' || which === 'verification'
           ? 'verification'
           : which;
-    const fromApi = (this.meta()?.fleetDocuments ?? []).filter(
+    return (this.meta()?.fleetDocuments ?? []).filter(
       (d) => d.documentKind === kind && Number.isFinite(d.id) && d.id > 0,
     );
-    if (fromApi.length > 0) {
-      return fromApi;
-    }
-    return this.legacyDocNames(which).map((fileName, index) => ({
-      id: -(index + 1),
-      fileName,
-      documentKind: kind,
-    }));
   }
 
   docNames(which: 'maint' | 'policy' | 'ownership' | 'verification'): string[] {
     return this.docs(which)
       .map((d) => d.fileName)
       .filter(Boolean);
-  }
-
-  private legacyDocNames(
-    which: 'maint' | 'verif' | 'policy' | 'ownership' | 'verification',
-  ): string[] {
-    const m = this.meta();
-    if (!m) {
-      return [];
-    }
-    if (which === 'maint') {
-      return m.documentMaintenanceNames ?? [];
-    }
-    if (which === 'verif' || which === 'verification') {
-      return m.documentVerificationNames ?? [];
-    }
-    if (which === 'ownership') {
-      return m.documentOwnershipNames ?? [];
-    }
-    return m.documentPolicyNames ?? [];
   }
 
   /** Arrow: se pasa a secciones hijas sin perder `this`. */

@@ -39,20 +39,31 @@ export function parseOsrmDrivingRoute(
   res: OsrmRouteResponse,
 ): OsrmDrivingRouteResult | null {
   const code = (res.code ?? '').trim();
-  if (code.toLowerCase() !== 'ok' || !res.routes?.[0]) {
+  if (code.toLowerCase() !== 'ok' || !res.routes?.length) {
     return null;
   }
-  const route = res.routes[0];
-  const rawMeters =
-    typeof route.distance === 'number'
-      ? route.distance
-      : typeof route.legs?.[0]?.distance === 'number'
-        ? route.legs[0].distance
-        : Number(route.distance ?? route.legs?.[0]?.distance);
-  if (!Number.isFinite(rawMeters)) {
+  // Entre alternativas, la más corta (evita desvíos largos del demo OSRM).
+  let route = res.routes[0]!;
+  let bestMeters = Number.POSITIVE_INFINITY;
+  for (const candidate of res.routes) {
+    const meters =
+      typeof candidate.distance === 'number'
+        ? candidate.distance
+        : typeof candidate.legs?.[0]?.distance === 'number'
+          ? candidate.legs[0].distance
+          : Number(candidate.distance ?? candidate.legs?.[0]?.distance);
+    if (!Number.isFinite(meters)) {
+      continue;
+    }
+    if (meters < bestMeters) {
+      bestMeters = meters;
+      route = candidate;
+    }
+  }
+  if (!Number.isFinite(bestMeters)) {
     return null;
   }
-  const km = Math.round((rawMeters / 1000) * 10) / 10;
+  const km = Math.round((bestMeters / 1000) * 10) / 10;
   return {
     km,
     coordinates: parseOsrmLineString(route.geometry),

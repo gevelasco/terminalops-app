@@ -311,6 +311,8 @@
                 [(cityMunicipality)]="vm.deliveryCity"
                 [(locality)]="vm.deliveryLocality"
                 [(settlementConsId)]="vm.deliverySettlementConsId"
+                [(municipalityName)]="vm.deliveryMunicipalityName"
+                [(stateName)]="vm.deliveryStateName"
                 [(latitude)]="vm.deliveryLatitude"
                 [(longitude)]="vm.deliveryLongitude"
                 [(destinationRateId)]="vm.deliveryDestinationRateId"
@@ -349,18 +351,32 @@
                 <table class="clients-contact-table" aria-label="Datos de entrega">
                   <thead>
                     <tr>
-                      <th scope="col">C.P.</th>
-                      <th scope="col">Ciudad / municipio</th>
-                      <th scope="col">Localidad</th>
+                      @if (vm.showDeliveryPostalCodeColumn()) {
+                        <th scope="col">C.P.</th>
+                        <th scope="col">Ciudad / municipio</th>
+                        <th scope="col">Localidad</th>
+                      } @else if (vm.showDeliveryMunicipalityColumn()) {
+                        <th scope="col">Estado</th>
+                        <th scope="col">Municipio</th>
+                      } @else {
+                        <th scope="col">Estado</th>
+                      }
                       <th scope="col">Ruta tarifada</th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (d of vm.clientDeliveriesList(); track d.id ?? $index) {
                       <tr>
-                        <td>{{ d.postalCode?.trim() || "—" }}</td>
-                        <td>{{ d.cityMunicipality?.trim() || "—" }}</td>
-                        <td>{{ d.locality?.trim() || "—" }}</td>
+                        @if (vm.showDeliveryPostalCodeColumn()) {
+                          <td>{{ d.postalCode?.trim() || "—" }}</td>
+                          <td>{{ d.cityMunicipality?.trim() || "—" }}</td>
+                          <td>{{ d.locality?.trim() || "—" }}</td>
+                        } @else if (vm.showDeliveryMunicipalityColumn()) {
+                          <td>{{ vm.deliveryStateLabel(d) }}</td>
+                          <td>{{ vm.deliveryMunicipalityLabel(d) }}</td>
+                        } @else {
+                          <td>{{ vm.deliveryStateLabel(d) }}</td>
+                        }
                         <td>{{ vm.deliveryRouteLinkLabel(d) }}</td>
                       </tr>
                     }
@@ -376,9 +392,16 @@
                 <table class="clients-contact-table" aria-label="Datos de entrega">
                   <thead>
                     <tr>
-                      <th scope="col">C.P.</th>
-                      <th scope="col">Ciudad / municipio</th>
-                      <th scope="col">Localidad</th>
+                      @if (vm.showDeliveryPostalCodeColumn()) {
+                        <th scope="col">C.P.</th>
+                        <th scope="col">Ciudad / municipio</th>
+                        <th scope="col">Localidad</th>
+                      } @else if (vm.showDeliveryMunicipalityColumn()) {
+                        <th scope="col">Estado</th>
+                        <th scope="col">Municipio</th>
+                      } @else {
+                        <th scope="col">Estado</th>
+                      }
                       <th scope="col">Ruta tarifada</th>
                       <th
                         scope="col"
@@ -390,9 +413,16 @@
                   <tbody>
                     @for (d of vm.deliveries(); track d.id ?? $index) {
                       <tr>
-                        <td>{{ d.postalCode?.trim() || "—" }}</td>
-                        <td>{{ d.cityMunicipality?.trim() || "—" }}</td>
-                        <td>{{ d.locality?.trim() || "—" }}</td>
+                        @if (vm.showDeliveryPostalCodeColumn()) {
+                          <td>{{ d.postalCode?.trim() || "—" }}</td>
+                          <td>{{ d.cityMunicipality?.trim() || "—" }}</td>
+                          <td>{{ d.locality?.trim() || "—" }}</td>
+                        } @else if (vm.showDeliveryMunicipalityColumn()) {
+                          <td>{{ vm.deliveryStateLabel(d) }}</td>
+                          <td>{{ vm.deliveryMunicipalityLabel(d) }}</td>
+                        } @else {
+                          <td>{{ vm.deliveryStateLabel(d) }}</td>
+                        }
                         <td>{{ vm.deliveryRouteLinkLabel(d) }}</td>
                         <td class="clients-contact-td--remove">
                           <to-icon-button

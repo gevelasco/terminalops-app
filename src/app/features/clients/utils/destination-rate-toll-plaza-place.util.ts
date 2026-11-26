@@ -5,7 +5,7 @@ import {
   type MexicoStatesGeoJson,
 } from '@features/trips/utils/trips-map-state-activity';
 
-/** Estado MX por coordenadas de caseta (polígono `mexico-states.json`, sin INEGI). */
+/** Estado MX por coordenadas de caseta (polígono `mexico-states.json`). */
 export function tollPlazaRowsWithStateFromGeo(
   rows: readonly RouteTollPlazaRow[],
   geo: MexicoStatesGeoJson,
@@ -31,7 +31,7 @@ export function tollPlazaRowWithStateFromGeo(
 const MUNICIPALITY_INFER_BLOCK =
   /\s-\s|libramiento|viaducto|superv[ií]a|salida\b|t[uú]nel|v\.?\s*e\.?\s*t|poetas|marquesa|venta\b/i;
 
-/** Muchas casetas INEGI llevan el nombre del municipio; evita corredores compuestos. */
+/** Muchas casetas llevan el nombre del municipio; evita corredores compuestos. */
 export function inferTollPlazaMunicipalityFromName(name: string): string {
   const t = name.trim();
   if (!t || MUNICIPALITY_INFER_BLOCK.test(t)) {

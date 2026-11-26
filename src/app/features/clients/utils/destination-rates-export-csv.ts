@@ -1,5 +1,12 @@
 import type { DestinationRate } from '@shared/models/destination-rate.models';
-import { formatGroupedNumber } from '@shared/utils/format-grouped-number';
+import {
+  normalizeDestinationRateScope,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
+import {
+  buildDestinationRateTableRows,
+  type DestinationRateTableRow,
+} from '@features/clients/utils/destination-rates-table-rows';
 
 export type DestinationRateCatalogExportRow = {
   state: string;
@@ -8,6 +15,7 @@ export type DestinationRateCatalogExportRow = {
   postalCode: string;
   maneuverType: string;
   price: string;
+  eta: string;
 };
 
 function csvCell(value: string): string {
@@ -15,113 +23,81 @@ function csvCell(value: string): string {
   return /[",\n\r]/.test(t) ? `"${t}"` : t;
 }
 
-function priceTypeLabel(price: DestinationRate['prices'][number]): string {
-  return (
-    price.operationConfigurationName?.trim() ||
-    price.operationConfigurationCode?.trim() ||
-    'Maniobra'
-  );
-}
-
-function municipalityLabel(rate: DestinationRate, stateName: string): string {
-  const raw = rate.cityMunicipality.trim();
-  if (!raw) {
-    return '';
-  }
-  const state = stateName.trim();
-  if (state) {
-    const suffix = `, ${state}`;
-    if (raw.toLowerCase().endsWith(suffix.toLowerCase())) {
-      return raw.slice(0, raw.length - suffix.length).trim();
-    }
-  }
-  const comma = raw.lastIndexOf(',');
-  if (comma > 0) {
-    return raw.slice(0, comma).trim();
-  }
-  return raw;
-}
-
 /**
- * Una fila por tipo de maniobra / precio.
- * `stateByRateId` aporta el estado MX resuelto por coordenadas.
+ * Filas de export alineadas a la tabla del catálogo (incluye dedupe por scope estado).
  */
 export function buildDestinationRateCatalogExportRows(
   rates: readonly DestinationRate[],
   stateByRateId?: ReadonlyMap<string, string>,
+  scope?: DestinationRateScope | string | null,
 ): DestinationRateCatalogExportRow[] {
-  const rows: DestinationRateCatalogExportRow[] = [];
-  const sorted = [...rates].sort((a, b) => {
-    const stateA = stateByRateId?.get(a.id) ?? '';
-    const stateB = stateByRateId?.get(b.id) ?? '';
-    const byState = stateA.localeCompare(stateB, 'es');
-    if (byState !== 0) {
-      return byState;
-    }
-    const byCp = a.postalCode.localeCompare(b.postalCode, 'es');
-    if (byCp !== 0) {
-      return byCp;
-    }
-    return a.locality.localeCompare(b.locality, 'es', { sensitivity: 'base' });
-  });
+  const tableRows = buildDestinationRateTableRows(
+    rates,
+    stateByRateId,
+    undefined,
+    scope,
+  );
+  return tableRows.map((row) => tableRowToExportRow(row));
+}
 
-  for (const rate of sorted) {
-    const state = stateByRateId?.get(rate.id)?.trim() ?? '';
-    const municipality = municipalityLabel(rate, state);
-    const locality = rate.locality.trim();
-    const postalCode = rate.postalCode.trim();
-    const prices = rate.prices;
-    if (prices.length === 0) {
-      rows.push({
-        state,
-        municipality,
-        locality,
-        postalCode,
-        maneuverType: '',
-        price: '',
-      });
-      continue;
-    }
+function tableRowToExportRow(
+  row: DestinationRateTableRow,
+): DestinationRateCatalogExportRow {
+  return {
+    state: row.state,
+    municipality: row.municipality === '—' ? '' : row.municipality,
+    locality: '',
+    postalCode: row.postalCode,
+    maneuverType: row.maneuver === '—' ? '' : row.maneuver,
+    price: row.costLabel === '—' ? '' : row.costLabel,
+    eta: row.etaLabel === '—' ? '' : row.etaLabel,
+  };
+}
 
-    for (const price of prices) {
-      rows.push({
-        state,
-        municipality,
-        locality,
-        postalCode,
-        maneuverType: priceTypeLabel(price),
-        price: Number.isFinite(price.clientCharge)
-          ? formatGroupedNumber(price.clientCharge, { maxFractionDigits: 2 })
-          : '',
-      });
-    }
+/** Columnas del CSV según la política (igual que la tabla). */
+export function destinationRateCatalogCsvHeaders(
+  scope?: DestinationRateScope | string | null,
+): string[] {
+  const normalized = normalizeDestinationRateScope(scope);
+  if (normalized === 'state') {
+    return ['Estado', 'Maniobra', 'Cobro Cliente', 'ETA'];
   }
+  if (normalized === 'municipality') {
+    return ['Estado', 'Municipio', 'Maniobra', 'Cobro Cliente', 'ETA'];
+  }
+  return ['Estado', 'Municipio', 'CP', 'Maniobra', 'Cobro Cliente', 'ETA'];
+}
 
-  return rows;
+function csvCellsForScope(
+  row: DestinationRateCatalogExportRow,
+  scope?: DestinationRateScope | string | null,
+): string[] {
+  const normalized = normalizeDestinationRateScope(scope);
+  if (normalized === 'state') {
+    return [row.state, row.maneuverType, row.price, row.eta];
+  }
+  if (normalized === 'municipality') {
+    return [row.state, row.municipality, row.maneuverType, row.price, row.eta];
+  }
+  return [
+    row.state,
+    row.municipality,
+    row.postalCode,
+    row.maneuverType,
+    row.price,
+    row.eta,
+  ];
 }
 
 export function buildDestinationRatesCatalogCsv(
   rows: readonly DestinationRateCatalogExportRow[],
+  scope?: DestinationRateScope | string | null,
 ): string {
-  const headers = [
-    'Estado',
-    'Municipio',
-    'Colonia',
-    'CP',
-    'Tipo de maniobra',
-    'Precio',
-  ];
+  const headers = destinationRateCatalogCsvHeaders(scope);
   const lines = [headers.map(csvCell).join(',')];
   for (const row of rows) {
     lines.push(
-      [
-        row.state,
-        row.municipality,
-        row.locality,
-        row.postalCode,
-        row.maneuverType,
-        row.price,
-      ]
+      csvCellsForScope(row, scope)
         .map((v) => csvCell(String(v)))
         .join(','),
     );

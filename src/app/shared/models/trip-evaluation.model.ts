@@ -44,9 +44,6 @@ export interface TripEvaluationResult {
   profitabilityInputs: TripProfitabilityInputs;
 }
 
-/** @deprecated Usar TripEvaluationResult */
-export type TripEvaluation = TripEvaluationResult;
-
 export type TripEvaluationPick = Pick<
   Trip,
   'operationType' | 'operationConfigurationId'

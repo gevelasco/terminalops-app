@@ -22,7 +22,7 @@ export const REPORTS_CHART_AXIS = {
 
 export { formatReportsChartAxisDate, reportsChartAxisInterval };
 
-export function reportsFintechCategoryAxis(
+export function reportsChartCategoryAxis(
   labels: string[],
   options?: { rotate?: number; width?: number; showAllLabels?: boolean },
 ): {

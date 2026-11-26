@@ -66,15 +66,6 @@ export function rangeForMonthYearSpan(
   return { from: localYmd(start), to: localYmd(lastDay) };
 }
 
-/** @deprecated Prefer `rangeForMonthYearSpan` for reports ranges. */
-export function rangeForCalendarMonth(
-  year: number,
-  month: number,
-  now = new Date(),
-): { from: string; to: string } {
-  return rangeForMonthYearSpan(month, year, month, year, now);
-}
-
 export function defaultReportsFilter(now = new Date()): ReportsFilter {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();

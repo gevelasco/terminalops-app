@@ -3,7 +3,16 @@ import type { MxPostalSettlement } from '@shared/services/mexico-postal-code.ser
 import { localityKey, normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 import { latLonFromPrefill } from '@shared/services/lat-lon';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
-import { validClientDeliveries } from '@features/clients/utils/client-deliveries';
+import {
+  deliveryMunicipalityLabel,
+  deliveryStateLabel,
+  validClientDeliveries,
+  validClientDeliveriesForScope,
+} from '@features/clients/utils/client-deliveries';
+import {
+  normalizeDestinationRateScope,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 
 /** Datos de un extremo de ruta ya conocidos (centro operativo o entrega del cliente). */
 export type TripRouteEndpointPrefill = {
@@ -11,11 +20,13 @@ export type TripRouteEndpointPrefill = {
   settlementConsId?: string;
   cityMunicipality?: string;
   locality?: string;
+  municipalityName?: string;
+  stateName?: string;
   latitude?: number | null;
   longitude?: number | null;
 };
 
-/** Shape mínimo persistido (sesión / client.delivery) para omitir SEPOMEX+Photon. */
+/** Shape mínimo persistido (sesión / deliveries) para omitir SEPOMEX+Photon. */
 export type StoredRouteLocationShape = {
   postalCode?: string;
   locality?: string;
@@ -93,16 +104,43 @@ export function originPrefillFromOperationalCenter(center: {
 /** Destino desde una ubicación de entrega concreta. */
 export function destinationPrefillFromDelivery(
   delivery: ClientDelivery,
+  scope?: DestinationRateScope | string | null,
 ): TripRouteEndpointPrefill | null {
+  const normalized = normalizeDestinationRateScope(scope);
   const postalCode = normalizeMxPostalCodeDigits(delivery.postalCode ?? '');
-  if (postalCode.length !== 5) {
+  const cityMunicipality = delivery.cityMunicipality?.trim() || undefined;
+  const stateName =
+    deliveryStateLabel(delivery) === '—'
+      ? undefined
+      : deliveryStateLabel(delivery);
+  const municipalityName =
+    deliveryMunicipalityLabel(delivery) === '—'
+      ? undefined
+      : deliveryMunicipalityLabel(delivery);
+
+  if (normalized === 'postal_code') {
+    if (postalCode.length !== 5) {
+      return null;
+    }
+  } else if (normalized === 'municipality') {
+    if (!municipalityName || !stateName) {
+      return null;
+    }
+  } else if (!stateName && !cityMunicipality) {
     return null;
   }
+
   return {
-    postalCode,
+    postalCode: postalCode.length === 5 ? postalCode : '',
     settlementConsId: delivery.settlementConsId?.trim() || undefined,
-    cityMunicipality: delivery.cityMunicipality?.trim() || undefined,
-    locality: delivery.locality?.trim() || undefined,
+    cityMunicipality:
+      cityMunicipality ||
+      (normalized === 'state'
+        ? stateName
+        : [municipalityName, stateName].filter(Boolean).join(', ') || undefined),
+    locality: delivery.locality?.trim() || municipalityName || undefined,
+    municipalityName,
+    stateName: stateName || (normalized === 'state' ? cityMunicipality : undefined),
     latitude: delivery.latitude ?? null,
     longitude: delivery.longitude ?? null,
   };
@@ -110,14 +148,17 @@ export function destinationPrefillFromDelivery(
 
 /**
  * Destino desde expediente del cliente.
- * Solo auto-rellena cuando hay exactamente una ruta de tarifa válida.
+ * Solo auto-rellena cuando hay exactamente una ubicación válida para el scope.
  */
-export function destinationPrefillFromClient(client: Client): TripRouteEndpointPrefill | null {
-  const deliveries = validClientDeliveries(client);
+export function destinationPrefillFromClient(
+  client: Client,
+  scope?: DestinationRateScope | string | null,
+): TripRouteEndpointPrefill | null {
+  const deliveries = validClientDeliveriesForScope(client, scope);
   if (deliveries.length !== 1) {
     return null;
   }
-  return destinationPrefillFromDelivery(deliveries[0]!);
+  return destinationPrefillFromDelivery(deliveries[0]!, scope);
 }
 
 function parseCityMunicipalityLine(line: string): {

@@ -1,4 +1,4 @@
-import type { Equipment, Unit } from '@shared/models/logistics.models';
+import type { Unit } from '@shared/models/logistics.models';
 import type { TripStatus } from '@shared/models/logistics.models';
 import { resolveUnitOperationalKey } from '@shared/utils/fleet/fleet-status.resolver';
 
@@ -9,18 +9,6 @@ export function fleetOperationalKeyFromUnit(
   return resolveUnitOperationalKey({
     persistedStatus: unit.status,
     isActive: unit.isActive !== false,
-    activeTripStatus,
-  });
-}
-
-/** @deprecated Use resolveUnitOperationalKey from fleet-status.resolver. */
-export function fleetOperationalKeyFromEquipment(
-  equipment: Equipment,
-  activeTripStatus?: TripStatus,
-): ReturnType<typeof resolveUnitOperationalKey> {
-  return resolveUnitOperationalKey({
-    persistedStatus: equipment.status,
-    isActive: equipment.isActive !== false,
     activeTripStatus,
   });
 }

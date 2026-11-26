@@ -23,8 +23,10 @@ import {
   MexicoPostalCodeService,
   type MxPostalSettlement,
 } from '@shared/services/mexico-postal-code.service';
+import { MexicoGeoStateService } from '@shared/services/mexico-geo-state.service';
+import type { DestinationRateScope } from '@shared/models/destination-rate-scope';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
-import { ToSelectComponent } from '@shared/ui/to-select/to-select.component';
+import { ToSelectComponent, type ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
 @Component({
   selector: 'app-destination-rate-location-fields',
@@ -42,15 +44,21 @@ export class DestinationRateLocationFieldsComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly sepomex = inject(MexicoPostalCodeService);
+  private readonly mexicoGeo = inject(MexicoGeoStateService);
 
   readonly referencePostalCode = input('');
   readonly disabled = input(false);
   /** Layout en grid del drawer «Nueva tarifa» (CP junto al centro operativo). */
   readonly routeFormLayout = input(false);
+  readonly scope = input<DestinationRateScope>('postal_code');
 
   readonly postalCode = model('');
   readonly cityMunicipality = model('');
   readonly locality = model('');
+  readonly municipalityName = model('');
+  readonly stateName = model('');
+
+  private readonly stateOptionsSignal = signal<ToSelectOption[]>([]);
 
   readonly settlements = signal<MxPostalSettlement[]>([]);
   readonly cpLoading = signal(false);
@@ -58,10 +66,23 @@ export class DestinationRateLocationFieldsComponent {
   /** CP + localidad con los que la ruta quedó resuelta (para detectar cambios dígito a dígito). */
   private readonly routeAnchorCp = signal('');
 
-  /** El padre debe invalidar ruta, casetas INEGI, métricas y borradores de precios. */
+  /** El padre debe invalidar ruta, casetas, métricas y borradores de precios. */
   readonly postalCodeRouteReset = output<void>();
 
   constructor() {
+    this.mexicoGeo.preload();
+    this.mexicoGeo
+      .whenReady()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((geo) => {
+        const opts =
+          geo?.features
+            ?.map((f) => f.properties?.name?.trim() ?? '')
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'es'))
+            .map((name) => ({ value: name, label: name })) ?? [];
+        this.stateOptionsSignal.set(opts);
+      });
     effect(() => {
       const cp = normalizeMxPostalCodeDigits(this.postalCode());
       const ref = normalizeMxPostalCodeDigits(this.referencePostalCode());
@@ -70,6 +91,58 @@ export class DestinationRateLocationFieldsComponent {
         this.routeAnchorCp.set(cp);
       }
     });
+    effect(() => {
+      const scope = this.scope();
+      if (scope === 'postal_code') {
+        return;
+      }
+      this.syncCityMunicipalityFromScopeFields();
+    });
+  }
+
+  readonly stateOptions = computed(() => this.stateOptionsSignal());
+
+  onStateNameChange(value: string): void {
+    const next = String(value ?? '').trim();
+    const prev = this.stateName().trim();
+    if (next === prev) {
+      return;
+    }
+    this.stateName.set(next);
+    if (this.scope() === 'state') {
+      this.municipalityName.set('');
+    }
+    this.syncCityMunicipalityFromScopeFields();
+    this.postalCodeRouteReset.emit();
+  }
+
+  onMunicipalityNameChange(value: string): void {
+    const next = String(value ?? '').trim();
+    if (next === this.municipalityName().trim()) {
+      return;
+    }
+    this.municipalityName.set(next);
+    this.syncCityMunicipalityFromScopeFields();
+    this.postalCodeRouteReset.emit();
+  }
+
+  private syncCityMunicipalityFromScopeFields(): void {
+    const scope = this.scope();
+    const state = this.stateName().trim();
+    const muni = this.municipalityName().trim();
+    if (scope === 'state') {
+      this.cityMunicipality.set(state);
+      this.locality.set('');
+      this.postalCode.set('');
+      return;
+    }
+    if (scope === 'municipality') {
+      this.cityMunicipality.set(
+        muni && state ? `${muni}, ${state}` : muni || state,
+      );
+      this.locality.set('');
+      this.postalCode.set('');
+    }
   }
 
   readonly localityOptions = computed(() =>

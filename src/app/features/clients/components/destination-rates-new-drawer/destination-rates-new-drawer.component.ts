@@ -68,25 +68,26 @@ import { formatEstimatedTimeValueNumber } from '@features/clients/utils/destinat
 import {
   suggestedDriveTimeHoursFromRouteKm,
 } from '@features/clients/utils/destination-rate-drive-time.util';
+import type { RouteTollPlazaRow } from '@core/services/api/routing';
 import {
   definedRouteDrivingPoints,
   definedRouteMetricsKey,
 } from '@features/clients/utils/destination-rate-defined-route-metrics.util';
-import type { RouteTollPlazaRow } from '@core/services/api/routing';
 import { isValidLatLon, latLonFromPrefill } from '@shared/services/lat-lon';
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 import { OsrmDrivingRouteService } from '@shared/services/osrm-driving-route.service';
-import { destinationRateSakbeSearchLabel } from '@features/clients/utils/destination-rate-sakbe-search.util';
+import { destinationRatePlaceSearchLabel } from '@features/clients/utils/destination-rate-place-search.util';
 import { mexicanSepomexGeocodeHints } from '@features/clients/utils/destination-rate-state-resolve.util';
 import {
   routeWaypointDraftsFromStored,
   routeWaypointsToTollQuery,
-  destinationRateRouteTollContextKey,
   type DestinationRateRouteWaypointDraft,
 } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import { GeoApiService } from '@core/services/api/geo';
+import { SessionService } from '@core/services/state/session';
 import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
 import { MexicoGeoStateService } from '@shared/services/mexico-geo-state.service';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -118,10 +119,11 @@ export class DestinationRatesNewDrawerComponent {
   private readonly ratesApi = inject(DestinationRatesApiService);
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
   private readonly centersFeature = inject(OperationalCentersFeatureService);
-  private readonly osrm = inject(OsrmDrivingRouteService);
   private readonly geoApi = inject(GeoApiService);
   private readonly photon = inject(PhotonPlaceSearchService);
   private readonly mexicoGeo = inject(MexicoGeoStateService);
+  private readonly osrm = inject(OsrmDrivingRouteService);
+  private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
 
   private readonly originSelect = viewChild(OperationalCenterSelectComponent);
@@ -137,8 +139,12 @@ export class DestinationRatesNewDrawerComponent {
   readonly postalCode = model('');
   readonly cityMunicipality = model('');
   readonly locality = model('');
+  readonly municipalityName = model('');
+  readonly stateName = model('');
   readonly priceDrafts = model<DestinationRatePriceDraft[]>([createEmptyPriceDraft()]);
-  readonly excludedTollPlazaKeys = model<string[]>([]);
+  readonly rateScope = computed(() =>
+    normalizeDestinationRateScope(this.session.destinationRateScope()),
+  );
   readonly estimatedArrivalTimeValue = model('');
   readonly estimatedReturnTimeValue = model('');
   private readonly arrivalTimeTouched = signal(false);
@@ -148,7 +154,6 @@ export class DestinationRatesNewDrawerComponent {
   /** CREATE_MODE | EXISTING_ROUTE | INVALIDATED */
   readonly routeMode = signal<DestinationRateRouteDrawerMode>('INVALIDATED');
   private readonly resolvedRouteKey = signal<DestinationRateRouteKey | null>(null);
-  private lastTollRouteContextKey = '';
   private lastRouteBaseKey = '';
   readonly routeCustomizeOpen = signal(false);
   readonly draftRouteWaypoints = signal<DestinationRateRouteWaypointDraft[]>([]);
@@ -167,9 +172,12 @@ export class DestinationRatesNewDrawerComponent {
 
   readonly currentRouteKey = computed(() =>
     buildDestinationRateRouteKey({
+      scope: this.rateScope(),
       originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       locality: this.locality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
     }),
   );
 
@@ -275,13 +283,6 @@ export class DestinationRatesNewDrawerComponent {
     return loc || city || 'Destino';
   });
 
-  readonly showRouteCustomize = computed(
-    () =>
-      this.routeMode() === 'CREATE_MODE' &&
-      this.routeEndpointsReady() &&
-      (this.routeDistanceKm() != null || !this.routeMetricsPending()),
-  );
-
   readonly routeTollContext = computed((): DestinationRateRouteTollContext | null => {
     if (this.routeMode() !== 'CREATE_MODE' || this.routeGeocodePending()) {
       return null;
@@ -302,11 +303,11 @@ export class DestinationRatesNewDrawerComponent {
       originLon: origin.lon,
       destinationLat: dest.lat,
       destinationLon: dest.lon,
-      originSearch: destinationRateSakbeSearchLabel(
+      originSearch: destinationRatePlaceSearchLabel(
         center?.locality || center?.name,
         center?.cityMunicipality,
       ),
-      destinationSearch: destinationRateSakbeSearchLabel(
+      destinationSearch: destinationRatePlaceSearchLabel(
         this.locality(),
         this.cityMunicipality(),
       ),
@@ -332,10 +333,13 @@ export class DestinationRatesNewDrawerComponent {
 
   readonly routeInputComplete = computed(() =>
     isDestinationRateRouteInputComplete({
+      scope: this.rateScope(),
       originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       locality: this.locality(),
       cityMunicipality: this.cityMunicipality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
     }),
   );
 
@@ -366,17 +370,6 @@ export class DestinationRatesNewDrawerComponent {
     afterNextRender(() => this.drawerLoading.set(false));
     this.bindRouteDuplicatePipeline();
     this.bindRouteDistancePipeline();
-    effect(() => {
-      const ctx = this.routeTollContext();
-      const key = ctx ? destinationRateRouteTollContextKey(ctx) : '';
-      if (key && key !== this.lastTollRouteContextKey) {
-        this.lastTollRouteContextKey = key;
-        this.excludedTollPlazaKeys.set([]);
-      }
-      if (!key) {
-        this.lastTollRouteContextKey = '';
-      }
-    });
     effect(() => {
       const center =
         this.originSelect()?.selectedCenter() ??
@@ -416,19 +409,10 @@ export class DestinationRatesNewDrawerComponent {
     this.routeMetricsPlazas.set(plazas);
   }
 
-  onRouteWaypointsRecalculate(): void {
-    this.excludedTollPlazaKeys.set([]);
-  }
-
-  onRouteWaypointsReset(): void {
-    this.excludedTollPlazaKeys.set([]);
-  }
-
   onPostalRouteReset(): void {
     this.invalidateRouteResolution();
     this.draftRouteWaypoints.set([]);
     this.appliedRouteWaypoints.set([]);
-    this.excludedTollPlazaKeys.set([]);
     this.routeCustomizeOpen.set(false);
     this.routeMetricsPlazas.set([]);
     this.lastDefinedRouteMetricsKey = '';
@@ -436,9 +420,6 @@ export class DestinationRatesNewDrawerComponent {
     this.routeDistanceTouched.set(false);
     this.arrivalTimeTouched.set(false);
     this.returnTimeTouched.set(false);
-    this.priceDrafts.update((rows) =>
-      rows.map((row) => ({ ...row, estimatedTollAmount: '' })),
-    );
     this.pricesEditor()?.resetRouteDerivedState();
   }
 
@@ -455,10 +436,13 @@ export class DestinationRatesNewDrawerComponent {
     }
 
     const err = validateDestinationRateForm({
+      scope: this.rateScope(),
       originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
       priceDrafts: this.priceDrafts(),
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
@@ -474,6 +458,8 @@ export class DestinationRatesNewDrawerComponent {
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
       priceDrafts: this.priceDrafts(),
       routeDistanceKm: this.routeDistanceKm(),
       destinationLatitude: coords?.lat ?? null,
@@ -481,7 +467,6 @@ export class DestinationRatesNewDrawerComponent {
       active: true,
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
-      excludedTollPlazaKeys: this.excludedTollPlazaKeys(),
       routeWaypoints: this.appliedRouteWaypoints(),
       routeTollPlazas: this.pricesEditor()?.routeTollPlazasForPersist(),
     });
@@ -571,14 +556,20 @@ export class DestinationRatesNewDrawerComponent {
       toObservable(this.originOperationalCenterId),
       toObservable(this.postalCode),
       toObservable(this.locality),
+      toObservable(this.municipalityName),
+      toObservable(this.stateName),
+      toObservable(this.rateScope),
     ])
       .pipe(
         debounceTime(300),
-        map(([originId, cp, locality]) =>
+        map(([originId, cp, locality, municipalityName, stateName, scope]) =>
           buildDestinationRateRouteKey({
-            originOperationalCenterId: originId,
-            postalCode: cp,
-            locality,
+            scope: normalizeDestinationRateScope(scope),
+            originOperationalCenterId: String(originId),
+            postalCode: String(cp),
+            locality: String(locality),
+            municipalityName: String(municipalityName),
+            stateName: String(stateName),
           }),
         ),
         distinctUntilChanged((a, b) => {
@@ -614,34 +605,46 @@ export class DestinationRatesNewDrawerComponent {
       toObservable(this.postalCode),
       toObservable(this.locality),
       toObservable(this.cityMunicipality),
+      toObservable(this.municipalityName),
+      toObservable(this.stateName),
+      toObservable(this.rateScope),
     ])
       .pipe(
         debounceTime(300),
         filter(
-          ([mode, originId, cp, locality, cityMunicipality]) =>
+          ([
+            mode,
+            originId,
+            cp,
+            locality,
+            cityMunicipality,
+            municipalityName,
+            stateName,
+            scope,
+          ]) =>
             mode === 'CREATE_MODE' &&
             isDestinationRateRouteInputComplete({
+              scope,
               originOperationalCenterId: originId,
               postalCode: cp,
               locality,
               cityMunicipality,
+              municipalityName,
+              stateName,
             }),
         ),
-        distinctUntilChanged(
-          (a, b) =>
-            a[0] === b[0] &&
-            a[1].trim() === b[1].trim() &&
-            a[2] === b[2] &&
-            a[3].trim() === b[3].trim() &&
-            a[4].trim() === b[4].trim(),
-        ),
-        switchMap(([, originId, cp, locality, cityMunicipality]) =>
-          this.resolveRouteDistances({
-            originId: originId.trim(),
-            cp,
-            locality: locality.trim(),
-            cityMunicipality: cityMunicipality.trim(),
-          }),
+        distinctUntilChanged((a, b) => a.every((v, i) => String(v) === String(b[i]))),
+        switchMap(
+          ([, originId, cp, locality, cityMunicipality, municipalityName, stateName, scope]) =>
+            this.resolveRouteDistances({
+              originId: String(originId).trim(),
+              cp: String(cp),
+              locality: String(locality).trim(),
+              cityMunicipality: String(cityMunicipality).trim(),
+              municipalityName: String(municipalityName).trim(),
+              stateName: String(stateName).trim(),
+              scope: normalizeDestinationRateScope(scope),
+            }),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -808,6 +811,9 @@ export class DestinationRatesNewDrawerComponent {
     cp: string;
     locality: string;
     cityMunicipality: string;
+    municipalityName: string;
+    stateName: string;
+    scope: ReturnType<typeof normalizeDestinationRateScope>;
   }) {
     if (this.routeMode() !== 'CREATE_MODE') {
       return of(undefined);
@@ -823,29 +829,13 @@ export class DestinationRatesNewDrawerComponent {
     }
     this.originCoords.set(originCoords);
 
-    const hints = mexicanSepomexGeocodeHints(input.locality, input.cityMunicipality);
-    const destQuery = [
-      hints.settlement,
-      hints.municipality,
-      hints.state,
-      input.cp.trim(),
-      'México',
-    ]
-      .filter(Boolean)
-      .join(', ');
-
     this.routeLoading.set(true);
-    return this.geoApi
-      .settlementCoordinates({
-        postalCode: input.cp,
-        settlement: hints.settlement,
-        municipality: hints.municipality,
-        state: hints.state,
-      })
-      .pipe(
-        switchMap((fromCp) => this.resolveDestinationCoords(fromCp, destQuery, hints)),
-      )
-      .pipe(
+    const destCoords$ =
+      input.scope === 'postal_code'
+        ? this.resolvePostalCodeDestinationCoords(input)
+        : this.resolveScopedDestinationCoords(input);
+
+    return destCoords$.pipe(
       switchMap((destCoords) => {
         if (this.routeMode() !== 'CREATE_MODE') {
           return of(null);
@@ -878,6 +868,53 @@ export class DestinationRatesNewDrawerComponent {
     );
   }
 
+  private resolvePostalCodeDestinationCoords(input: {
+    cp: string;
+    locality: string;
+    cityMunicipality: string;
+  }) {
+    const hints = mexicanSepomexGeocodeHints(input.locality, input.cityMunicipality);
+    const destQuery = [
+      hints.settlement,
+      hints.municipality,
+      hints.state,
+      input.cp.trim(),
+      'México',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return this.geoApi
+      .settlementCoordinates({
+        postalCode: input.cp,
+        settlement: hints.settlement,
+        municipality: hints.municipality,
+        state: hints.state,
+      })
+      .pipe(
+        switchMap((fromCp) => this.resolveDestinationCoords(fromCp, destQuery, hints)),
+      );
+  }
+
+  /** Ancla Photon para política municipio/estado (sin CP SEPOMex). */
+  private resolveScopedDestinationCoords(input: {
+    municipalityName: string;
+    stateName: string;
+    scope: ReturnType<typeof normalizeDestinationRateScope>;
+  }) {
+    const state = input.stateName.trim();
+    const municipality =
+      input.scope === 'municipality' ? input.municipalityName.trim() : '';
+    const hints = { state, municipality, settlement: '' };
+    const destQuery = [municipality, state, 'México'].filter(Boolean).join(', ');
+    return this.photon
+      .firstCoordinatesForMexicanSepomex(destQuery, hints)
+      .pipe(
+        switchMap((fromPhoton) =>
+          this.resolveDestinationCoords(fromPhoton, destQuery, hints),
+        ),
+      );
+  }
+
   private applyAutoRouteDistanceKm(km: number | null): void {
     if (this.routeDistanceTouched()) {
       return;
@@ -893,31 +930,28 @@ export class DestinationRatesNewDrawerComponent {
     this.applySuggestedDriveTimesIfUntouched(km);
   }
 
+  /** Recalcula km/tiempos por OSRM al armar casetas (origen → casetas → destino). */
   private bindDefinedRouteMetrics(): void {
     effect((onCleanup) => {
       if (this.routeMode() !== 'CREATE_MODE') {
         this.lastDefinedRouteMetricsKey = '';
         return;
       }
-      void this.appliedRouteWaypoints();
+      const plazas = this.routeMetricsPlazas();
+      if (plazas.length === 0) {
+        return;
+      }
       const ctx = this.routeTollContext();
       if (!ctx) {
         return;
       }
-      const key = definedRouteMetricsKey(
-        ctx,
-        this.routeMetricsPlazas(),
-        this.excludedTollPlazaKeys(),
-      );
+      const key = definedRouteMetricsKey(ctx, plazas);
       if (!key || key === this.lastDefinedRouteMetricsKey) {
         return;
       }
       this.lastDefinedRouteMetricsKey = key;
       const generation = ++this.definedRouteMetricsGeneration;
-      const points = definedRouteDrivingPoints({
-        ctx,
-        plazas: this.routeMetricsPlazas(),
-      });
+      const points = definedRouteDrivingPoints({ ctx, plazas });
       if (points.length < 2) {
         return;
       }

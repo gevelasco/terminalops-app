@@ -300,10 +300,6 @@ export class UnitsFeatureService {
     const {
       maintenanceEntries: _m,
       verificationEntries: _v,
-      documentMaintenanceNames: _d1,
-      documentVerificationNames: _d2,
-      documentPolicyNames: _d3,
-      documentOwnershipNames: _d4,
       fleetDocuments: _d5,
       trailerTenureMode: _t1,
       trailerCommercialValue: _t2,

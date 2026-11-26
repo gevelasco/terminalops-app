@@ -1,5 +1,5 @@
 import type { RouteWaypointQuery } from '@core/services/api/routing';
-import { destinationRateSakbeClampSearch } from '@features/clients/utils/destination-rate-sakbe-search.util';
+import { destinationRateClampPlaceSearch } from '@features/clients/utils/destination-rate-place-search.util';
 import type { DestinationRateRouteWaypoint } from '@shared/models/destination-rate.models';
 import type { PlaceSuggestion } from '@shared/services/photon-place-search.service';
 
@@ -28,7 +28,7 @@ export function routeWaypointsToTollQuery(
     lat: wp.lat,
     lon: wp.lon,
     label: wp.label.trim(),
-    searchLabel: destinationRateSakbeClampSearch((wp.searchLabel ?? wp.label).trim()),
+    searchLabel: destinationRateClampPlaceSearch((wp.searchLabel ?? wp.label).trim()),
   }));
 }
 

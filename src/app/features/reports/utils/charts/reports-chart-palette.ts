@@ -9,7 +9,7 @@ import { APP_CHART_SEMANTIC } from '@shared/charts/app-chart-palette';
 /**
  * Paleta fintech — alineada al dashboard (Harbor Steel).
  */
-export const REPORTS_FINTECH_ACCENT = CHART_MUTED_ACCENT;
+export const REPORTS_CHART_MUTED_ACCENT = CHART_MUTED_ACCENT;
 
 /** Neutros de UI — tipografía / ejes. */
 export const REPORTS_BRAND = {
@@ -68,11 +68,8 @@ export const REPORTS_CHART_PALETTE = {
   tooltipText: REPORTS_BRAND.white,
   labelOnFill: REPORTS_BRAND.white,
   labelOnLightFill: REPORTS_BRAND.text,
-  labelAccent: REPORTS_FINTECH_ACCENT.sand,
+  labelAccent: REPORTS_CHART_MUTED_ACCENT.sand,
 } as const;
-
-/** Alias histórico — preferir REPORTS_CHART_PALETTE. */
-export const REPORTS_FINTECH = REPORTS_CHART_PALETTE;
 
 const P = REPORTS_CHART_PALETTE;
 
@@ -138,9 +135,6 @@ export function reportsChartSeriesColors(
   );
 }
 
-/** @deprecated Prefer reportsChartSeriesColors */
-export const reportsFintechSeriesColors = reportsChartSeriesColors;
-
 /** Tab General — todas las gráficas inician en color 1. */
 export const REPORTS_GENERAL_CHART_COLOR_OFFSET = {
   destinations: 0,
@@ -183,9 +177,6 @@ export function reportsChartFinancialColors(primary?: string): {
   };
 }
 
-/** @deprecated Prefer reportsChartFinancialColors */
-export const reportsFintechFinancialColors = reportsChartFinancialColors;
-
 export function reportsChartGaugeTone(pct: number, primary?: string): string {
   const sem = reportsChartSemanticColors(primary);
   if (pct >= 70) {
@@ -196,9 +187,6 @@ export function reportsChartGaugeTone(pct: number, primary?: string): string {
   }
   return sem.primary;
 }
-
-/** @deprecated Prefer reportsChartGaugeTone */
-export const reportsFintechGaugeTone = reportsChartGaugeTone;
 
 export function reportsChartVerticalGradient(top: string, bottom: string): {
   type: 'linear';
@@ -228,9 +216,6 @@ export function reportsChartPrimaryGradient(primary?: string): ReturnType<
   return reportsChartVerticalGradient(blue, rgbaFromHex(blue, 0.35));
 }
 
-/** @deprecated Prefer reportsChartPrimaryGradient */
-export const reportsFintechPrimaryGradient = reportsChartPrimaryGradient;
-
 export function reportsChartLegend(): {
   top: number;
   left: number;
@@ -247,8 +232,6 @@ export function reportsChartLegend(): {
   };
 }
 
-export const reportsFintechLegend = reportsChartLegend;
-
 export function reportsChartValueAxis(): {
   type: 'value';
   minInterval?: number;
@@ -261,8 +244,6 @@ export function reportsChartValueAxis(): {
     axisLabel: { color: P.axis, fontSize: 10 },
   };
 }
-
-export const reportsFintechValueAxis = reportsChartValueAxis;
 
 export function reportsChartActivityAreaPieces(
   maxTotal: number,
@@ -279,8 +260,6 @@ export function reportsChartActivityAreaPieces(
     { gt: maxTotal * 0.66, color: rgbaFromHex(sem.primary, 0.28) },
   ];
 }
-
-export const reportsFintechActivityAreaPieces = reportsChartActivityAreaPieces;
 
 export function reportsChartTooltip(): {
   confine: boolean;

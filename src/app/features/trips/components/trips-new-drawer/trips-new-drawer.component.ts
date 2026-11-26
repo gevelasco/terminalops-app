@@ -82,11 +82,18 @@ import {
   detectDestinationRateManualEdits,
 } from '@features/trips/utils/trips-new-drawer-destination-rate-suggestion.util';
 import {
+  deliveryMunicipalityLabel,
+  deliveryStateLabel,
   findClientDeliveryForRoute,
+  findClientDeliveryForScopedDestination,
   uniqueClientDeliveryPostalCodes,
+  validClientDeliveriesForScope,
 } from '@features/clients/utils/client-deliveries';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
+import {
+  normalizeDestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 import {
   Equipment,
   Operator,
@@ -105,6 +112,7 @@ import { OperationalCentersFeatureService } from '@features/clients/services/ope
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
 import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
+import { DestinationRateLocationFieldsComponent } from '@features/clients/components/destination-rate-location-fields/destination-rate-location-fields.component';
 import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
 import {
   destinationRateHasClientChargeForOperation,
@@ -120,7 +128,7 @@ import {
   formatFuelEstimateMoney,
   fuelEstimateInputsFingerprint,
 } from '@features/trips/utils/trips-fuel-estimate';
-import { isValidLatLon } from '@shared/services/lat-lon';
+import { isValidLatLon, latLonFromPrefill } from '@shared/services/lat-lon';
 import {
   LatLon,
   OsrmDrivingRouteService,
@@ -197,6 +205,7 @@ import type { TripDocumentKind } from '@shared/models/logistics.models';
     ToIconComponent,
     ToConfirmDialogComponent,
     OperationalCenterSelectComponent,
+    DestinationRateLocationFieldsComponent,
     ToDisplayFieldComponent,
     ToInputComponent,
     ToSelectComponent,
@@ -290,33 +299,74 @@ export class TripsNewDrawerComponent {
     rate: DestinationRate | null;
   } | null>(null);
 
-  /** Ruta candidata a tarifa; null mientras falte origen, CP o localidad de destino. */
+  readonly destinationRateScope = computed(() =>
+    normalizeDestinationRateScope(this.session.destinationRateScope()),
+  );
+
+  /** Ruta candidata a tarifa; null mientras falte origen o destino según política. */
   private readonly rateMatchContext = computed(() => {
     const originId = this.originOperationalCenterId().trim();
     const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
+    if (!rateOriginId) {
+      return null;
+    }
+    const scope = this.destinationRateScope();
     const cp = normalizeMxPostalCodeDigits(this.destinationCp());
     const destLocality = this.destinationLocalityName();
-    if (!rateOriginId || cp.length !== 5 || !destLocality) {
+    const municipalityName = this.destinationMunicipalityName().trim();
+    const stateName = this.destinationStateName().trim();
+    const cityMunicipality =
+      this.destinationCityMunicipality().trim() || this.destinationCityLine().trim();
+    if (scope === 'postal_code') {
+      if (cp.length !== 5 || !destLocality) {
+        return null;
+      }
+    } else if (scope === 'municipality') {
+      if (!municipalityName || !stateName) {
+        return null;
+      }
+    } else if (!stateName) {
       return null;
     }
     const clientId = this.clientId().trim();
     const client = clientId
       ? this.catalog.clients().find((c) => c.id === clientId)
       : undefined;
-    const clientRateId =
-      findClientDeliveryForRoute(client, cp, destLocality)?.destinationRateId?.trim() ??
-      '';
+    const linkedDelivery =
+      scope === 'postal_code'
+        ? findClientDeliveryForRoute(client, cp, destLocality)
+        : findClientDeliveryForScopedDestination(client, scope, {
+            municipalityName,
+            stateName,
+            cityMunicipality,
+          });
+    const clientRateId = linkedDelivery?.destinationRateId?.trim() ?? '';
     return {
       rateOriginId,
       cp,
       destLocality,
+      municipalityName,
+      stateName,
+      cityMunicipality,
       clientRateId,
-      key: destinationRateMatchKey(rateOriginId, cp, destLocality, clientRateId),
+      key: destinationRateMatchKey(
+        rateOriginId,
+        cp,
+        destLocality,
+        clientRateId,
+        municipalityName,
+        stateName,
+        scope,
+      ),
     };
   });
 
   /** Nombre de la localidad de destino seleccionada (para match de tarifa). */
   private readonly destinationLocalityName = computed(() => {
+    const scoped = this.destinationLocalityText().trim();
+    if (this.destinationRateScope() !== 'postal_code') {
+      return scoped || this.destinationMunicipalityName().trim();
+    }
     const key = this.destinationLocalityKey().trim();
     const rows = this.destinationSettlements();
     if (!key || rows.length === 0) {
@@ -324,6 +374,15 @@ export class TripsNewDrawerComponent {
     }
     const settlement = rows.find((r) => localityKey(r) === key);
     return settlement?.settlement.trim() ?? '';
+  });
+
+  private readonly destinationSelectedSettlement = computed(() => {
+    const key = this.destinationLocalityKey().trim();
+    const rows = this.destinationSettlements();
+    if (!key || rows.length === 0) {
+      return null;
+    }
+    return rows.find((r) => localityKey(r) === key) ?? null;
   });
 
   /** Sugerencia UX de fechas planificadas desde tiempos referenciales de tarifa. */
@@ -543,6 +602,12 @@ export class TripsNewDrawerComponent {
 
   readonly originCp = model('');
   readonly destinationCp = model('');
+  /** Scope municipio/estado: campos editables de destino. */
+  readonly destinationCityMunicipality = model('');
+  readonly destinationLocalityText = model('');
+  readonly destinationSettlementConsId = model('');
+  readonly destinationMunicipalityName = model('');
+  readonly destinationStateName = model('');
 
   readonly originSettlements = signal<MxPostalSettlement[]>([]);
   readonly destinationSettlements = signal<MxPostalSettlement[]>([]);
@@ -968,6 +1033,9 @@ export class TripsNewDrawerComponent {
               originOperationalCenterId: ctx.rateOriginId,
               postalCode: ctx.cp,
               locality: ctx.destLocality,
+              municipalityName: ctx.municipalityName,
+              stateName: ctx.stateName,
+              cityMunicipality: ctx.cityMunicipality,
               ...(ctx.clientRateId
                 ? { clientDestinationRateId: ctx.clientRateId }
                 : {}),
@@ -1193,10 +1261,30 @@ export class TripsNewDrawerComponent {
       if (preferred && isTripClientPaymentMethod(preferred)) {
         this.paymentMethod.set(preferred);
       }
-      const prefill = destinationPrefillFromClient(client);
+      const prefill = destinationPrefillFromClient(
+        client,
+        this.destinationRateScope(),
+      );
       if (prefill) {
         this.applyRouteEndpointPrefill('destination', prefill);
       }
+    });
+
+    /** Scope CP: sincroniza municipio/estado desde el asentamiento SEPOMex. */
+    effect(() => {
+      if (this.destinationRateScope() !== 'postal_code') {
+        return;
+      }
+      const settlement = this.destinationSelectedSettlement();
+      this.destinationMunicipalityName.set(settlement?.municipality?.trim() ?? '');
+      this.destinationStateName.set(settlement?.state?.trim() ?? '');
+      this.destinationCityMunicipality.set(
+        settlement ? cityMunicipalityLineFromSettlement(settlement) : '',
+      );
+      this.destinationLocalityText.set(settlement?.settlement?.trim() ?? '');
+      this.destinationSettlementConsId.set(
+        settlement?.settlementConsId?.trim() ?? '',
+      );
     });
 
     combineLatest([
@@ -1263,6 +1351,7 @@ export class TripsNewDrawerComponent {
       .subscribe();
 
     combineLatest([
+      toObservable(this.destinationRateScope),
       toObservable(this.destinationLocalityKey),
       toObservable(this.destinationSettlements),
       toObservable(this.destinationCp),
@@ -1270,16 +1359,17 @@ export class TripsNewDrawerComponent {
     ])
       .pipe(
         debounceTime(200),
-        map(([dKey, dRows, rawDcp, oKeyPeer]) => {
+        map(([scope, dKey, dRows, rawDcp, oKeyPeer]) => {
           const dCp = normalizeMxPostalCodeDigits(rawDcp);
           const dS =
             dKey && dRows.length > 0
               ? (dRows.find((r) => localityKey(r) === dKey) ?? null)
               : null;
-          return { dKey, dRows, dCp, dS, oKeyPeer };
+          return { scope, dKey, dRows, dCp, dS, oKeyPeer };
         }),
         distinctUntilChanged(
           (a, b) =>
+            a.scope === b.scope &&
             a.dKey === b.dKey &&
             a.dCp === b.dCp &&
             a.oKeyPeer === b.oKeyPeer &&
@@ -1287,7 +1377,10 @@ export class TripsNewDrawerComponent {
             a.dRows.map((r) => localityKey(r)).join('|') ===
               b.dRows.map((r) => localityKey(r)).join('|'),
         ),
-        tap(({ dS, dKey, dRows, dCp }) => {
+        tap(({ scope, dS, dKey, dRows, dCp }) => {
+          if (scope !== 'postal_code') {
+            return;
+          }
           const destGeoReady = !!(dKey && dS && dCp.length === 5);
           if (!destGeoReady) {
             if (!isValidLatLon(this.destinationCoords())) {
@@ -1304,8 +1397,8 @@ export class TripsNewDrawerComponent {
             this.destination.set('');
           }
         }),
-        switchMap(({ dS, dKey, dCp }) => {
-          if (!dKey || !dS || dCp.length !== 5) {
+        switchMap(({ scope, dS, dKey, dCp }) => {
+          if (scope !== 'postal_code' || !dKey || !dS || dCp.length !== 5) {
             return EMPTY;
           }
           if (this.shouldSkipExternalNormalization('destination', dCp)) {
@@ -1321,6 +1414,67 @@ export class TripsNewDrawerComponent {
               tap((ll) => this.applyPhotonCoords('destination', ll)),
             );
         }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+
+    /** Geocode destino cuando la política es municipio/estado. */
+    combineLatest([
+      toObservable(this.destinationRateScope),
+      toObservable(this.destinationMunicipalityName),
+      toObservable(this.destinationStateName),
+      toObservable(this.destinationLocalityText),
+      toObservable(this.destinationCityMunicipality),
+    ])
+      .pipe(
+        debounceTime(350),
+        switchMap(
+          ([scope, municipalityName, stateName, locality, cityMunicipality]) => {
+            if (scope === 'postal_code') {
+              return EMPTY;
+            }
+            const state = String(stateName).trim();
+            const municipality =
+              scope === 'municipality' ? String(municipalityName).trim() : '';
+            if (!state || (scope === 'municipality' && !municipality)) {
+              this.destinationCoords.set(null);
+              this.destination.set('');
+              this.applyRouteKm(null);
+              return EMPTY;
+            }
+            const label =
+              scope === 'state'
+                ? state
+                : [municipality, state].filter(Boolean).join(', ');
+            this.destination.set(label);
+            if (this.destinationCompletePrefillFingerprint()) {
+              const coords = this.destinationCoords();
+              if (isValidLatLon(coords)) {
+                return EMPTY;
+              }
+            }
+            const hints = {
+              state,
+              municipality,
+              settlement: String(locality).trim(),
+            };
+            const query = [municipality, state, 'México']
+              .filter(Boolean)
+              .join(', ');
+            return this.photon
+              .firstCoordinatesForMexicanSepomex(query, hints)
+              .pipe(
+                tap((ll) => {
+                  if (ll) {
+                    this.applyPhotonCoords('destination', ll);
+                  } else {
+                    this.destinationCoords.set(null);
+                    this.destinationGeocodeFailed.set(true);
+                  }
+                }),
+              );
+          },
+        ),
         takeUntilDestroyed(),
       )
       .subscribe();
@@ -1456,6 +1610,9 @@ export class TripsNewDrawerComponent {
       const clientId = this.clientId().trim();
       const cp = normalizeMxPostalCodeDigits(this.destinationCp());
       const destLocality = this.destinationLocalityName();
+      const municipalityName = this.destinationMunicipalityName();
+      const stateName = this.destinationStateName();
+      const scope = normalizeDestinationRateScope(this.session.destinationRateScope());
       const op = this.operationType();
       const billing = this.includeClientBilling();
       const fp = destinationRateSuggestionInputFingerprint(
@@ -1464,6 +1621,9 @@ export class TripsNewDrawerComponent {
         destLocality,
         op,
         billing,
+        municipalityName,
+        stateName,
+        scope,
       );
 
       if (fp !== this.lastDestinationRateInputFp) {
@@ -1488,13 +1648,16 @@ export class TripsNewDrawerComponent {
         cp,
         destLocality,
         rate?.id ?? '',
+        municipalityName,
+        stateName,
+        scope,
       );
       if (scheduleContextFp !== this.lastPlannedScheduleContextFp) {
         this.lastPlannedScheduleContextFp = scheduleContextFp;
         this.resetPlannedScheduleSuggestionForContextChange();
       }
 
-      if (!rateOriginId || cp.length !== 5 || !destLocality) {
+      if (!matchCtx) {
         this.destinationRateMatched.set(false);
         this.destinationRateChargeRecognized.set(false);
         this.matchedDestinationRateId.set(null);
@@ -1897,6 +2060,14 @@ export class TripsNewDrawerComponent {
     side: 'origin' | 'destination',
     prefill: TripRouteEndpointPrefill,
   ): void {
+    if (
+      side === 'destination' &&
+      this.destinationRateScope() !== 'postal_code'
+    ) {
+      this.applyScopedDestinationPrefill(prefill);
+      return;
+    }
+
     const built = buildRouteEndpointPrefillResult(prefill);
     if (!built) {
       return;
@@ -1953,7 +2124,66 @@ export class TripsNewDrawerComponent {
         this.destination.set(routeLabel);
       }
       this.destinationCp.set(built.postalCode);
+      if (prefill.municipalityName != null) {
+        this.destinationMunicipalityName.set(prefill.municipalityName);
+      }
+      if (prefill.stateName != null) {
+        this.destinationStateName.set(prefill.stateName);
+      }
+      if (prefill.cityMunicipality != null) {
+        this.destinationCityMunicipality.set(prefill.cityMunicipality);
+      }
+      if (prefill.locality != null) {
+        this.destinationLocalityText.set(prefill.locality);
+      }
+      if (prefill.settlementConsId != null) {
+        this.destinationSettlementConsId.set(prefill.settlementConsId);
+      }
     }
+  }
+
+  private applyScopedDestinationPrefill(
+    prefill: TripRouteEndpointPrefill,
+  ): void {
+    const stateName = prefill.stateName?.trim() || '';
+    const municipalityName = prefill.municipalityName?.trim() || '';
+    const cityMunicipality =
+      prefill.cityMunicipality?.trim() ||
+      (this.destinationRateScope() === 'state'
+        ? stateName
+        : [municipalityName, stateName].filter(Boolean).join(', '));
+    this.destinationCp.set(
+      normalizeMxPostalCodeDigits(prefill.postalCode).length === 5
+        ? normalizeMxPostalCodeDigits(prefill.postalCode)
+        : '',
+    );
+    this.destinationMunicipalityName.set(municipalityName);
+    this.destinationStateName.set(stateName);
+    this.destinationCityMunicipality.set(cityMunicipality);
+    this.destinationLocalityText.set(prefill.locality?.trim() || municipalityName);
+    this.destinationSettlementConsId.set(prefill.settlementConsId?.trim() || '');
+    this.destination.set(cityMunicipality || stateName);
+    const coords = latLonFromPrefill(prefill.latitude, prefill.longitude);
+    if (coords) {
+      this.destinationCoords.set(coords);
+      this.destinationGeocodeFailed.set(false);
+      this.destinationCompletePrefillFingerprint.set(
+        `${cityMunicipality}|${coords.lat}|${coords.lon}`,
+      );
+    } else {
+      this.destinationCompletePrefillFingerprint.set(null);
+    }
+  }
+
+  onScopedDestinationRouteReset(): void {
+    this.destinationCoords.set(null);
+    this.destinationCompletePrefillFingerprint.set(null);
+    this.destinationGeocodeFailed.set(false);
+    this.applyRouteKm(null);
+    this.routeLoading.set(false);
+    this.routeFailed.set(false);
+    this.matchedDestinationRateId.set(null);
+    this.destinationRateMatched.set(false);
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -2418,6 +2648,11 @@ export class TripsNewDrawerComponent {
       destinationSettlements: this.destinationSettlements(),
       originLocalityKey: this.originLocalityKey(),
       destinationLocalityKey: this.destinationLocalityKey(),
+      destinationRateScope: this.destinationRateScope(),
+      destinationMunicipalityName: this.destinationMunicipalityName(),
+      destinationStateName: this.destinationStateName(),
+      destinationCityMunicipality: this.destinationCityMunicipality(),
+      destinationLocalityName: this.destinationLocalityName(),
       origin: this.origin(),
       destination: this.destination(),
       includeClientBilling: this.includeClientBilling(),

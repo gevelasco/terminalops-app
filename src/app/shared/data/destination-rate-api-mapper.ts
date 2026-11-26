@@ -18,16 +18,6 @@ function parseRateAmount(raw: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseExcludedTollPlazaKeys(raw: unknown): string[] | undefined {
-  if (!Array.isArray(raw)) {
-    return undefined;
-  }
-  const keys = raw
-    .map((v) => String(v ?? '').trim())
-    .filter((k) => k.length > 0);
-  return keys.length > 0 ? keys : [];
-}
-
 function parseOptionalNumber(raw: unknown): number | undefined {
   if (raw == null || raw === '') {
     return undefined;
@@ -79,6 +69,15 @@ export function mapApiDestinationRate(row: Record<string, unknown>): Destination
     postalCode: String(row['postalCode'] ?? '').trim(),
     cityMunicipality: String(row['cityMunicipality'] ?? '').trim(),
     locality: String(row['locality'] ?? '').trim(),
+    destinationScope: (() => {
+      const s = String(row['destinationScope'] ?? '').trim();
+      return s === 'municipality' || s === 'state' || s === 'postal_code'
+        ? s
+        : undefined;
+    })(),
+    routeKeyIncomplete: row['routeKeyIncomplete'] === true,
+    municipalityName: String(row['municipalityName'] ?? '').trim() || undefined,
+    stateName: String(row['stateName'] ?? '').trim() || undefined,
     destinationLatitude: parseOptionalNumber(row['destinationLatitude']),
     destinationLongitude: parseOptionalNumber(row['destinationLongitude']),
     routeDistanceKm: parseOptionalNumber(row['routeDistanceKm']),
@@ -89,7 +88,6 @@ export function mapApiDestinationRate(row: Record<string, unknown>): Destination
       : undefined,
     estimatedArrivalTimeValue: parseOptionalNumber(row['estimatedArrivalTimeValue']),
     estimatedReturnTimeValue: parseOptionalNumber(row['estimatedReturnTimeValue']),
-    excludedTollPlazaKeys: parseExcludedTollPlazaKeys(row['excludedTollPlazaKeys']),
     routeWaypoints: parseRouteWaypointsFromApi(row['routeWaypoints']),
     routeTollPlazas: parseRouteTollPlazasFromApi(row),
     maneuverCount:

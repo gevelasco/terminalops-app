@@ -13,6 +13,7 @@ import type {
   DestinationRateRouteTollPlaza,
 } from '@shared/models/destination-rate.models';
 import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
+import { formatMoneyInputValue } from '@shared/utils/format-grouped-number';
 
 export function parseRateMoneyInput(raw: string): number | undefined {
   const t = raw.trim().replace(/[^\d.-]/g, '');
@@ -59,10 +60,10 @@ export function fillEmptyRateMoneyFields(
     ok: true,
     row: {
       ...row,
-      clientCharge: String(clientCharge),
-      operatorPaymentEstimate: String(operatorPaymentEstimate),
-      estimatedTollAmount: String(estimatedTollAmount),
-      perDiemAmount: String(perDiemAmount),
+      clientCharge: formatMoneyInputValue(clientCharge),
+      operatorPaymentEstimate: formatMoneyInputValue(operatorPaymentEstimate),
+      estimatedTollAmount: formatMoneyInputValue(estimatedTollAmount),
+      perDiemAmount: formatMoneyInputValue(perDiemAmount),
     },
   };
 }
@@ -121,12 +122,12 @@ export function priceDraftsFromRate(rate: DestinationRate): DestinationRatePrice
     rowKey: p.id,
     operationConfigurationId: p.operationConfigurationId,
     operationConfigurationName: p.operationConfigurationName ?? '',
-    clientCharge: String(p.clientCharge),
-    operatorPaymentEstimate: String(p.operatorPaymentEstimate),
-    estimatedTollAmount: String(p.estimatedTollAmount),
+    clientCharge: formatMoneyInputValue(p.clientCharge),
+    operatorPaymentEstimate: formatMoneyInputValue(p.operatorPaymentEstimate),
+    estimatedTollAmount: formatMoneyInputValue(p.estimatedTollAmount),
     axleCount:
       p.axleCount != null && p.axleCount >= 2 ? String(Math.round(p.axleCount)) : '5',
-    perDiemAmount: String(p.perDiemAmount ?? 0),
+    perDiemAmount: formatMoneyInputValue(p.perDiemAmount ?? 0),
     notes: p.notes ?? '',
   }));
 }
@@ -148,6 +149,9 @@ export function validateDestinationRateForm(params: {
   postalCode: string;
   cityMunicipality: string;
   locality: string;
+  municipalityName?: string;
+  stateName?: string;
+  scope?: 'postal_code' | 'municipality' | 'state';
   priceDrafts: readonly DestinationRatePriceDraft[];
   estimatedArrivalTimeValue?: string;
   estimatedReturnTimeValue?: string;
@@ -155,15 +159,24 @@ export function validateDestinationRateForm(params: {
   if (!params.originOperationalCenterId.trim()) {
     return 'Selecciona el centro operativo de origen.';
   }
-  const cp = normalizeMxPostalCodeDigits(params.postalCode);
-  if (cp.length !== 5) {
-    return 'El código postal debe tener 5 dígitos.';
-  }
-  if (!params.locality.trim()) {
-    return 'Selecciona o confirma la localidad del destino.';
-  }
-  if (!params.cityMunicipality.trim()) {
-    return 'La ciudad o municipio es obligatoria.';
+  const scope = params.scope ?? 'postal_code';
+  if (scope === 'postal_code') {
+    const cp = normalizeMxPostalCodeDigits(params.postalCode);
+    if (cp.length !== 5) {
+      return 'El código postal debe tener 5 dígitos.';
+    }
+    if (!params.locality.trim()) {
+      return 'Selecciona o confirma la localidad del destino.';
+    }
+    if (!params.cityMunicipality.trim()) {
+      return 'La ciudad o municipio es obligatoria.';
+    }
+  } else if (scope === 'municipality') {
+    if (!(params.municipalityName ?? '').trim() || !(params.stateName ?? '').trim()) {
+      return 'Indica municipio y estado del destino.';
+    }
+  } else if (!(params.stateName ?? '').trim()) {
+    return 'Indica el estado del destino.';
   }
   const priceDrafts = destinationRatePriceDraftsForSave(params.priceDrafts);
   if (priceDrafts.length === 0) {
@@ -255,6 +268,8 @@ export function buildCreateDestinationRatePayload(params: {
   postalCode: string;
   cityMunicipality: string;
   locality: string;
+  municipalityName?: string;
+  stateName?: string;
   priceDrafts: readonly DestinationRatePriceDraft[];
   routeDistanceKm?: number | null;
   destinationLatitude?: number | null;
@@ -264,18 +279,26 @@ export function buildCreateDestinationRatePayload(params: {
   estimatedArrivalTimeValue?: string;
   estimatedReturnTimeValue?: string;
   forUpdate?: boolean;
-  excludedTollPlazaKeys?: string[];
   routeWaypoints?: readonly DestinationRateRouteWaypoint[];
   routeTollPlazas?: readonly DestinationRateRouteTollPlaza[];
 }): CreateDestinationRatePayload {
+  const municipalityName = (params.municipalityName ?? '').trim();
+  const stateName = (params.stateName ?? '').trim();
+  const cityMunicipality =
+    params.cityMunicipality.trim() ||
+    [municipalityName, stateName].filter(Boolean).join(', ') ||
+    stateName;
+  const postal = normalizeMxPostalCodeDigits(params.postalCode);
   const base: CreateDestinationRatePayload = {
     originOperationalCenterId: params.originOperationalCenterId.trim(),
-    postalCode: normalizeMxPostalCodeDigits(params.postalCode),
-    cityMunicipality: params.cityMunicipality.trim(),
+    ...(postal.length === 5 ? { postalCode: postal } : { postalCode: '' }),
+    cityMunicipality,
     locality: params.locality.trim(),
+    ...(municipalityName ? { municipalityName } : {}),
+    ...(stateName ? { stateName } : {}),
     prices: buildDestinationRatePricesPayload(params.priceDrafts),
     ...(params.routeDistanceKm != null && params.routeDistanceKm > 0
-      ? { routeDistanceKm: params.routeDistanceKm, isRoundTrip: true }
+      ? { routeDistanceKm: params.routeDistanceKm }
       : {}),
     ...(params.destinationLatitude != null && params.destinationLongitude != null
       ? {
@@ -285,9 +308,6 @@ export function buildCreateDestinationRatePayload(params: {
       : {}),
     active: params.active,
     notes: params.notes?.trim() || undefined,
-    ...(params.excludedTollPlazaKeys != null
-      ? { excludedTollPlazaKeys: params.excludedTollPlazaKeys }
-      : {}),
     ...(params.routeWaypoints !== undefined
       ? { routeWaypoints: routeWaypointsPersistPayload(params.routeWaypoints) }
       : {}),

@@ -29,6 +29,13 @@ import {
   type CompanyMaintenancePolicyMode,
   type MaintenanceDatePeriod,
 } from '@shared/models/company-operational-settings.models';
+import {
+  destinationRateScopeHelp,
+  destinationRateScopeLabel,
+  isDestinationRateScopeCoarsening,
+  normalizeDestinationRateScope,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 import { TRIP_AUTO_EXPENSE_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/expense-form-options';
 import {
   DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL,
@@ -46,7 +53,11 @@ import {
 } from '@shared/ui/to-segment-control/to-segment-control.component';
 import { ProfileDrawerOperationTabComponent } from './profile-drawer-operation-tab.component';
 
-type DisableConfirmKind = 'maintenance' | 'diesel';
+type DisableConfirmKind =
+  | 'maintenance'
+  | 'diesel'
+  | 'rate-policy-coarsen'
+  | 'rate-policy-refine';
 
 @Component({
   selector: 'app-profile-drawer-config-tab',
@@ -87,6 +98,11 @@ export class ProfileDrawerConfigTabComponent {
       { id: 'km', label: 'Por km' },
       { id: 'date', label: 'Por fechas' },
     ];
+  readonly ratePolicyTabs: readonly ToSegmentTab<DestinationRateScope>[] = [
+    { id: 'postal_code', label: 'Por Código Postal' },
+    { id: 'municipality', label: 'Por Municipios' },
+    { id: 'state', label: 'Por Estados' },
+  ];
   readonly saving = signal(false);
 
   readonly canUseDieselAutomatic = this.planEntitlements.canUseDieselAutomatic;
@@ -113,6 +129,7 @@ export class ProfileDrawerConfigTabComponent {
   readonly draftOperationalControlLabel = model('');
   readonly draftDieselControlEnabled = model(true);
   readonly draftPaymentReminderDays = model(String(PAYMENT_REMINDER_DAYS_DEFAULT));
+  readonly draftDestinationRateScope = model<DestinationRateScope>('postal_code');
 
   readonly defaultOperationalControlLabel = DEFAULT_OPERATIONAL_CONTROL_EXPENSE_LABEL;
   readonly operationalControlLabelMax = OPERATIONAL_CONTROL_EXPENSE_LABEL_MAX;
@@ -122,6 +139,11 @@ export class ProfileDrawerConfigTabComponent {
 
   readonly pendingDisableKind = signal<DisableConfirmKind | null>(null);
   private pendingMaintenanceMode = signal<CompanyMaintenancePolicyMode | null>(null);
+  private pendingRateScope = signal<DestinationRateScope | null>(null);
+  readonly pendingRateScopeLabel = computed(() => {
+    const scope = this.pendingRateScope();
+    return scope ? destinationRateScopeLabel(scope) : '';
+  });
   private readonly disableConfirmDialog = viewChild<ElementRef<HTMLDialogElement>>(
     'disableConfirmDialog',
   );
@@ -180,6 +202,28 @@ export class ProfileDrawerConfigTabComponent {
     return this.controlStatusLabel(true, this.session.tripAutoPaymentsChangedAt());
   }
 
+  ratePolicyStatusLabel(): string {
+    return destinationRateScopeLabel(this.draftDestinationRateScope());
+  }
+
+  ratePolicyHelpText(): string {
+    return destinationRateScopeHelp(this.draftDestinationRateScope());
+  }
+
+  onDestinationRateScopeSelect(scope: DestinationRateScope): void {
+    const current = this.draftDestinationRateScope();
+    if (scope === current) {
+      return;
+    }
+    this.pendingRateScope.set(scope);
+    this.pendingDisableKind.set(
+      isDestinationRateScopeCoarsening(current, scope)
+        ? 'rate-policy-coarsen'
+        : 'rate-policy-refine',
+    );
+    queueMicrotask(() => this.disableConfirmDialog()?.nativeElement.showModal());
+  }
+
   onMaintenancePolicySelect(mode: CompanyMaintenancePolicyMode): void {
     if (mode === this.draftMaintenanceMode()) {
       return;
@@ -217,6 +261,7 @@ export class ProfileDrawerConfigTabComponent {
   closeDisableConfirm(): void {
     this.pendingDisableKind.set(null);
     this.pendingMaintenanceMode.set(null);
+    this.pendingRateScope.set(null);
     this.disableConfirmDialog()?.nativeElement.close();
   }
 
@@ -229,6 +274,11 @@ export class ProfileDrawerConfigTabComponent {
       }
     } else if (kind === 'diesel') {
       this.draftDieselControlEnabled.set(false);
+    } else if (kind === 'rate-policy-coarsen' || kind === 'rate-policy-refine') {
+      const scope = this.pendingRateScope();
+      if (scope) {
+        this.draftDestinationRateScope.set(scope);
+      }
     }
     this.closeDisableConfirm();
   }
@@ -420,6 +470,14 @@ export class ProfileDrawerConfigTabComponent {
       patch.tripAutoOperationalControlLabel = draftControlLabel;
     }
 
+    const savedRateScope = normalizeDestinationRateScope(
+      this.session.destinationRateScope(),
+    );
+    const draftRateScope = this.draftDestinationRateScope();
+    if (draftRateScope !== savedRateScope) {
+      patch.destinationRateScope = draftRateScope;
+    }
+
     const mode = this.draftMaintenanceMode();
     const savedMode = companyMaintenancePolicyModeFromSession({
       maintenanceKmControlEnabled: this.session.maintenanceKmControlEnabled(),
@@ -508,6 +566,9 @@ export class ProfileDrawerConfigTabComponent {
     this.draftControlPaymentMethod.set(this.session.tripAutoControlPaymentMethod());
     this.draftOperationalControlLabel.set(
       this.session.tripAutoOperationalControlLabel() ?? '',
+    );
+    this.draftDestinationRateScope.set(
+      normalizeDestinationRateScope(this.session.destinationRateScope()),
     );
   }
 

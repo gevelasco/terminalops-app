@@ -45,7 +45,7 @@ export function resolveMaintenanceContext(
   };
 }
 
-/** Meta efectiva para cálculos (intervalo km y modo alerta). */
+/** Meta de flota para cálculos de mantenimiento (sin campos espejo de política). */
 export function effectiveFleetMetaForMaintenance(
   meta: FleetMaintenanceMeta,
   policy: CompanyMaintenancePolicy,
@@ -53,10 +53,5 @@ export function effectiveFleetMetaForMaintenance(
   if (!meta && !policy.kmControlEnabled && !policy.dateControlEnabled) {
     return undefined;
   }
-  const ctx = resolveMaintenanceContext(meta, policy);
-  return {
-    ...(meta ?? {}),
-    maintenanceAlertByKm: ctx.alertByKm,
-    ...(ctx.kmInterval != null ? { maintenanceKmInterval: ctx.kmInterval } : {}),
-  };
+  return meta ?? {};
 }

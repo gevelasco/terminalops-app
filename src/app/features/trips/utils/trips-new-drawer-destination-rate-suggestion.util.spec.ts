@@ -12,17 +12,17 @@ import { formatFuelEstimateMoney } from '@features/trips/utils/trips-fuel-estima
 describe('trips-new-drawer-destination-rate-suggestion.util', () => {
   it('builds stable fingerprints', () => {
     expect(destinationRateMatchKey('o1', '01000', 'Polanco', 'r1')).toBe(
-      'o1|01000|Polanco|r1',
+      'postal_code|o1|01000|Polanco|||r1',
     );
     expect(
       destinationRateSuggestionInputFingerprint('o1', '01000', 'Polanco', 'full', true),
-    ).toBe('o1|01000|Polanco|full|1');
+    ).toBe('postal_code|o1|01000|Polanco|||full|1');
     expect(
       destinationRateSuggestionInputFingerprint('o1', '01000', 'Polanco', 'full', false),
-    ).toBe('o1|01000|Polanco|full|0');
+    ).toBe('postal_code|o1|01000|Polanco|||full|0');
     expect(
       destinationRatePlannedScheduleContextFingerprint('o1', 'c1', '01000', 'Polanco', 'r9'),
-    ).toBe('o1|c1|01000|Polanco|r9');
+    ).toBe('postal_code|o1|c1|01000|Polanco|||r9');
   });
 
   it('detects manual edits against last auto values', () => {

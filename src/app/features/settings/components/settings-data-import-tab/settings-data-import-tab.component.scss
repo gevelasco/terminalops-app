@@ -281,22 +281,6 @@
   color: var(--to-color-text);
 }
 
-.settings-data-import-tab__example {
-  font-size: 0.75rem;
-
-  summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--to-color-text);
-  }
-}
-
-.settings-data-import-tab__example-hint {
-  margin: 0.35rem 0 0.5rem;
-  line-height: 1.45;
-  color: var(--to-color-text-muted);
-}
-
 .settings-data-import-tab__import-report {
   margin-top: 0.5rem;
   padding: 0.65rem 0.75rem;
@@ -556,22 +540,6 @@
   border-radius: var(--to-radius-md, 8px);
 }
 
-.settings-data-import-tab__table-wrap--example {
-  max-height: none;
-}
-
-.settings-data-import-tab__example-scenario {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  min-width: 7.5rem;
-  font-weight: 600;
-  font-size: 0.72rem;
-  white-space: normal;
-  background: var(--to-color-surface);
-  box-shadow: 1px 0 0 var(--to-color-border);
-}
-
 .settings-data-import-tab__table {
   width: 100%;
   border-collapse: collapse;
@@ -625,6 +593,12 @@
   code {
     font-size: 0.72rem;
   }
+}
+
+.settings-data-import-tab__columns-hint {
+  margin: 0.35rem 0 0;
+  line-height: 1.45;
+  color: var(--to-color-text-muted);
 }
 
 .settings-data-import-tab__col-hint {

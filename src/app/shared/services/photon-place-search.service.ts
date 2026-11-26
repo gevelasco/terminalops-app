@@ -48,7 +48,7 @@ export class PhotonPlaceSearchService {
 
   /**
    * Municipio y estado aproximados por coordenada (OSM vía Photon).
-   * Caché en memoria por sesión; no usa INEGI.
+   * Caché en memoria por sesión.
    */
   reverseMexicanAdminLabels(
     lat: number,

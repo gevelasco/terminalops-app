@@ -47,6 +47,7 @@ import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
 import type { Client } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
@@ -427,8 +428,15 @@ export class ClientsPageComponent implements OnInit {
       }
 
       const stateById = buildDestinationRateStateById(filtered, geo);
-      const rows = buildDestinationRateCatalogExportRows(filtered, stateById);
-      const csv = buildDestinationRatesCatalogCsv(rows);
+      const rateScope = normalizeDestinationRateScope(
+        this.session.destinationRateScope(),
+      );
+      const rows = buildDestinationRateCatalogExportRows(
+        filtered,
+        stateById,
+        rateScope,
+      );
+      const csv = buildDestinationRatesCatalogCsv(rows, rateScope);
       const stamp = new Date().toISOString().slice(0, 10);
       downloadDestinationRatesCatalogCsv(csv, `tarifas_catalogo_${stamp}.csv`);
       this.toast.show(`Exportadas ${rows.length} filas de tarifas.`, 'success');

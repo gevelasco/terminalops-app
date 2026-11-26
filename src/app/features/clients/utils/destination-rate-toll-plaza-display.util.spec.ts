@@ -1,29 +1,19 @@
 import { formatTollPlazaListLabel } from './destination-rate-toll-plaza-display.util';
 
 describe('formatTollPlazaListLabel', () => {
-  it('formats full peaje label', () => {
+  it('formats name and section', () => {
     expect(
       formatTollPlazaListLabel({
-        name: 'Acaponeta',
-        municipality: 'Acaponeta',
-        state: 'Nayarit',
+        name: 'Cuyutlán',
+        section: 'Armería - Manzanillo',
       }),
-    ).toBe('Peaje Acaponeta, Acaponeta, Nayarit');
+    ).toBe('Cuyutlán, Armería - Manzanillo');
   });
 
-  it('infers municipality from plaza name when missing', () => {
-    expect(
-      formatTollPlazaListLabel({ name: 'Chapala', state: 'Jalisco' }),
-    ).toBe('Peaje Chapala, Chapala, Jalisco');
-  });
-
-  it('omits missing municipality or state', () => {
-    expect(
-      formatTollPlazaListLabel({
-        name: 'Toluca - Atlacomulco',
-        state: 'México',
-      }),
-    ).toBe('Peaje Toluca - Atlacomulco, México');
-    expect(formatTollPlazaListLabel({ name: 'Sayula' })).toBe('Peaje Sayula');
+  it('omits empty section', () => {
+    expect(formatTollPlazaListLabel({ name: 'Sayula' })).toBe('Sayula');
+    expect(formatTollPlazaListLabel({ name: 'Sayula', section: '  ' })).toBe(
+      'Sayula',
+    );
   });
 });

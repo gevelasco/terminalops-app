@@ -19,11 +19,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { EChartsType } from 'echarts/core';
-import type { RouteTollPlazaRow } from '@core/services/api/routing';
-import type { RouteTollsQuery } from '@core/services/api/routing';
+import type { RouteTollContext, RouteTollPlazaRow } from '@core/services/api/routing';
 
 type DestinationRateRouteTollContext = Pick<
-  RouteTollsQuery,
+  RouteTollContext,
   | 'originLat'
   | 'originLon'
   | 'destinationLat'

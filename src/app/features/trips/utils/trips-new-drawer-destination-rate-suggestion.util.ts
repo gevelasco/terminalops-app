@@ -10,14 +10,17 @@ import { stripGroupedNumberInput } from '@features/trips/utils/parse-non-negativ
 
 export type DestinationRateSuggestionUi = 'none' | 'auto' | 'manual';
 
-/** Clave del match remoto de tarifa (origen + CP + localidad + tarifa del cliente). */
+/** Clave del match remoto de tarifa (origen + ruta por scope + tarifa del cliente). */
 export function destinationRateMatchKey(
   rateOriginId: string,
   cp: string,
   destLocality: string,
   clientRateId: string,
+  municipalityName = '',
+  stateName = '',
+  scope = 'postal_code',
 ): string {
-  return `${rateOriginId}|${cp}|${destLocality}|${clientRateId}`;
+  return `${scope}|${rateOriginId}|${cp}|${destLocality}|${municipalityName}|${stateName}|${clientRateId}`;
 }
 
 /** Huella de inputs que invalidan el lock de sugerencia monetaria. */
@@ -27,8 +30,11 @@ export function destinationRateSuggestionInputFingerprint(
   destLocality: string,
   operationType: string,
   includeBilling: boolean,
+  municipalityName = '',
+  stateName = '',
+  scope = 'postal_code',
 ): string {
-  return `${originId}|${cp}|${destLocality}|${operationType}|${includeBilling ? '1' : '0'}`;
+  return `${scope}|${originId}|${cp}|${destLocality}|${municipalityName}|${stateName}|${operationType}|${includeBilling ? '1' : '0'}`;
 }
 
 /** Huella de contexto que resetea sugerencias de fechas planificadas. */
@@ -38,8 +44,11 @@ export function destinationRatePlannedScheduleContextFingerprint(
   cp: string,
   destLocality: string,
   rateId: string,
+  municipalityName = '',
+  stateName = '',
+  scope = 'postal_code',
 ): string {
-  return `${originId}|${clientId}|${cp}|${destLocality}|${rateId}`;
+  return `${scope}|${originId}|${clientId}|${cp}|${destLocality}|${municipalityName}|${stateName}|${rateId}`;
 }
 
 export function autoAssistValueMatches(current: string, lastAuto: string): boolean {

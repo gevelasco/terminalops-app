@@ -1,3 +1,7 @@
+import type { DestinationRateScope } from '@shared/models/destination-rate-scope';
+
+export type { DestinationRateScope } from '@shared/models/destination-rate-scope';
+
 /** Periodo estándar para próximo mantenimiento por calendario (empresa). */
 export type MaintenanceDatePeriod = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
@@ -43,6 +47,8 @@ export interface CompanyOperationalSettings extends CompanyOperationalCenter {
   maintenanceDateControlEnabled: boolean;
   maintenanceDatePeriodDefault?: MaintenanceDatePeriod;
   maintenanceDateControlChangedAt?: string;
+  /** Granularidad comercial de tarifas por destino. */
+  destinationRateScope: DestinationRateScope;
 }
 
 export const PAYMENT_REMINDER_DAYS_MIN = 1;

@@ -30,6 +30,10 @@ import {
   stripGroupedNumberInput,
 } from '@features/trips/utils/parse-non-negative';
 import type { MxPostalSettlement } from '@shared/services/mexico-postal-code.service';
+import {
+  normalizeDestinationRateScope,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 
 export function parseTripsNewDrawerCreditDays(raw: string): number {
   const t = raw.trim();
@@ -104,6 +108,11 @@ export type TripsNewDrawerSubmitSnapshot = {
   destinationSettlements: readonly MxPostalSettlement[];
   originLocalityKey: string;
   destinationLocalityKey: string;
+  destinationRateScope?: DestinationRateScope | string | null;
+  destinationMunicipalityName?: string;
+  destinationStateName?: string;
+  destinationCityMunicipality?: string;
+  destinationLocalityName?: string;
   origin: string;
   destination: string;
   includeClientBilling: boolean;
@@ -163,35 +172,68 @@ export function buildTripsNewDrawerSubmitResult(
   snap: TripsNewDrawerSubmitSnapshot,
   nowMs = Date.now(),
 ): TripsNewDrawerSubmitResult {
+  const scope = normalizeDestinationRateScope(snap.destinationRateScope);
   const oCp = normalizeMxPostalCodeDigits(snap.originCp);
   const dCp = normalizeMxPostalCodeDigits(snap.destinationCp);
-  if (oCp.length !== 5 || dCp.length !== 5) {
+  if (oCp.length !== 5) {
     return {
       ok: false,
-      message:
-        'Indica códigos postales de origen y destino (5 dígitos, solo México).',
+      message: 'Indica el código postal de origen (5 dígitos, solo México).',
     };
   }
-  if (
-    snap.originSettlements.length === 0 ||
-    snap.destinationSettlements.length === 0
-  ) {
+  if (scope === 'postal_code' && dCp.length !== 5) {
+    return {
+      ok: false,
+      message: 'Indica el código postal de destino (5 dígitos, solo México).',
+    };
+  }
+  if (snap.originSettlements.length === 0) {
     return {
       ok: false,
       message:
-        'No hay datos SEPOMex para uno de los códigos postales; revisa e intenta de nuevo.',
+        'No hay datos SEPOMex para el código postal de origen; revisa e intenta de nuevo.',
+    };
+  }
+  if (scope === 'postal_code' && snap.destinationSettlements.length === 0) {
+    return {
+      ok: false,
+      message:
+        'No hay datos SEPOMex para el código postal de destino; revisa e intenta de nuevo.',
     };
   }
   const okO = snap.originSettlements.some(
     (r) => localityKey(r) === snap.originLocalityKey,
   );
-  const okD = snap.destinationSettlements.some(
-    (r) => localityKey(r) === snap.destinationLocalityKey,
-  );
-  if (!okO || !okD) {
+  if (!okO) {
     return {
       ok: false,
-      message: 'Selecciona la localidad de origen y la de destino.',
+      message: 'Selecciona la localidad de origen.',
+    };
+  }
+  if (scope === 'postal_code') {
+    const okD = snap.destinationSettlements.some(
+      (r) => localityKey(r) === snap.destinationLocalityKey,
+    );
+    if (!okD) {
+      return {
+        ok: false,
+        message: 'Selecciona la localidad de destino.',
+      };
+    }
+  } else if (scope === 'municipality') {
+    if (
+      !(snap.destinationMunicipalityName ?? '').trim() ||
+      !(snap.destinationStateName ?? '').trim()
+    ) {
+      return {
+        ok: false,
+        message: 'Indica municipio y estado de destino.',
+      };
+    }
+  } else if (!(snap.destinationStateName ?? '').trim()) {
+    return {
+      ok: false,
+      message: 'Indica el estado de destino.',
     };
   }
 
@@ -199,11 +241,16 @@ export function buildTripsNewDrawerSubmitResult(
   const dKey = snap.destinationLocalityKey.trim();
   const oS = snap.originSettlements.find((r) => localityKey(r) === oKey) ?? null;
   const dS =
-    snap.destinationSettlements.find((r) => localityKey(r) === dKey) ?? null;
-  if (!oS || !dS) {
+    scope === 'postal_code'
+      ? (snap.destinationSettlements.find((r) => localityKey(r) === dKey) ?? null)
+      : null;
+  if (!oS || (scope === 'postal_code' && !dS)) {
     return {
       ok: false,
-      message: 'Selecciona la localidad de origen y la de destino.',
+      message:
+        scope === 'postal_code'
+          ? 'Selecciona la localidad de origen y la de destino.'
+          : 'Selecciona la localidad de origen.',
     };
   }
 
@@ -213,7 +260,9 @@ export function buildTripsNewDrawerSubmitResult(
     return {
       ok: false,
       message:
-        'No se pudo armar la ruta; espera un momento tras elegir CP y localidad.',
+        scope === 'postal_code'
+          ? 'No se pudo armar la ruta; espera un momento tras elegir CP y localidad.'
+          : 'No se pudo armar el destino; completa el lugar según la política de tarifas.',
     };
   }
 
@@ -422,8 +471,26 @@ export function buildTripsNewDrawerSubmitResult(
     originCityMunicipality: cityMunicipalityLineFromSettlement(oS),
     originLocality: formatSettlementOptionLabel(oS),
     destinationPostalCode: dCpDigits.length === 5 ? dCpDigits : undefined,
-    destinationCityMunicipality: cityMunicipalityLineFromSettlement(dS),
-    destinationLocality: formatSettlementOptionLabel(dS),
+    destinationCityMunicipality:
+      scope === 'postal_code' && dS
+        ? cityMunicipalityLineFromSettlement(dS)
+        : (snap.destinationCityMunicipality?.trim() ||
+          (scope === 'state'
+            ? (snap.destinationStateName ?? '').trim()
+            : [
+                (snap.destinationMunicipalityName ?? '').trim(),
+                (snap.destinationStateName ?? '').trim(),
+              ]
+                .filter(Boolean)
+                .join(', ')) ||
+          undefined),
+    destinationLocality:
+      scope === 'postal_code' && dS
+        ? formatSettlementOptionLabel(dS)
+        : (snap.destinationLocalityName?.trim() ||
+          snap.destinationMunicipalityName?.trim() ||
+          snap.destinationStateName?.trim() ||
+          undefined),
     ...(snap.matchedDestinationRateId
       ? { destinationRateId: snap.matchedDestinationRateId }
       : {}),

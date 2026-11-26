@@ -25,6 +25,7 @@ export function syncCompanySettingsFromProfile(
     maintenanceDateControlEnabled: result.maintenanceDateControlEnabled,
     maintenanceDatePeriodDefault: result.maintenanceDatePeriodDefault,
     maintenanceDateControlChangedAt: result.maintenanceDateControlChangedAt,
+    destinationRateScope: result.destinationRateScope,
     operationalCenterName: result.operationalCenterName,
     operationalCenterPostalCode: result.operationalCenterPostalCode,
     operationalCenterCityMunicipality: result.operationalCenterCityMunicipality,

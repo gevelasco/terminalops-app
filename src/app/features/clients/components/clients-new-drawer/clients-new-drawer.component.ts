@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   HostListener,
   inject,
@@ -14,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { catchError, forkJoin, of, switchMap, throwError } from 'rxjs';
 import { ToastService } from '@core/notifications/toast.service';
 import { ClientsService as ClientsApiService } from '@core/services/api/clients';
+import { SessionService } from '@core/services/state/session';
 import {
   boolToYesNo,
   buildClientDeliveryPayload,
@@ -24,10 +26,14 @@ import {
   yesNoToBool,
 } from '@features/clients/utils/client-payload';
 import {
+  deliveryMunicipalityLabel,
+  deliveryStateLabel,
   isSameClientDeliveryLocation,
 } from '@features/clients/utils/client-deliveries';
 import { clientDeliveryRouteStatusLabel } from '@features/clients/utils/client-delivery-route-link';
 import { ClientsFeatureService } from '@features/clients/services/clients.service';
+import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
 import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
 import { CLIENT_YES_NO_OPTIONS } from '@shared/catalogs/client-form-options';
 import { TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS } from '@shared/catalogs/trip-client-payment-options';
@@ -36,6 +42,7 @@ import type {
   ClientDelivery,
   CreateClientPayload,
 } from '@shared/models/client.models';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 import { beginInFlight } from '@shared/utils/in-flight-guard';
 import { ClientContactInlineFieldsComponent } from '../client-contact-inline-fields/client-contact-inline-fields.component';
 import { ClientDeliveryLocationFieldsComponent } from '../client-delivery-location-fields/client-delivery-location-fields.component';
@@ -77,6 +84,9 @@ export class ClientsNewDrawerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly clientsFeature = inject(ClientsFeatureService);
   private readonly clientsApi = inject(ClientsApiService);
+  private readonly ratesFeature = inject(DestinationRatesFeatureService);
+  private readonly centersFeature = inject(OperationalCentersFeatureService);
+  private readonly session = inject(SessionService);
   private readonly toast = inject(ToastService);
 
   readonly dismiss = output<void>();
@@ -86,6 +96,16 @@ export class ClientsNewDrawerComponent {
 
   readonly yesNoOptions: ToSelectOption[] = CLIENT_YES_NO_OPTIONS;
   readonly paymentMethodOptions: ToSelectOption[] = TRIP_MANEUVER_PAYMENT_METHOD_OPTIONS;
+
+  readonly rateScope = computed(() =>
+    normalizeDestinationRateScope(this.session.destinationRateScope()),
+  );
+  readonly showDeliveryPostalCodeColumn = computed(
+    () => this.rateScope() === 'postal_code',
+  );
+  readonly showDeliveryMunicipalityColumn = computed(
+    () => this.rateScope() !== 'state',
+  );
 
   readonly name = model('');
   readonly rfc = model('');
@@ -106,6 +126,8 @@ export class ClientsNewDrawerComponent {
   readonly deliveryCity = model('');
   readonly deliveryLocality = model('');
   readonly deliverySettlementConsId = model('');
+  readonly deliveryMunicipalityName = model('');
+  readonly deliveryStateName = model('');
   readonly deliveryLatitude = model<number | null>(null);
   readonly deliveryLongitude = model<number | null>(null);
   readonly deliveryDestinationRateId = model<string | null>(null);
@@ -142,10 +164,13 @@ export class ClientsNewDrawerComponent {
 
   commitDelivery(): boolean {
     const err = validateClientDelivery({
+      scope: this.rateScope(),
       postalCode: this.deliveryCp(),
       cityMunicipality: this.deliveryCity(),
       locality: this.deliveryLocality(),
       settlementConsId: this.deliverySettlementConsId(),
+      municipalityName: this.deliveryMunicipalityName(),
+      stateName: this.deliveryStateName(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
     });
@@ -154,17 +179,20 @@ export class ClientsNewDrawerComponent {
       return false;
     }
     const delivery = buildClientDeliveryPayload({
+      scope: this.rateScope(),
       postalCode: this.deliveryCp(),
       cityMunicipality: this.deliveryCity(),
       locality: this.deliveryLocality(),
       settlementConsId: this.deliverySettlementConsId(),
+      municipalityName: this.deliveryMunicipalityName(),
+      stateName: this.deliveryStateName(),
       latitude: this.deliveryLatitude(),
       longitude: this.deliveryLongitude(),
       destinationRateId: this.deliveryDestinationRateId(),
       isUnpricedRoute: this.deliveryIsUnpricedRoute(),
     });
     if (!delivery) {
-      this.toast.show('Indica el código postal de entrega.', 'warning');
+      this.toast.show('Indica el destino de entrega.', 'warning');
       return false;
     }
     const duplicate = this.deliveries().some((row) =>
@@ -185,7 +213,21 @@ export class ClientsNewDrawerComponent {
   }
 
   deliveryRouteLinkLabel(delivery: ClientDelivery): string {
-    return clientDeliveryRouteStatusLabel(delivery);
+    const centers = this.centersFeature.centers();
+    const primary = centers.find((c) => c.isDefault) ?? centers[0] ?? null;
+    return clientDeliveryRouteStatusLabel(delivery, {
+      scope: this.rateScope(),
+      rates: this.ratesFeature.rates(),
+      primaryOriginCenterId: primary?.id?.trim() ?? null,
+    });
+  }
+
+  deliveryStateLabel(delivery: ClientDelivery): string {
+    return deliveryStateLabel(delivery);
+  }
+
+  deliveryMunicipalityLabel(delivery: ClientDelivery): string {
+    return deliveryMunicipalityLabel(delivery);
   }
 
   private resetDeliveryFormFields(): void {
@@ -193,6 +235,8 @@ export class ClientsNewDrawerComponent {
     this.deliveryCity.set('');
     this.deliveryLocality.set('');
     this.deliverySettlementConsId.set('');
+    this.deliveryMunicipalityName.set('');
+    this.deliveryStateName.set('');
     this.deliveryLatitude.set(null);
     this.deliveryLongitude.set(null);
     this.deliveryDestinationRateId.set(null);
@@ -242,9 +286,13 @@ export class ClientsNewDrawerComponent {
       return;
     }
 
-    const deliveryCp = this.deliveryCp().trim();
-    if (this.showDeliveryForm() && deliveryCp) {
-      if (!this.commitDelivery()) {
+    if (this.showDeliveryForm()) {
+      const hasDraft =
+        this.deliveryCp().trim() ||
+        this.deliveryMunicipalityName().trim() ||
+        this.deliveryStateName().trim() ||
+        this.deliveryCity().trim();
+      if (hasDraft && !this.commitDelivery()) {
         return;
       }
     }
@@ -274,7 +322,6 @@ export class ClientsNewDrawerComponent {
       notes: this.notes().trim() || undefined,
       ...(hasBilling ? { billing } : {}),
       deliveries: deliveryList,
-      ...(deliveryList[0] ? { delivery: deliveryList[0] } : {}),
       contacts: contactName
         ? normalizeContacts([
             {

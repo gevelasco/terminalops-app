@@ -236,12 +236,52 @@
     </article>
   </div>
 
-  <article
-    class="co-setting co-setting--stacked co-setting--operation"
-    aria-labelledby="profile-center-heading"
-  >
-    <app-profile-drawer-operation-tab [externalSaving]="saving()" />
-  </article>
+  <div class="company-controls__grid company-controls__grid--ops-policy">
+    <article
+      class="co-setting co-setting--stacked co-setting--operation"
+      aria-labelledby="profile-center-heading"
+    >
+      <app-profile-drawer-operation-tab [externalSaving]="saving()" />
+    </article>
+
+    <article
+      class="co-setting co-setting--stacked co-setting--rate-policy"
+      aria-labelledby="profile-rate-policy-heading"
+    >
+      <div class="co-setting__main">
+        <h4 id="profile-rate-policy-heading" class="co-setting__title">
+          Política de tarifas
+          <span
+            class="co-setting__privacy-hint"
+            tabindex="0"
+            aria-label="Qué es la política de tarifas"
+            data-tooltip="Define si el mismo precio aplica por código postal, por municipio o por todo un estado. Al guardar se migran las tarifas existentes."
+          >
+            <to-icon name="info" [size]="16" />
+          </span>
+        </h4>
+        <p class="co-setting__meta">{{ ratePolicyStatusLabel() }}</p>
+      </div>
+      <div class="co-setting__panel co-setting__panel--policy-row">
+        <div class="co-setting__policy-types">
+          <span class="co-setting__field-label" id="profile-rate-policy-types-label"
+            >Alcance</span
+          >
+          <to-segment-control
+            class="co-setting__policy-segment"
+            layout="toolbar"
+            ariaLabel="Alcance de tarifas por destino"
+            [tabs]="ratePolicyTabs"
+            [activeId]="draftDestinationRateScope()"
+            (tabSelect)="onDestinationRateScopeSelect($event)"
+          />
+        </div>
+      </div>
+      <p class="co-setting__help co-setting__help--tight" role="status">
+        {{ ratePolicyHelpText() }}
+      </p>
+    </article>
+  </div>
   </div>
 </section>
 
@@ -272,6 +312,12 @@
           @case ("diesel") {
             ¿Desactivar diesel automático?
           }
+          @case ("rate-policy-coarsen") {
+            ¿Agrupar tarifas a {{ pendingRateScopeLabel() }}?
+          }
+          @case ("rate-policy-refine") {
+            ¿Pasar a {{ pendingRateScopeLabel() }}?
+          }
         }
       </h2>
     </div>
@@ -292,6 +338,27 @@
       </p>
       <p class="profile-drawer__confirm-note">
         Este cambio aplica para <strong>toda la empresa</strong>.
+      </p>
+    } @else if (pendingDisableKind() === "rate-policy-coarsen") {
+      <p class="profile-drawer__confirm-text">
+        Todas tus tarifas se acortarán a
+        <strong>{{ pendingRateScopeLabel() }}</strong>
+        y se colocará el precio más alto encontrado para cada tipo de maniobra. Favor de
+        revisar después de guardar.
+      </p>
+      <p class="profile-drawer__confirm-note">
+        Este cambio aplica para <strong>toda la empresa</strong> al guardar la
+        configuración.
+      </p>
+    } @else if (pendingDisableKind() === "rate-policy-refine") {
+      <p class="profile-drawer__confirm-text">
+        Tus tarifas quedarán incompletas: tendrás que llenar manualmente lo que hace
+        falta (códigos postales / localidades o municipios) para poder trabajar con
+        ellas.
+      </p>
+      <p class="profile-drawer__confirm-note">
+        Este cambio aplica para <strong>toda la empresa</strong> al guardar la
+        configuración.
       </p>
     }
     <div class="profile-drawer__confirm-actions">

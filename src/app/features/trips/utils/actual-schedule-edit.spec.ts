@@ -36,7 +36,6 @@ function tripFixture(
     unitId: '1',
     equipment: [],
     equipmentIds: [],
-    attachedDocumentFileNames: [],
     createdAt: '2026-01-15T07:15:00.000Z',
     departureAt: null,
     arrivedAt: null,

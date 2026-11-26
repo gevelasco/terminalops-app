@@ -135,7 +135,7 @@ export class DestinationRatesFeatureService {
   ): Observable<DestinationRate> {
     const keepId = this._selectedRateId() ?? rate.id;
     const requestId = this.requestGen.next();
-    return this.api.patchDestinationRateById(rate, patch).pipe(
+    return this.api.patchDestinationRate(rate.id, patch).pipe(
       switchMap((updated) =>
         this.fetchList().pipe(
           map((list) => {
@@ -156,7 +156,7 @@ export class DestinationRatesFeatureService {
 
   deleteDestinationRate(rateId: string): Observable<void> {
     const requestId = this.requestGen.next();
-    return this.api.deleteDestinationRateById(rateId).pipe(
+    return this.api.deleteDestinationRate(rateId).pipe(
       switchMap(() => this.fetchList()),
       map((list) => {
         if (!this.canApplyResponse(requestId)) {
@@ -304,7 +304,7 @@ export class DestinationRatesFeatureService {
         if (!isValidLatLon(coords)) {
           return of(null);
         }
-        return this.api.patchDestinationRateById(rate, {
+        return this.api.patchDestinationRate(rate.id, {
           destinationLatitude: coords.lat,
           destinationLongitude: coords.lon,
         });

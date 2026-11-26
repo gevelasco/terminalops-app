@@ -1,4 +1,8 @@
 import type { DestinationRate } from '@shared/models/destination-rate.models';
+import {
+  normalizeDestinationRateScope,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 import { formatDestinationRateRoundTripDriveTime } from '@features/clients/utils/destination-rate-estimated-time';
 import { cityMunicipalityNeedsEnrichment } from '@features/clients/utils/destination-rates-map-activity';
 import { formatMxn } from '@features/reports/utils/reports-money';
@@ -46,6 +50,11 @@ export function municipalityLabelForTable(
   stateName: string,
   municipalityByCp?: ReadonlyMap<string, string>,
 ): string {
+  const fromScope = rate.municipalityName?.trim() ?? '';
+  if (fromScope) {
+    return fromScope;
+  }
+
   const cp = rate.postalCode.trim();
   const enriched = municipalityByCp?.get(cp)?.trim() ?? '';
   if (enriched && !cityMunicipalityNeedsEnrichment(enriched, stateName)) {
@@ -100,14 +109,78 @@ function costLabel(amount: number): string {
   return formatMxn(amount);
 }
 
-/** ETA redondo: ida + regreso (horas). */
-export function formatDestinationRateRoundTripEta(
-  rate: Pick<
-    DestinationRate,
-    'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
-  >,
+function stateKeyForTable(
+  rate: DestinationRate,
+  stateByRateId?: ReadonlyMap<string, string>,
 ): string {
-  return formatDestinationRateRoundTripDriveTime(rate);
+  return normalizePlaceLabel(
+    rate.stateName?.trim() ||
+      stateByRateId?.get(rate.id)?.trim() ||
+      rate.cityMunicipality?.trim() ||
+      '',
+  );
+}
+
+/** Clave de tipo de maniobra (full ≡ doble articulado). */
+export function maneuverDedupeKey(
+  price: DestinationRate['prices'][number],
+): string {
+  const code = (price.operationConfigurationCode ?? '').trim().toLowerCase();
+  if (
+    code === 'full' ||
+    code === 'doble-articulado' ||
+    code === 'doble_articulado'
+  ) {
+    return 'doble-articulado';
+  }
+  if (code) {
+    return code;
+  }
+  const label = normalizePlaceLabel(maneuverLabel(price));
+  if (label.includes('doble articulado') || label === 'full') {
+    return 'doble-articulado';
+  }
+  return label || `cfg:${price.operationConfigurationId}`;
+}
+
+function rateScoreForSurvivor(rate: DestinationRate): number {
+  let best = 0;
+  for (const price of rate.prices) {
+    const amount = Number(price.clientCharge);
+    if (Number.isFinite(amount) && amount > best) {
+      best = amount;
+    }
+  }
+  const coords =
+    rate.destinationLatitude != null && rate.destinationLongitude != null
+      ? 1
+      : 0;
+  return best * 10 + coords;
+}
+
+/**
+ * Scope estado: una tarifa “canónica” por estado (para mapa / click).
+ * La tabla luego muestra un row por cada tipo de maniobra.
+ */
+export function pickStateScopeSurvivorRates(
+  rates: readonly DestinationRate[],
+  stateByRateId?: ReadonlyMap<string, string>,
+): DestinationRate[] {
+  const byState = new Map<string, DestinationRate>();
+  for (const rate of rates) {
+    if (rate.active === false) {
+      continue;
+    }
+    const key = stateKeyForTable(rate, stateByRateId);
+    if (!key) {
+      continue;
+    }
+    const existing = byState.get(key);
+    if (!existing || rateScoreForSurvivor(rate) > rateScoreForSurvivor(existing)) {
+      byState.set(key, rate);
+    }
+  }
+  return [...byState.values()];
 }
 
 type FlatRow = Omit<
@@ -122,52 +195,133 @@ type FlatRow = Omit<
 >;
 
 /**
+ * Scope estado: un row por (estado, tipo de maniobra), cobro máximo de ese tipo.
+ * Así sencillo + doble articulado + volteo conviven; solo se quitan duplicados del mismo tipo.
+ */
+function buildStateScopeFlatRows(
+  rates: readonly DestinationRate[],
+  stateByRateId?: ReadonlyMap<string, string>,
+  municipalityByCp?: ReadonlyMap<string, string>,
+): FlatRow[] {
+  type Cand = {
+    rate: DestinationRate;
+    price: DestinationRate['prices'][number];
+    amount: number;
+  };
+  const bestByStateManeuver = new Map<string, Cand>();
+
+  for (const rate of rates) {
+    if (rate.active === false) {
+      continue;
+    }
+    const stateKey = stateKeyForTable(rate, stateByRateId);
+    if (!stateKey) {
+      continue;
+    }
+    for (const price of rate.prices) {
+      const amount = Number(price.clientCharge);
+      if (!Number.isFinite(amount)) {
+        continue;
+      }
+      const key = `${stateKey}|${maneuverDedupeKey(price)}`;
+      const existing = bestByStateManeuver.get(key);
+      if (!existing || amount > existing.amount) {
+        bestByStateManeuver.set(key, { rate, price, amount });
+      }
+    }
+  }
+
+  const flat: FlatRow[] = [];
+  for (const { rate, price } of bestByStateManeuver.values()) {
+    const state =
+      rate.stateName?.trim() ||
+      stateByRateId?.get(rate.id)?.trim() ||
+      '';
+    flat.push({
+      rowKey: `${rate.id}-${price.id || maneuverDedupeKey(price)}`,
+      rateId: rate.id,
+      state,
+      municipality: municipalityLabelForTable(rate, state, municipalityByCp),
+      postalCode: rate.postalCode.trim(),
+      maneuver: maneuverLabel(price),
+      costLabel: costLabel(price.clientCharge),
+      etaLabel: formatDestinationRateRoundTripEta(rate),
+      active: rate.active,
+    });
+  }
+  return flat;
+}
+
+/** ETA redondo: ida + regreso (horas). */
+export function formatDestinationRateRoundTripEta(
+  rate: Pick<
+    DestinationRate,
+    'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
+  >,
+): string {
+  return formatDestinationRateRoundTripDriveTime(rate);
+}
+
+/**
  * Filas de tabla ordenadas alfabéticamente (estado → municipio → CP → maniobra)
  * con rowspan para Estado, Municipio y CP.
+ * En scope `state`: un row por tipo de maniobra (máx. cobro si hay duplicados).
  */
 export function buildDestinationRateTableRows(
   rates: readonly DestinationRate[],
   stateByRateId?: ReadonlyMap<string, string>,
   municipalityByCp?: ReadonlyMap<string, string>,
+  scope?: DestinationRateScope | string | null,
 ): DestinationRateTableRow[] {
-  const flat: FlatRow[] = [];
+  const normalizedScope = normalizeDestinationRateScope(scope);
+  const activeRates = rates.filter((rate) => rate.active !== false);
 
-  for (const rate of rates) {
-    const state = stateByRateId?.get(rate.id)?.trim() ?? '';
-    const municipality = municipalityLabelForTable(
-      rate,
-      state,
-      municipalityByCp,
-    );
-    const postalCode = rate.postalCode.trim();
-    const etaLabel = formatDestinationRateRoundTripEta(rate);
-    const prices = rate.prices;
-    if (prices.length === 0) {
-      flat.push({
-        rowKey: `${rate.id}-empty`,
-        rateId: rate.id,
+  const flat: FlatRow[] =
+    normalizedScope === 'state'
+      ? buildStateScopeFlatRows(activeRates, stateByRateId, municipalityByCp)
+      : [];
+
+  if (normalizedScope !== 'state') {
+    for (const rate of activeRates) {
+      const state =
+        rate.stateName?.trim() ||
+        stateByRateId?.get(rate.id)?.trim() ||
+        '';
+      const municipality = municipalityLabelForTable(
+        rate,
         state,
-        municipality,
-        postalCode,
-        maneuver: '—',
-        costLabel: '—',
-        etaLabel,
-        active: rate.active,
-      });
-      continue;
-    }
-    for (const price of prices) {
-      flat.push({
-        rowKey: `${rate.id}-${price.id || maneuverLabel(price)}`,
-        rateId: rate.id,
-        state,
-        municipality,
-        postalCode,
-        maneuver: maneuverLabel(price),
-        costLabel: costLabel(price.clientCharge),
-        etaLabel,
-        active: rate.active,
-      });
+        municipalityByCp,
+      );
+      const postalCode = rate.postalCode.trim();
+      const etaLabel = formatDestinationRateRoundTripEta(rate);
+      const prices = rate.prices;
+      if (prices.length === 0) {
+        flat.push({
+          rowKey: `${rate.id}-empty`,
+          rateId: rate.id,
+          state,
+          municipality,
+          postalCode,
+          maneuver: '—',
+          costLabel: '—',
+          etaLabel,
+          active: rate.active,
+        });
+        continue;
+      }
+      for (const price of prices) {
+        flat.push({
+          rowKey: `${rate.id}-${price.id || maneuverLabel(price)}`,
+          rateId: rate.id,
+          state,
+          municipality,
+          postalCode,
+          maneuver: maneuverLabel(price),
+          costLabel: costLabel(price.clientCharge),
+          etaLabel,
+          active: rate.active,
+        });
+      }
     }
   }
 

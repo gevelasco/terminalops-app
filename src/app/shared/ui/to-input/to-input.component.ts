@@ -3,6 +3,7 @@ import { ToDerivedWandIconComponent } from '../to-derived-wand-icon/to-derived-w
 import {
   formatGroupedNumber,
   formatGroupedNumberWhileTyping,
+  formatMoneyInputValue,
   parseGroupedNumber,
 } from '@shared/utils/format-grouped-number';
 
@@ -73,7 +74,16 @@ export class ToInputComponent {
 
   readonly shownInputValue = computed(() => {
     const fromParent = this.displayValue();
-    return fromParent !== undefined ? fromParent : this.value();
+    const raw = fromParent !== undefined ? fromParent : this.value();
+    if (!this.groupThousands() || this.digitsOnly()) {
+      return raw;
+    }
+    const trimmed = raw.trim();
+    // Conserva el punto decimal a medias mientras se escribe (ej. `20,000.`).
+    if (trimmed === '' || trimmed.endsWith('.')) {
+      return raw;
+    }
+    return formatMoneyInputValue(trimmed) || raw;
   });
 
   /** Se emite al perder foco el control (tras formateo miles si aplica). */

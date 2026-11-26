@@ -1,31 +1,97 @@
+import { parseMexicanCityMunicipalityLine } from '@features/clients/utils/destination-rate-state-resolve.util';
 import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 import type { Client, ClientDelivery } from '@shared/models/client.models';
+import {
+  normalizeDestinationRateScope,
+  normalizePlaceKey,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 
 export function clientDeliveries(
-  client: Pick<Client, 'delivery' | 'deliveries'> | null | undefined,
+  client: Pick<Client, 'deliveries'> | null | undefined,
 ): ClientDelivery[] {
-  if (!client) {
+  if (!client?.deliveries?.length) {
     return [];
   }
-  if (client.deliveries && client.deliveries.length > 0) {
-    return client.deliveries;
-  }
-  if (client.delivery) {
-    return [client.delivery];
-  }
-  return [];
+  return client.deliveries;
 }
 
 export function validClientDeliveries(
-  client: Pick<Client, 'delivery' | 'deliveries'> | null | undefined,
+  client: Pick<Client, 'deliveries'> | null | undefined,
 ): ClientDelivery[] {
   return clientDeliveries(client).filter(
     (row) => normalizeMxPostalCodeDigits(row.postalCode ?? '').length === 5,
   );
 }
 
+/** Entregas válidas según la política de tarifas (CP / municipio / estado). */
+export function validClientDeliveriesForScope(
+  client: Pick<Client, 'deliveries'> | null | undefined,
+  scope?: DestinationRateScope | string | null,
+): ClientDelivery[] {
+  const normalized = normalizeDestinationRateScope(scope);
+  if (normalized === 'postal_code') {
+    return validClientDeliveries(client);
+  }
+  return clientDeliveries(client).filter((row) => {
+    if (normalized === 'municipality') {
+      const parsed = parseMexicanCityMunicipalityLine(row.cityMunicipality ?? '');
+      return !!(
+        parsed.municipality.trim() &&
+        (parsed.state.trim() || deliveryStateLabel(row) !== '—')
+      );
+    }
+    return !!(row.cityMunicipality?.trim() || row.locality?.trim());
+  });
+}
+
+/** Match de entrega del cliente por municipio/estado (sin CP). */
+export function findClientDeliveryForScopedDestination(
+  client: Pick<Client, 'deliveries'> | null | undefined,
+  scope: DestinationRateScope | string | null | undefined,
+  params: {
+    municipalityName?: string;
+    stateName?: string;
+    cityMunicipality?: string;
+  },
+): ClientDelivery | undefined {
+  const normalized = normalizeDestinationRateScope(scope);
+  if (normalized === 'postal_code') {
+    return undefined;
+  }
+  const wantState = normalizePlaceKey(
+    params.stateName?.trim() ||
+      parseMexicanCityMunicipalityLine(params.cityMunicipality ?? '').state ||
+      (normalized === 'state' ? params.cityMunicipality ?? '' : ''),
+  );
+  const wantMuni = normalizePlaceKey(
+    params.municipalityName?.trim() ||
+      parseMexicanCityMunicipalityLine(params.cityMunicipality ?? '').municipality,
+  );
+  if (normalized === 'state' && !wantState) {
+    return undefined;
+  }
+  if (normalized === 'municipality' && (!wantMuni || !wantState)) {
+    return undefined;
+  }
+  const matches = validClientDeliveriesForScope(client, normalized).filter((row) => {
+    const stateLabel = deliveryStateLabel(row);
+    const rowState = normalizePlaceKey(stateLabel === '—' ? '' : stateLabel);
+    if (rowState !== wantState) {
+      return false;
+    }
+    if (normalized === 'municipality') {
+      const muniLabel = deliveryMunicipalityLabel(row);
+      const rowMuni = normalizePlaceKey(muniLabel === '—' ? '' : muniLabel);
+      return rowMuni === wantMuni;
+    }
+    return true;
+  });
+  return matches[0];
+}
+
 export function uniqueClientDeliveryPostalCodes(
-  client: Pick<Client, 'delivery' | 'deliveries'> | null | undefined,
+  client: Pick<Client, 'deliveries'> | null | undefined,
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -41,7 +107,7 @@ export function uniqueClientDeliveryPostalCodes(
 }
 
 export function findClientDeliveryForRoute(
-  client: Pick<Client, 'delivery' | 'deliveries'> | null | undefined,
+  client: Pick<Client, 'deliveries'> | null | undefined,
   postalCode: string,
   locality?: string,
 ): ClientDelivery | undefined {
@@ -71,7 +137,12 @@ export function deliveryLocationKey(row: ClientDelivery): string {
   const cp = normalizeMxPostalCodeDigits(row.postalCode ?? '');
   const locality = (row.locality ?? '').trim().toLowerCase();
   const consId = (row.settlementConsId ?? '').trim();
-  return `${cp}|${consId}|${locality}`;
+  const city = (row.cityMunicipality ?? '').trim().toLowerCase();
+  // Sin CP (municipio/estado): la clave es ciudad + localidad, no el CP vacío.
+  if (!cp) {
+    return `|${city}|${locality}`;
+  }
+  return `${cp}|${consId}|${locality}|${city}`;
 }
 
 export function isSameClientDeliveryLocation(
@@ -84,20 +155,34 @@ export function isSameClientDeliveryLocation(
 export function deliveryPlaceLabel(row: ClientDelivery): string {
   const locality = row.locality?.trim();
   const cp = row.postalCode?.trim();
+  const city = row.cityMunicipality?.trim();
   if (locality && cp) {
     return `${locality} (${cp})`;
   }
-  return locality || cp || 'entrega';
+  return locality || city || cp || 'entrega';
 }
 
-export function withClientDeliveries<T extends Pick<Client, 'delivery' | 'deliveries'>>(
+export function deliveryStateLabel(row: ClientDelivery): string {
+  const parsed = parseMexicanCityMunicipalityLine(row.cityMunicipality ?? '');
+  return parsed.state.trim() || row.cityMunicipality?.trim() || '—';
+}
+
+export function deliveryMunicipalityLabel(row: ClientDelivery): string {
+  const parsed = parseMexicanCityMunicipalityLine(row.cityMunicipality ?? '');
+  return (
+    parsed.municipality.trim() ||
+    row.locality?.trim() ||
+    row.cityMunicipality?.trim() ||
+    '—'
+  );
+}
+
+export function withClientDeliveries<T extends Pick<Client, 'deliveries'>>(
   client: T,
   deliveries: ClientDelivery[],
 ): T {
-  const list = deliveries;
   return {
     ...client,
-    deliveries: list,
-    delivery: list[0],
+    deliveries,
   };
 }

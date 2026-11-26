@@ -90,12 +90,7 @@ export interface Client {
   relationshipStartedOn?: string;
   notes?: string;
   billing?: ClientBilling;
-  /**
-   * Primera ubicación de `deliveries` (compatibilidad con API/UI que aún leen
-   * un solo destino). Preferir `deliveries` en código nuevo.
-   */
-  delivery?: ClientDelivery;
-  /** Ubicaciones de entrega / rutas de tarifa (todas válidas). */
+  /** Ubicaciones de entrega / rutas de tarifa. */
   deliveries?: ClientDelivery[];
   contacts?: ClientContactPerson[];
   /** Adjuntos de datos fiscales / facturación. */

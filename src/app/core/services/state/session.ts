@@ -8,6 +8,7 @@ import type {
 import type { CompanyOperationalSettings } from '@shared/models/company-operational-settings.models';
 import type { MaintenanceDatePeriod } from '@shared/models/company-operational-settings.models';
 import { normalizePaymentReminderDays } from '@shared/models/company-operational-settings.models';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 import { normalizeApiIsoDate } from '@core/utils/api-date';
 import { normalizeOpenChecklistCount } from '@core/utils/checklist-badge.util';
 import {
@@ -59,19 +60,6 @@ function deobfuscate(obfuscated: string, key: string): string {
 function loadEncryptedSession(): SessionData | null {
   const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
   if (!raw) {
-    const legacy = sessionStorage.getItem('terminalops.session');
-    if (legacy) {
-      try {
-        const parsed = JSON.parse(legacy) as SessionData;
-        if (parsed?.token) {
-          saveEncryptedSession(parsed);
-          sessionStorage.removeItem('terminalops.session');
-          return parsed;
-        }
-      } catch {
-        sessionStorage.removeItem('terminalops.session');
-      }
-    }
     return null;
   }
   const json = deobfuscate(raw, SESSION_OBFUSCATE_KEY);
@@ -224,6 +212,9 @@ export class SessionService {
   );
   readonly maintenanceDateControlChangedAt = computed(
     () => this.data()?.maintenanceDateControlChangedAt ?? null,
+  );
+  readonly destinationRateScope = computed(() =>
+    normalizeDestinationRateScope(this.data()?.destinationRateScope),
   );
   readonly operationalCenterId = computed(
     () => this.data()?.operationalCenterId ?? null,
@@ -435,6 +426,7 @@ export class SessionService {
         | 'maintenanceDatePeriodDefault'
         | 'maintenanceKmControlChangedAt'
         | 'maintenanceDateControlChangedAt'
+        | 'destinationRateScope'
         | 'operationalCenterName'
         | 'operationalCenterPostalCode'
         | 'operationalCenterCityMunicipality'
@@ -551,6 +543,11 @@ export class SessionService {
       next.maintenanceKmControlChangedAt = kmChangedAt;
     } else if (patch.maintenanceKmControlChangedAt === null) {
       next.maintenanceKmControlChangedAt = undefined;
+    }
+    if (patch.destinationRateScope !== undefined) {
+      next.destinationRateScope = normalizeDestinationRateScope(
+        patch.destinationRateScope,
+      );
     }
     const dateChangedAt = normalizeApiIsoDate(patch.maintenanceDateControlChangedAt);
     if (dateChangedAt) {
@@ -910,6 +907,9 @@ export class SessionService {
         normalizeApiIsoDate(user.maintenanceDateControlChangedAt) ??
         normalizeApiIsoDate(payload?.maintenanceDateControlChangedAt) ??
         undefined,
+      destinationRateScope: normalizeDestinationRateScope(
+        user.destinationRateScope ?? payload?.destinationRateScope,
+      ),
       operationalCenterId:
         user.operationalCenterId ?? payload?.operationalCenterId,
       operationalCenterName:

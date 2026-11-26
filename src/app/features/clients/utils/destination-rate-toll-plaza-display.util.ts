@@ -3,15 +3,12 @@ export function isDestinationRateTollPlazaNameUnresolved(name: string): boolean 
   return !t || t === 'n/d' || t === 'nd' || t === 's/d' || t === 'caseta';
 }
 
-import { tollPlazaListLocationSuffix } from '@features/clients/utils/destination-rate-toll-plaza-place.util';
-
-/** Lista de casetas (texto plano): Peaje [nombre], [municipio], [estado]. */
+/** Lista de casetas: [nombre], [sección]. El precio va aparte al final de la fila. */
 export function formatTollPlazaListLabel(row: {
   name: string;
-  municipality?: string;
-  state?: string;
+  section?: string | null;
 }): string {
   const name = row.name.trim() || 'Caseta';
-  const tail = tollPlazaListLocationSuffix(row);
-  return tail ? `Peaje ${name}, ${tail}` : `Peaje ${name}`;
+  const section = (row.section ?? '').trim();
+  return section ? `${name}, ${section}` : name;
 }

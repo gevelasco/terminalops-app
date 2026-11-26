@@ -13,14 +13,12 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '@core/notifications/toast.service';
 import {
-  RoutingApiService,
+  type RouteTollContext,
   type RouteTollPlazaRow,
-  type RouteTollsQuery,
+  type TollPlazaSearchHit,
 } from '@core/services/api/routing';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
-import {
-  parseDestinationRateAxleCount,
-} from '@features/clients/utils/destination-rate-axle-count.util';
+import { parseDestinationRateAxleCount } from '@features/clients/utils/destination-rate-axle-count.util';
 import {
   appendDestinationRatePriceInputRow,
   canAppendDestinationRatePriceRow,
@@ -29,15 +27,11 @@ import {
   destinationRatePriceManeuverKey,
   fillEmptyRateMoneyFields,
 } from '@features/clients/utils/destination-rate-payload';
-import {
-  activeTollPlazas,
-  tollRoundTripMxnFromPlazas,
-} from '@features/clients/utils/destination-rate-toll-plaza.util';
+import { tollRoundTripMxnFromPlazas } from '@features/clients/utils/destination-rate-toll-plaza.util';
 import {
   enrichTollPlazaRowsForMap,
   routeTollPlazasForApi,
 } from '@features/clients/utils/destination-rate-route-toll-plazas.util';
-import { destinationRateRouteTollContextKey } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import { formatMxn } from '@features/reports/utils/reports-money';
 import type { DestinationRatePriceDraft } from '@shared/models/destination-rate.models';
 import { DESTINATION_RATE_AXLE_OPTIONS } from '@shared/catalogs/client-form-options';
@@ -46,34 +40,57 @@ import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent, ToSelectOption } from '@shared/ui/to-select/to-select.component';
-import { DestinationRateRouteCustomizeComponent } from '@features/clients/components/destination-rate-route-customize/destination-rate-route-customize.component';
 import { DestinationRateRouteMapDialogComponent } from '@features/clients/components/destination-rate-route-map-dialog/destination-rate-route-map-dialog.component';
-import type { DestinationRateRouteWaypointDraft } from '@features/clients/utils/destination-rate-route-waypoints.util';
 import {
   DestinationRateManeuverComboboxComponent,
   type DestinationRateManeuverValue,
 } from './destination-rate-maneuver-combobox.component';
+import { DestinationRateTollPlazaComboboxComponent } from './destination-rate-toll-plaza-combobox.component';
 import { COMMERCIAL_HANDSHAKE_ICON_SRC } from '@shared/constants/commercial-handshake-icon';
 import { TollPlazaPlaceLabelService } from '@features/clients/services/toll-plaza-place-label.service';
-import { formatTollPlazaListLabel } from '@features/clients/utils/destination-rate-toll-plaza-display.util';
-import { tollPlazaListLocationSuffix } from '@features/clients/utils/destination-rate-toll-plaza-place.util';
 import { take } from 'rxjs/operators';
 
-export type DestinationRateRouteTollContext = Pick<
-  RouteTollsQuery,
-  | 'originLat'
-  | 'originLon'
-  | 'destinationLat'
-  | 'destinationLon'
-  | 'originSearch'
-  | 'destinationSearch'
-  | 'waypoints'
->;
+export type DestinationRateRouteTollContext = RouteTollContext;
 
-type TollAxleSnapshot = {
-  roundTripMxn: number | null;
-  plazas: RouteTollPlazaRow[];
-};
+function costForAxle(
+  plaza: RouteTollPlazaRow,
+  axle: number,
+): number | null {
+  const fromMap = plaza.costsByAxle?.[String(axle)];
+  if (fromMap != null && Number.isFinite(fromMap)) {
+    return fromMap;
+  }
+  if (plaza.costMxn != null && Number.isFinite(plaza.costMxn)) {
+    return plaza.costMxn;
+  }
+  return null;
+}
+
+function withAxleCosts(
+  plazas: readonly RouteTollPlazaRow[],
+  axle: number,
+): RouteTollPlazaRow[] {
+  return plazas.map((p, i) => ({
+    ...p,
+    order: i + 1,
+    costMxn: costForAxle(p, axle),
+  }));
+}
+
+function searchHitToRow(hit: TollPlazaSearchHit, order: number): RouteTollPlazaRow {
+  return {
+    order,
+    plazaKey: hit.plazaKey,
+    plazaKeySource: 'catalog',
+    name: hit.name,
+    section: hit.section,
+    costMxn: hit.costMxn,
+    costsByAxle: hit.costsByAxle,
+    lat: hit.lat,
+    lng: hit.lng,
+    inegiPoint: hit.inegiPoint,
+  };
+}
 
 @Component({
   selector: 'app-destination-rate-prices-editor',
@@ -85,7 +102,7 @@ type TollAxleSnapshot = {
     ToButtonComponent,
     ToIconComponent,
     DestinationRateManeuverComboboxComponent,
-    DestinationRateRouteCustomizeComponent,
+    DestinationRateTollPlazaComboboxComponent,
     DestinationRateRouteMapDialogComponent,
   ],
   templateUrl: './destination-rate-prices-editor.component.html',
@@ -93,21 +110,19 @@ type TollAxleSnapshot = {
 })
 export class DestinationRatePricesEditorComponent {
   readonly commercialTariffHandshakeSrc = COMMERCIAL_HANDSHAKE_ICON_SRC;
+  readonly axleOptions = DESTINATION_RATE_AXLE_OPTIONS;
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
-  private readonly routingApi = inject(RoutingApiService);
   private readonly tollPlazaPlaceLabels = inject(TollPlazaPlaceLabelService);
 
-  private lastTollContextKey = '';
-  private tollFetchGeneration = 0;
-  /** Mientras es true, se muestran casetas guardadas en la tarifa (sin refetch INEGI). */
-  private readonly preferPersistedTolls = signal(false);
-  /** El usuario omitió la consulta INEGI y captura el monto de casetas a mano. */
-  readonly tollsInegiSkipped = signal(false);
   private persistedTollsBootstrapped = false;
   private routeMetricsPlazasEmitScheduled = false;
+  private readonly tollTouchedRowKeys = signal(new Set<string>());
+
+  /** Casetas armadas manualmente (orden = ruta). */
+  private readonly manualTollPlazas = signal<RouteTollPlazaRow[]>([]);
 
   constructor() {
     this.operationConfigs.loadOperationConfigurations();
@@ -119,76 +134,26 @@ export class DestinationRatePricesEditorComponent {
     });
     effect(() => {
       const stored = this.routeTollPlazasFromRate();
-      if (this.viewOnly() || stored.length === 0 || this.persistedTollsBootstrapped) {
+      if (stored.length === 0 || this.persistedTollsBootstrapped) {
         return;
       }
       this.persistedTollsBootstrapped = true;
-      this.preferPersistedTolls.set(true);
-      this.seedTollsFromPersisted(stored);
-      this.scheduleRouteMetricsPlazasEmit();
-    });
-    effect(() => {
-      const ctx = this.routeTollContext();
-      const blocked = this.routeTollBlocked();
-      const key = ctx ? destinationRateRouteTollContextKey(ctx) : '';
-      if (key !== this.lastTollContextKey) {
-        this.lastTollContextKey = key;
-        this.tollFetchGeneration += 1;
-        this.tollByAxle.set(new Map());
-        this.tollLoadingAxles.set(new Set());
-        const stored = this.routeTollPlazasFromRate();
-        if (this.preferPersistedTolls() && stored.length > 0) {
-          this.seedTollsFromPersisted(stored);
-        }
-      }
-      if (
-        blocked ||
-        !ctx ||
-        this.routeCustomizeOpen() ||
-        this.viewOnly() ||
-        this.tollsInegiSkipped()
-      ) {
-        return;
-      }
-      if (this.preferPersistedTolls() && this.routeTollPlazasFromRate().length > 0) {
-        return;
-      }
-      this.axleCountsKey();
-      this.scheduleTollRefresh();
-    });
-    effect(() => {
-      this.excludedTollPlazaKeys();
-      this.recalcAllTollSuggestions();
-      this.scheduleRouteMetricsPlazasEmit();
+      this.seedManualPlazasFromPersisted(stored);
     });
   }
 
   readonly priceDrafts = model<DestinationRatePriceDraft[]>([createEmptyPriceDraft()]);
-  readonly excludedTollPlazaKeys = model<string[]>([]);
   readonly disabled = model(false);
-  /** Solo lectura: mismas cards que al guardar, sin formulario. */
   readonly viewOnly = input(false);
   readonly routeTollContext = input<DestinationRateRouteTollContext | null>(null);
   readonly routeTollBlocked = input(false);
-  readonly showRouteConfigure = input(false);
-  readonly routeConfigureDisabled = input(false);
-  readonly routeCustomizeOpen = model(false);
-  readonly routeDraftWaypoints = model<DestinationRateRouteWaypointDraft[]>([]);
-  readonly routeAppliedWaypoints = model<DestinationRateRouteWaypointDraft[]>([]);
-  readonly routeRecalculate = output<void>();
-  readonly routeResetSuggested = output<void>();
   readonly routeMapOriginLabel = input('');
   readonly routeMapDestinationLabel = input('');
-  /** Casetas en ruta persistidas en la tarifa (visualizar / mapa; sin INEGI). */
   readonly routeTollPlazasFromRate = input<readonly RouteTollPlazaRow[]>([]);
-  /** Casetas activas usadas para OSRM / km (ruta definida). */
   readonly routeMetricsPlazasChange = output<readonly RouteTollPlazaRow[]>();
 
   readonly routeMapOpen = signal(false);
-
   readonly editingRowKey = signal<string | null>(null);
-
-  readonly axleOptions: ToSelectOption[] = DESTINATION_RATE_AXLE_OPTIONS;
 
   readonly configurationOptions = computed((): ToSelectOption[] =>
     this.operationConfigs.activeConfigurations().map((c) => ({
@@ -214,7 +179,7 @@ export class DestinationRatePricesEditorComponent {
     return rows.slice(0, -1).filter((r) => destinationRatePriceManeuverKey(r).length > 0);
   });
 
-  readonly displayCardRows = computed((): DestinationRatePriceDraft[] => {
+  readonly displayCardRows = computed(() => {
     if (this.viewOnly()) {
       return destinationRatePriceDraftsForSave(this.priceDrafts());
     }
@@ -225,43 +190,12 @@ export class DestinationRatePricesEditorComponent {
     () => !this.disabled() && canAppendDestinationRatePriceRow([this.composerRow()]),
   );
 
-  readonly tollsSectionLoading = computed(() => {
-    if (this.routeCustomizeOpen()) {
-      return false;
-    }
-    const axle = parseDestinationRateAxleCount(this.composerRow().axleCount);
-    return this.tollLoadingAxles().has(axle);
-  });
+  readonly composerAxleCount = computed(() =>
+    parseDestinationRateAxleCount(this.composerRow().axleCount),
+  );
 
-  /** Lista visible cuando hay ruta y datos INEGI (no depende del tipo de maniobra). */
-  readonly showComposerTolls = computed(() => {
-    if (this.routeCustomizeOpen() || this.tollsInegiSkipped()) {
-      return false;
-    }
-    if (this.routeTollBlocked() || !this.routeTollContext()) {
-      return false;
-    }
-    return (
-      this.tollPlazasForComposer().length > 0 || this.composerTollsLoading()
-    );
-  });
-
-  readonly composerTollsLoading = computed(() => {
-    const axle = parseDestinationRateAxleCount(this.composerRow().axleCount);
-    return this.tollLoadingAxles().has(axle);
-  });
-
-  private readonly tollByAxle = signal(new Map<number, TollAxleSnapshot>());
-  private readonly tollLoadingAxles = signal(new Set<number>());
-  private readonly tollTouchedRowKeys = signal(new Set<string>());
-  private tollRefreshScheduled = false;
-  private tollRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private readonly axleCountsKey = computed(() =>
-    this.priceDrafts()
-      .map((r) => parseDestinationRateAxleCount(r.axleCount))
-      .sort((a, b) => a - b)
-      .join(','),
+  readonly selectedPlazaKeys = computed(() =>
+    this.manualTollPlazas().map((p) => p.plazaKey),
   );
 
   composerRowKey(): string {
@@ -307,41 +241,21 @@ export class DestinationRatePricesEditorComponent {
     return formatMxn(costMxn);
   }
 
-  tollPlazaListLabel(plaza: RouteTollPlazaRow): string {
-    return formatTollPlazaListLabel(plaza);
-  }
-
-  tollPlazaListLocation(plaza: RouteTollPlazaRow): string {
-    return tollPlazaListLocationSuffix(plaza);
-  }
-
   tollPlazasForComposer(): RouteTollPlazaRow[] {
     return this.tollPlazasForRow(this.composerRow());
   }
 
   tollPlazasForRow(row: DestinationRatePriceDraft): RouteTollPlazaRow[] {
     if (this.viewOnly()) {
-      return activeTollPlazas(
-        enrichTollPlazaRowsForMap(this.routeTollPlazasFromRate()),
-        new Set(this.excludedTollPlazaKeys()),
-      );
+      return enrichTollPlazaRowsForMap(this.routeTollPlazasFromRate());
     }
     const axle = parseDestinationRateAxleCount(row.axleCount);
-    const plazas = this.tollPlazaPlaceLabels.withStateFromGeo(
-      this.tollByAxle().get(axle)?.plazas ?? [],
-    );
-    return activeTollPlazas(plazas, new Set(this.excludedTollPlazaKeys()));
+    return withAxleCosts(this.manualTollPlazas(), axle);
   }
 
-  /** Snapshot para persistir con la tarifa (ejes del compositor). */
-  /** Casetas activas en ruta al guardar la tarifa. */
   routeTollPlazasForPersist(): RouteTollPlazaRow[] | undefined {
-    if (this.tollsInegiSkipped()) {
-      return undefined;
-    }
     const axle = parseDestinationRateAxleCount(this.composerRow().axleCount);
-    const plazas = this.tollByAxle().get(axle)?.plazas ?? [];
-    const active = activeTollPlazas(plazas, new Set(this.excludedTollPlazaKeys()));
+    const active = withAxleCosts(this.manualTollPlazas(), axle);
     if (active.length === 0) {
       return undefined;
     }
@@ -360,23 +274,7 @@ export class DestinationRatePricesEditorComponent {
       const label = count === 1 ? 'caseta' : 'casetas';
       return `${count} ${label}, ${amount}`;
     }
-    return amount;
-  }
-
-  excludeTollPlaza(plazaKey: string): void {
-    const key = plazaKey.trim();
-    if (!key || this.excludedTollPlazaKeys().includes(key)) {
-      return;
-    }
-    const rowKey = this.composerRowKey();
-    this.excludedTollPlazaKeys.update((keys) => [...keys, key]);
-    this.tollTouchedRowKeys.update((set) => {
-      const next = new Set(set);
-      next.delete(rowKey);
-      return next;
-    });
-    this.recalcAllTollSuggestions();
-    this.scheduleRouteMetricsPlazasEmit();
+    return `${amount} casetas`;
   }
 
   availableOptionsForComposer(): ToSelectOption[] {
@@ -394,68 +292,52 @@ export class DestinationRatePricesEditorComponent {
     );
   }
 
-  skipInegiTolls(): void {
-    this.tollFetchGeneration += 1;
-    this.tollsInegiSkipped.set(true);
-    this.tollLoadingAxles.set(new Set());
-    this.tollByAxle.set(new Map());
-    this.preferPersistedTolls.set(false);
-    this.scheduleRouteMetricsPlazasEmit();
-  }
-
-  resumeInegiTolls(): void {
-    if (this.routeTollBlocked() || !this.routeTollContext()) {
+  onTollPlazaPicked(hit: TollPlazaSearchHit): void {
+    if (this.disabled() || this.viewOnly()) {
       return;
     }
-    this.tollsInegiSkipped.set(false);
-    this.tollFetchGeneration += 1;
-    this.scheduleTollRefresh();
+    const key = hit.plazaKey.trim();
+    if (!key || this.manualTollPlazas().some((p) => p.plazaKey === key)) {
+      return;
+    }
+    const next = [...this.manualTollPlazas(), searchHitToRow(hit, 0)];
+    this.setManualPlazas(next);
+    this.syncTollAmountToComposer(true);
   }
 
-  /** Tras cambiar CP u origen: casetas, sugerencias INEGI y modo «omitir». */
+  removeTollPlaza(plazaKey: string): void {
+    const key = plazaKey.trim();
+    if (!key) {
+      return;
+    }
+    this.setManualPlazas(this.manualTollPlazas().filter((p) => p.plazaKey !== key));
+    this.syncTollAmountToComposer(true);
+  }
+
+  /**
+   * Tras cambiar destino/origen: limpia plazas de ruta.
+   * Conserva el monto de casetas del compositor si el usuario lo escribió a mano,
+   * y nunca toca las cards ya agregadas.
+   */
   resetRouteDerivedState(): void {
-    if (this.tollRefreshTimer != null) {
-      clearTimeout(this.tollRefreshTimer);
-      this.tollRefreshTimer = null;
-    }
-    this.tollRefreshScheduled = false;
-    this.tollFetchGeneration += 1;
-    this.tollsInegiSkipped.set(false);
-    this.tollByAxle.set(new Map());
-    this.tollLoadingAxles.set(new Set());
-    this.tollTouchedRowKeys.set(new Set());
-    this.preferPersistedTolls.set(false);
     this.persistedTollsBootstrapped = false;
-    this.lastTollContextKey = '';
+    this.manualTollPlazas.set([]);
     this.routeMapOpen.set(false);
-    this.scheduleRouteMetricsPlazasEmit();
-  }
-
-  openRouteConfigure(): void {
-    if (this.routeConfigureDisabled()) {
-      return;
+    const composerKey = this.composerRowKey();
+    const keepComposerToll = this.tollTouchedRowKeys().has(composerKey);
+    this.tollTouchedRowKeys.set(keepComposerToll ? new Set([composerKey]) : new Set());
+    if (!keepComposerToll) {
+      this.priceDrafts.update((rows) => {
+        if (rows.length === 0) {
+          return rows;
+        }
+        const last = rows.length - 1;
+        return rows.map((row, i) =>
+          i === last ? { ...row, estimatedTollAmount: '' } : row,
+        );
+      });
     }
-    this.routeMapOpen.set(false);
-    this.tollsInegiSkipped.set(false);
-    this.preferPersistedTolls.set(false);
-    this.tollFetchGeneration += 1;
-    this.tollLoadingAxles.set(new Set());
-    this.routeCustomizeOpen.set(true);
-  }
-
-  onRouteCustomizeRecalculate(): void {
-    this.routeRecalculate.emit();
-    this.preferPersistedTolls.set(false);
-    this.routeCustomizeOpen.set(false);
-    this.scheduleTollRefresh();
     this.scheduleRouteMetricsPlazasEmit();
-  }
-
-  onRouteCustomizeResetSuggested(): void {
-    this.routeResetSuggested.emit();
-    this.preferPersistedTolls.set(false);
-    this.routeCustomizeOpen.set(false);
-    this.scheduleTollRefresh();
   }
 
   addRow(): void {
@@ -527,7 +409,7 @@ export class DestinationRatePricesEditorComponent {
       next.delete(composerKey);
       return next;
     });
-    this.scheduleTollRefresh();
+    this.syncTollAmountToComposer(false);
   }
 
   onManeuverChange(rowKey: string, value: DestinationRateManeuverValue): void {
@@ -563,8 +445,9 @@ export class DestinationRatePricesEditorComponent {
         row.rowKey === rowKey ? { ...row, axleCount: value.trim() || '5' } : row,
       ),
     );
+    this.setManualPlazas([...this.manualTollPlazas()]);
     if (!this.tollTouchedRowKeys().has(rowKey)) {
-      this.scheduleTollRefresh();
+      this.syncTollAmountToComposer(false);
     }
   }
 
@@ -583,20 +466,62 @@ export class DestinationRatePricesEditorComponent {
     });
   }
 
-  private scheduleTollRefresh(): void {
-    if (this.tollRefreshTimer != null) {
-      clearTimeout(this.tollRefreshTimer);
+  private setManualPlazas(plazas: readonly RouteTollPlazaRow[]): void {
+    const axle = this.composerAxleCount();
+    this.manualTollPlazas.set(withAxleCosts(plazas, axle));
+    this.scheduleRouteMetricsPlazasEmit();
+  }
+
+  private seedManualPlazasFromPersisted(stored: readonly RouteTollPlazaRow[]): void {
+    this.tollPlazaPlaceLabels
+      .enrichPlazas(stored)
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((enriched) => {
+        this.setManualPlazas(enriched);
+        this.syncTollAmountToComposer(false);
+      });
+  }
+
+  private syncTollAmountToComposer(force: boolean): void {
+    const axle = this.composerAxleCount();
+    const plazas = withAxleCosts(this.manualTollPlazas(), axle);
+    const amount = tollRoundTripMxnFromPlazas(plazas, new Set());
+    if (amount == null || amount <= 0) {
+      if (force && plazas.length === 0) {
+        const composerKey = this.composerRowKey();
+        if (!this.tollTouchedRowKeys().has(composerKey)) {
+          this.priceDrafts.update((rows) =>
+            rows.map((row) =>
+              row.rowKey === composerKey ? { ...row, estimatedTollAmount: '' } : row,
+            ),
+          );
+        }
+      }
+      return;
     }
-    this.tollRefreshScheduled = true;
-    this.tollRefreshTimer = setTimeout(() => {
-      this.tollRefreshTimer = null;
-      this.tollRefreshScheduled = false;
-      this.refreshTollsForCurrentRows();
-    }, 280);
+    const label = formatFuelEstimateMoney(amount);
+    const composerKey = this.composerRowKey();
+    if (!force && this.tollTouchedRowKeys().has(composerKey)) {
+      return;
+    }
+    if (force) {
+      this.tollTouchedRowKeys.update((set) => {
+        const next = new Set(set);
+        next.delete(composerKey);
+        return next;
+      });
+    }
+    this.priceDrafts.update((rows) =>
+      rows.map((row) =>
+        row.rowKey === composerKey && row.estimatedTollAmount.trim() !== label
+          ? { ...row, estimatedTollAmount: label }
+          : row,
+      ),
+    );
   }
 
   private scheduleRouteMetricsPlazasEmit(): void {
-    if (this.viewOnly() || this.routeCustomizeOpen()) {
+    if (this.viewOnly()) {
       return;
     }
     if (this.routeMetricsPlazasEmitScheduled) {
@@ -605,228 +530,10 @@ export class DestinationRatePricesEditorComponent {
     this.routeMetricsPlazasEmitScheduled = true;
     queueMicrotask(() => {
       this.routeMetricsPlazasEmitScheduled = false;
-      if (this.viewOnly() || this.routeCustomizeOpen()) {
+      if (this.viewOnly()) {
         return;
       }
       this.routeMetricsPlazasChange.emit(this.tollPlazasForComposer());
     });
-  }
-
-  private enrichAxlePlazasInPlace(axle: number, plazas: readonly RouteTollPlazaRow[]): void {
-    this.tollPlazaPlaceLabels
-      .enrichPlazas(plazas)
-      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-      .subscribe((enriched) => {
-        const snap = this.tollByAxle().get(axle);
-        if (!snap) {
-          return;
-        }
-        this.tollByAxle.update((map) => {
-          const next = new Map(map);
-          next.set(axle, { ...snap, plazas: enriched });
-          return next;
-        });
-      });
-  }
-
-  private seedTollsFromPersisted(stored: readonly RouteTollPlazaRow[]): void {
-    this.tollPlazaPlaceLabels
-      .enrichPlazas(stored)
-      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-      .subscribe((enriched) => this.applyPersistedTollsSnapshot(enriched));
-  }
-
-  private applyPersistedTollsSnapshot(stored: readonly RouteTollPlazaRow[]): void {
-    const excluded = new Set(this.excludedTollPlazaKeys());
-    const roundTrip = tollRoundTripMxnFromPlazas(stored, excluded);
-    const axles = new Set(
-      this.priceDrafts().map((r) => parseDestinationRateAxleCount(r.axleCount)),
-    );
-    this.tollByAxle.update((map) => {
-      const next = new Map(map);
-      for (const axle of axles) {
-        next.set(axle, {
-          roundTripMxn: roundTrip,
-          plazas: [...stored],
-        });
-      }
-      return next;
-    });
-    this.scheduleRouteMetricsPlazasEmit();
-  }
-
-  private refreshTollsForCurrentRows(): void {
-    const ctx = this.routeTollContext();
-    if (
-      !ctx ||
-      this.routeTollBlocked() ||
-      this.disabled() ||
-      this.routeCustomizeOpen() ||
-      this.tollsInegiSkipped()
-    ) {
-      this.tollLoadingAxles.set(new Set());
-      return;
-    }
-    if (this.preferPersistedTolls() && this.routeTollPlazasFromRate().length > 0) {
-      this.seedTollsFromPersisted(this.routeTollPlazasFromRate());
-      return;
-    }
-    const generation = this.tollFetchGeneration;
-    const composerAxle = parseDestinationRateAxleCount(this.composerRow().axleCount);
-    const allAxles = new Set(
-      this.priceDrafts().map((r) => parseDestinationRateAxleCount(r.axleCount)),
-    );
-  const priorityAxles = [composerAxle];
-  const backgroundAxles = [...allAxles].filter((a) => a !== composerAxle);
-
-    for (const axle of priorityAxles) {
-      this.fetchTollsForAxle(axle, ctx, generation);
-    }
-    if (backgroundAxles.length > 0) {
-      queueMicrotask(() => {
-        if (generation !== this.tollFetchGeneration) {
-          return;
-        }
-        for (const axle of backgroundAxles) {
-          this.fetchTollsForAxle(axle, ctx, generation);
-        }
-      });
-    }
-  }
-
-  private fetchTollsForAxle(
-    axle: number,
-    ctx: DestinationRateRouteTollContext,
-    generation: number,
-  ): void {
-    const cached = this.tollByAxle().get(axle);
-    if (cached && !this.tollLoadingAxles().has(axle)) {
-      this.applyTollSuggestionsForAxle(axle);
-      return;
-    }
-    if (this.tollLoadingAxles().has(axle)) {
-      return;
-    }
-    this.tollLoadingAxles.update((set) => new Set(set).add(axle));
-    this.routingApi
-      .tollPlazasForRoute({
-        ...ctx,
-        axleCount: axle,
-        excludePlazaKeys: this.excludedTollPlazaKeys(),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (res) => {
-          if (generation !== this.tollFetchGeneration) {
-            return;
-          }
-          const plazas = res.plazas ?? [];
-          this.tollPlazaPlaceLabels
-            .enrichPlazas(plazas)
-            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-              next: (enriched) => {
-                if (generation !== this.tollFetchGeneration) {
-                  return;
-                }
-                this.tollByAxle.update((map) => {
-                  const next = new Map(map);
-                  next.set(axle, {
-                    roundTripMxn: res.totalRoundTripMxn,
-                    plazas: enriched,
-                  });
-                  return next;
-                });
-                this.tollLoadingAxles.update((set) => {
-                  const next = new Set(set);
-                  next.delete(axle);
-                  return next;
-                });
-                this.applyTollSuggestionsForAxle(axle);
-                this.scheduleRouteMetricsPlazasEmit();
-              },
-              error: () => {
-                if (generation !== this.tollFetchGeneration) {
-                  return;
-                }
-                this.tollByAxle.update((map) => {
-                  const next = new Map(map);
-                  next.set(axle, {
-                    roundTripMxn: res.totalRoundTripMxn,
-                    plazas,
-                  });
-                  return next;
-                });
-                this.tollLoadingAxles.update((set) => {
-                  const next = new Set(set);
-                  next.delete(axle);
-                  return next;
-                });
-                this.applyTollSuggestionsForAxle(axle);
-                this.scheduleRouteMetricsPlazasEmit();
-              },
-            });
-        },
-        error: () => {
-          if (generation !== this.tollFetchGeneration) {
-            return;
-          }
-          this.tollLoadingAxles.update((set) => {
-            const next = new Set(set);
-            next.delete(axle);
-            return next;
-          });
-          this.tollByAxle.update((map) => {
-            const next = new Map(map);
-            next.set(axle, { roundTripMxn: null, plazas: [] });
-            return next;
-          });
-        },
-      });
-  }
-
-  private recalcAllTollSuggestions(): void {
-    const axles = new Set(
-      this.priceDrafts().map((r) => parseDestinationRateAxleCount(r.axleCount)),
-    );
-    for (const axle of axles) {
-      this.applyTollSuggestionsForAxle(axle);
-    }
-  }
-
-  private applyTollSuggestionsForAxle(axle: number): void {
-    const snap = this.tollByAxle().get(axle);
-    if (!snap) {
-      return;
-    }
-    const excluded = new Set(this.excludedTollPlazaKeys());
-    const amount =
-      tollRoundTripMxnFromPlazas(snap.plazas, excluded) ?? snap.roundTripMxn;
-    if (amount == null || amount <= 0) {
-      return;
-    }
-    const label = formatFuelEstimateMoney(amount);
-    const touched = this.tollTouchedRowKeys();
-    const composerKey = this.composerRowKey();
-    let changed = false;
-    const nextRows = this.priceDrafts().map((row) => {
-      if (row.rowKey !== composerKey) {
-        return row;
-      }
-      if (parseDestinationRateAxleCount(row.axleCount) !== axle) {
-        return row;
-      }
-      if (touched.has(row.rowKey)) {
-        return row;
-      }
-      if (row.estimatedTollAmount.trim() === label) {
-        return row;
-      }
-      changed = true;
-      return { ...row, estimatedTollAmount: label };
-    });
-    if (changed) {
-      this.priceDrafts.set(nextRows);
-    }
   }
 }

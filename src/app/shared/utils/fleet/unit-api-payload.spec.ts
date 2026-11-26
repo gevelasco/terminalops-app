@@ -55,7 +55,7 @@ describe('unit-api-payload (A6)', () => {
   it('omits fleetMeta on sparse column-only patch', () => {
     const payload = buildUnitWritePayload(
       baseUnit({
-        fleetMeta: { insuranceCost: 7500, documentPolicyNames: ['a.pdf'] },
+        fleetMeta: { insuranceCost: 7500 },
       }),
       {
         sparseFleetMeta: true,
@@ -66,25 +66,19 @@ describe('unit-api-payload (A6)', () => {
     expect(payload.fleetMeta).toBeUndefined();
   });
 
-  it('strips legacy document name arrays and fleetDocuments on write', () => {
+  it('strips fleetDocuments on write', () => {
     const payload = buildUnitWritePayload(
       baseUnit({
         fleetMeta: {
           insuranceCost: 7500,
-          documentPolicyNames: ['a.pdf'],
-          documentMaintenanceNames: ['b.pdf'],
           fleetDocuments: [
             { id: 1, fileName: 'a.pdf', documentKind: 'policy' },
           ],
-          maintenanceKmRemaining: 1000,
         },
       }),
     );
     expect(payload.fleetMeta?.insuranceCost).toBe(7500);
-    expect(payload.fleetMeta?.documentPolicyNames).toBeUndefined();
-    expect(payload.fleetMeta?.documentMaintenanceNames).toBeUndefined();
     expect(payload.fleetMeta?.fleetDocuments).toBeUndefined();
-    expect(payload.fleetMeta?.maintenanceKmRemaining).toBeUndefined();
   });
 
   it('keeps maintenanceEntries when draft fleetMeta is partial', () => {

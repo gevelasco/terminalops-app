@@ -19,8 +19,6 @@ export const SCHEMA_GONDOLA_ASSET = 'maniobra-schema-gondola.png';
 export const SCHEMA_CAMA_BAJA_ASSET = 'maniobra-schema-cama-baja.png';
 export const SCHEMA_TOLVA_ASSET = 'maniobra-schema-tolva.png';
 export const SCHEMA_DOLLY_ASSET = 'maniobra-schema-dolly.png';
-/** @deprecated Usar {@link SCHEMA_PLANA_ASSET} */
-export const SCHEMA_PLANA_PRIMERA_ASSET = SCHEMA_PLANA_ASSET;
 
 export type ConvoyTrailerVisual =
   | 'plataforma'

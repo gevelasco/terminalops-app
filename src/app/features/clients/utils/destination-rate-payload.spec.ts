@@ -79,7 +79,7 @@ describe('appendDestinationRatePriceInputRow', () => {
     );
     expect(filled.ok).toBeTrue();
     if (filled.ok) {
-      expect(filled.row.clientCharge).toBe('1200');
+      expect(filled.row.clientCharge).toBe('1,200');
       expect(filled.row.operatorPaymentEstimate).toBe('0');
     }
   });

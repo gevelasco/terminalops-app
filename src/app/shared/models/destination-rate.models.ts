@@ -5,13 +5,15 @@ export interface DestinationRateRouteWaypoint {
   searchLabel?: string;
 }
 
-/** Caseta en ruta persistida en la tarifa (misma forma que consulta INEGI al editar). */
+/** Caseta en ruta persistida en la tarifa (misma forma que /routing/toll-plazas). */
 export interface DestinationRateRouteTollPlaza {
   order: number;
   plazaKey: string;
-  plazaKeySource?: 'inegi' | 'fallback';
+  plazaKeySource?: 'catalog' | 'inegi' | 'fallback';
+  /** Coordenadas `"lat,lng"` (nombre histórico de campo). */
   inegiPoint?: string;
   name: string;
+  section?: string | null;
   costMxn: number | null;
 }
 
@@ -29,6 +31,10 @@ export interface DestinationRate {
   postalCode: string;
   cityMunicipality: string;
   locality: string;
+  destinationScope?: 'postal_code' | 'municipality' | 'state';
+  routeKeyIncomplete?: boolean;
+  municipalityName?: string;
+  stateName?: string;
   destinationLatitude?: number;
   destinationLongitude?: number;
   routeDistanceKm?: number;
@@ -39,8 +45,6 @@ export interface DestinationRate {
   estimatedArrivalTimeValue?: number;
   estimatedReturnTimeValue?: number;
   maneuverCount?: number;
-  /** Claves INEGI de casetas que no se cruzan (por libre). */
-  excludedTollPlazaKeys?: string[];
   /** Puntos intermedios de ruta personalizada, en orden de recorrido. */
   routeWaypoints?: DestinationRateRouteWaypoint[];
   /** Casetas en ruta para esta tarifa (fuente única al visualizar / mapa). */
@@ -80,19 +84,19 @@ export interface DestinationRatePriceInput {
 
 export interface CreateDestinationRatePayload {
   originOperationalCenterId: string;
-  postalCode: string;
+  postalCode?: string;
   cityMunicipality: string;
-  locality: string;
+  locality?: string;
+  municipalityName?: string;
+  stateName?: string;
   prices: DestinationRatePriceInput[];
   routeDistanceKm?: number;
-  isRoundTrip?: boolean;
   destinationLatitude?: number;
   destinationLongitude?: number;
   active?: boolean;
   estimatedArrivalTimeValue?: number | null;
   estimatedReturnTimeValue?: number | null;
   notes?: string;
-  excludedTollPlazaKeys?: string[];
   routeWaypoints?: DestinationRateRouteWaypoint[];
   routeTollPlazas?: DestinationRateRouteTollPlaza[];
 }

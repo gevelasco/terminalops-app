@@ -29,7 +29,7 @@ function compactDigitsAndLetters(value: string): string {
   return normalizeSearchText(value).replace(/[^a-z0-9]/g, '');
 }
 
-/** Estado MX del destino (si hay coordenadas + geo). */
+/** Estado MX del destino (coords, stateName o cityMunicipality). */
 export function resolveDestinationRateStateName(
   rate: DestinationRate,
   geoJson: MexicoStatesGeoJson | null | undefined,
@@ -45,11 +45,17 @@ export function resolveDestinationRateStateName(
       return fromPoint;
     }
   }
-  const { state } = parseMexicanCityMunicipalityLine(rate.cityMunicipality ?? '');
-  if (!state) {
+  const rawCity = (rate.cityMunicipality ?? '').trim();
+  const parsed = parseMexicanCityMunicipalityLine(rawCity);
+  // Scope estado: cityMunicipality suele ser solo el nombre del estado (sin coma).
+  const stateLabel =
+    rate.stateName?.trim() ||
+    parsed.state.trim() ||
+    (rate.destinationScope === 'state' || !parsed.state ? rawCity : '');
+  if (!stateLabel) {
     return '';
   }
-  return matchMexicoStateLabelToGeoName(state, geoJson.features) ?? '';
+  return matchMexicoStateLabelToGeoName(stateLabel, geoJson.features) ?? stateLabel;
 }
 
 function rateSearchTokens(

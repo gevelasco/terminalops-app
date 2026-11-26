@@ -22,13 +22,6 @@ import {
   type DataImportSheetPreview,
 } from '@features/settings/utils/data-import/data-import.types';
 import { DATA_IMPORT_SHEET_META } from '@features/settings/utils/data-import/data-import-sheet-meta';
-import { DATA_IMPORT_CLIENT_EXAMPLE_COLUMNS } from '@features/settings/utils/data-import/data-import-client-example-preview';
-import {
-  DATA_IMPORT_OPERATOR_EXAMPLE_COLUMNS,
-  DATA_IMPORT_OPERATOR_EXAMPLE_ROWS,
-} from '@features/settings/utils/data-import/data-import-operator-example-preview';
-import { DATA_IMPORT_EQUIPMENT_EXAMPLE_COLUMNS } from '@features/settings/utils/data-import/data-import-equipment-example-preview';
-import { DATA_IMPORT_UNIT_EXAMPLE_COLUMNS } from '@features/settings/utils/data-import/data-import-unit-example-preview';
 import { enrichClientImportRowsWithGeo } from '@features/settings/utils/data-import/data-import-client-enrich.util';
 import {
   DATA_IMPORT_IGNORE_FIELD,
@@ -204,11 +197,6 @@ export class SettingsDataImportTabComponent {
   readonly kindLabel = KIND_LABEL;
   readonly kindIcon = KIND_ICON;
   readonly kindBlurb = KIND_BLURB;
-  readonly clientExampleColumns = DATA_IMPORT_CLIENT_EXAMPLE_COLUMNS;
-  readonly operatorExampleColumns = DATA_IMPORT_OPERATOR_EXAMPLE_COLUMNS;
-  readonly operatorExampleRows = DATA_IMPORT_OPERATOR_EXAMPLE_ROWS;
-  readonly unitExampleColumns = DATA_IMPORT_UNIT_EXAMPLE_COLUMNS;
-  readonly equipmentExampleColumns = DATA_IMPORT_EQUIPMENT_EXAMPLE_COLUMNS;
 
   readonly slots = signal<Record<DataImportEntityKind, ModuleSlot>>(
     initialSlots(this.session.companyId()),

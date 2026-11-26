@@ -9,10 +9,7 @@ import {
   UnitFleetMeta,
 } from '@shared/models/logistics.models';
 import { resolveUnitOperationalKey } from '@shared/utils/fleet/fleet-status.resolver';
-import {
-  effectiveFleetMetaForMaintenance,
-  resolveMaintenanceContext,
-} from '@shared/utils/fleet/company-maintenance-policy';
+import { resolveMaintenanceContext } from '@shared/utils/fleet/company-maintenance-policy';
 import {
   fleetMaintenanceKmRemainingFromCounter,
   formatMaintenanceKmRemainingLabel,
@@ -274,42 +271,12 @@ export function operationalKey(u: Unit, onRoute: boolean): FleetOperationalKey {
   });
 }
 
-function maintenanceKmRemainingFromMeta(
-  meta: UnitFleetMeta | undefined,
-  policy?: CompanyMaintenancePolicy,
-): number | null {
-  if (policy?.kmControlEnabled) {
-    return fleetMaintenanceKmRemainingFromCounter(
-      meta as UnitFleetMeta | undefined,
-      policy,
-    );
-  }
-  const persisted = meta?.maintenanceKmRemaining;
-  if (
-    typeof persisted === 'number' &&
-    Number.isFinite(persisted) &&
-    persisted >= 0
-  ) {
-    return persisted;
-  }
-  return null;
-}
-
-/** Km restantes hasta el próximo servicio (contador de unidad o valor legado). */
+/** Km restantes hasta el próximo servicio (intervalo global − contador). */
 export function fleetMaintenanceKmRemaining(
   meta: UnitFleetMeta | undefined,
   policy?: CompanyMaintenancePolicy,
 ): number | null {
-  if (policy?.kmControlEnabled) {
-    return fleetMaintenanceKmRemainingFromCounter(
-      meta as UnitFleetMeta | undefined,
-      policy,
-    );
-  }
-  const effective = policy
-    ? effectiveFleetMetaForMaintenance(meta, policy)
-    : meta;
-  return maintenanceKmRemainingFromMeta(effective, policy);
+  return fleetMaintenanceKmRemainingFromCounter(meta, policy);
 }
 
 function maintenanceBucket(
@@ -320,7 +287,7 @@ function maintenanceBucket(
     return 'na';
   }
   if (policy.kmControlEnabled) {
-    const rem = maintenanceKmRemainingFromMeta(meta, policy);
+    const rem = fleetMaintenanceKmRemaining(meta, policy);
     if (rem == null) {
       return 'na';
     }

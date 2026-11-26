@@ -211,24 +211,6 @@ export function resolveOperationConfiguration(
   };
 }
 
-/** @deprecated Usar OperationConfigurationResolverService.resolveLabel */
-export function resolveOperationConfigLabel(params: OperationConfigResolveParams): string {
-  return resolveOperationConfiguration(params).label;
-}
-
-/** @deprecated Usar OperationConfigurationResolverService */
-export function resolveOperationConfigDisplay(
-  params: OperationConfigResolveParams,
-): OperationConfigDisplay {
-  const resolved = resolveOperationConfiguration(params);
-  return {
-    code: resolved.code,
-    label: resolved.label,
-    badgeClass: resolved.badgeClass,
-    chartColor: resolved.chartColor,
-  };
-}
-
 export function configMaxEquipmentCount(params: OperationConfigResolveParams): number {
   if (params.maxEquipmentCountOverride != null) {
     return Math.max(1, params.maxEquipmentCountOverride);

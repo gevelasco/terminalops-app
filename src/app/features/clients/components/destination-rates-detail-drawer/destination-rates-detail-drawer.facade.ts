@@ -29,7 +29,7 @@ import {
   DestinationRatePricesEditorComponent,
   type DestinationRateRouteTollContext,
 } from '@features/clients/components/destination-rate-prices-editor/destination-rate-prices-editor.component';
-import { destinationRateSakbeSearchLabel } from '@features/clients/utils/destination-rate-sakbe-search.util';
+import { destinationRatePlaceSearchLabel } from '@features/clients/utils/destination-rate-place-search.util';
 import {
   routeWaypointDraftsFromStored,
   routeWaypointsToTollQuery,
@@ -67,6 +67,7 @@ import {
 } from '@features/clients/utils/destination-rate-drive-time.util';
 import { formatEstimatedTimeValueNumber } from '@features/clients/utils/destination-rate-estimated-time';
 import { OsrmDrivingRouteService } from '@shared/services/osrm-driving-route.service';
+import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 
 const EMPTY_RATE: DestinationRate = {
   id: '',
@@ -126,9 +127,15 @@ export class DestinationRatesDetailDrawerFacade {
   readonly postalCode = signal('');
   readonly cityMunicipality = signal('');
   readonly locality = signal('');
+  readonly municipalityName = signal('');
+  readonly stateName = signal('');
   readonly originOperationalCenterId = signal('');
+  readonly rateScope = computed(() =>
+    normalizeDestinationRateScope(
+      this.rate().destinationScope ?? this.session.destinationRateScope(),
+    ),
+  );
   readonly priceDrafts = signal<DestinationRatePriceDraft[]>([]);
-  readonly excludedTollPlazaKeys = signal<string[]>([]);
   readonly routeCustomizeOpen = signal(false);
   readonly draftRouteWaypoints = signal<DestinationRateRouteWaypointDraft[]>([]);
   readonly appliedRouteWaypoints = signal<DestinationRateRouteWaypointDraft[]>([]);
@@ -150,6 +157,18 @@ export class DestinationRatesDetailDrawerFacade {
 
   readonly headerLabel = computed(() => {
     const r = this.rate();
+    const scope = this.rateScope();
+    if (scope === 'state') {
+      return r.stateName?.trim() || r.cityMunicipality.trim() || 'Tarifa por estado';
+    }
+    if (scope === 'municipality') {
+      const muni = r.municipalityName?.trim() || '';
+      const state = r.stateName?.trim() || '';
+      if (muni && state) {
+        return `${muni}, ${state}`;
+      }
+      return muni || state || r.cityMunicipality.trim() || 'Tarifa por municipio';
+    }
     const loc = r.locality.trim();
     const cp = r.postalCode.trim();
     if (loc && cp) {
@@ -231,6 +250,8 @@ export class DestinationRatesDetailDrawerFacade {
       norm(this.postalCode()) !== norm(r.postalCode) ||
       norm(this.locality()) !== norm(r.locality) ||
       norm(this.cityMunicipality()) !== norm(r.cityMunicipality) ||
+      norm(this.municipalityName()) !== norm(r.municipalityName ?? '') ||
+      norm(this.stateName()) !== norm(r.stateName ?? '') ||
       norm(this.originOperationalCenterId()) !== norm(r.originOperationalCenterId)
     );
   });
@@ -263,8 +284,6 @@ export class DestinationRatesDetailDrawerFacade {
     }
     return formatRouteKmEsMx(operationalDistanceFromRouteKm(km));
   });
-
-  readonly editShowRouteCustomize = computed(() => this.routeTollContext() != null);
 
   readonly routeMapDestinationLabel = computed(() => {
     const r = this.rate();
@@ -305,11 +324,11 @@ export class DestinationRatesDetailDrawerFacade {
       originLon: oLon,
       destinationLat: dLat,
       destinationLon: dLon,
-      originSearch: destinationRateSakbeSearchLabel(
+      originSearch: destinationRatePlaceSearchLabel(
         r.originLocality,
         r.originCityMunicipality,
       ),
-      destinationSearch: destinationRateSakbeSearchLabel(
+      destinationSearch: destinationRatePlaceSearchLabel(
         r.locality,
         r.cityMunicipality,
       ),
@@ -320,7 +339,6 @@ export class DestinationRatesDetailDrawerFacade {
   onPostalRouteReset(
     editor: DestinationRatePricesEditorComponent | undefined,
   ): void {
-    this.excludedTollPlazaKeys.set([]);
     this.draftRouteWaypoints.set([]);
     this.appliedRouteWaypoints.set([]);
     this.routeCustomizeOpen.set(false);
@@ -332,9 +350,6 @@ export class DestinationRatesDetailDrawerFacade {
       this.routeDistanceKmInput.set('');
       this.applySuggestedDriveTimesIfUntouched(null);
     }
-    this.priceDrafts.update((rows) =>
-      rows.map((row) => ({ ...row, estimatedTollAmount: '' })),
-    );
     editor?.resetRouteDerivedState();
   }
 
@@ -455,39 +470,18 @@ export class DestinationRatesDetailDrawerFacade {
     this.priceDrafts.set(rows);
   }
 
-  updateExcludedTollPlazaKeys(keys: string[]): void {
-    this.excludedTollPlazaKeys.set(keys);
-  }
-
-  onRouteWaypointsRecalculate(): void {
-    this.excludedTollPlazaKeys.set([]);
-  }
-
-  onRouteWaypointsReset(): void {
-    this.excludedTollPlazaKeys.set([]);
-  }
-
-  updateDraftRouteWaypoints(rows: DestinationRateRouteWaypointDraft[]): void {
-    this.draftRouteWaypoints.set(rows);
-  }
-
-  updateAppliedRouteWaypoints(rows: DestinationRateRouteWaypointDraft[]): void {
-    this.appliedRouteWaypoints.set(rows);
-  }
-
-  updateRouteCustomizeOpen(open: boolean): void {
-    this.routeCustomizeOpen.set(open);
-  }
-
   persist(routeTollPlazas?: readonly RouteTollPlazaRow[]): void {
     if (this.saving()) {
       return;
     }
     const err = validateDestinationRateForm({
+      scope: this.rateScope(),
       originOperationalCenterId: this.originOperationalCenterId(),
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
       priceDrafts: this.priceDrafts(),
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
@@ -502,12 +496,13 @@ export class DestinationRatesDetailDrawerFacade {
       postalCode: this.postalCode(),
       cityMunicipality: this.cityMunicipality(),
       locality: this.locality(),
+      municipalityName: this.municipalityName(),
+      stateName: this.stateName(),
       priceDrafts: this.priceDrafts(),
       active: this.active() === 'yes',
       notes: this.notes(),
       estimatedArrivalTimeValue: this.estimatedArrivalTimeValue(),
       estimatedReturnTimeValue: this.estimatedReturnTimeValue(),
-      excludedTollPlazaKeys: this.excludedTollPlazaKeys(),
       routeWaypoints: this.appliedRouteWaypoints(),
       routeTollPlazas,
       routeDistanceKm: this.routeDistanceKm(),
@@ -589,6 +584,11 @@ export class DestinationRatesDetailDrawerFacade {
     this.postalCode.set(r.postalCode);
     this.cityMunicipality.set(r.cityMunicipality);
     this.locality.set(r.locality);
+    const parsed = parseMexicanCityMunicipalityLine(r.cityMunicipality);
+    this.municipalityName.set(
+      r.municipalityName?.trim() || parsed.municipality.trim(),
+    );
+    this.stateName.set(r.stateName?.trim() || parsed.state.trim());
     this.originOperationalCenterId.set(r.originOperationalCenterId);
     this.referencePostalCode.set(r.postalCode);
     this.priceDrafts.set(priceDraftsForEditorFromRate(r));
@@ -597,7 +597,6 @@ export class DestinationRatesDetailDrawerFacade {
     const estimated = estimatedTimesFormStringsFromRate(r);
     this.estimatedArrivalTimeValue.set(estimated.arrival);
     this.estimatedReturnTimeValue.set(estimated.returnValue);
-    this.excludedTollPlazaKeys.set(r.excludedTollPlazaKeys ?? []);
     const stored = routeWaypointDraftsFromStored(r.routeWaypoints ?? []);
     this.draftRouteWaypoints.set(stored);
     this.appliedRouteWaypoints.set(stored);
@@ -612,7 +611,7 @@ export class DestinationRatesDetailDrawerFacade {
     this.lastDefinedRouteMetricsKey = '';
   }
 
-  private applyAutoRouteDistanceKm(km: number | null): void {
+  applyAutoRouteDistanceKm(km: number | null): void {
     if (this.routeDistanceTouched()) {
       return;
     }
@@ -636,31 +635,28 @@ export class DestinationRatesDetailDrawerFacade {
     }
   }
 
+  /** Recalcula km/tiempos al cambiar casetas manuales en edición. */
   private bindDefinedRouteMetrics(): void {
     effect((onCleanup) => {
       if (!this.editing()) {
         this.lastDefinedRouteMetricsKey = '';
         return;
       }
-      void this.appliedRouteWaypoints();
+      const plazas = this.routeMetricsPlazas();
+      if (plazas.length === 0) {
+        return;
+      }
       const ctx = this.routeTollContext();
       if (!ctx) {
         return;
       }
-      const key = definedRouteMetricsKey(
-        ctx,
-        this.routeMetricsPlazas(),
-        this.excludedTollPlazaKeys(),
-      );
+      const key = definedRouteMetricsKey(ctx, plazas);
       if (!key || key === this.lastDefinedRouteMetricsKey) {
         return;
       }
       this.lastDefinedRouteMetricsKey = key;
       const generation = ++this.definedRouteMetricsGeneration;
-      const points = definedRouteDrivingPoints({
-        ctx,
-        plazas: this.routeMetricsPlazas(),
-      });
+      const points = definedRouteDrivingPoints({ ctx, plazas });
       if (points.length < 2) {
         return;
       }

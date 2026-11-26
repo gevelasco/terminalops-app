@@ -1,7 +1,13 @@
 import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 import type { ClientDelivery } from '@shared/models/client.models';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
+import {
+  normalizeDestinationRateScope,
+  normalizePlaceKey,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 import { findDestinationRateByRoute } from '@features/clients/utils/find-destination-rate-by-postal-code';
+import { parseMexicanCityMunicipalityLine } from '@features/clients/utils/destination-rate-state-resolve.util';
 
 export type ClientDeliveryRouteLinkPreview =
   | 'idle'
@@ -10,58 +16,139 @@ export type ClientDeliveryRouteLinkPreview =
   | 'unpriced';
 
 export function isClientDeliveryRouteLookupReady(params: {
+  scope?: DestinationRateScope | string | null;
   postalCode: string;
   locality: string;
+  municipalityName?: string;
+  stateName?: string;
 }): boolean {
-  return (
-    normalizeMxPostalCodeDigits(params.postalCode).length === 5 &&
-    params.locality.trim() !== ''
-  );
+  const scope = normalizeDestinationRateScope(params.scope);
+  if (scope === 'postal_code') {
+    return (
+      normalizeMxPostalCodeDigits(params.postalCode).length === 5 &&
+      params.locality.trim() !== ''
+    );
+  }
+  if (scope === 'municipality') {
+    return (
+      (params.municipalityName ?? '').trim() !== '' &&
+      (params.stateName ?? '').trim() !== ''
+    );
+  }
+  return (params.stateName ?? '').trim() !== '';
+}
+
+function deliveryMunicipalityState(params: {
+  scope?: DestinationRateScope | string | null;
+  municipalityName?: string;
+  stateName?: string;
+  cityMunicipality?: string;
+}): { municipalityName: string; stateName: string } {
+  const scope = normalizeDestinationRateScope(params.scope);
+  const rawCity = (params.cityMunicipality ?? '').trim();
+  const parsed = parseMexicanCityMunicipalityLine(rawCity);
+  const municipalityName =
+    (params.municipalityName ?? '').trim() ||
+    (parsed.state ? parsed.municipality.trim() : '');
+  // Scope estado: cityMunicipality suele ser solo el estado (sin coma).
+  const stateName =
+    (params.stateName ?? '').trim() ||
+    parsed.state.trim() ||
+    (scope === 'state' && !parsed.state ? rawCity : '');
+  return {
+    municipalityName:
+      municipalityName ||
+      (scope === 'municipality' ? parsed.municipality.trim() : ''),
+    stateName,
+  };
 }
 
 export function findDestinationRatesByDestination(
   rates: readonly DestinationRate[],
-  params: { postalCode: string; locality: string },
+  params: {
+    scope?: DestinationRateScope | string | null;
+    postalCode: string;
+    locality: string;
+    municipalityName?: string;
+    stateName?: string;
+    cityMunicipality?: string;
+  },
 ): DestinationRate[] {
-  const cp = normalizeMxPostalCodeDigits(params.postalCode);
-  const locality = params.locality.trim().toLowerCase();
-  if (cp.length !== 5 || !locality) {
+  const scope = normalizeDestinationRateScope(params.scope);
+  if (scope === 'postal_code') {
+    const cp = normalizeMxPostalCodeDigits(params.postalCode);
+    const locality = params.locality.trim().toLowerCase();
+    if (cp.length !== 5 || !locality) {
+      return [];
+    }
+    return rates.filter(
+      (rate) =>
+        rate.postalCode === cp && rate.locality.trim().toLowerCase() === locality,
+    );
+  }
+
+  const { municipalityName, stateName } = deliveryMunicipalityState({
+    ...params,
+    scope,
+  });
+  if (scope === 'municipality') {
+    if (!municipalityName || !stateName) {
+      return [];
+    }
+    return rates.filter(
+      (rate) =>
+        (rate.destinationScope ?? 'postal_code') === 'municipality' &&
+        normalizePlaceKey(rate.stateName ?? '') === normalizePlaceKey(stateName) &&
+        normalizePlaceKey(rate.municipalityName ?? '') ===
+          normalizePlaceKey(municipalityName),
+    );
+  }
+
+  if (!stateName) {
     return [];
   }
   return rates.filter(
     (rate) =>
-      rate.postalCode === cp && rate.locality.trim().toLowerCase() === locality,
+      (rate.destinationScope ?? 'postal_code') === 'state' &&
+      normalizePlaceKey(rate.stateName ?? '') === normalizePlaceKey(stateName),
   );
 }
 
 export function resolveClientDeliveryRoutePreview(
   rates: readonly DestinationRate[],
   params: {
+    scope?: DestinationRateScope | string | null;
     postalCode: string;
     locality: string;
+    municipalityName?: string;
+    stateName?: string;
+    cityMunicipality?: string;
     primaryOriginCenterId: string | null;
   },
 ): { rateId: string | null; matches: DestinationRate[] } {
-  const cp = normalizeMxPostalCodeDigits(params.postalCode);
-  const locality = params.locality.trim();
-  if (!isClientDeliveryRouteLookupReady({ postalCode: cp, locality })) {
+  if (!isClientDeliveryRouteLookupReady(params)) {
     return { rateId: null, matches: [] };
   }
 
-  const matches = findDestinationRatesByDestination(rates, {
-    postalCode: cp,
-    locality,
-  });
-  if (params.primaryOriginCenterId) {
+  const matches = findDestinationRatesByDestination(rates, params);
+  const scope = normalizeDestinationRateScope(params.scope);
+  if (params.primaryOriginCenterId && scope === 'postal_code') {
     const exact = findDestinationRateByRoute(
       rates,
       {
         originOperationalCenterId: params.primaryOriginCenterId,
-        destinationPostalCode: cp,
-        destinationLocality: locality,
+        destinationPostalCode: params.postalCode,
+        destinationLocality: params.locality,
       },
       { activeOnly: false },
     );
+    if (exact) {
+      return { rateId: exact.id, matches };
+    }
+  } else if (params.primaryOriginCenterId) {
+    const originId = params.primaryOriginCenterId.trim();
+    const exact =
+      matches.find((rate) => rate.originOperationalCenterId === originId) ?? null;
     if (exact) {
       return { rateId: exact.id, matches };
     }
@@ -87,8 +174,19 @@ export function clientDeliveryRouteLinkTitle(
   }
 }
 
-export function clientDeliveryRouteStatusLabel(delivery: ClientDelivery): string {
-  if (!delivery.postalCode?.trim() || !delivery.locality?.trim()) {
+export function clientDeliveryRouteStatusLabel(
+  delivery: ClientDelivery,
+  options?: {
+    scope?: DestinationRateScope | string | null;
+    rates?: readonly DestinationRate[];
+    primaryOriginCenterId?: string | null;
+  },
+): string {
+  const hasPlace =
+    !!delivery.postalCode?.trim() ||
+    !!delivery.cityMunicipality?.trim() ||
+    !!delivery.locality?.trim();
+  if (!hasPlace) {
     return '—';
   }
   if (delivery.destinationRateId) {
@@ -99,6 +197,40 @@ export function clientDeliveryRouteStatusLabel(delivery: ClientDelivery): string
       clientDeliveryRouteLinkTitle('unpriced') ??
       'Ruta sin tarifa (pendiente de configuración)'
     );
+  }
+
+  const rates = options?.rates;
+  if (rates && rates.length > 0) {
+    const place = deliveryMunicipalityState({
+      scope: options?.scope,
+      cityMunicipality: delivery.cityMunicipality,
+    });
+    const preview = resolveClientDeliveryRoutePreview(rates, {
+      scope: options?.scope,
+      postalCode: delivery.postalCode ?? '',
+      locality: delivery.locality ?? '',
+      cityMunicipality: delivery.cityMunicipality,
+      municipalityName: place.municipalityName,
+      stateName: place.stateName,
+      primaryOriginCenterId: options?.primaryOriginCenterId ?? null,
+    });
+    if (preview.rateId || preview.matches.length > 0) {
+      return clientDeliveryRouteLinkTitle('linked') ?? 'Ruta tarifada disponible';
+    }
+    if (
+      isClientDeliveryRouteLookupReady({
+        scope: options?.scope,
+        postalCode: delivery.postalCode ?? '',
+        locality: delivery.locality ?? '',
+        municipalityName: place.municipalityName,
+        stateName: place.stateName,
+      })
+    ) {
+      return (
+        clientDeliveryRouteLinkTitle('unpriced') ??
+        'Ruta sin tarifa (pendiente de configuración)'
+      );
+    }
   }
   return '—';
 }

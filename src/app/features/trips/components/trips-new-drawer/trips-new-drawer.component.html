@@ -68,78 +68,113 @@
         />
       }
     </div>
-    <div class="maniobra-drawer__grid2">
-      <div class="maniobra-cp-stack">
-        <to-input
-          label="CP de Origen *"
-          placeholder="Ej. 64000"
-          [maxLength]="5"
-          inputName="originCp"
-          autocomplete="postal-code"
-          [(value)]="originCp"
-          (blurNotify)="onOriginCpBlur()"
-        />
-        @if (originCpLoading()) {
-          <p class="maniobra-drawer__route-line" aria-live="polite">
-            Consultando catálogo postal…
-          </p>
-        }
+    @if (destinationRateScope() === 'state') {
+      <div class="maniobra-drawer__grid2">
         <to-display-field
           label="Ciudad / municipio origen"
           variant="metric"
           [value]="originCityLine()"
-          placeholder="Al capturar CP"
+          placeholder="Desde el centro operativo"
         />
-        <to-select
-          label="Localidad origen *"
-          placeholder="Elige localidad en la lista (requerido para calcular ruta)"
-          [options]="originLocalitySelectOptions()"
-          [(value)]="originLocalityKey"
-          [disabled]="originLocalitySelectOptions().length === 0"
+        <app-destination-rate-location-fields
+          [scope]="'state'"
+          [routeFormLayout]="true"
+          [(postalCode)]="destinationCp"
+          [(cityMunicipality)]="destinationCityMunicipality"
+          [(locality)]="destinationLocalityText"
+          [(settlementConsId)]="destinationSettlementConsId"
+          [(municipalityName)]="destinationMunicipalityName"
+          [(stateName)]="destinationStateName"
+          (postalCodeRouteReset)="onScopedDestinationRouteReset()"
         />
       </div>
-      <div class="maniobra-cp-stack">
-        @if (destinationCpUsesSuggestions()) {
-          <app-destination-cp-combobox
-            label="CP Destino *"
-            labelHint="Elige un CP de las tarifas del cliente o escribe uno nuevo."
-            [placeholder]="destinationCpPlaceholder()"
-            [suggestions]="destinationCpSuggestions()"
-            [(value)]="destinationCp"
-            (picked)="onDestinationCpSuggestionPicked($event)"
-            (blurNotify)="onDestinationCpBlur()"
-          />
-        } @else {
+    } @else {
+      <div class="maniobra-drawer__grid2">
+        <div class="maniobra-cp-stack">
           <to-input
-            label="CP Destino *"
-            placeholder="Ej. 77560"
+            label="CP de Origen *"
+            placeholder="Ej. 64000"
             [maxLength]="5"
-            inputName="destinationCp"
+            inputName="originCp"
             autocomplete="postal-code"
-            [(value)]="destinationCp"
-            (blurNotify)="onDestinationCpBlur()"
+            [(value)]="originCp"
+            (blurNotify)="onOriginCpBlur()"
           />
-        }
-        @if (destinationCpLoading()) {
-          <p class="maniobra-drawer__route-line" aria-live="polite">
-            Consultando catálogo postal…
-          </p>
-        }
-        <to-display-field
-          label="Ciudad / municipio Destino"
-          variant="metric"
-          [value]="destinationCityLine()"
-          placeholder="Al capturar CP"
-        />
-        <to-select
-          label="Localidad Destino *"
-          placeholder="Elige localidad en la lista (requerido para calcular ruta)"
-          [options]="destinationLocalitySelectOptions()"
-          [(value)]="destinationLocalityKey"
-          [disabled]="destinationLocalitySelectOptions().length === 0"
-        />
+          @if (originCpLoading()) {
+            <p class="maniobra-drawer__route-line" aria-live="polite">
+              Consultando catálogo postal…
+            </p>
+          }
+          <to-display-field
+            label="Ciudad / municipio origen"
+            variant="metric"
+            [value]="originCityLine()"
+            placeholder="Al capturar CP"
+          />
+          <to-select
+            label="Localidad origen *"
+            placeholder="Elige localidad en la lista (requerido para calcular ruta)"
+            [options]="originLocalitySelectOptions()"
+            [(value)]="originLocalityKey"
+            [disabled]="originLocalitySelectOptions().length === 0"
+          />
+        </div>
+        <div class="maniobra-cp-stack">
+          @if (destinationRateScope() === 'postal_code') {
+            @if (destinationCpUsesSuggestions()) {
+              <app-destination-cp-combobox
+                label="CP Destino *"
+                labelHint="Elige un CP de las tarifas del cliente o escribe uno nuevo."
+                [placeholder]="destinationCpPlaceholder()"
+                [suggestions]="destinationCpSuggestions()"
+                [(value)]="destinationCp"
+                (picked)="onDestinationCpSuggestionPicked($event)"
+                (blurNotify)="onDestinationCpBlur()"
+              />
+            } @else {
+              <to-input
+                label="CP Destino *"
+                placeholder="Ej. 77560"
+                [maxLength]="5"
+                inputName="destinationCp"
+                autocomplete="postal-code"
+                [(value)]="destinationCp"
+                (blurNotify)="onDestinationCpBlur()"
+              />
+            }
+            @if (destinationCpLoading()) {
+              <p class="maniobra-drawer__route-line" aria-live="polite">
+                Consultando catálogo postal…
+              </p>
+            }
+            <to-display-field
+              label="Ciudad / municipio Destino"
+              variant="metric"
+              [value]="destinationCityLine()"
+              placeholder="Al capturar CP"
+            />
+            <to-select
+              label="Localidad Destino *"
+              placeholder="Elige localidad en la lista (requerido para calcular ruta)"
+              [options]="destinationLocalitySelectOptions()"
+              [(value)]="destinationLocalityKey"
+              [disabled]="destinationLocalitySelectOptions().length === 0"
+            />
+          } @else {
+            <app-destination-rate-location-fields
+              [scope]="destinationRateScope()"
+              [(postalCode)]="destinationCp"
+              [(cityMunicipality)]="destinationCityMunicipality"
+              [(locality)]="destinationLocalityText"
+              [(settlementConsId)]="destinationSettlementConsId"
+              [(municipalityName)]="destinationMunicipalityName"
+              [(stateName)]="destinationStateName"
+              (postalCodeRouteReset)="onScopedDestinationRouteReset()"
+            />
+          }
+        </div>
       </div>
-    </div>
+    }
     <div class="maniobra-drawer__grid3">
       <to-input
         label="Distancia de ruta (ida)"

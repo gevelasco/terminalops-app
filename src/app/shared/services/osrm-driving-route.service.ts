@@ -24,7 +24,8 @@ export { isValidLatLon } from '@shared/services/lat-lon';
 
 /** Demo público: no más de ~1 petición por segundo. */
 const OSRM_MIN_INTERVAL_MS = 1100;
-const SESSION_CACHE_PREFIX = 'to.osrm.route.v1:';
+/** v2: ya no se fuerza la ruta por casetas; invalida cachés viejas (~345 km erróneos). */
+const SESSION_CACHE_PREFIX = 'to.osrm.route.v2:';
 
 type QueuedOsrmJob = {
   fetch: () => Observable<OsrmDrivingRouteResult | null>;
@@ -178,7 +179,7 @@ export class OsrmDrivingRouteService {
     const params = new HttpParams()
       .set('overview', 'simplified')
       .set('geometries', 'geojson')
-      .set('alternatives', 'false')
+      .set('alternatives', 'true')
       .set('steps', 'false')
       .set('generate_hints', 'false');
 
@@ -212,9 +213,9 @@ export class OsrmDrivingRouteService {
     const path = `${from.lon},${from.lat};${to.lon},${to.lat}`;
     const url = `${this.base}/${path}`;
     const params = new HttpParams()
-      .set('overview', 'simplified')
+      .set('overview', 'full')
       .set('geometries', 'geojson')
-      .set('alternatives', 'false')
+      .set('alternatives', 'true')
       .set('steps', 'false')
       .set('generate_hints', 'false');
 

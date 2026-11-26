@@ -80,14 +80,6 @@ export function hitchPositionForEquipmentWrite(
   return position;
 }
 
-/** @deprecated Usar {@link hitchPositionForEquipmentWrite} con posición explícita. */
-export function hitchPositionForLegacySecondTrailerFlag(
-  unitId: string | undefined,
-  isSecondTrailer: boolean,
-): EquipmentHitchPosition | null | undefined {
-  return hitchPositionForEquipmentWrite(unitId, isSecondTrailer ? 'rear' : 'lead');
-}
-
 /** Borrador API al desenganchar un equipo de la tractora. */
 export function equipmentUnhitchPersistDraft(): Pick<Equipment, 'unitId' | 'hitchPosition'> {
   return { unitId: '', hitchPosition: null };

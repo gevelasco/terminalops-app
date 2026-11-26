@@ -59,27 +59,51 @@ export function normalizeDeliveries(list: ClientDelivery[]): ClientDelivery[] {
       locality: row.locality?.trim() || undefined,
       settlementConsId: row.settlementConsId?.trim() || undefined,
     }))
-    .filter((row) => (row.postalCode ?? '').length > 0);
+    .filter(
+      (row) =>
+        (row.postalCode ?? '').length > 0 ||
+        (row.cityMunicipality ?? '').trim().length > 0,
+    );
 }
 
 export function buildClientDeliveryPayload(params: {
+  scope?: 'postal_code' | 'municipality' | 'state';
   postalCode: string;
   cityMunicipality: string;
   locality: string;
   settlementConsId: string;
+  municipalityName?: string;
+  stateName?: string;
   latitude: number | null;
   longitude: number | null;
   destinationRateId?: string | null;
   isUnpricedRoute?: boolean;
 }): ClientDelivery | undefined {
+  const scope = params.scope ?? 'postal_code';
+  const municipalityName = (params.municipalityName ?? '').trim();
+  const stateName = (params.stateName ?? '').trim();
+  const cityMunicipality =
+    params.cityMunicipality.trim() ||
+    (scope === 'municipality'
+      ? [municipalityName, stateName].filter(Boolean).join(', ')
+      : stateName);
   const cp = params.postalCode.trim();
-  if (!cp) {
+
+  if (scope === 'postal_code') {
+    if (!cp) {
+      return undefined;
+    }
+  } else if (!cityMunicipality) {
     return undefined;
   }
+
   return {
-    postalCode: cp,
-    cityMunicipality: params.cityMunicipality.trim() || undefined,
-    locality: params.locality.trim() || undefined,
+    ...(cp ? { postalCode: cp } : { postalCode: '' }),
+    cityMunicipality: cityMunicipality || undefined,
+    locality:
+      params.locality.trim() ||
+      (scope === 'municipality' ? municipalityName : undefined) ||
+      undefined,
     settlementConsId: params.settlementConsId.trim() || undefined,
     latitude: params.latitude ?? undefined,
     longitude: params.longitude ?? undefined,
@@ -91,28 +115,47 @@ export function buildClientDeliveryPayload(params: {
 }
 
 export function validateClientDelivery(params: {
+  scope?: 'postal_code' | 'municipality' | 'state';
   postalCode: string;
   cityMunicipality?: string;
   locality: string;
   settlementConsId: string;
+  municipalityName?: string;
+  stateName?: string;
   latitude: number | null;
   longitude: number | null;
 }): string | null {
-  const cp = params.postalCode.trim();
-  if (!cp) {
-    return null;
+  const scope = params.scope ?? 'postal_code';
+  const municipalityName = (params.municipalityName ?? '').trim();
+  const stateName = (params.stateName ?? '').trim();
+  const cityMunicipality = (params.cityMunicipality ?? '').trim();
+
+  if (scope === 'postal_code') {
+    const cp = params.postalCode.trim();
+    if (!cp) {
+      return null;
+    }
+    if (cp.length !== 5) {
+      return 'El código postal de entrega debe tener 5 dígitos.';
+    }
+    if (!params.settlementConsId.trim() && !params.locality.trim()) {
+      return 'Elige la localidad de entrega.';
+    }
+    if (!cityMunicipality) {
+      return 'Espera a que se complete la ciudad / municipio o revisa el CP.';
+    }
+  } else if (scope === 'municipality') {
+    if (!municipalityName || !stateName) {
+      return 'Indica municipio y estado de entrega.';
+    }
+  } else if (!stateName) {
+    return 'Indica el estado de entrega.';
   }
-  if (cp.length !== 5) {
-    return 'El código postal de entrega debe tener 5 dígitos.';
-  }
-  if (!params.settlementConsId.trim() && !params.locality.trim()) {
-    return 'Elige la localidad de entrega.';
-  }
-  if (!(params.cityMunicipality ?? '').trim()) {
-    return 'Espera a que se complete la ciudad / municipio o revisa el CP.';
-  }
+
   if (params.latitude == null || params.longitude == null) {
-    return 'Espera a que se obtengan las coordenadas de entrega o revisa el CP.';
+    return scope === 'postal_code'
+      ? 'Espera a que se obtengan las coordenadas de entrega o revisa el CP.'
+      : 'Espera a que se obtengan las coordenadas del destino.';
   }
   return null;
 }
@@ -180,6 +223,5 @@ export function buildClientApiWriteBody(
     ...(paymentBody ? { payment: paymentBody } : {}),
     ...(contacts.length > 0 ? { contacts } : {}),
     deliveries: deliveryBodies,
-    ...(deliveryBodies[0] ? { delivery: deliveryBodies[0] } : {}),
   };
 }

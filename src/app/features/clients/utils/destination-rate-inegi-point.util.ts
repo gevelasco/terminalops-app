@@ -1,7 +1,7 @@
 import type { LatLon } from '@shared/services/osrm-driving-route.service';
 import { isValidLatLon } from '@shared/services/lat-lon';
 
-/** `inegiPoint` del API suele ser `"lat,lon"` redondeado desde SAKBÉ. */
+/** Parsea `inegiPoint` del API (`"lat,lon"` u otros formatos legacy). */
 export function latLonFromInegiTollPoint(raw: string | undefined): LatLon | null {
   const t = (raw ?? '').trim();
   if (!t) {
@@ -36,11 +36,25 @@ export function latLonFromInegiTollPoint(raw: string | undefined): LatLon | null
   return null;
 }
 
-/** Coordenadas desde fila de caseta (`inegiPoint` o `plazaKey` INEGI). */
+/** Coordenadas desde fila de caseta (`inegiPoint`, lat/lng o `plazaKey` legacy). */
 export function latLonFromTollPlazaRow(row: {
   inegiPoint?: string;
   plazaKey?: string;
+  lat?: number;
+  lng?: number;
+  lon?: number;
 }): LatLon | null {
+  if (
+    row.lat != null &&
+    Number.isFinite(row.lat) &&
+    (row.lng != null || row.lon != null)
+  ) {
+    const lon = Number(row.lng ?? row.lon);
+    const point = { lat: Number(row.lat), lon };
+    if (isValidLatLon(point)) {
+      return point;
+    }
+  }
   const fromPoint = latLonFromInegiTollPoint(row.inegiPoint);
   if (fromPoint) {
     return fromPoint;

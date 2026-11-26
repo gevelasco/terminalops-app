@@ -9,7 +9,7 @@ describe('buildDestinationRateRouteMapDrivingPoints', () => {
     waypoints: undefined as undefined,
   };
 
-  it('inserts toll plazas between origin and destination in list order', () => {
+  it('routes origin → user plazas → destination', () => {
     const points = buildDestinationRateRouteMapDrivingPoints({
       ctx,
       plazas: [
@@ -18,6 +18,8 @@ describe('buildDestinationRateRouteMapDrivingPoints', () => {
           plazaKey: 'a',
           name: 'A',
           costMxn: 100,
+          lat: 20.0,
+          lng: -99.5,
           inegiPoint: '20.0,-99.5',
         },
         {
@@ -25,30 +27,41 @@ describe('buildDestinationRateRouteMapDrivingPoints', () => {
           plazaKey: 'b',
           name: 'B',
           costMxn: 100,
+          lat: 22.0,
+          lng: -100.0,
           inegiPoint: '22.0,-100.0',
         },
       ],
     });
-    expect(points).toHaveLength(4);
-    expect(points[0]).toEqual({ lat: 19.43, lon: -99.13 });
-    expect(points[1]).toEqual({ lat: 20, lon: -99.5 });
-    expect(points[2]).toEqual({ lat: 22, lon: -100 });
-    expect(points[3]).toEqual({ lat: 25.67, lon: -100.31 });
+    expect(points).toEqual([
+      { lat: 19.43, lon: -99.13 },
+      { lat: 20.0, lon: -99.5 },
+      { lat: 22.0, lon: -100.0 },
+      { lat: 25.67, lon: -100.31 },
+    ]);
   });
 
-  it('dedupes points that coincide with origin', () => {
+  it('keeps user waypoints before plazas', () => {
     const points = buildDestinationRateRouteMapDrivingPoints({
-      ctx,
+      ctx: {
+        ...ctx,
+        waypoints: [{ lat: 19.8, lon: -99.4, label: 'Paso', searchLabel: 'Paso' }],
+      },
       plazas: [
         {
           order: 1,
           plazaKey: 'a',
           name: 'A',
-          costMxn: null,
-          inegiPoint: '19.43001,-99.13001',
+          costMxn: 100,
+          inegiPoint: '20.5,-99.6',
         },
       ],
     });
-    expect(points).toHaveLength(2);
+    expect(points).toEqual([
+      { lat: 19.43, lon: -99.13 },
+      { lat: 19.8, lon: -99.4 },
+      { lat: 20.5, lon: -99.6 },
+      { lat: 25.67, lon: -100.31 },
+    ]);
   });
 });

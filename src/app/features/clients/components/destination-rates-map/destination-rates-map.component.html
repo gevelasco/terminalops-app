@@ -33,8 +33,12 @@
         <table class="to-table destination-rates-map__table">
           <colgroup>
             <col class="destination-rates-map__col--state" />
-            <col class="destination-rates-map__col--municipality" />
-            <col class="destination-rates-map__col--cp" />
+            @if (showMunicipalityColumn()) {
+              <col class="destination-rates-map__col--municipality" />
+            }
+            @if (showPostalCodeColumn()) {
+              <col class="destination-rates-map__col--cp" />
+            }
             <col class="destination-rates-map__col--maneuver" />
             <col class="destination-rates-map__col--cost" />
             <col class="destination-rates-map__col--eta" />
@@ -42,8 +46,12 @@
           <thead>
             <tr>
               <th scope="col">Estado</th>
-              <th scope="col">Municipio</th>
-              <th scope="col">CP</th>
+              @if (showMunicipalityColumn()) {
+                <th scope="col">Municipio</th>
+              }
+              @if (showPostalCodeColumn()) {
+                <th scope="col">CP</th>
+              }
               <th scope="col">Maniobra</th>
               <th scope="col">Cobro Cliente</th>
               <th scope="col">ETA</th>
@@ -58,7 +66,7 @@
                   hoveredRowIndex() === row.rowIndex
                 "
                 tabindex="0"
-                [attr.aria-label]="'Ver tarifa CP ' + row.postalCode"
+                [attr.aria-label]="rowAriaLabel(row)"
                 (click)="onTableRowClick(row)"
                 (keydown)="onTableRowKeydown($event, row)"
                 (mouseenter)="onTableRowEnter(row)"
@@ -75,7 +83,7 @@
                     {{ row.state || '—' }}
                   </td>
                 }
-                @if (row.municipalityRowSpan > 0) {
+                @if (showMunicipalityColumn() && row.municipalityRowSpan > 0) {
                   <td
                     class="destination-rates-map__merge-cell"
                     [class.destination-rates-map__merge-cell--hovered]="
@@ -89,7 +97,7 @@
                     {{ row.municipality || '—' }}
                   </td>
                 }
-                @if (row.postalCodeRowSpan > 0) {
+                @if (showPostalCodeColumn() && row.postalCodeRowSpan > 0) {
                   <td
                     class="destination-rates-map__merge-cell destination-rates-map__merge-cell--cp"
                     [class.destination-rates-map__merge-cell--hovered]="

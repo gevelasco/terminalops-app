@@ -1,7 +1,7 @@
-import type { RouteTollPlazaRow, RouteTollsQuery } from '@core/services/api/routing';
+import type { RouteTollContext, RouteTollPlazaRow } from '@core/services/api/routing';
 
 type RouteMapContext = Pick<
-  RouteTollsQuery,
+  RouteTollContext,
   'originLat' | 'originLon' | 'destinationLat' | 'destinationLon' | 'waypoints'
 >;
 import { latLonFromTollPlazaRow } from '@features/clients/utils/destination-rate-inegi-point.util';

@@ -49,14 +49,6 @@ export function tirePositionsForTrip(
   return 18;
 }
 
-/** @deprecated Usar tirePositionsForTrip con TripEvaluationService. */
-export function tirePositionsForOperation(
-  operationType: string,
-  evaluator?: TripEvaluator,
-): number {
-  return tirePositionsForTrip({ operationType, equipment: [] }, evaluator);
-}
-
 export function resolveTripDistanceKm(
   trip: Pick<Trip, 'routeDistanceKm' | 'maneuverKind'>,
 ): number {

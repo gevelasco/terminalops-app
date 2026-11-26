@@ -38,8 +38,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 
     > .co-setting--estimates,
-    > .co-setting--policy {
+    > .co-setting--policy,
+    > .co-setting--operation,
+    > .co-setting--rate-policy {
       height: 100%;
+    }
+  }
+
+  &--ops-policy {
+    @media (min-width: 880px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 }
@@ -97,7 +105,8 @@
     gap: 0.75rem;
   }
 
-  &--operation {
+  &--operation,
+  &--rate-policy {
     gap: 0.65rem;
   }
 }

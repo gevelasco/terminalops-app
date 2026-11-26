@@ -28,9 +28,12 @@
       <app-operational-center-select [(selectedCenterId)]="originOperationalCenterId" />
       <app-destination-rate-location-fields
         [routeFormLayout]="true"
+        [scope]="rateScope()"
         [(postalCode)]="postalCode"
         [(cityMunicipality)]="cityMunicipality"
         [(locality)]="locality"
+        [(municipalityName)]="municipalityName"
+        [(stateName)]="stateName"
         (postalCodeRouteReset)="onPostalRouteReset()"
       />
     </div>
@@ -115,16 +118,8 @@
     </h3>
     <app-destination-rate-prices-editor
       [(priceDrafts)]="priceDrafts"
-      [(excludedTollPlazaKeys)]="excludedTollPlazaKeys"
       [routeTollContext]="routeTollContext()"
       [routeTollBlocked]="routeMode() !== 'CREATE_MODE' || routeGeocodePending()"
-      [showRouteConfigure]="showRouteCustomize()"
-      [routeConfigureDisabled]="routeMetricsPending() || !routeTollContext()"
-      [(routeCustomizeOpen)]="routeCustomizeOpen"
-      [(routeDraftWaypoints)]="draftRouteWaypoints"
-      [(routeAppliedWaypoints)]="appliedRouteWaypoints"
-      (routeRecalculate)="onRouteWaypointsRecalculate()"
-      (routeResetSuggested)="onRouteWaypointsReset()"
       (routeMetricsPlazasChange)="onRouteMetricsPlazasChange($event)"
       [routeMapOriginLabel]="routeMapOriginLabel()"
       [routeMapDestinationLabel]="routeMapDestinationLabel()"

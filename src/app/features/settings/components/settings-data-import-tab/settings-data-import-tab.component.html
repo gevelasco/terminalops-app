@@ -8,15 +8,11 @@
       <p class="settings-data-import-tab__notice-title">Importación sumativa</p>
       <p class="settings-data-import-tab__notice-text">
         La carga <strong>agrega</strong> registros; no reemplaza lo existente. Validamos
-        duplicados en el archivo y en la base (RFC, placas, series, etc.). Tras subir el Excel
-        vinculas cada columna al campo correcto de TerminalOps (el sistema sugiere coincidencias).
+        duplicados en el archivo y en la base (RFC, placas, series, etc.). Sube tu Excel: el
+        <strong>automapeo de columnas</strong> vincula encabezados a campos de TerminalOps; solo
+        ajusta lo que haga falta.
       </p>
     </div>
-    <p class="settings-data-import-tab__ephemeral">
-      El Excel solo se lee en tu navegador: <strong>no se sube a S3 ni se archiva</strong>. Se
-      extraen las filas, se crean los registros en la base y el archivo se descarta al importar
-      o al quitarlo.
-    </p>
   </section>
 
   <div class="settings-data-import-tab__split">
@@ -133,116 +129,6 @@
           <p class="settings-data-import-tab__module-empty">{{ lastImportDetailLine(kind) }}</p>
         }
 
-        <details class="settings-data-import-tab__example">
-          <summary>Cómo llenar el Excel</summary>
-          @if (kind === 'clients') {
-            <p class="settings-data-import-tab__example-hint">
-              La plantilla incluye <strong>todos</strong> los campos del expediente (fiscal, entrega,
-              contacto y crédito); solo «Nombre o razón social» es obligatorio. Límite de crédito:
-              solo número. Borra la fila <code>(ejemplo)</code>. Fechas:
-              <code>dd/mm/aaaa</code> o <code>AAAA-MM-DD</code>.
-            </p>
-            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
-              <table class="settings-data-import-tab__table">
-                <thead>
-                  <tr>
-                    @for (col of clientExampleColumns; track col.header) {
-                      <th>{{ col.header }}</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    @for (col of clientExampleColumns; track col.header) {
-                      <td>{{ col.example }}</td>
-                    }
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          } @else if (kind === 'units') {
-            <p class="settings-data-import-tab__example-hint">
-              Expediente completo de la unidad (identificación, tenencia, tren motriz, mantenimiento,
-              verificaciones, seguro y GPS). Obligatorios: <strong>placa, marca, versión y año</strong>.
-              Montos: solo número. Borra la fila <code>(ejemplo)</code>.
-            </p>
-            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
-              <table class="settings-data-import-tab__table">
-                <thead>
-                  <tr>
-                    @for (col of unitExampleColumns; track col.header) {
-                      <th>{{ col.header }}</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    @for (col of unitExampleColumns; track col.header) {
-                      <td>{{ col.example || '—' }}</td>
-                    }
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          } @else if (kind === 'equipment') {
-            <p class="settings-data-import-tab__example-hint">
-              Expediente del equipo (identificación, tenencia, ficha técnica, mantenimiento,
-              verificaciones y seguro). Obligatorios:
-              <strong>placa, marca, tipo de equipo y año</strong>. Montos: solo número. Borra la
-              fila <code>(ejemplo)</code>. El enganche a unidad se asigna en Flota.
-            </p>
-            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
-              <table class="settings-data-import-tab__table">
-                <thead>
-                  <tr>
-                    @for (col of equipmentExampleColumns; track col.header) {
-                      <th>{{ col.header }}</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    @for (col of equipmentExampleColumns; track col.header) {
-                      <td>{{ col.example || '—' }}</td>
-                    }
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          } @else if (kind === 'operators') {
-            <p class="settings-data-import-tab__example-hint">
-              Incluye identificación, operación, emergencia e IMSS/seguro privado. Solo
-              <strong>«Número de licencia»</strong> es obligatorio y debe ser único. Montos
-              (prima, cantidad diaria IMSS): <strong>solo número</strong>. Borra las filas
-              <code>(ejemplo)</code>. Fechas: <code>dd/mm/aaaa</code> o <code>AAAA-MM-DD</code>.
-            </p>
-            <div class="settings-data-import-tab__table-wrap settings-data-import-tab__table-wrap--example">
-              <table class="settings-data-import-tab__table">
-                <thead>
-                  <tr>
-                    <th scope="col" class="settings-data-import-tab__example-scenario">Caso</th>
-                    @for (col of operatorExampleColumns; track col.header) {
-                      <th>{{ col.header }}</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (row of operatorExampleRows; track row.label) {
-                    <tr>
-                      <th scope="row" class="settings-data-import-tab__example-scenario">
-                        {{ row.label }}
-                      </th>
-                      @for (cell of row.cells; track $index) {
-                        <td>{{ cell || '—' }}</td>
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
-        </details>
-
         @if (active.draft; as draft) {
           <div class="settings-data-import-tab__map-block">
             <p class="settings-data-import-tab__summary">
@@ -278,9 +164,8 @@
             }
 
             <p class="settings-data-import-tab__map-hint">
-              Cada campo de TerminalOps solo puede asignarse a una columna (excepto «Ignorar»). El
-              sistema sugiere coincidencias por el nombre del encabezado; ajusta lo que haga falta
-              antes de importar.
+              Automapeo por nombre de encabezado: revisa y corrige solo lo necesario. Cada campo de
+              TerminalOps solo puede asignarse a una columna (excepto «Ignorar»).
             </p>
 
             <div class="settings-data-import-tab__map-wrap">
@@ -364,7 +249,11 @@
         }
 
         <details class="settings-data-import-tab__columns">
-          <summary>Columnas de la plantilla</summary>
+          <summary>Campos disponibles</summary>
+          <p class="settings-data-import-tab__columns-hint">
+            Referencia de campos en pantalla que puedes vincular al subir el Excel. Los
+            obligatorios llevan *.
+          </p>
           <ul>
             @for (col of sheetMeta[kind].columns; track col.key) {
               <li>

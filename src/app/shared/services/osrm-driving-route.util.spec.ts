@@ -36,6 +36,37 @@ describe('parseOsrmDrivingRoute', () => {
   it('returns null when OSRM did not find a route', () => {
     expect(parseOsrmDrivingRoute({ code: 'NoRoute', routes: [] })).toBeNull();
   });
+
+  it('picks the shortest alternative when several are returned', () => {
+    const parsed = parseOsrmDrivingRoute({
+      code: 'Ok',
+      routes: [
+        {
+          distance: 345_000,
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-104.3, 19.1],
+              [-103.1, 20.6],
+              [-103.4, 20.7],
+            ],
+          },
+        },
+        {
+          distance: 283_000,
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-104.3, 19.1],
+              [-103.5, 20.3],
+              [-103.4, 20.7],
+            ],
+          },
+        },
+      ],
+    });
+    expect(parsed?.km).toBe(283);
+  });
 });
 
 describe('osrmRouteCacheKey', () => {

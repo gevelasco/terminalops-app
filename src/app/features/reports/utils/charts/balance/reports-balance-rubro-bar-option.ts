@@ -9,7 +9,7 @@ import {
   reportsChartValueAxis,
   resolveReportsChartPrimary,
 } from '../reports-chart-palette';
-import { reportsFintechCategoryAxis } from '../reports-chart-theme.util';
+import { reportsChartCategoryAxis } from '../reports-chart-theme.util';
 import { formatReportsMoneyMx } from '../reports-chart-axis.util';
 
 /** Basic Bar — gastos por rubro. */
@@ -47,7 +47,7 @@ export function buildReportsBalanceRubroBarOption(
         return `${String((p as { name?: string }).name ?? '')}<br/>${formatReportsMoneyMx(value)} · ${count} ${label}`;
       },
     },
-    xAxis: reportsFintechCategoryAxis(labels, {
+    xAxis: reportsChartCategoryAxis(labels, {
       rotate: labels.length > 4 ? 24 : 0,
       width: 72,
       showAllLabels: true,

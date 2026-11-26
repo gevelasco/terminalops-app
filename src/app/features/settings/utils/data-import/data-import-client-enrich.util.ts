@@ -59,7 +59,6 @@ export function enrichClientImportRowsWithGeo(
             const nextPayload: CreateClientPayload = {
               ...payload,
               deliveries,
-              ...(deliveries[0] ? { delivery: deliveries[0] } : {}),
             };
             return { ...row, payload: nextPayload, warnings };
           }),

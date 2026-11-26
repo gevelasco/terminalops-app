@@ -3,41 +3,38 @@ import { formatGroupedNumber } from '@shared/utils/format-grouped-number';
 import { resolveDestinationRateStateName } from '@features/clients/utils/destination-rates-map-search';
 import type { MexicoStatesGeoJson } from '@features/trips/utils/trips-map-state-activity';
 
-/** Conteo de rutas por estado = CPs distintos con tarifa (heatmap / tooltip). */
+/**
+ * Conteo de rutas por estado (heatmap / tooltip).
+ * - Scope CP: CPs distintos.
+ * - Scope municipio/estado (sin CP): tarifas activas distintas.
+ */
 export function countDestinationRateRoutesByState(
   rates: readonly DestinationRate[],
   geoJson: MexicoStatesGeoJson,
 ): Map<string, number> {
-  const cpsByState = new Map<string, Set<string>>();
+  const keysByState = new Map<string, Set<string>>();
   for (const rate of rates) {
+    if (rate.active === false) {
+      continue;
+    }
     const stateName = resolveDestinationRateStateName(rate, geoJson);
     if (!stateName) {
       continue;
     }
     const cp = rate.postalCode.trim();
-    if (!cp) {
-      continue;
-    }
-    let set = cpsByState.get(stateName);
+    const key = cp || `rate:${rate.id}`;
+    let set = keysByState.get(stateName);
     if (!set) {
       set = new Set();
-      cpsByState.set(stateName, set);
+      keysByState.set(stateName, set);
     }
-    set.add(cp);
+    set.add(key);
   }
   const counts = new Map<string, number>();
-  for (const [state, set] of cpsByState) {
+  for (const [state, set] of keysByState) {
     counts.set(state, set.size);
   }
   return counts;
-}
-
-/** @deprecated Prefer `countDestinationRateRoutesByState` (CPs distintos). */
-export function countDestinationRatesByState(
-  rates: readonly DestinationRate[],
-  geoJson: MexicoStatesGeoJson,
-): Map<string, number> {
-  return countDestinationRateRoutesByState(rates, geoJson);
 }
 
 export function countDestinationRatesWithCoords(
@@ -328,7 +325,7 @@ export function computeDestinationRatesMapViewport(
   geoJson?: MexicoStatesGeoJson | null,
 ): DestinationRatesMapViewport {
   if (geoJson) {
-    const stateCounts = countDestinationRatesByState(rates, geoJson);
+    const stateCounts = countDestinationRateRoutesByState(rates, geoJson);
     const fromStates = viewportFromActiveStates([...stateCounts.keys()], geoJson);
     if (fromStates) {
       return fromStates;

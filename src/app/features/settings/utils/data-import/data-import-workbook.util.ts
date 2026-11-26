@@ -181,17 +181,3 @@ export function buildDataImportPreviewFromDraft(
   return { kind: draft.kind, sheetName: draft.sheetName, rows };
 }
 
-/**
- * @deprecated Preferir `parseDataImportWorkbookDraft` + mapeo + `buildDataImportPreviewFromDraft`.
- * Conservado para compatibilidad: auto-mapea y prepara en un solo paso.
- */
-export function parseDataImportWorkbookForKind(
-  buffer: ArrayBuffer,
-  kind: DataImportEntityKind,
-): DataImportSheetPreview | null {
-  const draft = parseDataImportWorkbookDraft(buffer, kind);
-  if (!draft) {
-    return null;
-  }
-  return buildDataImportPreviewFromDraft(draft, draft.suggestedMapping);
-}
