@@ -51,7 +51,10 @@ export function municipalityLabelForTable(
   municipalityByCp?: ReadonlyMap<string, string>,
 ): string {
   const fromScope = rate.municipalityName?.trim() ?? '';
-  if (fromScope) {
+  if (
+    fromScope &&
+    normalizePlaceLabel(fromScope) !== normalizePlaceLabel(stateName)
+  ) {
     return fromScope;
   }
 

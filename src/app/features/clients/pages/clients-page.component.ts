@@ -245,9 +245,8 @@ export class ClientsPageComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.applyComercialTabFromRoute(
-      this.route.snapshot.paramMap.get('comercialTab'),
-    );
+    // Tab lo aplica el subscribe de paramMap (emite al suscribirse);
+    // no repetir con snapshot para no disparar loads doble.
     this.openClientFromQuery(
       this.route.snapshot.queryParamMap.get('clientId'),
       this.route.snapshot.queryParamMap.get('clientTab'),

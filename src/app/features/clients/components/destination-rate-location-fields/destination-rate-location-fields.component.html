@@ -71,11 +71,14 @@
       />
     </div>
     <div class="destination-rate-location-fields__locality-cell">
-      <to-input
+      <to-select
         label="Municipio"
-        placeholder="Ej. Zapopan"
+        [placeholder]="
+          stateName() ? 'Elige municipio' : 'Elige estado primero'
+        "
+        [options]="municipalityOptions()"
         [value]="municipalityName()"
-        [disabled]="disabled()"
+        [disabled]="disabled() || !stateName() || municipalityOptionsLoading()"
         (valueChange)="onMunicipalityNameChange($event)"
       />
     </div>

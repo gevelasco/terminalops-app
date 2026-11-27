@@ -24,7 +24,11 @@ import {
   type MxPostalSettlement,
 } from '@shared/services/mexico-postal-code.service';
 import { MexicoGeoStateService } from '@shared/services/mexico-geo-state.service';
-import type { DestinationRateScope } from '@shared/models/destination-rate-scope';
+import { MexicoMunicipalitiesService } from '@shared/services/mexico-municipalities.service';
+import {
+  normalizePlaceKey,
+  type DestinationRateScope,
+} from '@shared/models/destination-rate-scope';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent, type ToSelectOption } from '@shared/ui/to-select/to-select.component';
 
@@ -45,6 +49,7 @@ export class DestinationRateLocationFieldsComponent {
   private readonly toast = inject(ToastService);
   private readonly sepomex = inject(MexicoPostalCodeService);
   private readonly mexicoGeo = inject(MexicoGeoStateService);
+  private readonly mexicoMunicipalities = inject(MexicoMunicipalitiesService);
 
   readonly referencePostalCode = input('');
   readonly disabled = input(false);
@@ -59,6 +64,8 @@ export class DestinationRateLocationFieldsComponent {
   readonly stateName = model('');
 
   private readonly stateOptionsSignal = signal<ToSelectOption[]>([]);
+  private readonly municipalityOptionsSignal = signal<ToSelectOption[]>([]);
+  readonly municipalityOptionsLoading = signal(false);
 
   readonly settlements = signal<MxPostalSettlement[]>([]);
   readonly cpLoading = signal(false);
@@ -71,6 +78,7 @@ export class DestinationRateLocationFieldsComponent {
 
   constructor() {
     this.mexicoGeo.preload();
+    this.mexicoMunicipalities.preload();
     this.mexicoGeo
       .whenReady()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -98,9 +106,32 @@ export class DestinationRateLocationFieldsComponent {
       }
       this.syncCityMunicipalityFromScopeFields();
     });
+    effect((onCleanup) => {
+      if (this.scope() !== 'municipality') {
+        this.municipalityOptionsSignal.set([]);
+        this.municipalityOptionsLoading.set(false);
+        return;
+      }
+      const state = this.stateName().trim();
+      if (!state) {
+        this.municipalityOptionsSignal.set([]);
+        this.municipalityOptionsLoading.set(false);
+        return;
+      }
+      this.municipalityOptionsLoading.set(true);
+      const sub = this.mexicoMunicipalities
+        .municipalityOptionsForState(state)
+        .subscribe((opts) => {
+          this.municipalityOptionsSignal.set(opts);
+          this.municipalityOptionsLoading.set(false);
+          this.reconcileMunicipalitySelection(opts);
+        });
+      onCleanup(() => sub.unsubscribe());
+    });
   }
 
   readonly stateOptions = computed(() => this.stateOptionsSignal());
+  readonly municipalityOptions = computed(() => this.municipalityOptionsSignal());
 
   onStateNameChange(value: string): void {
     const next = String(value ?? '').trim();
@@ -109,9 +140,8 @@ export class DestinationRateLocationFieldsComponent {
       return;
     }
     this.stateName.set(next);
-    if (this.scope() === 'state') {
-      this.municipalityName.set('');
-    }
+    // Al cambiar estado (o en scope estado) el municipio ya no aplica.
+    this.municipalityName.set('');
     this.syncCityMunicipalityFromScopeFields();
     this.postalCodeRouteReset.emit();
   }
@@ -126,6 +156,38 @@ export class DestinationRateLocationFieldsComponent {
     this.postalCodeRouteReset.emit();
   }
 
+  /**
+   * Si el valor guardado no está en el catálogo (p. ej. quedó el nombre del
+   * estado tras migrar de política), lo limpia para forzar selección válida.
+   */
+  private reconcileMunicipalitySelection(opts: readonly ToSelectOption[]): void {
+    const current = this.municipalityName().trim();
+    if (!current) {
+      return;
+    }
+    const state = this.stateName().trim();
+    if (
+      state &&
+      normalizePlaceKey(current) === normalizePlaceKey(state)
+    ) {
+      this.municipalityName.set('');
+      this.syncCityMunicipalityFromScopeFields();
+      return;
+    }
+    const match = opts.find(
+      (o) => normalizePlaceKey(o.value) === normalizePlaceKey(current),
+    );
+    if (!match) {
+      this.municipalityName.set('');
+      this.syncCityMunicipalityFromScopeFields();
+      return;
+    }
+    if (match.value !== current) {
+      this.municipalityName.set(match.value);
+      this.syncCityMunicipalityFromScopeFields();
+    }
+  }
+
   private syncCityMunicipalityFromScopeFields(): void {
     const scope = this.scope();
     const state = this.stateName().trim();
@@ -138,7 +200,7 @@ export class DestinationRateLocationFieldsComponent {
     }
     if (scope === 'municipality') {
       this.cityMunicipality.set(
-        muni && state ? `${muni}, ${state}` : muni || state,
+        muni && state ? `${muni}, ${state}` : state,
       );
       this.locality.set('');
       this.postalCode.set('');

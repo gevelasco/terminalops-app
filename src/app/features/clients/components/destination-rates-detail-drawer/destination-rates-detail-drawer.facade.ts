@@ -51,7 +51,10 @@ import { MexicoPostalCodeService } from '@shared/services/mexico-postal-code.ser
 import { municipalityFromSepomexSettlements } from '@features/trips/utils/mx-postal-settlement';
 import { municipalityLabelForTable } from '@features/clients/utils/destination-rates-table-rows';
 import { cityMunicipalityNeedsEnrichment } from '@features/clients/utils/destination-rates-map-activity';
-import { parseMexicanCityMunicipalityLine } from '@features/clients/utils/destination-rate-state-resolve.util';
+import {
+  parseMexicanCityMunicipalityLine,
+  resolveDestinationRatePlaceFields,
+} from '@features/clients/utils/destination-rate-state-resolve.util';
 import { operationalDistanceFromRouteKm } from '@features/clients/utils/destination-rate-route-resolution';
 import {
   formatRouteKmEsMx,
@@ -184,6 +187,15 @@ export class DestinationRatesDetailDrawerFacade {
   readonly lastUpdatedLabel = computed(() => {
     const r = this.rate();
     return formatDestinationRateUpdatedAt(r.updatedAt ?? r.createdAt);
+  });
+
+  /** Distancia ida+vuelta (ruta × 2) para la ficha de lectura. */
+  readonly viewOperationalDistanceLabel = computed(() => {
+    const km = this.rate().routeDistanceKm;
+    if (km == null || km <= 0) {
+      return '—';
+    }
+    return `${formatRouteKmEsMx(operationalDistanceFromRouteKm(km))} km`;
   });
 
   readonly viewEstimatedArrivalTimeLabel = computed(() =>
@@ -584,11 +596,9 @@ export class DestinationRatesDetailDrawerFacade {
     this.postalCode.set(r.postalCode);
     this.cityMunicipality.set(r.cityMunicipality);
     this.locality.set(r.locality);
-    const parsed = parseMexicanCityMunicipalityLine(r.cityMunicipality);
-    this.municipalityName.set(
-      r.municipalityName?.trim() || parsed.municipality.trim(),
-    );
-    this.stateName.set(r.stateName?.trim() || parsed.state.trim());
+    const place = resolveDestinationRatePlaceFields(r);
+    this.municipalityName.set(place.municipality);
+    this.stateName.set(place.state);
     this.originOperationalCenterId.set(r.originOperationalCenterId);
     this.referencePostalCode.set(r.postalCode);
     this.priceDrafts.set(priceDraftsForEditorFromRate(r));

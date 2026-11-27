@@ -28,6 +28,42 @@ export function parseMexicanCityMunicipalityLine(cityMunicipality: string): {
   return { municipality: raw, state: '' };
 }
 
+/**
+ * Resuelve municipio/estado para formularios.
+ * Evita tratar un cityMunicipality de solo-estado (scope estado) como municipio.
+ */
+export function resolveDestinationRatePlaceFields(rate: {
+  cityMunicipality?: string | null;
+  municipalityName?: string | null;
+  stateName?: string | null;
+}): { municipality: string; state: string } {
+  const parsed = parseMexicanCityMunicipalityLine(rate.cityMunicipality ?? '');
+  let state = (rate.stateName ?? '').trim() || parsed.state.trim();
+  let municipality = (rate.municipalityName ?? '').trim();
+
+  if (!municipality && parsed.state) {
+    municipality = parsed.municipality.trim();
+  }
+
+  // Sin coma: la línea era el estado (p. ej. tras política por estados).
+  if (!parsed.state && parsed.municipality.trim()) {
+    const alone = parsed.municipality.trim();
+    if (!state) {
+      state = alone;
+    }
+  }
+
+  if (
+    municipality &&
+    state &&
+    normalizePlaceLabel(municipality) === normalizePlaceLabel(state)
+  ) {
+    municipality = '';
+  }
+
+  return { municipality, state };
+}
+
 /** Etiqueta de estado → nombre del polígono en `mexico-states.json`. */
 export function matchMexicoStateLabelToGeoName(
   stateLabel: string,

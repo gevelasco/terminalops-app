@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { finalize, map, Observable, shareReplay } from 'rxjs';
 import { normalizeMxPostalCodeDigits } from '@features/trips/utils/mx-postal-settlement';
 import { mapApiDestinationRate } from '@shared/data/destination-rate-api-mapper';
 import type {
@@ -56,6 +56,8 @@ function routeQueryParams(params: DestinationRateRouteQuery): Record<string, str
 export class DestinationRatesService {
   private readonly http = inject(HttpClient);
   private readonly session = inject(SessionService);
+  /** Dedup de GET by id en vuelo (evita doble fetch al abrir el drawer). */
+  private readonly detailInflight = new Map<string, Observable<DestinationRate>>();
 
   checkDestinationRateExists(
     params: DestinationRateRouteQuery,
@@ -95,9 +97,20 @@ export class DestinationRatesService {
   }
 
   getDestinationRateById(id: string): Observable<DestinationRate> {
-    return this.http
-      .get<Record<string, unknown>>(resourceByIdUrl('destination-rates', id))
-      .pipe(map((r) => mapApiDestinationRate(r)));
+    const key = id.trim();
+    const existing = this.detailInflight.get(key);
+    if (existing) {
+      return existing;
+    }
+    const request$ = this.http
+      .get<Record<string, unknown>>(resourceByIdUrl('destination-rates', key))
+      .pipe(
+        map((r) => mapApiDestinationRate(r)),
+        finalize(() => this.detailInflight.delete(key)),
+        shareReplay({ bufferSize: 1, refCount: true }),
+      );
+    this.detailInflight.set(key, request$);
+    return request$;
   }
 
   getDestinationRatesList(): Observable<DestinationRate[]> {

@@ -78,12 +78,16 @@ export class DestinationRatesFeatureService {
     if (!id) {
       return;
     }
+    const sameSelection = this._selectedRateId() === id;
     this._selectedRateId.set(id);
     if (rate?.id === id && this.isRateDetailHydrated(rate)) {
       this._selectedDetail.set(rate);
       this._detailLoading.set(false);
       this.detailSub?.unsubscribe();
       this.detailSub = null;
+      return;
+    }
+    if (sameSelection && (this._selectedDetail()?.id === id || this._detailLoading())) {
       return;
     }
     this._selectedDetail.set(null);
