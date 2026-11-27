@@ -76,12 +76,24 @@ export class MexicoMunicipalitiesService {
         return key;
       }
     }
+    // Match parcial solo si el alias es suficientemente específico
+    // (evita que "ciudad de mexico" caiga en el estado "México").
+    if (aliasTarget.length < 5) {
+      return null;
+    }
+    let partial: string | null = null;
     for (const key of Object.keys(catalog)) {
       const n = normalizePlaceKey(key);
-      if (n.includes(aliasTarget) || aliasTarget.includes(n)) {
+      if (n === aliasTarget) {
         return key;
       }
+      if (n.startsWith(aliasTarget) || aliasTarget.startsWith(n)) {
+        if (partial && partial !== key) {
+          return null;
+        }
+        partial = key;
+      }
     }
-    return null;
+    return partial;
   }
 }

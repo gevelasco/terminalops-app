@@ -277,9 +277,14 @@ export class DestinationRatesDetailDrawerFacade {
 
   readonly editRouteMetricsPending = computed(() => this.definedRouteMetricsLoading());
 
-  readonly editShowRouteMetrics = computed(
-    () => this.routeTollContext() != null || this.routeDistanceKm() != null,
-  );
+  readonly editShowRouteMetrics = computed(() => {
+    if (this.routeTollContext() != null || this.routeDistanceKm() != null) {
+      return true;
+    }
+    // Tras cambiar municipio/estado la ruta se invalida; mantén km editables
+    // (no dejar solo tiempos) mientras se completa el destino.
+    return this.editing() && this.rateScope() !== 'postal_code';
+  });
 
   readonly editRouteDistanceDisplay = computed(() => {
     const km = this.routeDistanceKm();

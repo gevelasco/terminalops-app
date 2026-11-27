@@ -11,6 +11,7 @@ import {
   input,
   model,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { installAutocompleteOutsideDismiss } from '@shared/ui/autocomplete-outside-dismiss';
@@ -140,11 +141,15 @@ export class DestinationRatePlaceComboboxComponent {
 
   private picking = false;
   private repositionListening = false;
+  private floatingListEl: HTMLUListElement | null = null;
 
   private readonly filteredOptions = computed(() => {
     const q = normalizePlaceKey(this.inputText());
     const opts = this.options();
-    if (!q) {
+    const committed = normalizePlaceKey(this.value());
+    // Valor ya elegido y aún no filtró: muestra todo el catálogo.
+    // Si no, al editar solo aparece la opción anterior (p. ej. "Distrito Federal").
+    if (!q || q === committed) {
       return opts;
     }
     return opts.filter((o) =>
@@ -169,14 +174,21 @@ export class DestinationRatePlaceComboboxComponent {
       () => this.listEl()?.nativeElement,
     );
 
+    // Solo reacciona a `value`: si también lee inputText, cada tecla
+    // revierte el filtro al valor confirmado y el autocomplete “no responde”.
     effect(() => {
       const next = this.value().trim();
-      if (this.inputText() !== next) {
-        this.inputText.set(next);
-      }
+      untracked(() => {
+        if (this.inputText() !== next) {
+          this.inputText.set(next);
+        }
+      });
     });
 
-    this.destroyRef.onDestroy(() => this.unbindReposition());
+    this.destroyRef.onDestroy(() => {
+      this.unbindReposition();
+      this.removeFloatingListFromBody();
+    });
   }
 
   onFocus(): void {
@@ -184,6 +196,10 @@ export class DestinationRatePlaceComboboxComponent {
       return;
     }
     this.openList();
+    // Selecciona el texto para que al escribir se reemplace y se pueda filtrar.
+    queueMicrotask(() => {
+      this.fieldInput()?.nativeElement?.select();
+    });
   }
 
   onInput(ev: Event): void {
@@ -216,12 +232,12 @@ export class DestinationRatePlaceComboboxComponent {
 
   onPickPointerDown(opt: ToSelectOption, ev: PointerEvent): void {
     ev.preventDefault();
+    ev.stopPropagation();
     this.picking = true;
     const name = String(opt.value);
     this.inputText.set(name);
-    if (this.value() !== name) {
-      this.value.set(name);
-    }
+    // Siempre set: si es el mismo valor, igual deja el texto confirmado visible.
+    this.value.set(name);
     this.closeList();
   }
 
@@ -242,6 +258,8 @@ export class DestinationRatePlaceComboboxComponent {
   private closeList(): void {
     this.open.set(false);
     this.unbindReposition();
+    // El <ul> se movió a body; quitar huérfanos tras destruir el @if.
+    queueMicrotask(() => this.removeFloatingListFromBody());
   }
 
   private attachFloatingList(): void {
@@ -249,11 +267,20 @@ export class DestinationRatePlaceComboboxComponent {
     if (!ul || !this.open()) {
       return;
     }
+    this.floatingListEl = ul;
     if (ul.parentElement !== document.body) {
       document.body.appendChild(ul);
     }
     this.syncListPosition();
     this.bindReposition();
+  }
+
+  private removeFloatingListFromBody(): void {
+    const ul = this.floatingListEl;
+    this.floatingListEl = null;
+    if (ul?.isConnected && ul.parentElement === document.body) {
+      ul.remove();
+    }
   }
 
   private readonly syncListPosition = (): void => {

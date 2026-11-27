@@ -138,10 +138,33 @@ export class DestinationRateLocationFieldsComponent {
   readonly stateOptions = computed(() => this.stateOptionsSignal());
   readonly municipalityOptions = computed(() => this.municipalityOptionsSignal());
 
+  readonly municipalityPlaceholder = computed(() => {
+    if (!this.stateName().trim()) {
+      return 'Elige estado primero';
+    }
+    if (this.municipalityOptionsLoading()) {
+      return 'Cargando municipios…';
+    }
+    return 'Busca y elige municipio';
+  });
+
+  readonly municipalityEmptyHint = computed(() => {
+    if (this.municipalityOptionsLoading()) {
+      return 'Cargando municipios del estado…';
+    }
+    if (this.municipalityOptions().length === 0) {
+      return 'No hay municipios para este estado';
+    }
+    return 'Escribe para filtrar y elige un municipio de la lista';
+  });
+
   onStateNameChange(value: string): void {
     const next = String(value ?? '').trim();
     const prev = this.stateName().trim();
     if (next === prev) {
+      // Re-sincroniza UI del autocomplete (mismo valor tras re-selección).
+      this.stateName.set(next);
+      this.syncCityMunicipalityFromScopeFields();
       return;
     }
     this.stateName.set(next);
@@ -154,6 +177,8 @@ export class DestinationRateLocationFieldsComponent {
   onMunicipalityNameChange(value: string): void {
     const next = String(value ?? '').trim();
     if (next === this.municipalityName().trim()) {
+      this.municipalityName.set(next);
+      this.syncCityMunicipalityFromScopeFields();
       return;
     }
     this.municipalityName.set(next);

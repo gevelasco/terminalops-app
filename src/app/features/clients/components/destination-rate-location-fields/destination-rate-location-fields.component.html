@@ -74,12 +74,10 @@
     <div class="destination-rate-location-fields__locality-cell">
       <app-destination-rate-place-combobox
         label="Municipio"
-        [placeholder]="
-          stateName() ? 'Busca y elige municipio' : 'Elige estado primero'
-        "
-        emptyHint="Escribe para filtrar y elige un municipio de la lista"
+        [placeholder]="municipalityPlaceholder()"
+        [emptyHint]="municipalityEmptyHint()"
         [options]="municipalityOptions()"
-        [disabled]="disabled() || !stateName() || municipalityOptionsLoading()"
+        [disabled]="disabled() || !stateName()"
         [value]="municipalityName()"
         (valueChange)="onMunicipalityNameChange($event)"
       />
