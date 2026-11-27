@@ -48,6 +48,7 @@
             <col class="destination-rates-map__col--maneuver" />
             <col class="destination-rates-map__col--cost" />
             <col class="destination-rates-map__col--eta" />
+            <col class="destination-rates-map__col--quote" />
           </colgroup>
           <thead>
             <tr>
@@ -61,6 +62,10 @@
               <th scope="col">Maniobra</th>
               <th scope="col">Cobro Cliente</th>
               <th scope="col">ETA</th>
+              <th scope="col" class="destination-rates-map__th--quote">
+                <span class="sr-only">Cotización PDF</span>
+                PDF
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -120,6 +125,25 @@
                 <td>{{ row.maneuver }}</td>
                 <td>{{ row.costLabel }}</td>
                 <td>{{ row.etaLabel }}</td>
+                <td class="destination-rates-map__td--quote">
+                  <button
+                    type="button"
+                    class="destination-rates-map__quote-btn"
+                    [disabled]="
+                      row.clientCharge == null ||
+                      row.clientCharge <= 0 ||
+                      quotingRowKey() === row.rowKey
+                    "
+                    [attr.aria-label]="
+                      'Descargar cotización PDF de ' + (row.maneuver || 'tarifa')
+                    "
+                    title="Descargar cotización PDF"
+                    (click)="onQuotationClick($event, row)"
+                    (keydown)="$event.stopPropagation()"
+                  >
+                    <to-icon name="document" [size]="16" />
+                  </button>
+                </td>
               </tr>
             }
           </tbody>

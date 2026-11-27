@@ -19,6 +19,9 @@ export type DestinationRateTableRow = {
   costLabel: string;
   etaLabel: string;
   active: boolean;
+  /** Datos de cotización PDF (precio de esta fila). */
+  clientCharge: number | null;
+  axleCount: number | null;
   /** Índice de esta fila en la tabla (0-based). */
   rowIndex: number;
   /** rowspan para Estado; 0 = celda omitida (cubierta por merge). */
@@ -248,6 +251,13 @@ function buildStateScopeFlatRows(
       costLabel: costLabel(price.clientCharge),
       etaLabel: formatDestinationRateRoundTripEta(rate),
       active: rate.active,
+      clientCharge: Number.isFinite(Number(price.clientCharge))
+        ? Number(price.clientCharge)
+        : null,
+      axleCount:
+        price.axleCount != null && Number.isFinite(Number(price.axleCount))
+          ? Number(price.axleCount)
+          : null,
     });
   }
   return flat;
@@ -307,6 +317,8 @@ export function buildDestinationRateTableRows(
           costLabel: '—',
           etaLabel,
           active: rate.active,
+          clientCharge: null,
+          axleCount: null,
         });
         continue;
       }
@@ -321,6 +333,13 @@ export function buildDestinationRateTableRows(
           costLabel: costLabel(price.clientCharge),
           etaLabel,
           active: rate.active,
+          clientCharge: Number.isFinite(Number(price.clientCharge))
+            ? Number(price.clientCharge)
+            : null,
+          axleCount:
+            price.axleCount != null && Number.isFinite(Number(price.axleCount))
+              ? Number(price.axleCount)
+              : null,
         });
       }
     }

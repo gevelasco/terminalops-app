@@ -19,6 +19,7 @@ import { firstValueFrom } from 'rxjs';
 import type { ECElementEvent, EChartsType } from 'echarts/core';
 import type { DestinationRate } from '@shared/models/destination-rate.models';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToModuleSkeletonComponent } from '@shared/ui/to-module-skeleton/to-module-skeleton.component';
 import { injectIsMobileViewport } from '@shared/utils/viewport';
 import { ensureTripsMapEchartsModules } from '@features/trips/utils/trips-map-chart-modules';
@@ -38,14 +39,21 @@ import {
   pickStateScopeSurvivorRates,
   type DestinationRateTableRow,
 } from '@features/clients/utils/destination-rates-table-rows';
+import {
+  buildDestinationRateQuotationInput,
+  downloadDestinationRateQuotationPdf,
+  resolveQuotationDestinationLabel,
+  resolveQuotationOriginLabel,
+} from '@features/clients/utils/destination-rate-quotation-pdf';
 import { SessionService } from '@core/services/state/session';
+import { ToastService } from '@core/notifications/toast.service';
 import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 
 @Component({
   selector: 'app-destination-rates-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToModuleSkeletonComponent, ToButtonComponent],
+  imports: [ToModuleSkeletonComponent, ToButtonComponent, ToIconComponent],
   templateUrl: './destination-rates-map.component.html',
   styleUrls: [
     '../../../../shared/ui/to-table/to-table.component.scss',
@@ -56,7 +64,9 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
   private readonly session = inject(SessionService);
+  private readonly toast = inject(ToastService);
   readonly isMobileViewport = injectIsMobileViewport();
+  readonly quotingRowKey = signal<string | null>(null);
 
   readonly rateScope = computed(() =>
     normalizeDestinationRateScope(this.session.destinationRateScope()),
@@ -198,6 +208,47 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
 
   onTableRowClick(row: DestinationRateTableRow): void {
     this.rateSelect.emit(row.rateId);
+  }
+
+  async onQuotationClick(
+    event: Event,
+    row: DestinationRateTableRow,
+  ): Promise<void> {
+    event.stopPropagation();
+    event.preventDefault();
+    if (row.clientCharge == null || row.clientCharge <= 0) {
+      this.toast.show('Esta fila no tiene tarifa comercial para cotizar.', 'warning');
+      return;
+    }
+    if (this.quotingRowKey()) {
+      return;
+    }
+    this.quotingRowKey.set(row.rowKey);
+    try {
+      const rate = this.rates().find((r) => r.id === row.rateId);
+      await downloadDestinationRateQuotationPdf(
+        buildDestinationRateQuotationInput({
+          serviceType: row.maneuver,
+          axleCount: row.axleCount,
+          commercialRate: row.clientCharge,
+          destinationLabel: resolveQuotationDestinationLabel({
+            scope: this.rateScope(),
+            state: row.state,
+            municipality: row.municipality,
+            postalCode: row.postalCode,
+            locality: rate?.locality,
+          }),
+          originLabel: resolveQuotationOriginLabel({
+            originCityMunicipality: rate?.originCityMunicipality,
+            originLocality: rate?.originLocality,
+          }),
+        }),
+      );
+    } catch {
+      this.toast.show('No se pudo generar la cotización PDF.', 'error');
+    } finally {
+      this.quotingRowKey.set(null);
+    }
   }
 
   rowAriaLabel(row: DestinationRateTableRow): string {

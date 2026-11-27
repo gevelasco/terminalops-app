@@ -36,10 +36,10 @@ function mapApiDestinationRatePrice(row: Record<string, unknown>): DestinationRa
     clientCharge: parseRateAmount(row['clientCharge']),
     operatorPaymentEstimate: parseRateAmount(row['operatorPaymentEstimate']),
     estimatedTollAmount: parseRateAmount(row['estimatedTollAmount']),
-    axleCount:
-      typeof row['axleCount'] === 'number' && row['axleCount'] >= 2
-        ? row['axleCount']
-        : undefined,
+    axleCount: (() => {
+      const n = parseOptionalNumber(row['axleCount']);
+      return n != null && n >= 2 ? Math.round(n) : undefined;
+    })(),
     perDiemAmount: parseRateAmount(row['perDiemAmount']),
     notes: String(row['notes'] ?? '').trim() || undefined,
     createdAt: row['createdAt'] ? String(row['createdAt']) : undefined,
