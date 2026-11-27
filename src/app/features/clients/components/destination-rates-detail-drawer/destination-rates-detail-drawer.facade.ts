@@ -6,14 +6,28 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import {
+  catchError,
+  combineLatest,
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  finalize,
+  map,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
 import type { RouteTollPlazaRow } from '@core/services/api/routing';
+import { GeoApiService } from '@core/services/api/geo';
 import { enrichTollPlazaRowsForMap } from '@features/clients/utils/destination-rate-route-toll-plazas.util';
 import { ToastService } from '@core/notifications/toast.service';
 import { SessionService } from '@core/services/state/session';
 import { APP_MODULE_CODES } from '@shared/models/app-modules.models';
 import { DestinationRatesFeatureService } from '@features/clients/services/destination-rates.service';
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
+import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
 import {
   buildCreateDestinationRatePayload,
   destinationRatePriceDraftsForSave,
@@ -52,10 +66,14 @@ import { municipalityFromSepomexSettlements } from '@features/trips/utils/mx-pos
 import { municipalityLabelForTable } from '@features/clients/utils/destination-rates-table-rows';
 import { cityMunicipalityNeedsEnrichment } from '@features/clients/utils/destination-rates-map-activity';
 import {
+  mexicanSepomexGeocodeHints,
   parseMexicanCityMunicipalityLine,
   resolveDestinationRatePlaceFields,
 } from '@features/clients/utils/destination-rate-state-resolve.util';
-import { operationalDistanceFromRouteKm } from '@features/clients/utils/destination-rate-route-resolution';
+import {
+  isDestinationRateRouteInputComplete,
+  operationalDistanceFromRouteKm,
+} from '@features/clients/utils/destination-rate-route-resolution';
 import {
   formatRouteKmEsMx,
   formatRouteKmInputValue,
@@ -69,7 +87,13 @@ import {
   suggestedDriveTimeHoursFromRouteKm,
 } from '@features/clients/utils/destination-rate-drive-time.util';
 import { formatEstimatedTimeValueNumber } from '@features/clients/utils/destination-rate-estimated-time';
-import { OsrmDrivingRouteService } from '@shared/services/osrm-driving-route.service';
+import {
+  OsrmDrivingRouteService,
+  type LatLon,
+} from '@shared/services/osrm-driving-route.service';
+import { isValidLatLon, latLonFromPrefill } from '@shared/services/lat-lon';
+import { PhotonPlaceSearchService } from '@shared/services/photon-place-search.service';
+import { MexicoGeoStateService } from '@shared/services/mexico-geo-state.service';
 import { normalizeDestinationRateScope } from '@shared/models/destination-rate-scope';
 
 const EMPTY_RATE: DestinationRate = {
@@ -92,9 +116,13 @@ export class DestinationRatesDetailDrawerFacade {
   private readonly destroyRef = inject(DestroyRef);
   private readonly ratesFeature = inject(DestinationRatesFeatureService);
   private readonly operationConfigs = inject(OperationConfigurationsFeatureService);
+  private readonly centersFeature = inject(OperationalCentersFeatureService);
   private readonly toast = inject(ToastService);
   private readonly session = inject(SessionService);
   private readonly sepomex = inject(MexicoPostalCodeService);
+  private readonly geoApi = inject(GeoApiService);
+  private readonly photon = inject(PhotonPlaceSearchService);
+  private readonly mexicoGeo = inject(MexicoGeoStateService);
   private readonly osrm = inject(OsrmDrivingRouteService);
 
   private dismissCallback: (() => void) | null = null;
@@ -152,6 +180,9 @@ export class DestinationRatesDetailDrawerFacade {
   private readonly arrivalTimeTouched = signal(false);
   private readonly returnTimeTouched = signal(false);
   private readonly definedRouteMetricsLoading = signal(false);
+  private readonly routeResolving = signal(false);
+  private readonly originCoords = signal<LatLon | null>(null);
+  private readonly destinationCoords = signal<LatLon | null>(null);
   private readonly routeMetricsPlazas = signal<readonly RouteTollPlazaRow[]>([]);
   private lastDefinedRouteMetricsKey = '';
   private definedRouteMetricsGeneration = 0;
@@ -275,10 +306,16 @@ export class DestinationRatesDetailDrawerFacade {
     return enrichTollPlazaRowsForMap(this.rate().routeTollPlazas ?? []);
   });
 
-  readonly editRouteMetricsPending = computed(() => this.definedRouteMetricsLoading());
+  readonly editRouteMetricsPending = computed(
+    () => this.definedRouteMetricsLoading() || this.routeResolving(),
+  );
 
   readonly editShowRouteMetrics = computed(() => {
-    if (this.routeTollContext() != null || this.routeDistanceKm() != null) {
+    if (
+      this.routeTollContext() != null ||
+      this.routeDistanceKm() != null ||
+      this.routeResolving()
+    ) {
       return true;
     }
     // Tras cambiar municipio/estado la ruta se invalida; mantén km editables
@@ -313,14 +350,30 @@ export class DestinationRatesDetailDrawerFacade {
   });
 
   readonly routeTollContext = computed((): DestinationRateRouteTollContext | null => {
-    if (this.editing() && this.editRouteLocationStale()) {
-      return null;
-    }
     const r = this.rate();
-    const oLat = r.originLatitude;
-    const oLon = r.originLongitude;
-    const dLat = r.destinationLatitude;
-    const dLon = r.destinationLongitude;
+    const stale = this.editing() && this.editRouteLocationStale();
+    let oLat: number | null | undefined;
+    let oLon: number | null | undefined;
+    let dLat: number | null | undefined;
+    let dLon: number | null | undefined;
+
+    if (stale) {
+      const origin = this.originCoords();
+      const dest = this.destinationCoords();
+      if (!isValidLatLon(origin) || !isValidLatLon(dest)) {
+        return null;
+      }
+      oLat = origin.lat;
+      oLon = origin.lon;
+      dLat = dest.lat;
+      dLon = dest.lon;
+    } else {
+      oLat = r.originLatitude;
+      oLon = r.originLongitude;
+      dLat = r.destinationLatitude;
+      dLon = r.destinationLongitude;
+    }
+
     if (
       oLat == null ||
       oLon == null ||
@@ -336,6 +389,13 @@ export class DestinationRatesDetailDrawerFacade {
     const waypoints = this.editing()
       ? routeWaypointsToTollQuery(this.appliedRouteWaypoints())
       : routeWaypointsToTollQuery(r.routeWaypoints ?? []);
+    const destinationSearch = stale
+      ? destinationRatePlaceSearchLabel(
+          this.locality(),
+          this.cityMunicipality().trim() ||
+            [this.municipalityName(), this.stateName()].filter(Boolean).join(', '),
+        )
+      : destinationRatePlaceSearchLabel(r.locality, r.cityMunicipality);
     return {
       originLat: oLat,
       originLon: oLon,
@@ -345,10 +405,7 @@ export class DestinationRatesDetailDrawerFacade {
         r.originLocality,
         r.originCityMunicipality,
       ),
-      destinationSearch: destinationRatePlaceSearchLabel(
-        r.locality,
-        r.cityMunicipality,
-      ),
+      destinationSearch,
       ...(waypoints.length > 0 ? { waypoints } : {}),
     };
   });
@@ -362,6 +419,9 @@ export class DestinationRatesDetailDrawerFacade {
     this.routeMetricsPlazas.set([]);
     this.lastDefinedRouteMetricsKey = '';
     this.definedRouteMetricsGeneration += 1;
+    this.originCoords.set(null);
+    this.destinationCoords.set(null);
+    this.routeResolving.set(false);
     if (!this.routeDistanceTouched()) {
       this.routeDistanceKm.set(null);
       this.routeDistanceKmInput.set('');
@@ -417,6 +477,7 @@ export class DestinationRatesDetailDrawerFacade {
       });
       onCleanup(() => sub.unsubscribe());
     });
+    this.bindEditRouteDistancePipeline();
     this.bindDefinedRouteMetrics();
   }
 
@@ -523,6 +584,8 @@ export class DestinationRatesDetailDrawerFacade {
       routeWaypoints: this.appliedRouteWaypoints(),
       routeTollPlazas,
       routeDistanceKm: this.routeDistanceKm(),
+      destinationLatitude: this.destinationCoords()?.lat ?? null,
+      destinationLongitude: this.destinationCoords()?.lon ?? null,
       forUpdate: true,
     });
 
@@ -624,6 +687,9 @@ export class DestinationRatesDetailDrawerFacade {
     this.returnTimeTouched.set(false);
     this.routeMetricsPlazas.set([]);
     this.lastDefinedRouteMetricsKey = '';
+    this.originCoords.set(null);
+    this.destinationCoords.set(null);
+    this.routeResolving.set(false);
   }
 
   applyAutoRouteDistanceKm(km: number | null): void {
@@ -648,6 +714,238 @@ export class DestinationRatesDetailDrawerFacade {
     if (!this.returnTimeTouched()) {
       this.estimatedReturnTimeValue.set(label);
     }
+  }
+
+  /** Geocode + OSRM cuando el destino/origen cambian en edición. */
+  private bindEditRouteDistancePipeline(): void {
+    combineLatest([
+      toObservable(this.editing),
+      toObservable(this.editRouteLocationStale),
+      toObservable(this.originOperationalCenterId),
+      toObservable(this.postalCode),
+      toObservable(this.locality),
+      toObservable(this.cityMunicipality),
+      toObservable(this.municipalityName),
+      toObservable(this.stateName),
+      toObservable(this.rateScope),
+    ])
+      .pipe(
+        debounceTime(300),
+        filter(
+          ([
+            editing,
+            stale,
+            originId,
+            cp,
+            locality,
+            cityMunicipality,
+            municipalityName,
+            stateName,
+            scope,
+          ]) =>
+            editing &&
+            stale &&
+            isDestinationRateRouteInputComplete({
+              scope,
+              originOperationalCenterId: originId,
+              postalCode: cp,
+              locality,
+              cityMunicipality,
+              municipalityName,
+              stateName,
+            }),
+        ),
+        distinctUntilChanged((a, b) => a.every((v, i) => String(v) === String(b[i]))),
+        switchMap(
+          ([
+            ,
+            ,
+            originId,
+            cp,
+            locality,
+            cityMunicipality,
+            municipalityName,
+            stateName,
+            scope,
+          ]) =>
+            this.resolveEditRouteDistances({
+              originId: String(originId).trim(),
+              cp: String(cp),
+              locality: String(locality).trim(),
+              cityMunicipality: String(cityMunicipality).trim(),
+              municipalityName: String(municipalityName).trim(),
+              stateName: String(stateName).trim(),
+              scope: normalizeDestinationRateScope(scope),
+            }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  private resolveEditOriginCoords(originId: string): LatLon | null {
+    const center = this.centersFeature.centerById(originId);
+    const fromCenter = latLonFromPrefill(center?.latitude, center?.longitude);
+    if (isValidLatLon(fromCenter)) {
+      return fromCenter;
+    }
+    const r = this.rate();
+    if (r.originOperationalCenterId === originId) {
+      return latLonFromPrefill(r.originLatitude, r.originLongitude);
+    }
+    return null;
+  }
+
+  private resolveEditRouteDistances(input: {
+    originId: string;
+    cp: string;
+    locality: string;
+    cityMunicipality: string;
+    municipalityName: string;
+    stateName: string;
+    scope: ReturnType<typeof normalizeDestinationRateScope>;
+  }) {
+    if (!this.editing() || !this.editRouteLocationStale()) {
+      return of(undefined);
+    }
+
+    const originCoords = this.resolveEditOriginCoords(input.originId);
+    if (!isValidLatLon(originCoords)) {
+      this.originCoords.set(null);
+      this.destinationCoords.set(null);
+      if (!this.routeDistanceTouched()) {
+        this.applyAutoRouteDistanceKm(null);
+      }
+      return of(undefined);
+    }
+    this.originCoords.set(originCoords);
+    this.routeResolving.set(true);
+
+    const destCoords$ =
+      input.scope === 'postal_code'
+        ? this.resolvePostalCodeDestinationCoords(input)
+        : this.resolveScopedDestinationCoords(input);
+
+    return destCoords$.pipe(
+      switchMap((destCoords) => {
+        if (!this.editing() || !this.editRouteLocationStale()) {
+          return of(null);
+        }
+        if (!isValidLatLon(destCoords)) {
+          this.destinationCoords.set(null);
+          return of(null);
+        }
+        this.destinationCoords.set(destCoords);
+        return this.osrm.drivingKm(originCoords, destCoords);
+      }),
+      tap((routeKm) => {
+        if (!this.editing() || !this.editRouteLocationStale()) {
+          return;
+        }
+        this.applyAutoRouteDistanceKm(routeKm);
+      }),
+      catchError(() => {
+        if (this.editing() && this.editRouteLocationStale()) {
+          this.destinationCoords.set(null);
+          if (!this.routeDistanceTouched()) {
+            this.applyAutoRouteDistanceKm(null);
+          }
+        }
+        return of(null);
+      }),
+      finalize(() => {
+        if (this.editing()) {
+          this.routeResolving.set(false);
+        }
+      }),
+      map(() => undefined),
+    );
+  }
+
+  private resolveDestinationCoords(
+    fromCp: LatLon | null,
+    destQuery: string,
+    hints: { state: string; municipality: string; settlement: string },
+  ) {
+    if (
+      isValidLatLon(fromCp) &&
+      this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state)
+    ) {
+      return of(fromCp);
+    }
+    return this.mexicoGeo.whenReady().pipe(
+      switchMap((geo) => {
+        if (
+          isValidLatLon(fromCp) &&
+          this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state, geo)
+        ) {
+          return of(fromCp);
+        }
+        return this.photon.firstCoordinatesForMexicanSepomex(destQuery, hints).pipe(
+          map((fromPhoton) => {
+            if (
+              isValidLatLon(fromPhoton) &&
+              this.mexicoGeo.coordsMatchStateHint(fromPhoton, hints.state, geo)
+            ) {
+              return fromPhoton;
+            }
+            if (
+              isValidLatLon(fromCp) &&
+              this.mexicoGeo.coordsMatchStateHint(fromCp, hints.state, geo)
+            ) {
+              return fromCp;
+            }
+            return fromPhoton ?? fromCp;
+          }),
+        );
+      }),
+    );
+  }
+
+  private resolvePostalCodeDestinationCoords(input: {
+    cp: string;
+    locality: string;
+    cityMunicipality: string;
+  }) {
+    const hints = mexicanSepomexGeocodeHints(input.locality, input.cityMunicipality);
+    const destQuery = [
+      hints.settlement,
+      hints.municipality,
+      hints.state,
+      input.cp.trim(),
+      'México',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return this.geoApi
+      .settlementCoordinates({
+        postalCode: input.cp,
+        settlement: hints.settlement,
+        municipality: hints.municipality,
+        state: hints.state,
+      })
+      .pipe(
+        switchMap((fromCp) => this.resolveDestinationCoords(fromCp, destQuery, hints)),
+      );
+  }
+
+  private resolveScopedDestinationCoords(input: {
+    municipalityName: string;
+    stateName: string;
+    scope: ReturnType<typeof normalizeDestinationRateScope>;
+  }) {
+    const state = input.stateName.trim();
+    const municipality =
+      input.scope === 'municipality' ? input.municipalityName.trim() : '';
+    const hints = { state, municipality, settlement: '' };
+    const destQuery = [municipality, state, 'México'].filter(Boolean).join(', ');
+    return this.photon
+      .firstCoordinatesForMexicanSepomex(destQuery, hints)
+      .pipe(
+        switchMap((fromPhoton) =>
+          this.resolveDestinationCoords(fromPhoton, destQuery, hints),
+        ),
+      );
   }
 
   /** Recalcula km/tiempos al cambiar casetas manuales en edición. */
