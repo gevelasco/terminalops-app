@@ -51,10 +51,8 @@ export function municipalityLabelForTable(
   municipalityByCp?: ReadonlyMap<string, string>,
 ): string {
   const fromScope = rate.municipalityName?.trim() ?? '';
-  if (
-    fromScope &&
-    normalizePlaceLabel(fromScope) !== normalizePlaceLabel(stateName)
-  ) {
+  // Capitales homónimas (Puebla/Puebla) son válidas; no ocultarlas.
+  if (fromScope) {
     return fromScope;
   }
 

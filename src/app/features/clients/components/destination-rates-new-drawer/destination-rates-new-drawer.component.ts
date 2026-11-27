@@ -434,6 +434,10 @@ export class DestinationRatesNewDrawerComponent {
     if (!this.canSave()) {
       return;
     }
+    const editor = this.pricesEditor();
+    if (editor && !editor.assertReadyToPersist()) {
+      return;
+    }
 
     const err = validateDestinationRateForm({
       scope: this.rateScope(),

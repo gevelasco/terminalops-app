@@ -162,10 +162,16 @@
   }
 }
 
-.destination-rate-prices-editor__card-edit {
+.destination-rate-prices-editor__card-actions {
   position: absolute;
   top: 0.35rem;
   right: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.destination-rate-prices-editor__card-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -183,13 +189,25 @@
     color: var(--to-color-primary, #2563eb);
     border-color: color-mix(in srgb, var(--to-color-primary, #2563eb) 35%, var(--to-color-border, #e2e8f0));
   }
+
+  &--danger:hover {
+    color: #b91c1c;
+    border-color: color-mix(in srgb, #fecaca 70%, var(--to-color-border, #e2e8f0));
+  }
+}
+
+.destination-rate-prices-editor__delete-copy {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--to-color-text, #0f172a);
 }
 
 .destination-rate-prices-editor__card-title {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding-right: 1.75rem;
+  padding-right: 3.4rem;
   min-width: 0;
   color: var(--to-color-text, #0f172a);
 }

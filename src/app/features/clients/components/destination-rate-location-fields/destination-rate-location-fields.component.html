@@ -61,35 +61,38 @@
     </div>
   } @else if (scope() === 'municipality') {
     <div class="destination-rate-location-fields__city-cell">
-      <to-select
+      <app-destination-rate-place-combobox
         label="Estado"
-        placeholder="Elige estado"
+        placeholder="Busca y elige estado"
+        emptyHint="Escribe para filtrar y elige un estado de la lista"
         [options]="stateOptions()"
-        [value]="stateName()"
         [disabled]="disabled()"
+        [value]="stateName()"
         (valueChange)="onStateNameChange($event)"
       />
     </div>
     <div class="destination-rate-location-fields__locality-cell">
-      <to-select
+      <app-destination-rate-place-combobox
         label="Municipio"
         [placeholder]="
-          stateName() ? 'Elige municipio' : 'Elige estado primero'
+          stateName() ? 'Busca y elige municipio' : 'Elige estado primero'
         "
+        emptyHint="Escribe para filtrar y elige un municipio de la lista"
         [options]="municipalityOptions()"
-        [value]="municipalityName()"
         [disabled]="disabled() || !stateName() || municipalityOptionsLoading()"
+        [value]="municipalityName()"
         (valueChange)="onMunicipalityNameChange($event)"
       />
     </div>
   } @else {
     <div class="destination-rate-location-fields__city-cell">
-      <to-select
+      <app-destination-rate-place-combobox
         label="Estado destino"
-        placeholder="Elige estado"
+        placeholder="Busca y elige estado"
+        emptyHint="Escribe para filtrar y elige un estado de la lista"
         [options]="stateOptions()"
-        [value]="stateName()"
         [disabled]="disabled()"
+        [value]="stateName()"
         (valueChange)="onStateNameChange($event)"
       />
     </div>

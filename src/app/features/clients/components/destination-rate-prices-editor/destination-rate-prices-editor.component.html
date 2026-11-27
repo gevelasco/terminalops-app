@@ -156,8 +156,18 @@
           (click)="addRow()"
         >
           <to-icon name="sell" [size]="16" />
-          Agregar tipo
+          {{ isEditingType() ? 'Actualizar tipo' : 'Agregar tipo' }}
         </to-button>
+        @if (isEditingType()) {
+          <to-button
+            type="button"
+            variant="outline"
+            size="sm"
+            (click)="cancelEdit()"
+          >
+            Cancelar
+          </to-button>
+        }
       </div>
     } @else if (savedRows().length === 0) {
       @let composer = composerRow();
@@ -203,14 +213,24 @@
               [class.destination-rate-prices-editor__card--selected]="isCardSelected(row.rowKey)"
             >
               @if (!disabled() && !viewOnly()) {
-                <button
-                  type="button"
-                  class="destination-rate-prices-editor__card-edit"
-                  aria-label="Editar tipo de maniobra"
-                  (click)="editSavedRow(row.rowKey)"
-                >
-                  <to-icon name="edit" [size]="14" />
-                </button>
+                <div class="destination-rate-prices-editor__card-actions">
+                  <button
+                    type="button"
+                    class="destination-rate-prices-editor__card-action"
+                    aria-label="Editar tipo de maniobra"
+                    (click)="editSavedRow(row.rowKey)"
+                  >
+                    <to-icon name="edit" [size]="14" />
+                  </button>
+                  <button
+                    type="button"
+                    class="destination-rate-prices-editor__card-action destination-rate-prices-editor__card-action--danger"
+                    aria-label="Eliminar tipo de maniobra"
+                    (click)="requestDeleteSavedRow(row.rowKey)"
+                  >
+                    <to-icon name="delete" [size]="14" />
+                  </button>
+                </div>
               }
               <div class="destination-rate-prices-editor__card-title">
                 <to-icon name="route" [size]="16" />
@@ -252,3 +272,22 @@
 
   </div>
 </div>
+
+<to-confirm-dialog
+  titleId="destination-rate-delete-type-title"
+  icon="warning"
+  title="Eliminar tipo"
+  cancelLabel="Cancelar"
+  confirmLabel="Eliminar tipo"
+  confirmIcon="delete"
+  confirmVariant="primary"
+  [open]="deleteTypeConfirmOpen()"
+  (cancel)="closeDeleteTypeConfirm()"
+  (confirm)="confirmDeleteSavedRow()"
+>
+  <p class="destination-rate-prices-editor__delete-copy">
+    ¿Eliminar el tipo
+    <strong>{{ pendingDeleteLabel() }}</strong>
+    de esta tarifa?
+  </p>
+</to-confirm-dialog>

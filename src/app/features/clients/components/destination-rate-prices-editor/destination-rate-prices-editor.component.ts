@@ -37,6 +37,7 @@ import type { DestinationRatePriceDraft } from '@shared/models/destination-rate.
 import { DESTINATION_RATE_AXLE_OPTIONS } from '@shared/catalogs/client-form-options';
 import { formatFuelEstimateMoney } from '@features/trips/utils/trips-fuel-estimate';
 import { ToButtonComponent } from '@shared/ui/to-button/to-button.component';
+import { ToConfirmDialogComponent } from '@shared/ui/to-confirm-dialog/to-confirm-dialog.component';
 import { ToIconComponent } from '@shared/ui/to-icon/to-icon.component';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent, ToSelectOption } from '@shared/ui/to-select/to-select.component';
@@ -101,6 +102,7 @@ function searchHitToRow(hit: TollPlazaSearchHit, order: number): RouteTollPlazaR
     ToSelectComponent,
     ToButtonComponent,
     ToIconComponent,
+    ToConfirmDialogComponent,
     DestinationRateManeuverComboboxComponent,
     DestinationRateTollPlazaComboboxComponent,
     DestinationRateRouteMapDialogComponent,
@@ -123,6 +125,8 @@ export class DestinationRatePricesEditorComponent {
 
   /** Casetas armadas manualmente (orden = ruta). */
   private readonly manualTollPlazas = signal<RouteTollPlazaRow[]>([]);
+  readonly deleteTypeConfirmOpen = signal(false);
+  readonly pendingDeleteRowKey = signal<string | null>(null);
 
   constructor() {
     this.operationConfigs.loadOperationConfigurations();
@@ -186,9 +190,35 @@ export class DestinationRatePricesEditorComponent {
     return this.savedRows();
   });
 
+  readonly isEditingType = computed(() => this.editingRowKey() != null);
+
   readonly canAddRow = computed(
     () => !this.disabled() && canAppendDestinationRatePriceRow([this.composerRow()]),
   );
+
+  readonly pendingDeleteLabel = computed(() => {
+    const key = this.pendingDeleteRowKey();
+    if (!key) {
+      return '';
+    }
+    const row = this.savedRows().find((r) => r.rowKey === key);
+    return row ? this.maneuverLabel(row) : '';
+  });
+
+  /**
+   * Bloquea guardar la tarifa si hay un tipo en edición sin actualizar/cancelar.
+   * @returns true si se puede continuar con el save.
+   */
+  assertReadyToPersist(): boolean {
+    if (!this.editingRowKey()) {
+      return true;
+    }
+    this.toast.show(
+      'Primero debes terminar la actualización de ese tipo o cancelarla para poder guardar.',
+      'warning',
+    );
+    return false;
+  }
 
   readonly composerAxleCount = computed(() =>
     parseDestinationRateAxleCount(this.composerRow().axleCount),
@@ -378,8 +408,23 @@ export class DestinationRatePricesEditorComponent {
     });
   }
 
+  /** Abandona la edición y deja el compositor listo para un tipo nuevo. */
+  cancelEdit(): void {
+    if (this.disabled() || !this.editingRowKey()) {
+      return;
+    }
+    this.finishComposerReset(this.composerRowKey());
+  }
+
   editSavedRow(rowKey: string): void {
     if (this.disabled()) {
+      return;
+    }
+    if (this.editingRowKey() && this.editingRowKey() !== rowKey) {
+      this.toast.show(
+        'Primero debes terminar la actualización de ese tipo o cancelarla.',
+        'warning',
+      );
       return;
     }
     const row = this.savedRows().find((r) => r.rowKey === rowKey);
@@ -410,6 +455,41 @@ export class DestinationRatePricesEditorComponent {
       return next;
     });
     this.syncTollAmountToComposer(false);
+  }
+
+  requestDeleteSavedRow(rowKey: string): void {
+    if (this.disabled()) {
+      return;
+    }
+    if (this.editingRowKey()) {
+      this.toast.show(
+        'Primero debes terminar la actualización de ese tipo o cancelarla.',
+        'warning',
+      );
+      return;
+    }
+    if (!this.savedRows().some((r) => r.rowKey === rowKey)) {
+      return;
+    }
+    this.pendingDeleteRowKey.set(rowKey);
+    this.deleteTypeConfirmOpen.set(true);
+  }
+
+  closeDeleteTypeConfirm(): void {
+    this.deleteTypeConfirmOpen.set(false);
+    this.pendingDeleteRowKey.set(null);
+  }
+
+  confirmDeleteSavedRow(): void {
+    const rowKey = this.pendingDeleteRowKey();
+    this.closeDeleteTypeConfirm();
+    if (!rowKey || this.disabled()) {
+      return;
+    }
+    this.priceDrafts.update((rows) => rows.filter((r) => r.rowKey !== rowKey));
+    if (this.editingRowKey() === rowKey) {
+      this.finishComposerReset(this.composerRowKey());
+    }
   }
 
   onManeuverChange(rowKey: string, value: DestinationRateManeuverValue): void {

@@ -31,12 +31,17 @@ import {
 } from '@shared/models/destination-rate-scope';
 import { ToInputComponent } from '@shared/ui/to-input/to-input.component';
 import { ToSelectComponent, type ToSelectOption } from '@shared/ui/to-select/to-select.component';
+import { DestinationRatePlaceComboboxComponent } from './destination-rate-place-combobox.component';
 
 @Component({
   selector: 'app-destination-rate-location-fields',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ToInputComponent, ToSelectComponent],
+  imports: [
+    ToInputComponent,
+    ToSelectComponent,
+    DestinationRatePlaceComboboxComponent,
+  ],
   templateUrl: './destination-rate-location-fields.component.html',
   styleUrl: './destination-rate-location-fields.component.scss',
   host: {
@@ -165,18 +170,11 @@ export class DestinationRateLocationFieldsComponent {
     if (!current) {
       return;
     }
-    const state = this.stateName().trim();
-    if (
-      state &&
-      normalizePlaceKey(current) === normalizePlaceKey(state)
-    ) {
-      this.municipalityName.set('');
-      this.syncCityMunicipalityFromScopeFields();
-      return;
-    }
     const match = opts.find(
       (o) => normalizePlaceKey(o.value) === normalizePlaceKey(current),
     );
+    // Misma etiqueta estado/municipio (p. ej. Puebla) es válida si está en catálogo.
+    // Solo limpia basura de migración (estado copiado a municipio sin existir en lista).
     if (!match) {
       this.municipalityName.set('');
       this.syncCityMunicipalityFromScopeFields();

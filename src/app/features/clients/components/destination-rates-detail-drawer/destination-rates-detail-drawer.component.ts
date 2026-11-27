@@ -54,7 +54,11 @@ export class DestinationRatesDetailDrawerComponent {
   readonly dismiss = output<void>();
 
   saveEdit(): void {
-    const routeTollPlazas = this.pricesEditor()?.routeTollPlazasForPersist();
+    const editor = this.pricesEditor();
+    if (editor && !editor.assertReadyToPersist()) {
+      return;
+    }
+    const routeTollPlazas = editor?.routeTollPlazasForPersist();
     this.vm.persist(routeTollPlazas);
   }
 

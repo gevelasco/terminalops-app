@@ -46,19 +46,13 @@ export function resolveDestinationRatePlaceFields(rate: {
   }
 
   // Sin coma: la línea era el estado (p. ej. tras política por estados).
+  // No promover a municipio: capitales homónimas (Puebla, Oaxaca…) son válidas
+  // solo cuando municipalityName o "muni, estado" ya lo traen.
   if (!parsed.state && parsed.municipality.trim()) {
     const alone = parsed.municipality.trim();
     if (!state) {
       state = alone;
     }
-  }
-
-  if (
-    municipality &&
-    state &&
-    normalizePlaceLabel(municipality) === normalizePlaceLabel(state)
-  ) {
-    municipality = '';
   }
 
   return { municipality, state };
