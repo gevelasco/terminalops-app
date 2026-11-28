@@ -67,4 +67,14 @@ describe('buildFuelEstimateRequest', () => {
     expect(req?.unitId).toBe(42);
     expect(req?.unitPerformanceKmL).toBe(2.8);
   });
+
+  it('arma la petición con id de unidad no numérico si hay rendimiento', () => {
+    const req = buildFuelEstimateRequest({
+      ...complete,
+      unitId: 'u-busy',
+    });
+    expect(req).not.toBeNull();
+    expect(req?.unitId).toBeUndefined();
+    expect(req?.unitPerformanceKmL).toBe(2.8);
+  });
 });

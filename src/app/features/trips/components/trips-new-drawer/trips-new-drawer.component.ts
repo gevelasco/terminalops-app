@@ -86,6 +86,7 @@ import {
   deliveryStateLabel,
   findClientDeliveryForRoute,
   findClientDeliveryForScopedDestination,
+  scopedClientDeliveryOptions,
   uniqueClientDeliveryPostalCodes,
   validClientDeliveriesForScope,
 } from '@features/clients/utils/client-deliveries';
@@ -112,7 +113,6 @@ import { OperationalCentersFeatureService } from '@features/clients/services/ope
 import { OperationConfigurationsFeatureService } from '@features/clients/services/operation-configurations.service';
 import { isOperationalCenterNewRoute } from '@features/clients/constants/operational-center-new-route';
 import { OperationalCenterSelectComponent } from '@features/clients/components/operational-center-select/operational-center-select.component';
-import { DestinationRateLocationFieldsComponent } from '@features/clients/components/destination-rate-location-fields/destination-rate-location-fields.component';
 import { TripEvaluationService } from '@shared/services/trip-evaluation.service';
 import {
   destinationRateHasClientChargeForOperation,
@@ -126,7 +126,9 @@ import {
   FUEL_ESTIMATE_DEBOUNCE_MS,
   formatFuelEstimateLiters,
   formatFuelEstimateMoney,
+  fuelEstimateBlockReason,
   fuelEstimateInputsFingerprint,
+  parseUnitPerformanceKmL,
 } from '@features/trips/utils/trips-fuel-estimate';
 import { isValidLatLon, latLonFromPrefill } from '@shared/services/lat-lon';
 import {
@@ -193,6 +195,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs/operators';
+import { parseHttpApiErrorMessage } from '@shared/utils/http-api-error';
 import type { TripDocumentKind } from '@shared/models/logistics.models';
 
 @Component({
@@ -205,7 +208,6 @@ import type { TripDocumentKind } from '@shared/models/logistics.models';
     ToIconComponent,
     ToConfirmDialogComponent,
     OperationalCenterSelectComponent,
-    DestinationRateLocationFieldsComponent,
     ToDisplayFieldComponent,
     ToInputComponent,
     ToSelectComponent,
@@ -263,6 +265,7 @@ export class TripsNewDrawerComponent {
   /** Si el usuario editó diesel tras la última estimación automática. */
   private readonly dieselEstimateOverride = signal(false);
   private lastFuelEstimateInputFp = '';
+  private lastFuelEstimateBlockToastFp = '';
   private lastAutoDieselLiters = '';
   private lastAutoDieselAmount = '';
   private lastAutoDieselPricePerLiter: number | null = null;
@@ -464,6 +467,38 @@ export class TripsNewDrawerComponent {
     }
     return 'Ej. 77560';
   });
+
+  readonly scopedDeliverySelectOptions = computed((): ToSelectOption[] =>
+    scopedClientDeliveryOptions(
+      this.selectedFormClient(),
+      this.destinationRateScope(),
+    ).map((opt) => ({ value: opt.value, label: opt.label })),
+  );
+
+  readonly scopedDestinationSelectLabel = computed(() => {
+    const scope = this.destinationRateScope();
+    if (scope === 'state') {
+      return 'Estado destino';
+    }
+    if (scope === 'municipality') {
+      return 'Lugar de destino';
+    }
+    return 'Destino';
+  });
+
+  readonly scopedDestinationSelectPlaceholder = computed(() => {
+    const scope = this.destinationRateScope();
+    if (scope === 'state') {
+      return 'Estados configurados en el cliente';
+    }
+    if (scope === 'municipality') {
+      return 'Ej. Guadalajara, Jalisco';
+    }
+    return 'Elige destino del cliente';
+  });
+
+  readonly scopedDeliveryPickKey = signal('');
+
   /**
    * Si el usuario aún no eligió configuración/contenedor, se listan todas las
    * unidades disponibles. Después se filtra por convoy y contenedor.
@@ -471,6 +506,8 @@ export class TripsNewDrawerComponent {
   readonly applyUnitAssignmentFilter = signal(false);
   /** Unidad elegida (se conserva al recargar el catálogo filtrado). */
   readonly pickedUnit = signal<Unit | null>(null);
+  /** Rendimiento capturado al elegir unidad (no se pierde al refrescar listado GET /units). */
+  private readonly assignmentUnitPerformanceKmL = signal<number | null>(null);
   readonly pickerUnits = computed((): Unit[] => {
     const units = this.catalog
       .units()
@@ -505,20 +542,43 @@ export class TripsNewDrawerComponent {
       return undefined;
     }
     const fromCatalog = this.catalog.units().find((u) => resourceIdsEqual(u.id, id));
-    if (fromCatalog) {
+    const picked = this.pickedUnit();
+    const pickedMatch =
+      picked && resourceIdsEqual(picked.id, id) ? picked : undefined;
+    const base = fromCatalog ?? pickedMatch;
+    if (!base) {
+      return undefined;
+    }
+    if (!fromCatalog || !pickedMatch) {
+      return base;
+    }
+    const catalogPerf = parseUnitPerformanceKmL(
+      fromCatalog.fleetMeta?.approximatePerformanceKmL,
+    );
+    const pickedPerf = parseUnitPerformanceKmL(
+      pickedMatch.fleetMeta?.approximatePerformanceKmL,
+    );
+    if (catalogPerf != null || pickedPerf == null) {
       return fromCatalog;
     }
-    const picked = this.pickedUnit();
-    return picked && resourceIdsEqual(picked.id, id) ? picked : undefined;
+    return {
+      ...fromCatalog,
+      fleetMeta: {
+        ...(fromCatalog.fleetMeta ?? {}),
+        approximatePerformanceKmL: pickedPerf,
+      },
+    };
   });
 
   /** Rendimiento aprox. (km/L) de la unidad asignada, si está capturado en flota. */
   readonly selectedUnitPerformanceKmL = computed((): number | null => {
-    const perf = this.selectedUnit()?.fleetMeta?.approximatePerformanceKmL;
-    if (perf != null && Number.isFinite(perf) && perf > 0) {
-      return perf;
+    const fromAssignment = this.assignmentUnitPerformanceKmL();
+    if (fromAssignment != null) {
+      return fromAssignment;
     }
-    return null;
+    return parseUnitPerformanceKmL(
+      this.selectedUnit()?.fleetMeta?.approximatePerformanceKmL,
+    );
   });
 
   readonly selectedUnitMatchesManeuverConfiguration = computed(() => {
@@ -1112,14 +1172,39 @@ export class TripsNewDrawerComponent {
         return fuelEstimateInputsFingerprint(a) === fuelEstimateInputsFingerprint(b);
       }),
       tap((req) => {
-        if (!req) {
+        if (req) {
+          const fp = fuelEstimateInputsFingerprint(req);
+          if (fp !== this.lastFuelEstimateInputFp) {
+            this.lastFuelEstimateInputFp = fp;
+            this.lastFuelEstimateBlockToastFp = '';
+            this.dieselEstimateOverride.set(false);
+          }
           return;
         }
-        const fp = fuelEstimateInputsFingerprint(req);
-        if (fp !== this.lastFuelEstimateInputFp) {
-          this.lastFuelEstimateInputFp = fp;
-          this.dieselEstimateOverride.set(false);
+        if (this.dieselEstimateOverride()) {
+          return;
         }
+        const unitId = this.unitId().trim();
+        const blockReason = fuelEstimateBlockReason({
+          distanceKm: this.routeKm(),
+          approximateWeightTons: this.approximateWeightTons(),
+          unitId,
+          unitPerformanceKmL: this.selectedUnitPerformanceKmL(),
+        });
+        if (!blockReason || !unitId) {
+          return;
+        }
+        const hasRoute = (this.routeKm() ?? 0) > 0;
+        const hasWeight = parseNonNegativeNumber(this.approximateWeightTons()) != null;
+        if (!hasRoute || !hasWeight) {
+          return;
+        }
+        const toastFp = `${unitId}|${this.routeKm()}|${this.approximateWeightTons()}|${blockReason}`;
+        if (toastFp === this.lastFuelEstimateBlockToastFp) {
+          return;
+        }
+        this.lastFuelEstimateBlockToastFp = toastFp;
+        this.toast.show(blockReason, 'warning');
       }),
       switchMap((req) => {
         if (!req || this.dieselEstimateOverride()) {
@@ -1129,6 +1214,15 @@ export class TripsNewDrawerComponent {
         return this.tripsApi.estimateFuelConsumption(req).pipe(
           catchError((err) => {
             console.error('[Trips][FuelEstimate][Error]', err);
+            const detail = parseHttpApiErrorMessage(err)?.trim();
+            if (detail) {
+              this.toast.show(detail, 'warning');
+            } else {
+              this.toast.show(
+                'No se pudo estimar el diesel. Revisa distancia, peso y unidad.',
+                'warning',
+              );
+            }
             return EMPTY;
           }),
           finalize(() => this.dieselEstimateLoading.set(false)),
@@ -1155,6 +1249,7 @@ export class TripsNewDrawerComponent {
         this.equipmentPrimary.set('');
         this.equipmentSecondary.set('');
         this.pickedUnit.set(null);
+        this.assignmentUnitPerformanceKmL.set(null);
       }
     });
 
@@ -1261,12 +1356,22 @@ export class TripsNewDrawerComponent {
       if (preferred && isTripClientPaymentMethod(preferred)) {
         this.paymentMethod.set(preferred);
       }
-      const prefill = destinationPrefillFromClient(
-        client,
-        this.destinationRateScope(),
-      );
-      if (prefill) {
-        this.applyRouteEndpointPrefill('destination', prefill);
+      const scope = this.destinationRateScope();
+      this.scopedDeliveryPickKey.set('');
+      if (scope === 'postal_code') {
+        const prefill = destinationPrefillFromClient(client, scope);
+        if (prefill) {
+          this.applyRouteEndpointPrefill('destination', prefill);
+        }
+      } else {
+        const options = scopedClientDeliveryOptions(client, scope);
+        if (options.length === 1) {
+          this.scopedDeliveryPickKey.set(options[0]!.value);
+          const prefill = destinationPrefillFromDelivery(options[0]!.delivery, scope);
+          if (prefill) {
+            this.applyRouteEndpointPrefill('destination', prefill);
+          }
+        }
       }
     });
 
@@ -2221,13 +2326,16 @@ export class TripsNewDrawerComponent {
 
   onUnitPicked(ev: UnitPickedEvent): void {
     this.pickedUnit.set(ev.unit);
+    this.assignmentUnitPerformanceKmL.set(
+      parseUnitPerformanceKmL(ev.unit.fleetMeta?.approximatePerformanceKmL),
+    );
     this.equipmentPrimary.set(ev.equipmentIds[0] ?? '');
     this.equipmentSecondary.set(ev.equipmentIds[1] ?? '');
   }
 
   /** Carga perezosa: unidades (y configs, la compatibilidad depende de ellas). */
   onUnitInputFocus(): void {
-    this.catalog.reloadUnits(this.currentUnitCatalogQuery());
+    this.catalog.ensureUnitsLoaded(this.currentUnitCatalogQuery());
     this.operationConfigsFeature.loadOperationConfigurations();
   }
 
@@ -2285,6 +2393,7 @@ export class TripsNewDrawerComponent {
     this.assignedOperatorId.set('');
     this.unitId.set('');
     this.pickedUnit.set(null);
+    this.assignmentUnitPerformanceKmL.set(null);
     this.equipmentPrimary.set('');
     this.equipmentSecondary.set('');
     this.toast.show(
@@ -2462,6 +2571,28 @@ export class TripsNewDrawerComponent {
     this.applyClientDeliveryPrefillForCp(digits, true);
   }
 
+  onScopedDeliveryPicked(key: string): void {
+    const value = key.trim();
+    this.scopedDeliveryPickKey.set(value);
+    if (!value) {
+      return;
+    }
+    const hit = scopedClientDeliveryOptions(
+      this.selectedFormClient(),
+      this.destinationRateScope(),
+    ).find((opt) => opt.value === value);
+    if (!hit) {
+      return;
+    }
+    const prefill = destinationPrefillFromDelivery(
+      hit.delivery,
+      this.destinationRateScope(),
+    );
+    if (prefill) {
+      this.applyRouteEndpointPrefill('destination', prefill);
+    }
+  }
+
   private applyClientDeliveryPrefillForCp(cpDigits: string, force = false): void {
     const currentLocality = this.destinationLocalityName();
     const delivery = findClientDeliveryForRoute(
@@ -2481,7 +2612,10 @@ export class TripsNewDrawerComponent {
     ) {
       return;
     }
-    const prefill = destinationPrefillFromDelivery(delivery);
+    const prefill = destinationPrefillFromDelivery(
+      delivery,
+      this.destinationRateScope(),
+    );
     if (prefill) {
       this.applyRouteEndpointPrefill('destination', prefill);
     }
@@ -2980,6 +3114,7 @@ export class TripsNewDrawerComponent {
   private resetFuelEstimateAutoState(): void {
     this.dieselEstimateLoading.set(false);
     this.lastFuelEstimateInputFp = '';
+    this.lastFuelEstimateBlockToastFp = '';
     this.lastAutoDieselLiters = '';
     this.lastAutoDieselAmount = '';
     this.lastAutoDieselPricePerLiter = null;

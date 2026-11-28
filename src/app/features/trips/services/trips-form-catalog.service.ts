@@ -132,7 +132,6 @@ export class TripsFormCatalogService {
     this.fleetFilterKey = key;
     const requestId = this.requestGen.next();
     this._fleetLoading.set(true);
-    this._units.set([]);
     this.fleetSub?.unsubscribe();
     this.fleetSub = this.unitsApi
       .getUnitsList({

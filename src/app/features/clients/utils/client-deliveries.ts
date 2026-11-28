@@ -106,6 +106,51 @@ export function uniqueClientDeliveryPostalCodes(
   return out;
 }
 
+export type ScopedClientDeliveryOption = {
+  value: string;
+  label: string;
+  delivery: ClientDelivery;
+};
+
+/** Opciones de entrega del cliente para scope municipio/estado (sin CP). */
+export function scopedClientDeliveryOptions(
+  client: Pick<Client, 'deliveries'> | null | undefined,
+  scope?: DestinationRateScope | string | null,
+): ScopedClientDeliveryOption[] {
+  const normalized = normalizeDestinationRateScope(scope);
+  if (normalized === 'postal_code') {
+    return [];
+  }
+  const seen = new Set<string>();
+  const out: ScopedClientDeliveryOption[] = [];
+  for (const row of validClientDeliveriesForScope(client, normalized)) {
+    const muni = deliveryMunicipalityLabel(row);
+    const state = deliveryStateLabel(row);
+    const key =
+      normalized === 'state'
+        ? state === '—'
+          ? deliveryLocationKey(row)
+          : normalizePlaceKey(state)
+        : deliveryLocationKey(row);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    const label =
+      normalized === 'state'
+        ? state === '—'
+          ? deliveryPlaceLabel(row)
+          : state
+        : muni !== '—' && state !== '—'
+          ? `${muni}, ${state}`
+          : deliveryPlaceLabel(row);
+    out.push({ value: key, label, delivery: row });
+  }
+  return out.sort((a, b) =>
+    a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }),
+  );
+}
+
 export function findClientDeliveryForRoute(
   client: Pick<Client, 'deliveries'> | null | undefined,
   postalCode: string,

@@ -53,6 +53,37 @@ function mapFleetMetaTenureMode<T extends { trailerTenureMode?: string }>(
   };
 }
 
+function coercePositiveFleetNumber(value: unknown): number | undefined {
+  if (value == null || value === '') {
+    return undefined;
+  }
+  const n =
+    typeof value === 'number'
+      ? value
+      : Number(String(value).trim().replace(/,/g, '.'));
+  if (!Number.isFinite(n) || n <= 0) {
+    return undefined;
+  }
+  return n;
+}
+
+function normalizeUnitFleetMeta(meta: UnitFleetMeta | undefined): UnitFleetMeta | undefined {
+  if (!meta) {
+    return undefined;
+  }
+  const withTenure = mapFleetMetaTenureMode({ ...meta });
+  if (!withTenure) {
+    return undefined;
+  }
+  const approximatePerformanceKmL = coercePositiveFleetNumber(
+    withTenure.approximatePerformanceKmL,
+  );
+  if (approximatePerformanceKmL === undefined) {
+    return withTenure;
+  }
+  return { ...withTenure, approximatePerformanceKmL };
+}
+
 function mapApiClientDelivery(
   row: Record<string, unknown>,
   index: number,
@@ -354,7 +385,7 @@ function parseOperatorPayDueVariant(
 
 export function mapApiUnit(row: Record<string, unknown>): Unit {
   const fleetMetaRaw = (row['fleetMeta'] ?? row['fleetProfile']) as UnitFleetMeta | undefined;
-  const fleetMeta = mapFleetMetaTenureMode(fleetMetaRaw ? { ...fleetMetaRaw } : undefined);
+  const fleetMeta = normalizeUnitFleetMeta(fleetMetaRaw ? { ...fleetMetaRaw } : undefined);
   const capacity = row['capacityKg'];
   const unitId = resourceIdKey(row['id']);
   const rawHitched = row['equipment'] ?? row['hitchedEquipment'];

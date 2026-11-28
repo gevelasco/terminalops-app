@@ -10,6 +10,8 @@ import {
 } from '@features/clients/utils/destination-rates-table-rows';
 import {
   buildQuotationCompanyBranding,
+  drawPdfDocumentHeading,
+  drawPricesExcludeIvaNote,
   drawQuotationContactFooter,
   drawQuotationLetterhead,
   QUOTATION_PDF_BRAND,
@@ -17,18 +19,16 @@ import {
 } from '@features/clients/utils/destination-rate-quotation-pdf';
 
 const BRAND = QUOTATION_PDF_BRAND;
+const PDF_FONT = 'helvetica';
 
 type CatalogColumn = {
   key: 'state' | 'municipality' | 'postalCode' | 'maneuver' | 'cost' | 'eta';
   header: string;
-  /** Ancho relativo; se normaliza al ancho útil. */
   weight: number;
   align: 'left' | 'right' | 'center';
 };
 
-function catalogColumns(
-  scope: DestinationRateScope,
-): CatalogColumn[] {
+function catalogColumns(scope: DestinationRateScope): CatalogColumn[] {
   if (scope === 'state') {
     return [
       { key: 'state', header: 'Estado', weight: 2.4, align: 'left' },
@@ -111,7 +111,8 @@ export async function downloadDestinationRatesCatalogPdf(params: {
   const pageH = doc.internal.pageSize.getHeight();
   const marginX = 14;
   const contentW = pageW - marginX * 2;
-  const footerReserve = 28;
+  const ivaNoteH = 8;
+  const footerReserve = 30 + ivaNoteH;
   const rowH = 6.2;
   const headerH = 7.2;
   const columns = catalogColumns(scope);
@@ -134,35 +135,21 @@ export async function downloadDestinationRatesCatalogPdf(params: {
     }
     pageIndex += 1;
     y = await drawQuotationLetterhead(doc, company, marginX, pageW, 12);
-
-    doc.setFont('times', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
-    doc.text('CATÁLOGO DE TARIFAS POR DESTINO', pageW / 2, y, {
-      align: 'center',
+    y = drawPdfDocumentHeading(doc, {
+      title: 'CATÁLOGO DE TARIFAS POR DESTINO',
+      dateLabel,
+      pageW,
+      startY: y,
     });
-    y += 5.5;
-
-    doc.setFont('times', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-    doc.text(`Fecha: ${dateLabel}`, pageW / 2, y, { align: 'center' });
-    y += 5;
-
-    doc.setFont('times', 'italic');
-    doc.setFontSize(8);
-    doc.setTextColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
-    doc.text(
-      'Los precios mostrados son más IVA. Al facturar se adiciona el IVA vigente.',
-      pageW / 2,
-      y,
-      { align: 'center' },
-    );
-    y += 6;
 
     drawTableHeader(doc, columns, colWidths, marginX, y, headerH);
     y += headerH;
     tableBottom = pageH - footerReserve;
+  };
+
+  const closeTableBlock = (): void => {
+    y = drawPricesExcludeIvaNote(doc, marginX, contentW, y);
+    drawQuotationContactFooter(doc, company, marginX, pageW, pageH, y);
   };
 
   await startPage();
@@ -170,7 +157,7 @@ export async function downloadDestinationRatesCatalogPdf(params: {
   for (let i = 0; i < rows.length; i += 1) {
     const row = rows[i]!;
     if (y + rowH > tableBottom) {
-      drawQuotationContactFooter(doc, company, marginX, pageW, pageH, y);
+      closeTableBlock();
       await startPage();
     }
 
@@ -200,7 +187,7 @@ export async function downloadDestinationRatesCatalogPdf(params: {
 
       if (!isMergedTail && raw) {
         doc.setFont(
-          'helvetica',
+          PDF_FONT,
           isMergedLead || col.key === 'cost' ? 'bold' : 'normal',
         );
         doc.setFontSize(col.key === 'state' ? 8 : 7.6);
@@ -224,7 +211,7 @@ export async function downloadDestinationRatesCatalogPdf(params: {
     y += rowH;
   }
 
-  drawQuotationContactFooter(doc, company, marginX, pageW, pageH, y);
+  closeTableBlock();
 
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p += 1) {
@@ -250,7 +237,7 @@ function drawTableHeader(
   doc.rect(marginX, y, contentW, headerH, 'F');
 
   let x = marginX;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(7.8);
   doc.setTextColor(255, 255, 255);
   for (let c = 0; c < columns.length; c += 1) {
@@ -276,10 +263,10 @@ function drawPageNumber(
   pageW: number,
   pageH: number,
 ): void {
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(7);
   doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-  doc.text(`Página ${page} de ${total}`, pageW / 2, pageH - 6, {
+  doc.text(`Página ${page} de ${total}`, pageW / 2, pageH - 5.5, {
     align: 'center',
   });
 }

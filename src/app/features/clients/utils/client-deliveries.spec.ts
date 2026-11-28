@@ -1,8 +1,10 @@
 import {
   clientDeliveries,
   findClientDeliveryForRoute,
+  scopedClientDeliveryOptions,
   uniqueClientDeliveryPostalCodes,
   validClientDeliveries,
+  validClientDeliveriesForScope,
   withClientDeliveries,
 } from './client-deliveries';
 import type { Client, ClientDelivery } from '@shared/models/client.models';
@@ -68,5 +70,31 @@ describe('client-deliveries', () => {
     );
     expect(next.deliveries?.length).toBe(2);
     expect(next.deliveries?.[0]?.postalCode).toBe('44100');
+  });
+
+  it('lists unique state options from client deliveries', () => {
+    const client: Client = {
+      id: '1',
+      name: 'Acme',
+      deliveries: [
+        {
+          postalCode: '',
+          cityMunicipality: 'Jalisco',
+          locality: 'Guadalajara',
+        },
+        {
+          postalCode: '',
+          cityMunicipality: 'Jalisco',
+          locality: 'Zapopan',
+        },
+        {
+          postalCode: '',
+          cityMunicipality: 'Nuevo León',
+          locality: 'Monterrey',
+        },
+      ],
+    };
+    const options = scopedClientDeliveryOptions(client, 'state');
+    expect(options.map((o) => o.label).sort()).toEqual(['Jalisco', 'Nuevo León']);
   });
 });

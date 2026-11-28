@@ -146,7 +146,7 @@ import {
   unhitchingLeadRequiresRearPromotion,
 } from '@shared/utils/fleet/equipment-hitch-position';
 import { formatEquipmentOperationalId } from '@shared/utils/fleet/fleet-id-builders';
-import { resourceIdsEqual } from '@shared/utils/resource-id';
+import { resourceIdKey, resourceIdsEqual } from '@shared/utils/resource-id';
 import {
   equipmentAssignedToUnit,
   mergeEquipmentForUnitHitchContext,
@@ -495,15 +495,55 @@ export class FleetUnitDetailDrawerFacade {
     );
     this.hitchedEquipmentSource.set(hitched);
     const current = this.unitSource();
-    if (current && catalogAuthoritative) {
-      const prevLen = current.hitchedEquipment?.length ?? 0;
-      if (prevLen !== hitched.length) {
+    if (current) {
+      const prevIds = (current.hitchedEquipment ?? []).map((e) => e.id).join('|');
+      const nextIds = hitched.map((e) => e.id).join('|');
+      if (prevIds !== nextIds) {
         this.unitSource.set({
           ...current,
           hitchedEquipment: hitched.length > 0 ? hitched : undefined,
         });
       }
     }
+  }
+
+  /** Sincroniza convoy en el drawer tras PATCH de enganche/desenganche (evita refs embebidas obsoletas). */
+  private applyEquipmentHitchMutation(saved: Equipment): void {
+    const unitId = this.unitSource()?.id?.trim();
+    const catalog = this.equipmentFeature.equipment();
+    const catalogAuthoritative = this.equipmentFeature.hydrated();
+    this.equipmentCatalogSource.set([...catalog]);
+    if (!unitId) {
+      this.syncCatalogFromFeature();
+      return;
+    }
+    const current = this.unitSource();
+    if (!current) {
+      this.syncCatalogFromFeature();
+      return;
+    }
+    const stillOnUnit =
+      resourceIdKey(saved.unitId) && resourceIdsEqual(saved.unitId, unitId);
+    let embedded = [...(current.hitchedEquipment ?? [])];
+    if (stillOnUnit) {
+      const idx = embedded.findIndex((e) => resourceIdsEqual(e.id, saved.id));
+      if (idx >= 0) {
+        embedded[idx] = saved;
+      } else {
+        embedded.push(saved);
+      }
+    } else {
+      embedded = embedded.filter((e) => !resourceIdsEqual(e.id, saved.id));
+    }
+    const hitched = resolveHitchedEquipmentForUnit(unitId, catalog, embedded, {
+      catalogAuthoritative,
+      catalogHydrated: catalogAuthoritative,
+    });
+    this.hitchedEquipmentSource.set(hitched);
+    this.unitSource.set({
+      ...current,
+      hitchedEquipment: hitched.length > 0 ? hitched : undefined,
+    });
   }
 
   private applyHostUnitSnapshotWhenRicher(incoming: Unit): void {
@@ -721,7 +761,7 @@ export class FleetUnitDetailDrawerFacade {
       .subscribe({
         next: (saved) => {
           this.saving.set(false);
-          this.syncCatalogFromFeature();
+          this.applyEquipmentHitchMutation(saved);
           this.invalidateUnitDetailCacheAfterHitchChange();
           this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
           this.toast.show(successMessage, 'success');
@@ -913,9 +953,9 @@ export class FleetUnitDetailDrawerFacade {
       )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-      next: () => {
+      next: (saved) => {
         this.saving.set(false);
-        this.syncCatalogFromFeature();
+        this.applyEquipmentHitchMutation(saved);
         this.invalidateUnitDetailCacheAfterHitchChange();
         this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
         this.toast.show('Equipo enganchado.', 'success');
@@ -987,17 +1027,20 @@ export class FleetUnitDetailDrawerFacade {
     this.equipmentFeature
       .updateEquipment(equipment, effectiveUnhitch, { skipListRefresh: true })
       .pipe(
-        switchMap(() =>
-          this.equipmentFeature.updateEquipment(rearToPromote, effectivePromote, {
-            skipListRefresh: true,
-          }),
+        switchMap((savedUnhitched) =>
+          this.equipmentFeature
+            .updateEquipment(rearToPromote, effectivePromote, {
+              skipListRefresh: true,
+            })
+            .pipe(map((savedPromoted) => ({ savedUnhitched, savedPromoted }))),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: () => {
+        next: ({ savedUnhitched, savedPromoted }) => {
           this.saving.set(false);
-          this.syncCatalogFromFeature();
+          this.applyEquipmentHitchMutation(savedUnhitched);
+          this.applyEquipmentHitchMutation(savedPromoted);
           this.invalidateUnitDetailCacheAfterHitchChange();
           this.fleetFeature.refreshFleetModule(fleetRefreshAfterHitchMutation);
           this.toast.show('Equipo desenganchado.', 'success');

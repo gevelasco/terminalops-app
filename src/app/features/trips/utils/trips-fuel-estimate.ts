@@ -26,9 +26,56 @@ export function formatFuelEstimateMoney(value: number): string {
 /** Espera tras el último cambio de km (OSRM u override) antes de llamar fuel-estimate. */
 export const FUEL_ESTIMATE_DEBOUNCE_MS = 800;
 
+export function parseUnitPerformanceKmL(raw: unknown): number | null {
+  if (raw == null || raw === '') {
+    return null;
+  }
+  const perf =
+    typeof raw === 'number' ? raw : Number(String(raw).trim().replace(/,/g, '.'));
+  if (Number.isFinite(perf) && perf > 0) {
+    return perf;
+  }
+  return null;
+}
+
+/** Motivo por el que no se puede llamar fuel-estimate (UX / depuración). */
+export function fuelEstimateBlockReason(params: {
+  distanceKm: number | null;
+  approximateWeightTons: string;
+  unitId?: string;
+  unitPerformanceKmL?: number | null;
+}): string | null {
+  const km = params.distanceKm;
+  if (km == null || !Number.isFinite(km) || km <= 0) {
+    return 'Captura la distancia de ruta (ida) en km.';
+  }
+  const weight = parseNonNegativeNumber(params.approximateWeightTons?.trim() ?? '');
+  if (weight == null || weight <= 0) {
+    return 'Captura el peso aproximado en toneladas.';
+  }
+  if (!params.unitId?.trim()) {
+    return 'Selecciona una unidad.';
+  }
+  const perf = params.unitPerformanceKmL;
+  if (perf == null || !Number.isFinite(perf) || perf <= 0) {
+    return 'La unidad asignada debe tener rendimiento aprox. (km/L) en Flota.';
+  }
+  return null;
+}
+
+/** Id numérico de API cuando el id de unidad es dígitos; si no, se omite en el POST. */
+function parseOptionalFuelEstimateUnitId(raw: string): number | undefined {
+  const id = raw.trim();
+  if (!id || !/^\d+$/.test(id)) {
+    return undefined;
+  }
+  const n = Number.parseInt(id, 10);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 /**
- * Estimación en backend solo con datos completos de Nueva Maniobra:
- * km de ida, unidad con rendimiento (km/L) y peso capturado.
+ * Estimación en backend solo con datos completos: km de ida, unidad asignada con rendimiento
+ * (km/L) y peso capturado. El cálculo usa `unitPerformanceKmL`; `unitId` en el body es opcional.
  * El API aplica ida cargada + regreso vacío (tara 3.5 t).
  */
 export function buildFuelEstimateRequest(params: {
@@ -58,12 +105,7 @@ export function buildFuelEstimateRequest(params: {
   }
 
   const unitIdRaw = params.unitId?.trim() ?? '';
-  const unitIdParsed = unitIdRaw ? Number(unitIdRaw) : NaN;
-  const unitId =
-    unitIdRaw && Number.isFinite(unitIdParsed) && unitIdParsed > 0
-      ? unitIdParsed
-      : null;
-  if (unitId == null) {
+  if (!unitIdRaw) {
     return null;
   }
 
@@ -74,13 +116,15 @@ export function buildFuelEstimateRequest(params: {
     return null;
   }
 
+  const unitId = parseOptionalFuelEstimateUnitId(unitIdRaw);
+
   return {
     distanceKm: km,
     configuration: fuelConfigurationFromMaxEquipment(params.maxEquipmentCount ?? 1),
     approximateWeightTons: weight,
     cargoType: params.loadType,
     containerType: params.containerType,
-    unitId,
+    ...(unitId != null ? { unitId } : {}),
     unitPerformanceKmL,
     originLatitude: params.originCoords?.lat ?? null,
     originLongitude: params.originCoords?.lon ?? null,

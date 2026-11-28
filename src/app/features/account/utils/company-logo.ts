@@ -2,21 +2,18 @@
 export const COMPANY_LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
 /**
- * Lado máximo del logo en px tras recorte.
- * Logos landscape (membrete) necesitan más ancho que el sidebar cuadrado.
+ * Lado máximo del logo en px (conserva márgenes originales del archivo).
+ * Suficiente para sidebar retina y membrete PDF landscape.
  */
 const COMPANY_LOGO_MAX_EDGE = 720;
 
 const COMPANY_LOGO_JPEG_QUALITY = 0.92;
 
-/** Umbral RGB para considerar “casi blanco” al recortar márgenes. */
-const WHITE_TRIM_THRESHOLD = 246;
-
 export type CompanyLogoReadError = 'not-image' | 'too-large' | 'read-failed';
 
 /**
  * Lee el logo de empresa y lo convierte a data URL redimensionada.
- * Recorta márgenes blancos/transparentes y conserva la proporción.
+ * Conserva proporción y márgenes originales (sin recortar).
  * Conserva PNG (transparencia); el resto se guarda como JPEG.
  */
 const ALLOWED_LOGO_TYPES = new Set([
@@ -75,27 +72,11 @@ function compressLogoDataUrl(
     const img = new Image();
     img.onload = () => {
       try {
-        const source = document.createElement('canvas');
-        source.width = Math.max(1, img.naturalWidth || img.width);
-        source.height = Math.max(1, img.naturalHeight || img.height);
-        const sourceCtx = source.getContext('2d');
-        if (!sourceCtx) {
-          reject(new Error('read-failed'));
-          return;
-        }
-        sourceCtx.drawImage(img, 0, 0);
-        const crop = trimWhitespaceBounds(
-          sourceCtx.getImageData(0, 0, source.width, source.height),
-        );
-
-        const croppedW = Math.max(1, crop.w);
-        const croppedH = Math.max(1, crop.h);
         const { width, height } = fitWithin(
-          croppedW,
-          croppedH,
+          img.naturalWidth || img.width,
+          img.naturalHeight || img.height,
           COMPANY_LOGO_MAX_EDGE,
         );
-
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -105,17 +86,7 @@ function compressLogoDataUrl(
           return;
         }
         ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(
-          source,
-          crop.x,
-          crop.y,
-          croppedW,
-          croppedH,
-          0,
-          0,
-          width,
-          height,
-        );
+        ctx.drawImage(img, 0, 0, width, height);
         if (preferPng) {
           resolve(canvas.toDataURL('image/png'));
         } else {
@@ -128,116 +99,6 @@ function compressLogoDataUrl(
     img.onerror = () => reject(new Error('read-failed'));
     img.src = dataUrl;
   });
-}
-
-function isNearWhiteOrTransparent(
-  r: number,
-  g: number,
-  b: number,
-  a: number,
-): boolean {
-  if (a < 12) {
-    return true;
-  }
-  return (
-    r >= WHITE_TRIM_THRESHOLD &&
-    g >= WHITE_TRIM_THRESHOLD &&
-    b >= WHITE_TRIM_THRESHOLD
-  );
-}
-
-/** Recorta márgenes vacíos/blancos para que el logo no se vea “flotando”. */
-function trimWhitespaceBounds(imageData: ImageData): {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-} {
-  const { data, width, height } = imageData;
-  let top = 0;
-  let left = 0;
-  let right = width - 1;
-  let bottom = height - 1;
-  let found = false;
-
-  outerTop: for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      if (
-        !isNearWhiteOrTransparent(
-          data[i]!,
-          data[i + 1]!,
-          data[i + 2]!,
-          data[i + 3]!,
-        )
-      ) {
-        top = y;
-        found = true;
-        break outerTop;
-      }
-    }
-  }
-  if (!found) {
-    return { x: 0, y: 0, w: width, h: height };
-  }
-
-  outerBottom: for (let y = height - 1; y >= top; y -= 1) {
-    for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      if (
-        !isNearWhiteOrTransparent(
-          data[i]!,
-          data[i + 1]!,
-          data[i + 2]!,
-          data[i + 3]!,
-        )
-      ) {
-        bottom = y;
-        break outerBottom;
-      }
-    }
-  }
-
-  outerLeft: for (let x = 0; x < width; x += 1) {
-    for (let y = top; y <= bottom; y += 1) {
-      const i = (y * width + x) * 4;
-      if (
-        !isNearWhiteOrTransparent(
-          data[i]!,
-          data[i + 1]!,
-          data[i + 2]!,
-          data[i + 3]!,
-        )
-      ) {
-        left = x;
-        break outerLeft;
-      }
-    }
-  }
-
-  outerRight: for (let x = width - 1; x >= left; x -= 1) {
-    for (let y = top; y <= bottom; y += 1) {
-      const i = (y * width + x) * 4;
-      if (
-        !isNearWhiteOrTransparent(
-          data[i]!,
-          data[i + 1]!,
-          data[i + 2]!,
-          data[i + 3]!,
-        )
-      ) {
-        right = x;
-        break outerRight;
-      }
-    }
-  }
-
-  const pad = 2;
-  const x = Math.max(0, left - pad);
-  const y = Math.max(0, top - pad);
-  const w = Math.min(width - x, right - left + 1 + pad * 2);
-  const h = Math.min(height - y, bottom - top + 1 + pad * 2);
-  return { x, y, w: Math.max(1, w), h: Math.max(1, h) };
 }
 
 function fitWithin(

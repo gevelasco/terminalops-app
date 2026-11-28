@@ -1,6 +1,15 @@
 /** Quita separadores de miles / espacios antes de parsear montos o litros. */
 export function stripGroupedNumberInput(raw: string): string {
-  return raw.replace(/\s/g, '').replace(/,/g, '').trim();
+  const t = raw.replace(/\s/g, '').trim();
+  // Formato es-MX: 1.234,56 o 18,5
+  if (/^\d{1,3}(\.\d{3})+,\d+$/.test(t) || /^\d+,\d+$/.test(t)) {
+    return t.replace(/\./g, '').replace(',', '.');
+  }
+  // Formato con miles por coma: 1,234.56
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) {
+    return t.replace(/,/g, '');
+  }
+  return t.replace(/,/g, '');
 }
 
 /**

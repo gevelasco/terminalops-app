@@ -32,8 +32,11 @@ export const QUOTATION_PDF_BRAND = {
 
 const BRAND = QUOTATION_PDF_BRAND;
 
-/** Tipografía formal (Times) para documentos comerciales. */
-const PDF_FONT = 'times';
+/** Tipografía corporativa limpia (Helvetica) para documentos PDF. */
+const PDF_FONT = 'helvetica';
+
+export const PDF_PRICES_EXCLUDE_IVA_NOTE =
+  'Los precios mostrados son más IVA. Al facturar se adiciona el IVA vigente.';
 
 export type QuotationCompanyBranding = {
   name: string;
@@ -233,8 +236,8 @@ async function measureImageSize(
 }
 
 /**
- * Membrete: logo en proporción real (landscape) o nombre tipográfico.
- * Si hay logo (wordmark), no se duplica el nombre de la empresa al lado.
+ * Membrete centrado: logo en proporción original (sin recortes) o nombre.
+ * Con logo (wordmark) no se duplica nombre ni leyenda debajo.
  */
 export async function drawQuotationLetterhead(
   doc: jsPDF,
@@ -254,14 +257,15 @@ export async function drawQuotationLetterhead(
   if (logo && format) {
     const size = await measureImageSize(logo);
     if (size) {
-      const maxW = Math.min(72, contentW * 0.55);
-      const maxH = 22;
-      const scale = Math.min(maxW / size.width, maxH / size.height);
-      const logoW = Math.max(12, size.width * scale);
-      const logoH = Math.max(8, size.height * scale);
+      const maxW = Math.min(64, contentW * 0.5);
+      const maxH = 20;
+      const scale = Math.min(maxW / size.width, maxH / size.height, 1);
+      const logoW = Math.max(18, size.width * scale);
+      const logoH = Math.max(10, size.height * scale);
+      const logoX = (pageW - logoW) / 2;
       try {
-        doc.addImage(logo, format, marginX, y, logoW, logoH);
-        y += logoH + 3;
+        doc.addImage(logo, format, logoX, y, logoW, logoH);
+        y += logoH + 4;
         logoDrawn = true;
       } catch {
         logoDrawn = false;
@@ -271,33 +275,72 @@ export async function drawQuotationLetterhead(
 
   if (!logoDrawn) {
     doc.setFont(PDF_FONT, 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(15);
     doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
-    doc.text(name, marginX, y + 6);
-    y += 10;
+    doc.text(name, pageW / 2, y + 5, { align: 'center' });
+    y += 9;
     if (tagline) {
       doc.setFont(PDF_FONT, 'normal');
-      doc.setFontSize(9.5);
+      doc.setFontSize(9);
       doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
       const tagLines = doc.splitTextToSize(tagline, contentW) as string[];
-      doc.text(tagLines, marginX, y);
-      y += tagLines.length * 4 + 2;
-    } else {
-      y += 2;
+      doc.text(tagLines, pageW / 2, y, { align: 'center' });
+      y += tagLines.length * 3.8 + 2;
     }
-  } else if (tagline) {
-    doc.setFont(PDF_FONT, 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-    const tagLines = doc.splitTextToSize(tagline, contentW) as string[];
-    doc.text(tagLines, marginX, y);
-    y += tagLines.length * 3.8 + 2;
   }
 
   doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
-  doc.setLineWidth(0.45);
+  doc.setLineWidth(0.4);
   doc.line(marginX, y, pageW - marginX, y);
-  return y + 7;
+  return y + 6;
+}
+
+/** Título + fecha centrados bajo el membrete. */
+export function drawPdfDocumentHeading(
+  doc: jsPDF,
+  params: {
+    title: string;
+    dateLabel: string;
+    pageW: number;
+    startY: number;
+    marginX?: number;
+  },
+): number {
+  let y = params.startY;
+  const marginX = params.marginX ?? 14;
+  const maxW = params.pageW - marginX * 2;
+  doc.setFont(PDF_FONT, 'bold');
+  doc.setFontSize(11.5);
+  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
+  const titleLines = doc.splitTextToSize(params.title, maxW) as string[];
+  doc.text(titleLines, params.pageW / 2, y, { align: 'center' });
+  y += titleLines.length * 5 + 1.5;
+
+  doc.setFont(PDF_FONT, 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
+  doc.text(`Fecha: ${params.dateLabel}`, params.pageW / 2, y, {
+    align: 'center',
+  });
+  return y + 5.5;
+}
+
+/** Leyenda IVA pegada bajo la tabla / bloque de tarifas. */
+export function drawPricesExcludeIvaNote(
+  doc: jsPDF,
+  marginX: number,
+  contentW: number,
+  y: number,
+): number {
+  doc.setDrawColor(BRAND.line[0], BRAND.line[1], BRAND.line[2]);
+  doc.setLineWidth(0.25);
+  doc.line(marginX, y, marginX + contentW, y);
+
+  doc.setFont(PDF_FONT, 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
+  doc.text(PDF_PRICES_EXCLUDE_IVA_NOTE, marginX, y + 4.2);
+  return y + 7.5;
 }
 
 export function drawQuotationContactFooter(
@@ -311,30 +354,27 @@ export function drawQuotationContactFooter(
   const name = company.name.trim() || 'Empresa';
   const email = company.contactEmail?.trim() || '';
   const phone = company.contactPhone?.trim() || '';
-  const lines = [name, email, phone].filter(Boolean);
-  const blockH = 6 + lines.length * 4.2;
-  const top = Math.max(afterY + 4, pageH - blockH - 8);
+  const lineCount = 1 + (email ? 1 : 0) + (phone ? 1 : 0);
+  const blockH = 5 + lineCount * 3.8;
+  const top = Math.max(afterY + 6, pageH - blockH - 10);
 
   doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
   doc.setLineWidth(0.35);
   doc.line(marginX, top, pageW - marginX, top);
 
-  doc.setFillColor(BRAND.panel[0], BRAND.panel[1], BRAND.panel[2]);
-  doc.rect(marginX, top + 1.2, pageW - marginX * 2, blockH - 1, 'F');
-
-  let y = top + 5.5;
+  let y = top + 5;
   doc.setFont(PDF_FONT, 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
   doc.text(name, pageW / 2, y, { align: 'center' });
-  y += 4.2;
+  y += 3.8;
 
   doc.setFont(PDF_FONT, 'normal');
-  doc.setFontSize(7.4);
+  doc.setFontSize(7.2);
   doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   if (email) {
     doc.text(email, pageW / 2, y, { align: 'center' });
-    y += 3.8;
+    y += 3.5;
   }
   if (phone) {
     doc.text(phone, pageW / 2, y, { align: 'center' });
@@ -358,29 +398,17 @@ export async function downloadDestinationRateQuotationPdf(
   const marginX = 16;
   const contentW = pageW - marginX * 2;
   let y = await drawQuotationLetterhead(doc, input.company, marginX, pageW, 12);
-
-  doc.setFont(PDF_FONT, 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
-  const title = 'COTIZACIÓN DE SERVICIO DE TRANSPORTE TERRESTRE';
-  const titleLines = doc.splitTextToSize(title, contentW) as string[];
-  doc.text(titleLines, pageW / 2, y, { align: 'center' });
-  y += titleLines.length * 5.4 + 2;
-
-  doc.setFont(PDF_FONT, 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-  doc.text(
-    `Fecha: ${new Date().toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    })}`,
-    pageW / 2,
-    y,
-    { align: 'center' },
-  );
-  y += 7;
+  const dateLabel = new Date().toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  y = drawPdfDocumentHeading(doc, {
+    title: 'COTIZACIÓN DE SERVICIO DE TRANSPORTE TERRESTRE',
+    dateLabel,
+    pageW,
+    startY: y,
+  });
 
   const panelTop = y;
   const panelPadX = 6;
@@ -388,8 +416,7 @@ export async function downloadDestinationRateQuotationPdf(
   const lineStep = 7.2;
   const extraRouteLines = 1 + (input.destinationLabel ? 1 : 0);
   const serviceLineCount = 3 + extraRouteLines;
-  const noteH = 8;
-  const panelH = panelPadY * 2 + 7 + serviceLineCount * lineStep + noteH;
+  const panelH = panelPadY * 2 + 7 + serviceLineCount * lineStep + 2;
 
   doc.setFillColor(BRAND.panel[0], BRAND.panel[1], BRAND.panel[2]);
   doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
@@ -441,19 +468,9 @@ export async function downloadDestinationRateQuotationPdf(
     y += Math.max(lineStep, valueLines.length * 5.2);
   }
 
-  y += 1;
-  doc.setFont(PDF_FONT, 'italic');
-  doc.setFontSize(8.5);
-  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-  drawWrappedText(
-    doc,
-    'La tarifa indicada corresponde al servicio de transporte cotizado y no incluye IVA.',
-    marginX + panelPadX,
-    y,
-    contentW - panelPadX * 2,
-    3.8,
-  );
-  y = panelTop + panelH + 8;
+  y = panelTop + panelH + 1;
+  y = drawPricesExcludeIvaNote(doc, marginX, contentW, y);
+  y += 4;
 
   doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(10);
