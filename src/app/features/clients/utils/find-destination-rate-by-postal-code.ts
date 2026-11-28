@@ -3,6 +3,7 @@ import type {
   DestinationRate,
   DestinationRatePrice,
 } from '@shared/models/destination-rate.models';
+import { normalizeManeuverOperationCode } from '@shared/catalogs/trip-maneuver-configuration';
 
 /**
  * Match operacional por centro operativo + CP destino + localidad destino.
@@ -95,15 +96,22 @@ export function findDestinationRatePriceByOperationCode(
   rate: DestinationRate,
   operationConfigurationCode: string,
 ): DestinationRatePrice | null {
-  const code = operationConfigurationCode.trim().toLowerCase();
-  if (!code) {
+  const prices = rate.prices ?? [];
+  if (prices.length === 0) {
     return null;
   }
-  return (
-    rate.prices.find(
-      (p) => (p.operationConfigurationCode ?? '').trim().toLowerCase() === code,
-    ) ?? null
-  );
+  const code = normalizeManeuverOperationCode(operationConfigurationCode).toLowerCase();
+  if (code) {
+    const match = prices.find(
+      (p) =>
+        normalizeManeuverOperationCode(p.operationConfigurationCode ?? '').toLowerCase() ===
+        code,
+    );
+    if (match) {
+      return match;
+    }
+  }
+  return prices.length === 1 ? prices[0]! : null;
 }
 
 /** Cobro sugerido: 0 si la tarifa no define precio para el tipo de maniobra. */

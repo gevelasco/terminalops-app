@@ -353,7 +353,10 @@ export class TripsNewDrawerComponent {
             stateName,
             cityMunicipality,
           });
-    const clientRateId = linkedDelivery?.destinationRateId?.trim() ?? '';
+    const clientRateId =
+      this.deliveryLinkedDestinationRateId().trim() ||
+      linkedDelivery?.destinationRateId?.trim() ||
+      '';
     return {
       rateOriginId,
       cp,
@@ -508,6 +511,8 @@ export class TripsNewDrawerComponent {
   });
 
   readonly scopedDeliveryPickKey = signal('');
+  /** Tarifa ligada a la entrega elegida (scope municipio/estado o CP). */
+  private readonly deliveryLinkedDestinationRateId = signal('');
 
   /**
    * Si el usuario aún no eligió configuración/contenedor, se listan todas las
@@ -1108,24 +1113,13 @@ export class TripsNewDrawerComponent {
             this.rateMatchResult.set(null);
             return EMPTY;
           }
-          return this.destinationRatesApi
-            .matchManeuverDestinationRate({
-              originOperationalCenterId: ctx.rateOriginId,
-              postalCode: ctx.cp,
-              locality: ctx.destLocality,
-              municipalityName: ctx.municipalityName,
-              stateName: ctx.stateName,
-              cityMunicipality: ctx.cityMunicipality,
-              ...(ctx.clientRateId
-                ? { clientDestinationRateId: ctx.clientRateId }
-                : {}),
-            })
-            .pipe(
-              map((rate) => ({ key: ctx.key, rate })),
-              catchError(() => of({ key: ctx.key, rate: null })),
-            );
+          return this.requestDestinationRateForManeuver(ctx).pipe(
+            tap((res) => {
+              this.rateMatchResult.set(res);
+              this.tryApplyMatchedDestinationRate(res);
+            }),
+          );
         }),
-        tap((res) => this.rateMatchResult.set(res)),
         takeUntilDestroyed(),
       )
       .subscribe();
@@ -1403,6 +1397,7 @@ export class TripsNewDrawerComponent {
       }
       const scope = this.destinationRateScope();
       this.scopedDeliveryPickKey.set('');
+      this.deliveryLinkedDestinationRateId.set('');
       if (scope === 'postal_code') {
         const prefill = destinationPrefillFromClient(client, scope);
         if (prefill) {
@@ -1412,6 +1407,9 @@ export class TripsNewDrawerComponent {
         const options = scopedClientDeliveryOptions(client, scope);
         if (options.length === 1) {
           this.scopedDeliveryPickKey.set(options[0]!.value);
+          this.deliveryLinkedDestinationRateId.set(
+            options[0]!.delivery.destinationRateId?.trim() ?? '',
+          );
           const prefill = destinationPrefillFromDelivery(options[0]!.delivery, scope);
           if (prefill) {
             this.applyRouteEndpointPrefill('destination', prefill);
@@ -1763,7 +1761,7 @@ export class TripsNewDrawerComponent {
       const municipalityName = this.destinationMunicipalityName();
       const stateName = this.destinationStateName();
       const scope = normalizeDestinationRateScope(this.session.destinationRateScope());
-      const op = this.operationType();
+      const op = normalizeManeuverOperationCode(this.operationType());
       const billing = this.includeClientBilling();
       const fp = destinationRateSuggestionInputFingerprint(
         originId,
@@ -2334,6 +2332,7 @@ export class TripsNewDrawerComponent {
     this.destinationCoords.set(null);
     this.destinationCompletePrefillFingerprint.set(null);
     this.destinationGeocodeFailed.set(false);
+    this.deliveryLinkedDestinationRateId.set('');
     this.applyRouteKm(null);
     this.routeLoading.set(false);
     this.routeFailed.set(false);
@@ -2634,6 +2633,9 @@ export class TripsNewDrawerComponent {
     if (!hit) {
       return;
     }
+    this.deliveryLinkedDestinationRateId.set(
+      hit.delivery.destinationRateId?.trim() ?? '',
+    );
     const prefill = destinationPrefillFromDelivery(
       hit.delivery,
       this.destinationRateScope(),
@@ -2653,6 +2655,9 @@ export class TripsNewDrawerComponent {
     if (!delivery) {
       return;
     }
+    this.deliveryLinkedDestinationRateId.set(
+      delivery.destinationRateId?.trim() ?? '',
+    );
     const deliveryLocality = (delivery.locality ?? '').trim().toLowerCase();
     if (
       !force &&
@@ -2990,6 +2995,74 @@ export class TripsNewDrawerComponent {
           this.toast.show('No se pudo guardar la maniobra.', 'error');
         },
       });
+  }
+
+  private requestDestinationRateForManeuver(ctx: {
+    key: string;
+    rateOriginId: string;
+    cp: string;
+    destLocality: string;
+    municipalityName: string;
+    stateName: string;
+    cityMunicipality: string;
+    clientRateId: string;
+  }): Observable<{ key: string; rate: DestinationRate | null }> {
+    const matchQuery = {
+      originOperationalCenterId: ctx.rateOriginId,
+      postalCode: ctx.cp,
+      locality: ctx.destLocality,
+      municipalityName: ctx.municipalityName,
+      stateName: ctx.stateName,
+      cityMunicipality: ctx.cityMunicipality,
+      ...(ctx.clientRateId
+        ? { clientDestinationRateId: ctx.clientRateId }
+        : {}),
+    };
+    const routeMatch$ = this.destinationRatesApi.matchManeuverDestinationRate(matchQuery).pipe(
+      map((rate) => ({ key: ctx.key, rate })),
+      catchError(() => of({ key: ctx.key, rate: null })),
+    );
+    const linkedId = ctx.clientRateId.trim();
+    if (!linkedId) {
+      return routeMatch$;
+    }
+    return this.destinationRatesApi.getDestinationRateById(linkedId).pipe(
+      switchMap((rate) => {
+        if (rate.active) {
+          return of({ key: ctx.key, rate });
+        }
+        return routeMatch$;
+      }),
+      catchError(() => routeMatch$),
+    );
+  }
+
+  private tryApplyMatchedDestinationRate(res: {
+    key: string;
+    rate: DestinationRate | null;
+  }): void {
+    const ctx = this.rateMatchContext();
+    if (!ctx || ctx.key !== res.key) {
+      return;
+    }
+    this.destinationRateMatched.set(res.rate != null);
+    if (!res.rate) {
+      this.matchedDestinationRateId.set(null);
+      this.clearDestinationRateSuggestionUi();
+      return;
+    }
+    const op = normalizeManeuverOperationCode(this.operationType());
+    this.destinationRateChargeRecognized.set(
+      destinationRateHasClientChargeForOperation(res.rate, op),
+    );
+    this.matchedDestinationRateId.set(res.rate.id);
+    if (!this.destinationRateSuggestionLocked()) {
+      this.applyDestinationRateSuggestion(
+        res.rate,
+        op,
+        this.includeClientBilling(),
+      );
+    }
   }
 
   private applyDestinationRateSuggestion(
