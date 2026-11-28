@@ -179,20 +179,29 @@ export function renderManiobraSettlementDocumentHtml(
       page-break-before: always;
     }
     header {
+      position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 16px;
+      justify-content: center;
+      min-height: 54px;
       padding-bottom: 12px;
       border-bottom: 2.5px solid #0e2a47;
     }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .logo, .logo-fallback {
-      width: 48px;
-      height: 48px;
-      object-fit: contain;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 54px;
+      height: 54px;
+      object-fit: cover;
+      object-position: center;
       border-radius: 6px;
-      flex-shrink: 0;
+    }
+    .letterhead-center {
+      flex: 1;
+      text-align: center;
+      padding: 0 58px 0 62px;
+      min-width: 0;
     }
     .logo-fallback {
       display: flex;
@@ -203,13 +212,16 @@ export function renderManiobraSettlementDocumentHtml(
       font-weight: 700;
       font-size: 18pt;
     }
-    .brand h1 {
+    .letterhead-center h1 {
       margin: 0;
       font-size: 13.5pt;
       letter-spacing: 0.01em;
     }
-    .brand p { margin: 2px 0 0; color: #5b6b7c; font-size: 9pt; }
+    .letterhead-center p { margin: 2px 0 0; color: #5b6b7c; font-size: 9pt; }
     .code {
+      position: absolute;
+      right: 0;
+      top: 0;
       display: inline-block;
       padding: 3px 8px;
       border: 1px solid #0e2a47;
@@ -315,12 +327,10 @@ export function renderManiobraSettlementDocumentHtml(
   <div class="sheet">
     <div class="sheet-body">
     <header>
-      <div class="brand">
-        ${logo}
-        <div>
-          <h1>${escapeSettlementHtml(company)}</h1>
-          <p>${escapeSettlementHtml(tagline)}</p>
-        </div>
+      ${logo}
+      <div class="letterhead-center">
+        <h1>${escapeSettlementHtml(company)}</h1>
+        <p>${escapeSettlementHtml(tagline)}</p>
       </div>
       <span class="code">${escapeSettlementHtml(input.maneuverCode)}</span>
     </header>

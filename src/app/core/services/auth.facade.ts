@@ -68,10 +68,18 @@ export class AuthFacade {
         user.companyTagline ??
         payload.companyTagline ??
         null,
-      companyLogoDataUrl:
-        user.companyLogoDataUrl ??
-        payload.companyLogoDataUrl ??
-        null,
+      companyLogoDataUrl: (() => {
+        const fromUser = user.companyLogoDataUrl?.trim();
+        if (fromUser) {
+          return fromUser;
+        }
+        const fromJwt = payload.companyLogoDataUrl?.trim();
+        if (fromJwt) {
+          return fromJwt;
+        }
+        const legacy = (user as { logoDataUrl?: string | null }).logoDataUrl?.trim();
+        return legacy || null;
+      })(),
       companyContactEmail:
         user.companyContactEmail ??
         payload.companyContactEmail ??

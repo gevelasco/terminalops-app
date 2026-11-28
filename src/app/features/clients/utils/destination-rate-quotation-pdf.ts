@@ -216,19 +216,85 @@ function drawWrappedText(
   return y + lines.length * lineHeight;
 }
 
-async function measureImageSize(
+/** Caja máxima del logo en mm (membrete landscape). */
+export const LETTERHEAD_LOGO_MAX_W_MM = 36;
+export const LETTERHEAD_LOGO_MAX_H_MM = 28;
+
+/**
+ * Recorte centro vertical en imágenes tipo avatar antes de dibujar en PDF.
+ * Devuelve rectángulo de origen en píxeles.
+ */
+export function letterheadSourceCropRect(
+  width: number,
+  height: number,
+): { sx: number; sy: number; sw: number; sh: number } {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  if (h <= w * 1.08) {
+    return { sx: 0, sy: 0, sw: w, sh: h };
+  }
+  const sh = h > w * 1.35 ? w : Math.max(w, Math.round(h * 0.78));
+  const sy = Math.max(0, Math.floor((h - sh) / 2));
+  return { sx: 0, sy, sw: w, sh: Math.min(h, sh) };
+}
+
+export function letterheadLogoDrawMm(
+  imageW: number,
+  imageH: number,
+  maxW = LETTERHEAD_LOGO_MAX_W_MM,
+  maxH = LETTERHEAD_LOGO_MAX_H_MM,
+): { widthMm: number; heightMm: number } {
+  const iw = Math.max(1, imageW);
+  const ih = Math.max(1, imageH);
+  const scale = Math.min(maxW / iw, maxH / ih);
+  return { widthMm: iw * scale, heightMm: ih * scale };
+}
+
+async function rasterizeLetterheadLogo(
   dataUrl: string,
-): Promise<{ width: number; height: number } | null> {
+): Promise<{
+  dataUrl: string;
+  format: 'PNG' | 'JPEG';
+  width: number;
+  height: number;
+} | null> {
+  const inputFormat = detectImageFormat(dataUrl);
+  if (!inputFormat) {
+    return null;
+  }
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-      if (!width || !height) {
+      try {
+        const iw = img.naturalWidth || img.width;
+        const ih = img.naturalHeight || img.height;
+        if (!iw || !ih) {
+          resolve(null);
+          return;
+        }
+        const { sx, sy, sw, sh } = letterheadSourceCropRect(iw, ih);
+        const canvas = document.createElement('canvas');
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        const useJpeg = inputFormat === 'JPEG';
+        resolve({
+          dataUrl: canvas.toDataURL(
+            useJpeg ? 'image/jpeg' : 'image/png',
+            useJpeg ? 0.92 : undefined,
+          ),
+          format: useJpeg ? 'JPEG' : 'PNG',
+          width: sw,
+          height: sh,
+        });
+      } catch {
         resolve(null);
-        return;
       }
-      resolve({ width, height });
     };
     img.onerror = () => resolve(null);
     img.src = dataUrl;
@@ -236,8 +302,7 @@ async function measureImageSize(
 }
 
 /**
- * Membrete centrado: logo en proporción original (sin recortes) o nombre.
- * Con logo (wordmark) no se duplica nombre ni leyenda debajo.
+ * Membrete: logo a la izquierda (recortado si es retrato) y nombre + leyenda centrados.
  */
 export async function drawQuotationLetterhead(
   doc: jsPDF,
@@ -246,48 +311,59 @@ export async function drawQuotationLetterhead(
   pageW: number,
   startY: number,
 ): Promise<number> {
-  let y = startY;
   const logo = company.logoDataUrl?.trim() || '';
-  const format = logo ? detectImageFormat(logo) : null;
   const name = company.name.trim() || 'Empresa';
   const tagline = company.tagline?.trim() || '';
   const contentW = pageW - marginX * 2;
 
+  doc.setFont(PDF_FONT, 'normal');
+  doc.setFontSize(9);
+  const tagLines = tagline
+    ? (doc.splitTextToSize(tagline, contentW) as string[])
+    : [];
+  const textBlockH = tagLines.length > 0 ? 9 + tagLines.length * 3.8 + 2 : 9;
+
   let logoDrawn = false;
-  if (logo && format) {
-    const size = await measureImageSize(logo);
-    if (size) {
-      const maxW = Math.min(64, contentW * 0.5);
-      const maxH = 20;
-      const scale = Math.min(maxW / size.width, maxH / size.height, 1);
-      const logoW = Math.max(18, size.width * scale);
-      const logoH = Math.max(10, size.height * scale);
-      const logoX = (pageW - logoW) / 2;
-      try {
-        doc.addImage(logo, format, logoX, y, logoW, logoH);
-        y += logoH + 4;
-        logoDrawn = true;
-      } catch {
-        logoDrawn = false;
-      }
+  let logoW = 0;
+  let logoH = 0;
+  let logoRaster: { dataUrl: string; format: 'PNG' | 'JPEG' } | null = null;
+
+  if (logo && detectImageFormat(logo)) {
+    const raster = await rasterizeLetterheadLogo(logo);
+    if (raster) {
+      const draw = letterheadLogoDrawMm(raster.width, raster.height);
+      logoW = draw.widthMm;
+      logoH = draw.heightMm;
+      logoRaster = { dataUrl: raster.dataUrl, format: raster.format };
+      logoDrawn = true;
     }
   }
 
-  if (!logoDrawn) {
-    doc.setFont(PDF_FONT, 'bold');
-    doc.setFontSize(15);
-    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
-    doc.text(name, pageW / 2, y + 5, { align: 'center' });
-    y += 9;
-    if (tagline) {
-      doc.setFont(PDF_FONT, 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
-      const tagLines = doc.splitTextToSize(tagline, contentW) as string[];
-      doc.text(tagLines, pageW / 2, y, { align: 'center' });
-      y += tagLines.length * 3.8 + 2;
+  const bandH = Math.max(logoDrawn ? logoH : 0, textBlockH, 12);
+  const logoY = startY + (bandH - logoH) / 2;
+  const textTop = startY + (bandH - textBlockH) / 2;
+
+  if (logoDrawn && logoRaster) {
+    try {
+      doc.addImage(logoRaster.dataUrl, logoRaster.format, marginX, logoY, logoW, logoH);
+    } catch {
+      logoDrawn = false;
     }
   }
+
+  doc.setFont(PDF_FONT, 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
+  doc.text(name, pageW / 2, textTop + 5, { align: 'center' });
+
+  if (tagLines.length > 0) {
+    doc.setFont(PDF_FONT, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
+    doc.text(tagLines, pageW / 2, textTop + 9, { align: 'center' });
+  }
+
+  const y = startY + bandH + 4;
 
   doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
   doc.setLineWidth(0.4);

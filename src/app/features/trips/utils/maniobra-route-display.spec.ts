@@ -9,6 +9,10 @@ describe('parseRouteKmOneWayInput', () => {
     expect(parseRouteKmOneWayInput('1,234.8')).toBe(1234.8);
   });
 
+  it('interpreta 1,200 como miles (no decimal)', () => {
+    expect(parseRouteKmOneWayInput('1,200')).toBe(1200);
+  });
+
   it('rechaza vacío, cero y valores fuera de rango', () => {
     expect(parseRouteKmOneWayInput('')).toBeNull();
     expect(parseRouteKmOneWayInput('0')).toBeNull();

@@ -941,6 +941,16 @@ export class TripsNewDrawerComponent {
     return !!(oS && dS);
   });
 
+  /** CP: par SEPOMEX; municipio/estado: coordenadas válidas en origen y destino. */
+  readonly routeReadyForOsrm = computed(() => {
+    if (this.destinationRateScope() === 'postal_code') {
+      return this.routePairReady();
+    }
+    return (
+      isValidLatLon(this.originCoords()) && isValidLatLon(this.destinationCoords())
+    );
+  });
+
   readonly routeKmInputSuffix = computed(() => (this.routeLoading() ? '' : 'km'));
 
   readonly routeKmInputDisplayValue = computed(() =>
@@ -1612,7 +1622,7 @@ export class TripsNewDrawerComponent {
           if (this.routeCacheActive()) {
             return false;
           }
-          if (!this.routePairReady()) {
+          if (!this.routeReadyForOsrm()) {
             return false;
           }
           return true;
