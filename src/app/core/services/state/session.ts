@@ -137,6 +137,12 @@ export class SessionService {
   readonly companyLogoDataUrl = computed(
     () => this.data()?.companyLogoDataUrl?.trim() || null,
   );
+  readonly companyContactEmail = computed(
+    () => this.data()?.companyContactEmail?.trim() || null,
+  );
+  readonly companyContactPhone = computed(
+    () => this.data()?.companyContactPhone?.trim() || null,
+  );
   readonly theme = computed(() => this.data()?.theme ?? 'light');
   readonly userId = computed(() => this.data()?.id ?? null);
   readonly username = computed(() => this.data()?.username ?? null);
@@ -327,6 +333,23 @@ export class SessionService {
     const next = {
       ...current,
       companyLogoDataUrl: companyLogoDataUrl?.trim() || '',
+    };
+    this.data.set(next);
+    saveEncryptedSession(next);
+  }
+
+  setCompanyContact(
+    contactEmail: string | null | undefined,
+    contactPhone: string | null | undefined,
+  ): void {
+    const current = this.data();
+    if (!current) {
+      return;
+    }
+    const next = {
+      ...current,
+      companyContactEmail: contactEmail?.trim() || '',
+      companyContactPhone: contactPhone?.trim() || '',
     };
     this.data.set(next);
     saveEncryptedSession(next);
@@ -814,6 +837,14 @@ export class SessionService {
       companyLogoDataUrl:
         user.companyLogoDataUrl?.trim() ||
         payload?.companyLogoDataUrl?.trim() ||
+        '',
+      companyContactEmail:
+        user.companyContactEmail?.trim() ||
+        payload?.companyContactEmail?.trim() ||
+        '',
+      companyContactPhone:
+        user.companyContactPhone?.trim() ||
+        payload?.companyContactPhone?.trim() ||
         '',
       theme: user.theme === 'dark' ? 'dark' : 'light',
       id: String(user.id ?? payload?.id ?? ''),

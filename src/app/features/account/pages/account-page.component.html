@@ -85,6 +85,14 @@
           <dd>{{ accountData()!.tagline || '—' }}</dd>
         </div>
         <div class="account-card__field">
+          <dt>Correo de contacto</dt>
+          <dd>{{ accountData()!.contactEmail || '—' }}</dd>
+        </div>
+        <div class="account-card__field">
+          <dt>Teléfono de contacto</dt>
+          <dd>{{ accountData()!.contactPhone || '—' }}</dd>
+        </div>
+        <div class="account-card__field">
           <dt>Estado de la licencia</dt>
           <dd>
             <span class="account-card__badge account-card__badge--{{ statusVariant() }}">
@@ -121,6 +129,19 @@
             label="Leyenda"
             placeholder="Ej. Operaciones logísticas"
             [(value)]="editTagline"
+            [disabled]="saving()"
+          />
+          <to-input
+            label="Correo de contacto"
+            type="email"
+            placeholder="Ej. contacto@empresa.com"
+            [(value)]="editContactEmail"
+            [disabled]="saving()"
+          />
+          <to-input
+            label="Teléfono de contacto"
+            placeholder="Ej. +52 55 1234 5678"
+            [(value)]="editContactPhone"
             [disabled]="saving()"
           />
         </div>

@@ -23,6 +23,9 @@ export interface AuthUser {
   companyTagline?: string | null;
   /** Logo de la empresa (data URL o URL) desde login / cuenta. */
   companyLogoDataUrl?: string | null;
+  /** Contacto comercial (cotizaciones PDF). */
+  companyContactEmail?: string | null;
+  companyContactPhone?: string | null;
   theme: ThemeScheme;
   memberSince?: string;
   department?: string;
@@ -104,6 +107,8 @@ export interface SessionData {
   companyName?: string;
   companyTagline?: string;
   companyLogoDataUrl?: string;
+  companyContactEmail?: string;
+  companyContactPhone?: string;
   theme: ThemeScheme;
   id: string;
   username: string;

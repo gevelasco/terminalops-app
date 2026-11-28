@@ -27,8 +27,9 @@ export function formatFuelEstimateMoney(value: number): string {
 export const FUEL_ESTIMATE_DEBOUNCE_MS = 800;
 
 /**
- * Estimación en backend: distancia operativa (×2) y, si existe,
- * rendimiento aprox. de la unidad (km/L); si no, heurística por configuración/carga/peso.
+ * Estimación en backend solo con datos completos de Nueva Maniobra:
+ * km de ida, unidad con rendimiento (km/L) y peso capturado.
+ * El API aplica ida cargada + regreso vacío (tara 3.5 t).
  */
 export function buildFuelEstimateRequest(params: {
   distanceKm: number | null;
@@ -47,16 +48,31 @@ export function buildFuelEstimateRequest(params: {
     return null;
   }
 
-  const weight = parseNonNegativeNumber(params.approximateWeightTons) ?? 0;
+  const weightRaw = params.approximateWeightTons?.trim() ?? '';
+  if (!weightRaw) {
+    return null;
+  }
+  const weight = parseNonNegativeNumber(weightRaw);
+  if (weight == null || weight <= 0) {
+    return null;
+  }
+
   const unitIdRaw = params.unitId?.trim() ?? '';
   const unitIdParsed = unitIdRaw ? Number(unitIdRaw) : NaN;
   const unitId =
     unitIdRaw && Number.isFinite(unitIdParsed) && unitIdParsed > 0
       ? unitIdParsed
       : null;
+  if (unitId == null) {
+    return null;
+  }
+
   const perf = params.unitPerformanceKmL;
   const unitPerformanceKmL =
     perf != null && Number.isFinite(perf) && perf > 0 ? perf : null;
+  if (unitPerformanceKmL == null) {
+    return null;
+  }
 
   return {
     distanceKm: km,

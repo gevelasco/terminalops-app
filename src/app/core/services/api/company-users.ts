@@ -14,6 +14,9 @@ export interface CompanyAccount {
   tagline: string | null;
   /** Logo de la empresa (data URL o URL absoluta). */
   logoDataUrl: string | null;
+  /** Contacto comercial (cotizaciones PDF). */
+  contactEmail: string | null;
+  contactPhone: string | null;
   subscriptionStatus: string;
   subscriptionPlan: string | null;
   subscriptionEndsAt: string | null;
@@ -25,31 +28,59 @@ export interface CompanyAccount {
   billingHistory?: Record<string, unknown>[] | null;
 }
 
-function mapCompanyLogo(row: Record<string, unknown>): string | null {
-  const raw =
-    row['logoDataUrl'] ??
-    row['logo_data_url'] ??
-    row['logoUrl'] ??
-    row['logo_url'] ??
-    row['companyLogoDataUrl'] ??
-    row['company_logo_data_url'] ??
-    row['logo'] ??
-    null;
-  if (raw == null) {
-    return null;
-  }
-  if (typeof raw === 'object') {
-    const nested = raw as Record<string, unknown>;
-    const nestedUrl =
-      nested['url'] ?? nested['dataUrl'] ?? nested['data_url'] ?? nested['href'];
-    if (nestedUrl == null) {
-      return null;
+function mapOptionalTrimmedString(
+  row: Record<string, unknown>,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const raw = row[key];
+    if (raw == null) {
+      continue;
     }
-    const nestedValue = String(nestedUrl).trim();
-    return nestedValue || null;
+    if (typeof raw === 'object') {
+      continue;
+    }
+    const value = String(raw).trim();
+    if (value) {
+      return value;
+    }
   }
-  const value = String(raw).trim();
-  return value || null;
+  return null;
+}
+
+function mapCompanyLogo(row: Record<string, unknown>): string | null {
+  for (const key of [
+    'logoDataUrl',
+    'logo_data_url',
+    'logoUrl',
+    'logo_url',
+    'companyLogoDataUrl',
+    'company_logo_data_url',
+    'logo',
+  ] as const) {
+    const raw = row[key];
+    if (raw == null) {
+      continue;
+    }
+    if (typeof raw === 'object') {
+      const nested = mapOptionalTrimmedString(
+        raw as Record<string, unknown>,
+        'url',
+        'dataUrl',
+        'data_url',
+        'href',
+      );
+      if (nested) {
+        return nested;
+      }
+      continue;
+    }
+    const value = String(raw).trim();
+    if (value) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function mapBillingHistory(
@@ -78,6 +109,16 @@ function mapCompanyAccount(row: Record<string, unknown>): CompanyAccount {
         ? null
         : String(row['tagline'] ?? row['tagLine'] ?? ''),
     logoDataUrl: mapCompanyLogo(row),
+    contactEmail: mapOptionalTrimmedString(
+      row,
+      'contactEmail',
+      'contact_email',
+    ),
+    contactPhone: mapOptionalTrimmedString(
+      row,
+      'contactPhone',
+      'contact_phone',
+    ),
     subscriptionStatus: String(
       row['subscriptionStatus'] ?? row['subscription_status'] ?? 'active',
     ),
@@ -102,6 +143,9 @@ export interface UpdateCompanyAccountPayload {
   tagline?: string;
   /** Enviar `''` para quitar el logo. */
   logoDataUrl?: string;
+  /** Enviar `''` para quitar. */
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface CompanyUserRow {

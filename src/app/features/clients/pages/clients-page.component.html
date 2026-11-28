@@ -105,14 +105,14 @@
             variant="outline"
             size="sm"
             class="clients-toolbar__export"
-            ariaLabel="Exportar a Excel"
+            ariaLabel="Exportar a PDF"
             [disabled]="ratesFeature.loading() || ratesExporting()"
             (click)="exportRatesCatalog()"
           >
             <to-icon name="download" [size]="18" />
           </to-button>
           <span class="clients-toolbar__export-tooltip" role="tooltip">
-            Exportar a Excel
+            Exportar a PDF
           </span>
         </span>
       }

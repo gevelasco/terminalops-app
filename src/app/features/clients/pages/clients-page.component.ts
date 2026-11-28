@@ -32,11 +32,8 @@ import {
   clientBalanceOverviewMatchesQuery,
   compareClientBalanceOverviewCards,
 } from '@features/clients/utils/client-balance-overview-card.util';
-import {
-  buildDestinationRateCatalogExportRows,
-  buildDestinationRatesCatalogCsv,
-  downloadDestinationRatesCatalogCsv,
-} from '@features/clients/utils/destination-rates-export-csv';
+import { downloadDestinationRatesCatalogPdf } from '@features/clients/utils/destination-rates-catalog-pdf';
+import { quotationBrandingFromSession } from '@features/clients/utils/destination-rate-quotation-pdf';
 import {
   buildDestinationRateStateById,
   filterDestinationRatesByQuery,
@@ -430,15 +427,20 @@ export class ClientsPageComponent implements OnInit {
       const rateScope = normalizeDestinationRateScope(
         this.session.destinationRateScope(),
       );
-      const rows = buildDestinationRateCatalogExportRows(
-        filtered,
-        stateById,
-        rateScope,
-      );
-      const csv = buildDestinationRatesCatalogCsv(rows, rateScope);
-      const stamp = new Date().toISOString().slice(0, 10);
-      downloadDestinationRatesCatalogCsv(csv, `tarifas_catalogo_${stamp}.csv`);
-      this.toast.show(`Exportadas ${rows.length} filas de tarifas.`, 'success');
+      const exported = downloadDestinationRatesCatalogPdf({
+        rates: filtered,
+        stateByRateId: stateById,
+        scope: rateScope,
+        company: quotationBrandingFromSession(this.session),
+      });
+      if (exported <= 0) {
+        this.toast.show(
+          'No hay tarifas para exportar con los filtros actuales.',
+          'warning',
+        );
+        return;
+      }
+      this.toast.show(`Exportadas ${exported} filas de tarifas a PDF.`, 'success');
     } catch {
       this.toast.show('No se pudo exportar el catálogo de tarifas.', 'error');
     } finally {

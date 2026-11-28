@@ -42,6 +42,7 @@ import {
 import {
   buildDestinationRateQuotationInput,
   downloadDestinationRateQuotationPdf,
+  quotationBrandingFromSession,
   resolveQuotationDestinationLabel,
   resolveQuotationOriginLabel,
 } from '@features/clients/utils/destination-rate-quotation-pdf';
@@ -242,6 +243,7 @@ export class DestinationRatesMapComponent implements AfterViewInit, OnDestroy {
             originCityMunicipality: rate?.originCityMunicipality,
             originLocality: rate?.originLocality,
           }),
+          company: quotationBrandingFromSession(this.session),
         }),
       );
     } catch {

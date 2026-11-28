@@ -80,6 +80,8 @@ export class AccountPageComponent {
   readonly logoSaving = signal(false);
   readonly editName = signal('');
   readonly editTagline = signal('');
+  readonly editContactEmail = signal('');
+  readonly editContactPhone = signal('');
 
   readonly proInviteCode = signal('');
   readonly activatingPro = signal(false);
@@ -167,6 +169,8 @@ export class AccountPageComponent {
     if (!data) return;
     this.editName.set(data.name);
     this.editTagline.set(data.tagline ?? '');
+    this.editContactEmail.set(data.contactEmail ?? '');
+    this.editContactPhone.set(data.contactPhone ?? '');
     this.editing.set(true);
   }
 
@@ -225,10 +229,17 @@ export class AccountPageComponent {
     }
 
     const tagline = this.editTagline().trim();
+    const contactEmail = this.editContactEmail().trim();
+    const contactPhone = this.editContactPhone().trim();
     this.saving.set(true);
     try {
       const updated = await firstValueFrom(
-        this.api.updateAccount(companyId, { name, tagline }),
+        this.api.updateAccount(companyId, {
+          name,
+          tagline,
+          contactEmail,
+          contactPhone,
+        }),
       );
       this.applyAccountUpdate(updated);
       this.editing.set(false);
@@ -306,6 +317,7 @@ export class AccountPageComponent {
   private syncSessionFromAccount(data: CompanyAccount): void {
     this.session.setCompanyBranding(data.name, data.tagline ?? '');
     this.session.setSubscriptionPlan(data.subscriptionPlan);
+    this.session.setCompanyContact(data.contactEmail, data.contactPhone);
     if (data.logoDataUrl) {
       this.session.setCompanyLogo(data.logoDataUrl);
       this.logoOverride.set(undefined);

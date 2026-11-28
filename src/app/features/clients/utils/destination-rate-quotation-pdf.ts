@@ -6,18 +6,11 @@ import {
   type DestinationRateScope,
 } from '@shared/models/destination-rate-scope';
 
-const LOGO_URL = '/branding/vsc-grupo-logistico.jpg';
-
-/** Origen comercial por defecto (base operativa VSC). */
+/** Origen comercial por defecto cuando la tarifa no trae origen legible. */
 export const DESTINATION_RATE_QUOTATION_DEFAULT_ORIGIN = 'Manzanillo, Colima';
 
-const COMPANY_CONTACT = {
-  name: 'Grupo Logístico VSC',
-  email: 'contacto.grupovsc@gmail.com',
-  phone: '+52 3121675278',
-} as const;
-
-const BRAND = {
+/** Paleta compartida con catálogo de tarifas PDF. */
+export const QUOTATION_PDF_BRAND = {
   navy: [26, 58, 107] as const,
   red: [200, 16, 46] as const,
   ink: [31, 41, 51] as const,
@@ -26,12 +19,23 @@ const BRAND = {
   panel: [245, 248, 252] as const,
 };
 
+const BRAND = QUOTATION_PDF_BRAND;
+
+export type QuotationCompanyBranding = {
+  name: string;
+  tagline?: string | null;
+  logoDataUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+};
+
 export type DestinationRateQuotationInput = {
   serviceType: string;
   axleConfiguration: string;
   commercialRate: number;
   destinationLabel?: string;
   originLabel: string;
+  company: QuotationCompanyBranding;
 };
 
 function formatQuotationMxn(amount: number): string {
@@ -105,7 +109,6 @@ export function resolveQuotationDestinationLabel(params: {
     return muniClean || stateClean || undefined;
   }
 
-  // postal_code
   const placeParts = [locClean || muniClean, stateClean].filter(Boolean);
   const place = placeParts.join(', ');
   if (place && cpClean) {
@@ -117,12 +120,42 @@ export function resolveQuotationDestinationLabel(params: {
   return cpClean ? `CP ${cpClean}` : undefined;
 }
 
+export function buildQuotationCompanyBranding(
+  company: QuotationCompanyBranding,
+): QuotationCompanyBranding {
+  return {
+    name: company.name.trim() || 'Empresa',
+    tagline: company.tagline?.trim() || null,
+    logoDataUrl: company.logoDataUrl?.trim() || null,
+    contactEmail: company.contactEmail?.trim() || null,
+    contactPhone: company.contactPhone?.trim() || null,
+  };
+}
+
+/** Branding PDF desde SessionService (nombre, logo y contacto comercial). */
+export function quotationBrandingFromSession(session: {
+  companyName: () => string | null;
+  companyTagline: () => string | null;
+  companyLogoDataUrl: () => string | null;
+  companyContactEmail: () => string | null;
+  companyContactPhone: () => string | null;
+}): QuotationCompanyBranding {
+  return buildQuotationCompanyBranding({
+    name: session.companyName() || 'Empresa',
+    tagline: session.companyTagline(),
+    logoDataUrl: session.companyLogoDataUrl(),
+    contactEmail: session.companyContactEmail(),
+    contactPhone: session.companyContactPhone(),
+  });
+}
+
 export function buildDestinationRateQuotationInput(params: {
   serviceType: string;
   axleCount?: number | null;
   commercialRate: number;
   destinationLabel?: string;
   originLabel?: string;
+  company: QuotationCompanyBranding;
 }): DestinationRateQuotationInput {
   return {
     serviceType: params.serviceType.trim() || '—',
@@ -131,25 +164,26 @@ export function buildDestinationRateQuotationInput(params: {
     destinationLabel: params.destinationLabel?.trim() || undefined,
     originLabel:
       params.originLabel?.trim() || DESTINATION_RATE_QUOTATION_DEFAULT_ORIGIN,
+    company: buildQuotationCompanyBranding(params.company),
   };
 }
 
-async function loadLogoDataUrl(): Promise<string | null> {
-  try {
-    const res = await fetch(LOGO_URL);
-    if (!res.ok) {
-      return null;
-    }
-    const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ''));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
+function detectImageFormat(
+  dataUrl: string,
+): 'PNG' | 'JPEG' | 'WEBP' | null {
+  if (dataUrl.startsWith('data:image/png')) {
+    return 'PNG';
   }
+  if (
+    dataUrl.startsWith('data:image/jpeg') ||
+    dataUrl.startsWith('data:image/jpg')
+  ) {
+    return 'JPEG';
+  }
+  if (dataUrl.startsWith('data:image/webp')) {
+    return 'WEBP';
+  }
+  return null;
 }
 
 function drawWrappedText(
@@ -165,8 +199,96 @@ function drawWrappedText(
   return y + lines.length * lineHeight;
 }
 
+export function drawQuotationLetterhead(
+  doc: jsPDF,
+  company: QuotationCompanyBranding,
+  marginX: number,
+  pageW: number,
+  startY: number,
+): number {
+  let y = startY;
+  const logo = company.logoDataUrl?.trim() || '';
+  const format = logo ? detectImageFormat(logo) : null;
+  const name = company.name.trim() || 'Empresa';
+  const tagline = company.tagline?.trim() || '';
+
+  const textLeft = marginX + (format ? 28 : 0);
+
+  if (logo && format) {
+    try {
+      const logoSize = 18;
+      doc.addImage(logo, format, marginX, y, logoSize, logoSize);
+    } catch {
+      // Data URL inválido: solo tipografía.
+    }
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(...BRAND.navy);
+  doc.text(name, textLeft, y + 7);
+
+  if (tagline) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...BRAND.muted);
+    const tagLines = doc.splitTextToSize(tagline, pageW - textLeft - marginX) as string[];
+    doc.text(tagLines, textLeft, y + 12.5);
+    y += Math.max(20, 14 + tagLines.length * 3.6);
+  } else {
+    y += 20;
+  }
+
+  doc.setDrawColor(...BRAND.red);
+  doc.setLineWidth(0.7);
+  doc.line(marginX, y, pageW - marginX, y);
+  return y + 7;
+}
+
+export function drawQuotationContactFooter(
+  doc: jsPDF,
+  company: QuotationCompanyBranding,
+  marginX: number,
+  pageW: number,
+  pageH: number,
+  afterY: number,
+): void {
+  const name = company.name.trim() || 'Empresa';
+  const email = company.contactEmail?.trim() || '';
+  const phone = company.contactPhone?.trim() || '';
+  const lines = [name, email, phone].filter(Boolean);
+  const blockH = 6 + lines.length * 4.2;
+  const top = Math.max(afterY + 4, pageH - blockH - 8);
+
+  doc.setDrawColor(...BRAND.navy);
+  doc.setLineWidth(0.35);
+  doc.line(marginX, top, pageW - marginX, top);
+
+  doc.setFillColor(...BRAND.panel);
+  doc.rect(marginX, top + 1.2, pageW - marginX * 2, blockH - 1, 'F');
+
+  let y = top + 5.5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.navy);
+  doc.text(name, pageW / 2, y, { align: 'center' });
+  y += 4.2;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.4);
+  doc.setTextColor(...BRAND.muted);
+  if (email) {
+    doc.text(email, pageW / 2, y, { align: 'center' });
+    y += 3.8;
+  }
+  if (phone) {
+    doc.text(phone, pageW / 2, y, { align: 'center' });
+  }
+}
+
 /**
- * Cotización de transporte terrestre en una sola hoja (carta), con membrete VSC.
+ * Cotización de transporte terrestre en una sola hoja (carta),
+ * membrete y pie con branding de la empresa.
  */
 export async function downloadDestinationRateQuotationPdf(
   input: DestinationRateQuotationInput,
@@ -180,26 +302,7 @@ export async function downloadDestinationRateQuotationPdf(
   const pageH = doc.internal.pageSize.getHeight();
   const marginX = 16;
   const contentW = pageW - marginX * 2;
-  let y = 12;
-
-  const logo = await loadLogoDataUrl();
-  if (logo) {
-    const logoW = 64;
-    const logoH = (logoW * 244) / 888;
-    doc.addImage(logo, 'JPEG', marginX, y, logoW, logoH);
-    y += logoH + 2.5;
-  } else {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(...BRAND.navy);
-    doc.text('VSC Grupo Logístico', marginX, y + 6);
-    y += 14;
-  }
-
-  doc.setDrawColor(...BRAND.red);
-  doc.setLineWidth(0.7);
-  doc.line(marginX, y, pageW - marginX, y);
-  y += 8;
+  let y = drawQuotationLetterhead(doc, input.company, marginX, pageW, 12);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -224,22 +327,19 @@ export async function downloadDestinationRateQuotationPdf(
   );
   y += 7;
 
-  // Panel protagonista: descripción del servicio
   const panelTop = y;
   const panelPadX = 6;
   const panelPadY = 5;
   const lineStep = 7.2;
   const extraRouteLines = 1 + (input.destinationLabel ? 1 : 0);
-  const serviceLineCount = 3 + extraRouteLines; // tipo, ejes, tarifa + origen/destino
+  const serviceLineCount = 3 + extraRouteLines;
   const noteH = 8;
-  const panelH =
-    panelPadY * 2 + 7 + serviceLineCount * lineStep + noteH;
+  const panelH = panelPadY * 2 + 7 + serviceLineCount * lineStep + noteH;
 
   doc.setFillColor(...BRAND.panel);
   doc.setDrawColor(...BRAND.navy);
   doc.setLineWidth(0.4);
   doc.roundedRect(marginX, panelTop, contentW, panelH, 1.5, 1.5, 'FD');
-  // Acento izquierdo
   doc.setFillColor(...BRAND.navy);
   doc.rect(marginX, panelTop, 1.8, panelH, 'F');
 
@@ -333,7 +433,7 @@ export async function downloadDestinationRateQuotationPdf(
     },
   ];
 
-  const footerReserve = 30;
+  const footerReserve = 34;
   const available = pageH - footerReserve - y;
   doc.setFontSize(8.2);
   let rawLines = 0;
@@ -362,8 +462,7 @@ export async function downloadDestinationRateQuotationPdf(
     y += lines.length * bodyLh + 2.2;
   }
 
-  // Vigencia + pie de contacto
-  const contactBlockH = 14;
+  const contactBlockH = 16;
   const vigenciaBlockH = 10;
   const footerY = Math.min(
     Math.max(y + 3, pageH - contactBlockH - vigenciaBlockH - 4),
@@ -396,24 +495,7 @@ export async function downloadDestinationRateQuotationPdf(
     3.0,
   );
 
-  const contactTop = Math.max(y + 4, pageH - contactBlockH);
-  doc.setDrawColor(...BRAND.line);
-  doc.setLineWidth(0.25);
-  doc.line(marginX, contactTop - 2, pageW - marginX, contactTop - 2);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND.navy);
-  doc.text(COMPANY_CONTACT.name, pageW / 2, contactTop + 2, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(...BRAND.muted);
-  doc.text(COMPANY_CONTACT.email, pageW / 2, contactTop + 5.8, {
-    align: 'center',
-  });
-  doc.text(COMPANY_CONTACT.phone, pageW / 2, contactTop + 9.2, {
-    align: 'center',
-  });
+  drawQuotationContactFooter(doc, input.company, marginX, pageW, pageH, y);
 
   const safeService =
     input.serviceType

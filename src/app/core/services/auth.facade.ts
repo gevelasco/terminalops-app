@@ -72,6 +72,14 @@ export class AuthFacade {
         user.companyLogoDataUrl ??
         payload.companyLogoDataUrl ??
         null,
+      companyContactEmail:
+        user.companyContactEmail ??
+        payload.companyContactEmail ??
+        null,
+      companyContactPhone:
+        user.companyContactPhone ??
+        payload.companyContactPhone ??
+        null,
       phone: user.phone ?? payload.phone ?? '',
       jobTitle: user.jobTitle ?? payload.jobTitle,
       photoDataUrl: user.photoDataUrl ?? payload.photoDataUrl ?? '',
@@ -170,6 +178,10 @@ export class AuthFacade {
     if (merged.companyLogoDataUrl != null) {
       this.session.setCompanyLogo(merged.companyLogoDataUrl);
     }
+    this.session.setCompanyContact(
+      merged.companyContactEmail,
+      merged.companyContactPhone,
+    );
     this.profiles.hydrateFromSession();
     this.theme.setPreset(theme);
   }

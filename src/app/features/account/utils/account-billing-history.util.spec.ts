@@ -7,6 +7,8 @@ function account(partial: Partial<CompanyAccount> = {}): CompanyAccount {
     name: 'Demo',
     tagline: null,
     logoDataUrl: null,
+    contactEmail: null,
+    contactPhone: null,
     subscriptionStatus: 'active',
     subscriptionPlan: 'basic',
     subscriptionEndsAt: null,
