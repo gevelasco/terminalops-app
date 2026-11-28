@@ -107,6 +107,7 @@ import {
 import { isFleetResourceActive } from '@shared/utils/fleet-resource-active';
 import { resourceIdsEqual } from '@shared/utils/resource-id';
 import { TripsService as TripsApiService } from '@core/services/api/trips';
+import { UnitsService } from '@core/services/api/units';
 import { DestinationRatesService as DestinationRatesApiService } from '@core/services/api/destination-rates';
 import { TripsFeatureService } from '@features/trips/services/trips.service';
 import { OperationalCentersFeatureService } from '@features/clients/services/operational-centers.service';
@@ -184,7 +185,15 @@ import { ToFleetBrandComboboxComponent } from '@shared/ui/to-fleet-brand-combobo
 import { CargoDescriptionComboboxComponent } from '@features/trips/components/cargo-description-combobox/cargo-description-combobox.component';
 import { DestinationCpComboboxComponent } from '@features/trips/components/destination-cp-combobox/destination-cp-combobox.component';
 import type { ClientCargoHistoryItem } from '@shared/models/api/api-trips-cargo-history.model';
-import { combineLatest, EMPTY, forkJoin, of, throwError, type Observable } from 'rxjs';
+import {
+  combineLatest,
+  EMPTY,
+  forkJoin,
+  of,
+  take,
+  throwError,
+  type Observable,
+} from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -242,6 +251,7 @@ export class TripsNewDrawerComponent {
   private readonly operationConfigsFeature = inject(OperationConfigurationsFeatureService);
   private readonly tripEvaluation = inject(TripEvaluationService);
   private readonly tripsApi = inject(TripsApiService);
+  private readonly unitsApi = inject(UnitsService);
   private readonly destroyRef = inject(DestroyRef);
   readonly catalog = inject(TripsFormCatalogService);
   readonly loadPlacesCatalog = inject(TripLoadPlacesFeatureService);
@@ -1129,6 +1139,31 @@ export class TripsNewDrawerComponent {
       this.catalog.ensureComplianceExpenses(unitId, equipmentIds);
     });
 
+    effect((onCleanup) => {
+      const id = this.unitId().trim();
+      if (!id || this.selectedUnitPerformanceKmL() != null) {
+        return;
+      }
+      const sub = this.unitsApi
+        .getUnitById(id)
+        .pipe(take(1))
+        .subscribe({
+          next: (unit) => {
+            if (!resourceIdsEqual(unit.id, this.unitId())) {
+              return;
+            }
+            const perf = parseUnitPerformanceKmL(
+              unit.fleetMeta?.approximatePerformanceKmL,
+            );
+            if (perf != null) {
+              this.assignmentUnitPerformanceKmL.set(perf);
+            }
+            this.pickedUnit.set(unit);
+          },
+        });
+      onCleanup(() => sub.unsubscribe());
+    });
+
     this.fuelEstimatePipeline$ = combineLatest([
       toObservable(this.routeKm),
       toObservable(this.operationType),
@@ -1748,9 +1783,10 @@ export class TripsNewDrawerComponent {
         this.matchedDestinationRateId.set(null);
       }
 
-      const rateOriginId = isOperationalCenterNewRoute(originId) ? '' : originId;
       const matchCtx = this.rateMatchContext();
       const matchRes = this.rateMatchResult();
+      const matchPending =
+        !!matchCtx && (!matchRes || matchRes.key !== matchCtx.key);
       const rate =
         matchCtx && matchRes && matchRes.key === matchCtx.key
           ? (matchRes.rate ?? undefined)
@@ -1777,6 +1813,10 @@ export class TripsNewDrawerComponent {
         this.destinationRateChargeRecognized.set(false);
         this.matchedDestinationRateId.set(null);
         this.clearDestinationRateSuggestionUi();
+        return;
+      }
+
+      if (matchPending) {
         return;
       }
 
