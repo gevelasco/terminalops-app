@@ -85,12 +85,12 @@ function layoutColumnWidths(
 }
 
 /** Catálogo de tarifas PDF (carta membretada); Estado/Municipio/CP sin repetir. */
-export function downloadDestinationRatesCatalogPdf(params: {
+export async function downloadDestinationRatesCatalogPdf(params: {
   rates: readonly DestinationRate[];
   stateByRateId?: ReadonlyMap<string, string>;
   scope?: DestinationRateScope | string | null;
   company: QuotationCompanyBranding;
-}): number {
+}): Promise<number> {
   const scope = normalizeDestinationRateScope(params.scope);
   const rows = buildDestinationRateTableRows(
     params.rates,
@@ -128,25 +128,36 @@ export function downloadDestinationRatesCatalogPdf(params: {
   let y = 0;
   let tableBottom = pageH - footerReserve;
 
-  const startPage = (): void => {
+  const startPage = async (): Promise<void> => {
     if (pageIndex > 0) {
       doc.addPage();
     }
     pageIndex += 1;
-    y = drawQuotationLetterhead(doc, company, marginX, pageW, 12);
+    y = await drawQuotationLetterhead(doc, company, marginX, pageW, 12);
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('times', 'bold');
     doc.setFontSize(12);
-    doc.setTextColor(...BRAND.ink);
+    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
     doc.text('CATÁLOGO DE TARIFAS POR DESTINO', pageW / 2, y, {
       align: 'center',
     });
     y += 5.5;
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('times', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(...BRAND.muted);
+    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
     doc.text(`Fecha: ${dateLabel}`, pageW / 2, y, { align: 'center' });
+    y += 5;
+
+    doc.setFont('times', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
+    doc.text(
+      'Los precios mostrados son más IVA. Al facturar se adiciona el IVA vigente.',
+      pageW / 2,
+      y,
+      { align: 'center' },
+    );
     y += 6;
 
     drawTableHeader(doc, columns, colWidths, marginX, y, headerH);
@@ -154,18 +165,18 @@ export function downloadDestinationRatesCatalogPdf(params: {
     tableBottom = pageH - footerReserve;
   };
 
-  startPage();
+  await startPage();
 
   for (let i = 0; i < rows.length; i += 1) {
     const row = rows[i]!;
     if (y + rowH > tableBottom) {
       drawQuotationContactFooter(doc, company, marginX, pageW, pageH, y);
-      startPage();
+      await startPage();
     }
 
     const zebra = i % 2 === 1;
     if (zebra) {
-      doc.setFillColor(...BRAND.panel);
+      doc.setFillColor(BRAND.panel[0], BRAND.panel[1], BRAND.panel[2]);
       doc.rect(marginX, y, contentW, rowH, 'F');
     }
 
@@ -183,7 +194,7 @@ export function downloadDestinationRatesCatalogPdf(params: {
         (col.key === 'municipality' && row.municipalityRowSpan === 0) ||
         (col.key === 'postalCode' && row.postalCodeRowSpan === 0);
 
-      doc.setDrawColor(...BRAND.line);
+      doc.setDrawColor(BRAND.line[0], BRAND.line[1], BRAND.line[2]);
       doc.setLineWidth(0.15);
       doc.rect(x, y, w, rowH);
 
@@ -193,7 +204,7 @@ export function downloadDestinationRatesCatalogPdf(params: {
           isMergedLead || col.key === 'cost' ? 'bold' : 'normal',
         );
         doc.setFontSize(col.key === 'state' ? 8 : 7.6);
-        const ink = isMergedLead ? BRAND.navy : BRAND.ink;
+        const ink = isMergedLead ? BRAND.accent : BRAND.ink;
         doc.setTextColor(ink[0], ink[1], ink[2]);
         const pad = 1.4;
         const maxW = w - pad * 2;
@@ -235,7 +246,7 @@ function drawTableHeader(
   headerH: number,
 ): void {
   const contentW = colWidths.reduce((a, b) => a + b, 0);
-  doc.setFillColor(...BRAND.navy);
+  doc.setFillColor(BRAND.header[0], BRAND.header[1], BRAND.header[2]);
   doc.rect(marginX, y, contentW, headerH, 'F');
 
   let x = marginX;
@@ -267,7 +278,7 @@ function drawPageNumber(
 ): void {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(...BRAND.muted);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   doc.text(`Página ${page} de ${total}`, pageW / 2, pageH - 6, {
     align: 'center',
   });

@@ -9,17 +9,31 @@ import {
 /** Origen comercial por defecto cuando la tarifa no trae origen legible. */
 export const DESTINATION_RATE_QUOTATION_DEFAULT_ORIGIN = 'Manzanillo, Colima';
 
-/** Paleta compartida con catálogo de tarifas PDF. */
+/**
+ * Paleta neutra corporativa (válida para cualquier empresa).
+ * Evita azul/rojo de marca fija en el membrete y paneles.
+ */
 export const QUOTATION_PDF_BRAND = {
-  navy: [26, 58, 107] as const,
-  red: [200, 16, 46] as const,
-  ink: [31, 41, 51] as const,
-  muted: [75, 85, 99] as const,
-  line: [209, 213, 219] as const,
-  panel: [245, 248, 252] as const,
+  /** Acento / tipografía de sección (slate-700). */
+  accent: [51, 65, 85] as const,
+  /** Texto principal (slate-800). */
+  ink: [30, 41, 59] as const,
+  /** Texto secundario (slate-500). */
+  muted: [100, 116, 139] as const,
+  /** Líneas de membrete / separadores (slate-400). */
+  rule: [148, 163, 184] as const,
+  /** Bordes suaves de tabla (slate-300). */
+  line: [203, 213, 225] as const,
+  /** Fondo de panel (slate-50). */
+  panel: [248, 250, 252] as const,
+  /** Encabezados de tabla (slate-700). */
+  header: [51, 65, 85] as const,
 };
 
 const BRAND = QUOTATION_PDF_BRAND;
+
+/** Tipografía formal (Times) para documentos comerciales. */
+const PDF_FONT = 'times';
 
 export type QuotationCompanyBranding = {
   name: string;
@@ -199,48 +213,89 @@ function drawWrappedText(
   return y + lines.length * lineHeight;
 }
 
-export function drawQuotationLetterhead(
+async function measureImageSize(
+  dataUrl: string,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      if (!width || !height) {
+        resolve(null);
+        return;
+      }
+      resolve({ width, height });
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Membrete: logo en proporción real (landscape) o nombre tipográfico.
+ * Si hay logo (wordmark), no se duplica el nombre de la empresa al lado.
+ */
+export async function drawQuotationLetterhead(
   doc: jsPDF,
   company: QuotationCompanyBranding,
   marginX: number,
   pageW: number,
   startY: number,
-): number {
+): Promise<number> {
   let y = startY;
   const logo = company.logoDataUrl?.trim() || '';
   const format = logo ? detectImageFormat(logo) : null;
   const name = company.name.trim() || 'Empresa';
   const tagline = company.tagline?.trim() || '';
+  const contentW = pageW - marginX * 2;
 
-  const textLeft = marginX + (format ? 28 : 0);
-
+  let logoDrawn = false;
   if (logo && format) {
-    try {
-      const logoSize = 18;
-      doc.addImage(logo, format, marginX, y, logoSize, logoSize);
-    } catch {
-      // Data URL inválido: solo tipografía.
+    const size = await measureImageSize(logo);
+    if (size) {
+      const maxW = Math.min(72, contentW * 0.55);
+      const maxH = 22;
+      const scale = Math.min(maxW / size.width, maxH / size.height);
+      const logoW = Math.max(12, size.width * scale);
+      const logoH = Math.max(8, size.height * scale);
+      try {
+        doc.addImage(logo, format, marginX, y, logoW, logoH);
+        y += logoH + 3;
+        logoDrawn = true;
+      } catch {
+        logoDrawn = false;
+      }
     }
   }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(...BRAND.navy);
-  doc.text(name, textLeft, y + 7);
-
-  if (tagline) {
-    doc.setFont('helvetica', 'normal');
+  if (!logoDrawn) {
+    doc.setFont(PDF_FONT, 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
+    doc.text(name, marginX, y + 6);
+    y += 10;
+    if (tagline) {
+      doc.setFont(PDF_FONT, 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
+      const tagLines = doc.splitTextToSize(tagline, contentW) as string[];
+      doc.text(tagLines, marginX, y);
+      y += tagLines.length * 4 + 2;
+    } else {
+      y += 2;
+    }
+  } else if (tagline) {
+    doc.setFont(PDF_FONT, 'italic');
     doc.setFontSize(9);
-    doc.setTextColor(...BRAND.muted);
-    const tagLines = doc.splitTextToSize(tagline, pageW - textLeft - marginX) as string[];
-    doc.text(tagLines, textLeft, y + 12.5);
-    y += Math.max(20, 14 + tagLines.length * 3.6);
-  } else {
-    y += 20;
+    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
+    const tagLines = doc.splitTextToSize(tagline, contentW) as string[];
+    doc.text(tagLines, marginX, y);
+    y += tagLines.length * 3.8 + 2;
   }
 
-  doc.setDrawColor(...BRAND.red);
-  doc.setLineWidth(0.7);
+  doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
+  doc.setLineWidth(0.45);
   doc.line(marginX, y, pageW - marginX, y);
   return y + 7;
 }
@@ -260,23 +315,23 @@ export function drawQuotationContactFooter(
   const blockH = 6 + lines.length * 4.2;
   const top = Math.max(afterY + 4, pageH - blockH - 8);
 
-  doc.setDrawColor(...BRAND.navy);
+  doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
   doc.setLineWidth(0.35);
   doc.line(marginX, top, pageW - marginX, top);
 
-  doc.setFillColor(...BRAND.panel);
+  doc.setFillColor(BRAND.panel[0], BRAND.panel[1], BRAND.panel[2]);
   doc.rect(marginX, top + 1.2, pageW - marginX * 2, blockH - 1, 'F');
 
   let y = top + 5.5;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.navy);
+  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
   doc.text(name, pageW / 2, y, { align: 'center' });
   y += 4.2;
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(7.4);
-  doc.setTextColor(...BRAND.muted);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   if (email) {
     doc.text(email, pageW / 2, y, { align: 'center' });
     y += 3.8;
@@ -302,19 +357,19 @@ export async function downloadDestinationRateQuotationPdf(
   const pageH = doc.internal.pageSize.getHeight();
   const marginX = 16;
   const contentW = pageW - marginX * 2;
-  let y = drawQuotationLetterhead(doc, input.company, marginX, pageW, 12);
+  let y = await drawQuotationLetterhead(doc, input.company, marginX, pageW, 12);
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(...BRAND.ink);
+  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
   const title = 'COTIZACIÓN DE SERVICIO DE TRANSPORTE TERRESTRE';
   const titleLines = doc.splitTextToSize(title, contentW) as string[];
   doc.text(titleLines, pageW / 2, y, { align: 'center' });
   y += titleLines.length * 5.4 + 2;
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.muted);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   doc.text(
     `Fecha: ${new Date().toLocaleDateString('es-MX', {
       day: '2-digit',
@@ -336,17 +391,17 @@ export async function downloadDestinationRateQuotationPdf(
   const noteH = 8;
   const panelH = panelPadY * 2 + 7 + serviceLineCount * lineStep + noteH;
 
-  doc.setFillColor(...BRAND.panel);
-  doc.setDrawColor(...BRAND.navy);
+  doc.setFillColor(BRAND.panel[0], BRAND.panel[1], BRAND.panel[2]);
+  doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
   doc.setLineWidth(0.4);
   doc.roundedRect(marginX, panelTop, contentW, panelH, 1.5, 1.5, 'FD');
-  doc.setFillColor(...BRAND.navy);
+  doc.setFillColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
   doc.rect(marginX, panelTop, 1.8, panelH, 'F');
 
   y = panelTop + panelPadY + 4.5;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(12);
-  doc.setTextColor(...BRAND.navy);
+  doc.setTextColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
   doc.text('Descripción del servicio', marginX + panelPadX, y);
   y += 8;
 
@@ -366,18 +421,18 @@ export async function downloadDestinationRateQuotationPdf(
   ];
 
   for (const line of serviceLines) {
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(PDF_FONT, 'bold');
     doc.setFontSize(10.5);
-    doc.setTextColor(...BRAND.ink);
+    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
     const bulletLabel = `•  ${line.label}`;
     doc.text(bulletLabel, marginX + panelPadX, y);
     const labelW = doc.getTextWidth(`${bulletLabel} `);
-    doc.setFont('helvetica', line.emphasize ? 'bold' : 'normal');
+    doc.setFont(PDF_FONT, line.emphasize ? 'bold' : 'normal');
     if (line.emphasize) {
-      doc.setTextColor(...BRAND.navy);
+      doc.setTextColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
       doc.setFontSize(12);
     } else {
-      doc.setTextColor(...BRAND.ink);
+      doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
       doc.setFontSize(10.5);
     }
     const valueMaxW = contentW - panelPadX * 2 - labelW;
@@ -387,9 +442,9 @@ export async function downloadDestinationRateQuotationPdf(
   }
 
   y += 1;
-  doc.setFont('helvetica', 'italic');
+  doc.setFont(PDF_FONT, 'italic');
   doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.muted);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   drawWrappedText(
     doc,
     'La tarifa indicada corresponde al servicio de transporte cotizado y no incluye IVA.',
@@ -400,9 +455,9 @@ export async function downloadDestinationRateQuotationPdf(
   );
   y = panelTop + panelH + 8;
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(...BRAND.navy);
+  doc.setTextColor(BRAND.accent[0], BRAND.accent[1], BRAND.accent[2]);
   doc.text('CONDICIONES GENERALES DEL SERVICIO', marginX, y);
   y += 6;
 
@@ -448,15 +503,15 @@ export async function downloadDestinationRateQuotationPdf(
   const titleSize = bodySize + 0.9;
 
   for (const section of conditions) {
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(PDF_FONT, 'bold');
     doc.setFontSize(titleSize);
-    doc.setTextColor(...BRAND.ink);
+    doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
     doc.text(section.title, marginX, y);
     y += bodyLh + 0.4;
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(PDF_FONT, 'normal');
     doc.setFontSize(bodySize);
-    doc.setTextColor(...BRAND.muted);
+    doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
     const lines = doc.splitTextToSize(section.body, contentW) as string[];
     doc.text(lines, marginX, y);
     y += lines.length * bodyLh + 2.2;
@@ -468,13 +523,13 @@ export async function downloadDestinationRateQuotationPdf(
     Math.max(y + 3, pageH - contactBlockH - vigenciaBlockH - 4),
     pageH - contactBlockH - vigenciaBlockH,
   );
-  doc.setDrawColor(...BRAND.red);
+  doc.setDrawColor(BRAND.rule[0], BRAND.rule[1], BRAND.rule[2]);
   doc.setLineWidth(0.45);
   doc.line(marginX, footerY - 3, pageW - marginX, footerY - 3);
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(...BRAND.ink);
+  doc.setTextColor(BRAND.ink[0], BRAND.ink[1], BRAND.ink[2]);
   y = drawWrappedText(
     doc,
     'Vigencia: sujeta a confirmación al momento de contratar el servicio.',
@@ -483,9 +538,9 @@ export async function downloadDestinationRateQuotationPdf(
     contentW,
     3.1,
   );
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(...BRAND.muted);
+  doc.setTextColor(BRAND.muted[0], BRAND.muted[1], BRAND.muted[2]);
   y = drawWrappedText(
     doc,
     'La contratación implica la aceptación de estas condiciones comerciales y operativas.',

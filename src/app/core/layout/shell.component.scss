@@ -67,10 +67,12 @@
 .shell-brand__logo {
   display: block;
   flex-shrink: 0;
-  width: 2.75rem;
+  width: auto;
   height: 2.75rem;
+  max-width: 7.75rem;
   object-fit: contain;
-  border-radius: 0.65rem;
+  object-position: left center;
+  border-radius: 0.45rem;
   background: color-mix(in srgb, var(--shell-fg, #ffffff) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--shell-fg, #ffffff) 14%, transparent);
 }

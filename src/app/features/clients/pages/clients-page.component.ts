@@ -427,7 +427,7 @@ export class ClientsPageComponent implements OnInit {
       const rateScope = normalizeDestinationRateScope(
         this.session.destinationRateScope(),
       );
-      const exported = downloadDestinationRatesCatalogPdf({
+      const exported = await downloadDestinationRatesCatalogPdf({
         rates: filtered,
         stateByRateId: stateById,
         scope: rateScope,
